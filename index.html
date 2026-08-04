@@ -717,7 +717,9 @@ var CREWJOBS = [], JOBSVESSEL = "";
 function loadJobs(){
   if(!ME) return;
   var v = ME.vessels[0] || "Everywhen";
-  apiGet("fn=crewjobs&email="+encodeURIComponent(ME.email)+"&code="+encodeURIComponent(ME.code||"")+"&vessel="+encodeURIComponent(v))
+  // Directors/Managers review the whole vessel (to approve crew work); crew see only their own.
+  var mine = /director|manager/i.test(ME.role||"") ? "0" : "1";
+  apiGet("fn=crewjobs&email="+encodeURIComponent(ME.email)+"&code="+encodeURIComponent(ME.code||"")+"&vessel="+encodeURIComponent(v)+"&mine="+mine)
     .then(function(j){ CREWJOBS=(j&&j.jobs)||[]; JOBSVESSEL=(j&&j.vessel)||v; renderJobs(); }).catch(function(){});
 }
 function hubBucket(st){ st=(st||"").toLowerCase(); if(st.indexOf("progress")>=0)return"In progress"; if(st.indexOf("complete")>=0||st.indexOf("done")>=0)return"Done"; return"To do"; }
