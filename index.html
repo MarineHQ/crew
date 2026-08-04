@@ -70,6 +70,9 @@
   .job.jobdone h3{text-decoration:line-through;color:var(--muted)}
   .listhd{font-size:12px;font-weight:bold;letter-spacing:.5px;text-transform:uppercase;color:var(--orange);margin:6px 2px 9px;padding-top:2px}
   .jnum{color:var(--orange);font-weight:900}
+  .jcode{display:inline-block;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px;font-weight:700;letter-spacing:.3px;color:var(--navy);background:#eef1f8;border:1px solid #dbe1f0;border-radius:5px;padding:1px 5px;vertical-align:middle}
+  .jcode.bs{color:#8a5a12;background:#fdf3e3;border-color:#f0dcb8}
+  .sheet-hd .jcode{color:#fff;background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.28)}
   .wlacc{background:linear-gradient(135deg,var(--navy),var(--navy2));color:#fff;border-radius:12px;padding:14px 15px;margin:4px 0 11px;cursor:pointer;display:flex;align-items:center;gap:10px}
   .wlacc h3{margin:0;font-size:15px;flex:1;line-height:1.25} .wlacc .n{background:rgba(255,255,255,.18);border-radius:12px;font-size:12px;font-weight:bold;padding:2px 9px}
   .wlacc .car{transition:transform .2s;font-size:15px} .wlacc.closed .car{transform:rotate(-90deg)}
@@ -731,8 +734,9 @@ function renderJobs(){
     var cards=jobs.map(function(j,idx){
       var b=hubBucket(j.status), done=b==="Done", cls=hubCls(b);
       var np=(j.photos&&j.photos.length)||0, hasNote=!!(j.notes&&j.notes.trim());
+      var codeChip = j.code ? ' <span class="jcode'+(j.standard==="Boat-specific"?" bs":"")+'">'+esc(j.code)+'</span>' : '';
       return '<div class="job brd-'+cls+(done?" jobdone":"")+'" onclick="openWLJob(\''+esc(j.key)+'\')">'+
-        '<div class="top"><div style="flex:1"><h3><span class="jnum">'+(idx+1)+'.</span> '+esc(j.task||j.desc||"(job)")+'</h3></div>'+
+        '<div class="top"><div style="flex:1"><h3><span class="jnum">'+(idx+1)+'.</span> '+esc(j.task||j.desc||"(job)")+codeChip+'</h3></div>'+
         '<span class="badge s-'+cls+'">'+esc(b)+'</span></div>'+
         ((j.task&&j.desc)?('<p class="desc">'+esc(j.desc)+'</p>'):'')+
         '<div class="meta">'+(np?('<span>📷 '+np+'</span>'):'<span>Add photos</span>')+(hasNote?'<span>📝 note</span>':'')+
@@ -759,7 +763,7 @@ function openWLJob(key){
   var phHTML=(j.photos&&j.photos.length ? j.photos.map(function(p){return '<div class="ph"><img src="'+esc(p.url)+'" alt=""><small>'+esc(p.name||"photo")+'</small></div>';}).join("") : '<div style="font-size:13px;color:var(--muted)">No photos yet.</div>')
     +'<label class="addph" for="wlPhotoInput">＋<span>Add / camera</span></label><input id="wlPhotoInput" type="file" accept="image/*" capture="environment" multiple style="display:none" onchange="wlAddPhotos(\''+esc(key)+'\',this)">';
   $("sheet").innerHTML=
-    '<div class="sheet-hd"><div style="flex:1"><div style="font-size:11px;font-weight:bold;letter-spacing:.4px;color:#ffd7b0">'+esc(j.vessel)+(j.list?(" · "+esc(j.list)):"")+'</div>'+
+    '<div class="sheet-hd"><div style="flex:1"><div style="font-size:11px;font-weight:bold;letter-spacing:.4px;color:#ffd7b0">'+esc(j.vessel)+(j.list?(" · "+esc(j.list)):"")+(j.code?(' &nbsp;<span class="jcode">'+esc(j.code)+'</span>'):'')+'</div>'+
       '<h3>'+num+'. '+esc(j.task||"(job)")+'</h3></div><button class="closeb" onclick="closeSheet()">✕</button></div>'+
     (j.desc?('<div class="sec"><h4>The job</h4><p class="body">'+esc(j.desc)+'</p></div>'):'')+
     '<div class="sec"><h4>Status</h4><div class="statusrow"><label>Set</label><select id="wlStatus" onchange="wlSetStatus(\''+esc(key)+'\',this.value)">'+opts+'</select></div></div>'+
