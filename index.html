@@ -79,6 +79,7 @@
   .jcat{display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;border-radius:9px;padding:1px 7px;vertical-align:middle;margin-left:4px}
   .jcat.sched{color:#0f6b52;background:#dcf3ea} .jcat.unsched{color:#9a3412;background:#fde4d3}
   .jcat.upg{color:#5b3ea8;background:#ece4fb} .jcat.ops{color:#334155;background:#e5eaf1}
+  .apprOn{background:#dcf3ea;color:#0f6b52;border:1px solid #bfe6d6;border-radius:8px;padding:9px 11px;font-size:13px;font-weight:600;margin-bottom:9px}
   .wlacc{background:linear-gradient(135deg,var(--orange),var(--orange2));color:#fff;border-radius:12px;padding:14px 15px;margin:4px 0 11px;cursor:pointer;display:flex;align-items:center;gap:10px;box-shadow:0 4px 12px rgba(232,119,34,.28)}
   .wlacc h3{margin:0;font-size:15px;flex:1;line-height:1.25} .wlacc .n{background:rgba(255,255,255,.18);border-radius:12px;font-size:12px;font-weight:bold;padding:2px 9px}
   .wlacc .car{transition:transform .2s;font-size:15px} .wlacc.closed .car{transform:rotate(-90deg)}
@@ -784,8 +785,31 @@ function openWLJob(key){
     '<div class="sec"><h4>Notes for this job</h4>'+
       '<textarea id="wlNote" class="fld-ta" placeholder="Notes about this job…">'+esc(j.notes||"")+'</textarea>'+
       '<button class="jobbtn complete" style="background:var(--navy)" onclick="wlSaveNote(\''+esc(key)+'\')">Save note</button></div>'+
+    wlApproveBlock(j,key)+
     '<div style="height:16px"></div>';
   $("overlay").classList.add("show"); var s=$("sheet"); s.classList.add("show"); s.scrollTop=0;
+}
+/* Manager-only: approve a completed job → push it to the owner's app. */
+function wlApproveBlock(j,key){
+  if(!/director|manager/i.test(ME.role||"")) return "";
+  if(j.shared){
+    return '<div class="sec"><h4>Owner</h4>'+
+      '<div class="apprOn">✓ Sent to owner’s app'+(j.approvedBy?(' · approved by '+esc(j.approvedBy)):'')+(j.approvedAt?(' · '+esc(j.approvedAt)):'')+'</div>'+
+      '<button class="jobbtn" style="background:#64748b" onclick="wlApprove(\''+esc(key)+'\',false)">Pull back from owner</button></div>';
+  }
+  var ready=wlBucketToStatus(j)==="Complete";
+  return '<div class="sec"><h4>Owner</h4>'+
+    '<p class="body" style="font-size:13px;color:var(--muted);margin-bottom:8px">'+(ready?'Approve to send this completed job — with its photos &amp; notes — to the owner’s app, marked done and dated.':'Mark it <b>Complete</b> first, then approve to send it to the owner.')+'</p>'+
+    '<button class="jobbtn complete" onclick="wlApprove(\''+esc(key)+'\',true)"'+(ready?'':' disabled style="opacity:.45"')+'>✓ Approve &amp; send to owner</button></div>';
+}
+function wlApprove(key, share){
+  apiPost({action:"crewJobApprove", email:ME.email, code:ME.code, jobKey:key, share:share}).then(function(r){
+    if(r&&r.ok){ toast(share?"✓ Sent to the owner":"Pulled back from owner");
+      var j=CREWJOBS.filter(function(x){return x.key===key;})[0];
+      if(j){ j.shared=share; j.approvedBy=r.approvedBy||""; j.approvedAt=r.approvedAt||""; }
+      openWLJob(key); loadJobs(); }
+    else toast((r&&r.error)||"Couldn’t approve");
+  }).catch(function(){ toast("Couldn’t connect"); });
 }
 function wlSetStatus(key,st){
   apiPost({action:"crewJobStatus", email:ME.email, code:ME.code, jobKey:key, status:st}).then(function(r){
