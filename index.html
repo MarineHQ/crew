@@ -125,6 +125,19 @@
   .statusrow{display:flex;align-items:center;gap:10px}
   .statusrow label{font-size:12px;font-weight:bold;color:var(--muted)}
   .statusrow select{flex:1;border:1px solid var(--line);border-radius:9px;padding:10px;font-size:13.5px;font-weight:bold;color:var(--navy);font-family:inherit;background:#fff}
+  /* tap-to-set status pills */
+  .pillrow{display:flex;gap:8px}
+  .spill{flex:1;border:1.5px solid var(--line);background:#fff;color:var(--muted);font-size:13px;font-weight:800;padding:11px 6px;border-radius:22px;cursor:pointer;text-align:center;transition:.12s}
+  .spill .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
+  .spill.d-todo .dot{background:var(--grey)} .spill.d-inhand .dot{background:var(--amber)} .spill.d-done .dot{background:var(--ok)}
+  .spill.on.d-todo{background:var(--grey);border-color:var(--grey);color:#fff} .spill.on.d-todo .dot{background:#fff}
+  .spill.on.d-inhand{background:var(--amber);border-color:var(--amber);color:#fff} .spill.on.d-inhand .dot{background:#fff}
+  .spill.on.d-done{background:var(--ok);border-color:var(--ok);color:#fff} .spill.on.d-done .dot{background:#fff}
+  /* documents */
+  .docrow{display:flex;flex-direction:column;gap:7px}
+  .docitem{display:flex;align-items:center;gap:9px;border:1px solid var(--line);border-radius:9px;padding:9px 11px;font-size:13px;color:var(--navy);font-weight:600;text-decoration:none}
+  .docitem .ic{font-size:17px}
+  .adddoc{display:flex;align-items:center;justify-content:center;gap:8px;border:1.5px dashed #cbd5e1;border-radius:9px;padding:11px;font-size:13px;font-weight:700;color:var(--navy);cursor:pointer}
   .donebtn{width:100%;margin-top:10px;border:0;background:var(--ok);color:#fff;font-weight:bold;font-size:13.5px;padding:11px;border-radius:10px;cursor:pointer}
 
   /* photos */
@@ -328,6 +341,9 @@
   .login .demo small{display:block;color:var(--muted);font-size:11.5px;text-align:center;margin-bottom:8px}
   .login select{width:100%;border:1.5px solid var(--line);border-radius:11px;padding:12px;font-size:14px;font-family:inherit;background:#fff}
   .a2p{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:110;display:flex;align-items:center;gap:10px;background:var(--orange);color:#fff;font-weight:bold;font-size:14px;padding:12px 17px;border-radius:30px;box-shadow:0 8px 22px rgba(232,119,34,.45);cursor:pointer}
+  /* in-app pill sits bottom-LEFT so it clears the right-side "Raise a job" button */
+  .a2p-app{right:auto;left:16px;bottom:calc(20px + env(safe-area-inset-bottom));background:#fff;color:var(--orange);border:1.5px solid var(--orange);box-shadow:0 6px 16px rgba(0,0,0,.12)}
+  .a2p-app .x{color:var(--orange)}
   .a2p .x{opacity:.85;font-weight:normal;font-size:15px}
   .sent .tick{width:54px;height:54px;border-radius:50%;background:#e9f6f0;color:var(--ok);font-size:26px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px}
   .sent .linkbtn{width:100%;margin-top:16px;border:0;background:var(--navy);color:#fff;font-weight:bold;font-size:14px;padding:14px;border-radius:11px;cursor:pointer}
@@ -437,6 +453,7 @@
   <div class="footer-banner"><img src="footer-banner.jpg" alt="Marine HQ — 0439 748 387 · yachtsupport@marinehq.com.au"></div>
 
   <button class="fab hidden" id="fab" onclick="openRaise()">+ Raise a job</button>
+  <div class="a2p a2p-app" id="a2pApp" onclick="addToPhone()"><span>⚓ Add to phone</span><span class="x" onclick="event.stopPropagation();document.getElementById('a2pApp').style.display='none'">✕</span></div>
 
 </div>
 
@@ -775,15 +792,19 @@ function openWLJob(key){
   openJobId=key;
   var inList=CREWJOBS.filter(function(x){return (x.list||"")===(j.list||"");}); var num=inList.indexOf(j)+1;
   var cur=wlBucketToStatus(j);
-  var opts=WLSTATUS.map(function(s){return '<option value="'+s+'"'+(s===cur?" selected":"")+'>'+s+'</option>';}).join("");
+  var dcls={"To do":"d-todo","In hand":"d-inhand","Complete":"d-done"};
+  var pills=WLSTATUS.map(function(s){return '<button class="spill '+dcls[s]+(s===cur?" on":"")+'" onclick="wlSetStatus(\''+esc(key)+'\',\''+s+'\')"><span class="dot"></span>'+s+'</button>';}).join("");
   var phHTML=(j.photos&&j.photos.length ? j.photos.map(function(p){return '<div class="ph"><img src="'+esc(p.url)+'" alt=""><small>'+esc(p.name||"photo")+'</small></div>';}).join("") : '<div style="font-size:13px;color:var(--muted)">No photos yet.</div>')
     +'<label class="addph" for="wlPhotoInput">＋<span>Add / camera</span></label><input id="wlPhotoInput" type="file" accept="image/*" capture="environment" multiple style="display:none" onchange="wlAddPhotos(\''+esc(key)+'\',this)">';
+  var docHTML=(j.docs&&j.docs.length ? j.docs.map(function(dd){return '<a class="docitem" href="'+esc(dd.url)+'" target="_blank" rel="noopener"><span class="ic">📄</span>'+esc(dd.name||"document")+'</a>';}).join("") : '')
+    +'<label class="adddoc" for="wlDocInput">＋ Attach a document (quote, PDF…)</label><input id="wlDocInput" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,image/*" multiple style="display:none" onchange="wlAddDocs(\''+esc(key)+'\',this)">';
   $("sheet").innerHTML=
     '<div class="sheet-hd"><div style="flex:1"><div style="font-size:11px;font-weight:bold;letter-spacing:.4px;color:#ffd7b0">'+esc(j.vessel)+(j.list?(" · "+esc(j.list)):"")+(j.code?(' &nbsp;<span class="jcode">'+esc(j.code)+'</span>'):'')+catChip(j.category)+'</div>'+
       '<h3>'+num+'. '+esc(j.task||"(job)")+'</h3></div><button class="closeb" onclick="closeSheet()">✕</button></div>'+
     (j.desc?('<div class="sec"><h4>The job</h4><p class="body">'+esc(j.desc)+'</p></div>'):'')+
-    '<div class="sec"><h4>Status</h4><div class="statusrow"><label>Set</label><select id="wlStatus" onchange="wlSetStatus(\''+esc(key)+'\',this.value)">'+opts+'</select></div></div>'+
+    '<div class="sec"><h4>Status</h4><div class="pillrow">'+pills+'</div></div>'+
     '<div class="sec"><h4>Photos</h4><div class="photos">'+phHTML+'</div></div>'+
+    '<div class="sec"><h4>Documents</h4><div class="docrow">'+docHTML+'</div></div>'+
     '<div class="sec"><h4>Notes for this job</h4>'+
       '<textarea id="wlNote" class="fld-ta" placeholder="Notes about this job…">'+esc(j.notes||"")+'</textarea>'+
       '<button class="jobbtn complete" style="background:var(--navy)" onclick="wlSaveNote(\''+esc(key)+'\')">Save note</button></div>'+
@@ -815,7 +836,7 @@ function wlApprove(key, share){
 }
 function wlSetStatus(key,st){
   apiPost({action:"crewJobStatus", email:ME.email, code:ME.code, jobKey:key, status:st}).then(function(r){
-    if(r&&r.ok){ toast(st==="Complete"?"✓ Complete — sent to Marine HQ":("Set to "+st)); var j=CREWJOBS.filter(function(x){return x.key===key;})[0]; if(j)j.status=(st==="In hand"?"In Progress":st); loadJobs(); }
+    if(r&&r.ok){ toast(st==="Complete"?"✓ Complete — sent to Marine HQ":("Set to "+st)); var j=CREWJOBS.filter(function(x){return x.key===key;})[0]; if(j)j.status=(st==="In hand"?"In Progress":st); openWLJob(key); loadJobs(); }
     else toast((r&&r.error)||"Couldn’t update");
   }).catch(function(){ toast("Couldn’t connect"); });
 }
@@ -834,6 +855,18 @@ function wlAddPhotos(key, input){
   function send(){
     apiPost({action:"crewJobPhotos", email:ME.email, code:ME.code, jobKey:key, photos:arr}).then(function(r){
       if(r&&r.ok){ toast("📷 Photo added"); var j=CREWJOBS.filter(function(x){return x.key===key;})[0]; if(j)j.photos=r.photos; openWLJob(key); loadJobs(); }
+      else toast((r&&r.error)||"Couldn’t upload");
+    }).catch(function(){ toast("Couldn’t connect"); });
+  }
+}
+function wlAddDocs(key, input){
+  var files=input.files; if(!files||!files.length)return;
+  toast("Uploading document…");
+  var arr=[], n=files.length, done=0;
+  Array.prototype.forEach.call(files, function(f){ var fr=new FileReader(); fr.onload=function(){ arr.push({name:f.name, dataUrl:fr.result}); if(++done===n)send(); }; fr.onerror=function(){ if(++done===n)send(); }; fr.readAsDataURL(f); });
+  function send(){
+    apiPost({action:"crewJobDocs", email:ME.email, code:ME.code, jobKey:key, docs:arr}).then(function(r){
+      if(r&&r.ok){ toast("📄 Document added"); var j=CREWJOBS.filter(function(x){return x.key===key;})[0]; if(j)j.docs=r.docs; openWLJob(key); loadJobs(); }
       else toast((r&&r.error)||"Couldn’t upload");
     }).catch(function(){ toast("Couldn’t connect"); });
   }
