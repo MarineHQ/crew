@@ -30,6 +30,9 @@
   header{background:linear-gradient(135deg,var(--navy),var(--navy2));color:#fff;padding:14px 14px calc(14px);position:sticky;top:0;z-index:30}
   header .inner{max-width:620px;margin:0 auto;display:flex;align-items:center;gap:10px}
   .appbanner{width:100%;background:#1B3A6B;line-height:0}
+  #app:not(.hidden){display:flex;flex-direction:column;min-height:100vh}
+  #app>.wrap{flex:1 0 auto}
+  #app>.footer-banner{margin-top:24px}
   .appbanner img{width:100%;display:block}
   .footer-banner{width:100%;background:#1B3A6B;line-height:0;margin-top:18px}
   .footer-banner img{width:100%;display:block}
@@ -73,7 +76,10 @@
   .jcode{display:inline-block;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px;font-weight:700;letter-spacing:.3px;color:var(--navy);background:#eef1f8;border:1px solid #dbe1f0;border-radius:5px;padding:1px 5px;vertical-align:middle}
   .jcode.bs{color:#8a5a12;background:#fdf3e3;border-color:#f0dcb8}
   .sheet-hd .jcode{color:#fff;background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.28)}
-  .wlacc{background:linear-gradient(135deg,var(--navy),var(--navy2));color:#fff;border-radius:12px;padding:14px 15px;margin:4px 0 11px;cursor:pointer;display:flex;align-items:center;gap:10px}
+  .jcat{display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;border-radius:9px;padding:1px 7px;vertical-align:middle;margin-left:4px}
+  .jcat.sched{color:#0f6b52;background:#dcf3ea} .jcat.unsched{color:#9a3412;background:#fde4d3}
+  .jcat.upg{color:#5b3ea8;background:#ece4fb} .jcat.ops{color:#334155;background:#e5eaf1}
+  .wlacc{background:linear-gradient(135deg,var(--orange),var(--orange2));color:#fff;border-radius:12px;padding:14px 15px;margin:4px 0 11px;cursor:pointer;display:flex;align-items:center;gap:10px;box-shadow:0 4px 12px rgba(232,119,34,.28)}
   .wlacc h3{margin:0;font-size:15px;flex:1;line-height:1.25} .wlacc .n{background:rgba(255,255,255,.18);border-radius:12px;font-size:12px;font-weight:bold;padding:2px 9px}
   .wlacc .car{transition:transform .2s;font-size:15px} .wlacc.closed .car{transform:rotate(-90deg)}
   .wlbody.closed{display:none}
@@ -425,8 +431,9 @@
       <div id="sopList"></div>
     </div>
 
-    <div class="footer-banner"><img src="footer-banner.jpg" alt="Marine HQ — 0439 748 387 · yachtsupport@marinehq.com.au"></div>
   </div>
+
+  <div class="footer-banner"><img src="footer-banner.jpg" alt="Marine HQ — 0439 748 387 · yachtsupport@marinehq.com.au"></div>
 
   <button class="fab hidden" id="fab" onclick="openRaise()">+ Raise a job</button>
 
@@ -714,6 +721,11 @@ function loadJobs(){
 }
 function hubBucket(st){ st=(st||"").toLowerCase(); if(st.indexOf("progress")>=0)return"In progress"; if(st.indexOf("complete")>=0||st.indexOf("done")>=0)return"Done"; return"To do"; }
 function hubCls(b){ return b==="Done"?"done":(b==="In progress"?"inprog":"todo"); }
+function catChip(cat){
+  if(!cat) return '';
+  var c=String(cat).toLowerCase(), cls=c.indexOf("unsched")>=0?"unsched":(c.indexOf("sched")>=0?"sched":(c.indexOf("upg")>=0?"upg":(c.indexOf("ops")>=0?"ops":"")));
+  return cls ? ' <span class="jcat '+cls+'">'+esc(cat)+'</span>' : '';
+}
 function renderJobs(){
   var first=(ME.name||"").split(" ")[0].replace(/\(test\)/,"").trim();
   var openN=CREWJOBS.filter(function(j){return hubBucket(j.status)!=="Done";}).length;
@@ -735,6 +747,7 @@ function renderJobs(){
       var b=hubBucket(j.status), done=b==="Done", cls=hubCls(b);
       var np=(j.photos&&j.photos.length)||0, hasNote=!!(j.notes&&j.notes.trim());
       var codeChip = j.code ? ' <span class="jcode'+(j.standard==="Boat-specific"?" bs":"")+'">'+esc(j.code)+'</span>' : '';
+      codeChip += catChip(j.category);
       return '<div class="job brd-'+cls+(done?" jobdone":"")+'" onclick="openWLJob(\''+esc(j.key)+'\')">'+
         '<div class="top"><div style="flex:1"><h3><span class="jnum">'+(idx+1)+'.</span> '+esc(j.task||j.desc||"(job)")+codeChip+'</h3></div>'+
         '<span class="badge s-'+cls+'">'+esc(b)+'</span></div>'+
@@ -763,7 +776,7 @@ function openWLJob(key){
   var phHTML=(j.photos&&j.photos.length ? j.photos.map(function(p){return '<div class="ph"><img src="'+esc(p.url)+'" alt=""><small>'+esc(p.name||"photo")+'</small></div>';}).join("") : '<div style="font-size:13px;color:var(--muted)">No photos yet.</div>')
     +'<label class="addph" for="wlPhotoInput">＋<span>Add / camera</span></label><input id="wlPhotoInput" type="file" accept="image/*" capture="environment" multiple style="display:none" onchange="wlAddPhotos(\''+esc(key)+'\',this)">';
   $("sheet").innerHTML=
-    '<div class="sheet-hd"><div style="flex:1"><div style="font-size:11px;font-weight:bold;letter-spacing:.4px;color:#ffd7b0">'+esc(j.vessel)+(j.list?(" · "+esc(j.list)):"")+(j.code?(' &nbsp;<span class="jcode">'+esc(j.code)+'</span>'):'')+'</div>'+
+    '<div class="sheet-hd"><div style="flex:1"><div style="font-size:11px;font-weight:bold;letter-spacing:.4px;color:#ffd7b0">'+esc(j.vessel)+(j.list?(" · "+esc(j.list)):"")+(j.code?(' &nbsp;<span class="jcode">'+esc(j.code)+'</span>'):'')+catChip(j.category)+'</div>'+
       '<h3>'+num+'. '+esc(j.task||"(job)")+'</h3></div><button class="closeb" onclick="closeSheet()">✕</button></div>'+
     (j.desc?('<div class="sec"><h4>The job</h4><p class="body">'+esc(j.desc)+'</p></div>'):'')+
     '<div class="sec"><h4>Status</h4><div class="statusrow"><label>Set</label><select id="wlStatus" onchange="wlSetStatus(\''+esc(key)+'\',this.value)">'+opts+'</select></div></div>'+
