@@ -3,7 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Marine HQ — Crew Portal</title>
+<title>Marine HQ Crew</title>
+<meta name="apple-mobile-web-app-title" content="Marine HQ Crew">
+<meta name="application-name" content="Marine HQ Crew">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <style>
   :root{
     --navy:#1A2B5C; --navy2:#1B3A5C; --orange:#E87722; --orange2:#E8650A;
@@ -52,6 +56,16 @@
   .s-inprog{background:var(--amber)} .brd-inprog{border-left-color:var(--amber)}
   .s-parts{background:#a8641c} .brd-parts{border-left-color:#a8641c}
   .s-done{background:var(--ok)} .brd-done{border-left-color:var(--ok)}
+  .jobbtn{width:100%;margin-top:11px;border:0;border-radius:10px;padding:12px;font-size:14px;font-weight:bold;cursor:pointer}
+  .jobbtn.complete{background:var(--ok);color:#fff}
+  .jobbtn.reopen{background:#fff;color:var(--muted);border:1px solid var(--line)!important}
+  .job.jobdone{opacity:.72;background:#f6f9f6}
+  .job.jobdone h3{text-decoration:line-through;color:var(--muted)}
+  .listhd{font-size:12px;font-weight:bold;letter-spacing:.5px;text-transform:uppercase;color:var(--orange);margin:6px 2px 9px;padding-top:2px}
+  .wlacc{background:linear-gradient(135deg,var(--navy),var(--navy2));color:#fff;border-radius:12px;padding:14px 15px;margin:4px 0 11px;cursor:pointer;display:flex;align-items:center;gap:10px}
+  .wlacc h3{margin:0;font-size:15px;flex:1;line-height:1.25} .wlacc .n{background:rgba(255,255,255,.18);border-radius:12px;font-size:12px;font-weight:bold;padding:2px 9px}
+  .wlacc .car{transition:transform .2s;font-size:15px} .wlacc.closed .car{transform:rotate(-90deg)}
+  .wlbody.closed{display:none}
   .prio{font-size:9.5px;font-weight:bold;color:#fff;background:var(--red);padding:3px 7px;border-radius:5px}
 
   /* ---------- checklist cards ---------- */
@@ -311,16 +325,16 @@
   <div class="hero">
     <div class="card">
       <div id="loginStep">
-        <div class="eyebrow">MARINE HQ</div>
-        <h2>Crew Portal</h2>
+        <div class="eyebrow">WELCOME ABOARD</div>
+        <h2>Marine HQ Crew</h2>
         <p class="tagline">Your jobs. Your hours. Anytime.</p>
-        <div class="sub">Sign in with your email</div>
-        <input id="emailIn" type="email" inputmode="email" placeholder="your email" autocomplete="email">
-        <button class="go" onclick="sendLink()">Send me a sign‑in link</button>
-        <p class="ownemail">Use your <b>own</b> email — whatever you use day to day (Gmail, Outlook, iCloud…). No special address needed.</p>
+        <div class="sub">Enter your access code</div>
+        <input id="emailIn" type="text" inputmode="text" placeholder="Access code" autocomplete="off">
+        <button class="go" onclick="sendLink()">Sign in</button>
+        <p class="ownemail">Enter the <b>access code</b> Marine HQ gave you. No code yet? Give us a call.</p>
         <p class="contact">Need a hand? We're always here.<br><b>0439 748 387</b> · <b>yachtsupport@marinehq.com.au</b></p>
-        <div class="demo">
-          <small>Just testing? Use the demo account</small>
+        <div class="demo hidden" id="demoBox">
+          <small>Marine HQ only</small>
           <button class="go" style="background:var(--navy);margin-top:0" onclick="testAccount()">Sign in as the test account</button>
           <button class="adminlink" onclick="openAdmin()">⚙︎ Marine HQ · set up &amp; onboard crew</button>
         </div>
@@ -612,10 +626,18 @@ function fmtDate(d){ var p=(d||"").split("-"); return p.length===3? (p[2]+"/"+p[
 /* ================= login (real — email → crewlogin API) ================= */
 var pendingEmail="";
 function sendLink(){
-  var e=($("emailIn").value||"").trim().toLowerCase();
-  if(!e || e.indexOf("@")<0){ toast("Enter your email"); return; }
+  var v=($("emailIn").value||"").trim();
+  if(/^\d{4,6}$/.test(v)){ doLoginCode(v); return; }          // 4–6 digit access code → straight in
+  var e=v.toLowerCase();
+  if(!e || e.indexOf("@")<0){ toast("Enter your access code or email"); return; }
   pendingEmail=e; $("sentEmail").textContent=e;
   $("loginStep").classList.add("hidden"); $("sentStep").classList.remove("hidden");
+}
+function doLoginCode(code, silent){
+  apiGet("fn=crewlogin&code=" + encodeURIComponent(code)).then(function(j){
+    if(j && j.ok){ try{localStorage.setItem("mhq_crew_code", code); localStorage.removeItem("mhq_crew_email");}catch(_){} enterReal(j.crew, j.shift); }
+    else if(!silent){ toast("That access code isn’t recognised — check with Marine HQ."); }
+  }).catch(function(){ if(!silent) toast("Couldn’t connect — check your signal and try again."); });
 }
 function backToLogin(){ $("sentStep").classList.add("hidden"); $("loginStep").classList.remove("hidden"); }
 function addToPhone(){
@@ -632,9 +654,9 @@ function doLogin(email, silent){
     else if(!silent){ toast("We don’t recognise that email — ask Marine HQ to add you in Crew Setup."); backToLogin(); }
   }).catch(function(){ if(!silent) toast("Couldn’t connect — check your signal and try again."); });
 }
-function signOut(){ try{localStorage.removeItem("mhq_crew_email");}catch(_){} location.reload(); }
+function signOut(){ try{localStorage.removeItem("mhq_crew_email");localStorage.removeItem("mhq_crew_code");}catch(_){} location.reload(); }
 function enterReal(crew, shift){
-  ME = { id:crew.id, name:crew.name, role:crew.role, email:crew.email, vessels:crew.vessels||[], eod:crew.eod||"",
+  ME = { id:crew.id, name:crew.name, role:crew.role, email:crew.email, code:crew.code||"", vessels:crew.vessels||[], eod:crew.eod||"",
          signedAt:crew.signedAt||"", signature:crew.signature||"",
          clock:{in:false, at:0, vessel:null, loc:null, shifts:[]} };
   if(shift && shift.open){ ME.clock.in=true; ME.clock.at=shift.inAt; ME.clock.vessel=shift.vessel; ME.clock.loc=shift.loc||""; }
@@ -643,7 +665,9 @@ function enterReal(crew, shift){
   go("jobs"); refreshAll();
 }
 // Stay signed in on this device (90-day style) — auto sign-in if remembered.
-(function initSession(){ try{ var e=localStorage.getItem("mhq_crew_email"); if(e) doLogin(e, true); }catch(_){} })();
+// Marine HQ controls (test account + onboarding) only on the admin URL — crew get a clean login.
+(function initAdmin(){ try{ if(/[?&#]admin/i.test(location.href)){ var d=document.getElementById("demoBox"); if(d) d.classList.remove("hidden"); } }catch(_){} })();
+(function initSession(){ try{ var c=localStorage.getItem("mhq_crew_code"); if(c){ doLoginCode(c, true); return; } var e=localStorage.getItem("mhq_crew_email"); if(e) doLogin(e, true); }catch(_){} })();
 
 /* ================= tabs ================= */
 function go(tab){
@@ -651,8 +675,9 @@ function go(tab){
   ["jobs","check","hours","sop"].forEach(function(t){ $("tab-"+t).classList.toggle("hidden", t!==tab); });
   document.querySelectorAll(".tabbar .tb").forEach(function(b){ b.classList.toggle("on", b.dataset.tab===tab); });
   $("fab").classList.toggle("hidden", tab!=="jobs");
-  var titles={jobs:["Crew Portal","Your jobs, checklists & hours"],check:["Checklists","Tick & sign off"],hours:["Time clock","Clock in · EOD · hours"],sop:["SOP & guides","Marine HQ standards"]};
+  var titles={jobs:["Marine HQ Crew","Your jobs, checklists & hours"],check:["Checklists","Tick & sign off"],hours:["Time clock","Clock in · EOD · hours"],sop:["SOP & guides","Marine HQ standards"]};
   $("hdrTitle").textContent=titles[tab][0]; $("hdrSub").textContent=titles[tab][1];
+  if(tab==="jobs") loadJobs();
   if(tab==="hours"){ renderClock(); loadShifts(); }
   if(tab==="check") loadChecklists();
   updateStrip();
@@ -660,37 +685,106 @@ function go(tab){
 }
 function refreshAll(){
   $("hdrAv").textContent=initials(ME.name);
-  renderJobs(); renderChecklists(); loadChecklists(); renderHours(); renderClock(); renderSOP(); updateStrip();
+  loadJobs(); renderChecklists(); loadChecklists(); renderHours(); renderClock(); renderSOP(); updateStrip();
 }
 
 /* ================= JOBS ================= */
 function myJobs(){ return JOBS.filter(function(j){ return (ME.vessels||[]).indexOf(j.vessel) >= 0; }); }
 function jobBucket(st){ return st==="done"?"Done":st==="todo"?"To do":"In progress"; }
+/* Real job list from the Works Register (the "centre"), for this crew member's
+   vessel. Tick complete → written to our overlay only (never the owner). */
+var CREWJOBS = [], JOBSVESSEL = "";
+function loadJobs(){
+  if(!ME) return;
+  var v = ME.vessels[0] || "Everywhen";
+  apiGet("fn=crewjobs&email="+encodeURIComponent(ME.email)+"&code="+encodeURIComponent(ME.code||"")+"&vessel="+encodeURIComponent(v))
+    .then(function(j){ CREWJOBS=(j&&j.jobs)||[]; JOBSVESSEL=(j&&j.vessel)||v; renderJobs(); }).catch(function(){});
+}
+function hubBucket(st){ st=(st||"").toLowerCase(); if(st.indexOf("progress")>=0)return"In progress"; if(st.indexOf("complete")>=0||st.indexOf("done")>=0)return"Done"; return"To do"; }
+function hubCls(b){ return b==="Done"?"done":(b==="In progress"?"inprog":"todo"); }
 function renderJobs(){
-  var mine=myJobs();
-  var first=ME.name.split(" ")[0];
-  var open=mine.filter(function(j){return j.status!=="done";}).length;
-  $("jobsHello").innerHTML="Hi <b>"+esc(first)+"</b> — you have <b>"+open+"</b> open "+(open===1?"job":"jobs")+" across "+esc(ME.vessels.join(" & "))+"."+
+  var first=(ME.name||"").split(" ")[0].replace(/\(test\)/,"").trim();
+  var openN=CREWJOBS.filter(function(j){return hubBucket(j.status)!=="Done";}).length;
+  $("jobsHello").innerHTML="Hi <b>"+esc(first)+"</b> — <b>"+openN+"</b> open "+(openN===1?"job":"jobs")+" on <b>"+esc(JOBSVESSEL||"your vessel")+"</b>."+
     (ME.signedAt ? "" : '<div class="guideprompt" onclick="openGuide()">📋 Please read &amp; sign the Crew Onboarding Guide — tap here.</div>');
   var FILTERS=["All","To do","In progress","Done"];
   $("jobChips").innerHTML=FILTERS.map(function(f){return '<div class="chip '+(f===JOBFILTER?"on":"")+'" onclick="setJobFilter(\''+f+'\')">'+f+'</div>';}).join("");
-  var list=mine.filter(function(j){ return JOBFILTER==="All"||jobBucket(j.status)===JOBFILTER; });
+  var list=CREWJOBS.filter(function(j){ return JOBFILTER==="All"||hubBucket(j.status)===JOBFILTER; });
   $("jobsCount").textContent=list.length+(list.length===1?" job":" jobs");
   var el=$("jobList");
-  if(!list.length){ el.innerHTML='<div class="empty">Nothing here right now.<br>New jobs Marine HQ assign to you will show up here.</div>'; return; }
-  el.innerHTML=list.map(function(j){
-    return '<div class="job brd-'+j.status+'" onclick="openJob(\''+j.id+'\')">'+
-      '<div class="top"><div style="flex:1">'+
-        '<div class="vessel">'+esc(j.vessel)+'</div><h3>'+esc(j.title)+'</h3></div>'+
-        '<span class="badge s-'+j.status+'">'+STATUS_LABEL[j.status]+'</span></div>'+
-      '<p class="desc">'+esc(j.desc)+'</p>'+
-      '<div class="meta">'+
-        (j.priority?'<span class="prio">Priority</span>':'')+
-        (j.photos.length?'<span>📷 '+j.photos.length+'</span>':'<span>No photos yet</span>')+
-        '<span>💬 '+j.thread.length+'</span></div></div>';
+  if(!list.length){ el.innerHTML='<div class="empty">Nothing here right now.<br>Jobs Marine HQ assign to you on '+esc(JOBSVESSEL||"your vessel")+' show up here.</div>'; return; }
+  // group into collapsible worklists (named lists) + one "Other jobs" group
+  var groups={}, order=[];
+  list.forEach(function(j){ var g=j.list||"Other jobs"; if(!groups[g]){groups[g]=[];order.push(g);} groups[g].push(j); });
+  el.innerHTML=order.map(function(g){
+    var jobs=groups[g], openN=jobs.filter(function(j){return hubBucket(j.status)!=="Done";}).length;
+    var collapsed = WLCLOSED[g] ? " closed":"", bodyC = WLCLOSED[g] ? " closed":"";
+    var cards=jobs.map(function(j){
+      var b=hubBucket(j.status), done=b==="Done", cls=hubCls(b);
+      var np=(j.photos&&j.photos.length)||0, hasNote=!!(j.notes&&j.notes.trim());
+      return '<div class="job brd-'+cls+(done?" jobdone":"")+'" onclick="openWLJob(\''+esc(j.key)+'\')">'+
+        '<div class="top"><div style="flex:1"><h3>'+esc(j.task||j.desc||"(job)")+'</h3></div>'+
+        '<span class="badge s-'+cls+'">'+esc(b)+'</span></div>'+
+        ((j.task&&j.desc)?('<p class="desc">'+esc(j.desc)+'</p>'):'')+
+        '<div class="meta">'+(np?('<span>📷 '+np+'</span>'):'<span>Add photos</span>')+(hasNote?'<span>📝 note</span>':'')+
+          '<span style="margin-left:auto;color:var(--navy);font-weight:bold">Open ›</span></div></div>';
+    }).join("");
+    return '<div class="wlacc'+collapsed+'" onclick="toggleWL(\''+esc(g)+'\')"><span class="car">▾</span>'+
+      '<h3>'+esc(g)+'</h3><span class="n">'+openN+' open</span></div>'+
+      '<div class="wlbody'+bodyC+'" data-g="'+esc(g)+'">'+cards+'</div>';
   }).join("");
 }
+var WLCLOSED={};
+function toggleWL(g){ WLCLOSED[g]=!WLCLOSED[g]; renderJobs(); }
 function setJobFilter(f){ JOBFILTER=f; renderJobs(); }
+
+/* ---- worklist job detail: status · notes · photos ---- */
+var WLSTATUS=["To do","In hand","Complete"];
+function wlBucketToStatus(j){ var b=hubBucket(j.status); return b==="Done"?"Complete":(b==="In progress"?"In hand":"To do"); }
+function openWLJob(key){
+  var j=CREWJOBS.filter(function(x){return x.key===key;})[0]; if(!j)return;
+  openJobId=key;
+  var cur=wlBucketToStatus(j);
+  var opts=WLSTATUS.map(function(s){return '<option value="'+s+'"'+(s===cur?" selected":"")+'>'+s+'</option>';}).join("");
+  var phHTML=(j.photos&&j.photos.length ? j.photos.map(function(p){return '<div class="ph"><img src="'+esc(p.url)+'" alt=""><small>'+esc(p.name||"photo")+'</small></div>';}).join("") : '<div style="font-size:13px;color:var(--muted)">No photos yet.</div>')
+    +'<label class="addph" for="wlPhotoInput">＋<span>Add / camera</span></label><input id="wlPhotoInput" type="file" accept="image/*" capture="environment" multiple style="display:none" onchange="wlAddPhotos(\''+esc(key)+'\',this)">';
+  $("sheet").innerHTML=
+    '<div class="sheet-hd"><div style="flex:1"><div style="font-size:11px;font-weight:bold;letter-spacing:.4px;color:#ffd7b0">'+esc(j.vessel)+(j.list?(" · "+esc(j.list)):"")+'</div>'+
+      '<h3>'+esc(j.task||"(job)")+'</h3></div><button class="closeb" onclick="closeSheet()">✕</button></div>'+
+    (j.desc?('<div class="sec"><h4>The job</h4><p class="body">'+esc(j.desc)+'</p></div>'):'')+
+    '<div class="sec"><h4>Status</h4><div class="statusrow"><label>Set</label><select id="wlStatus" onchange="wlSetStatus(\''+esc(key)+'\',this.value)">'+opts+'</select></div></div>'+
+    '<div class="sec"><h4>Photos</h4><div class="photos">'+phHTML+'</div></div>'+
+    '<div class="sec"><h4>Notes for this job</h4>'+
+      '<textarea id="wlNote" class="fld-ta" placeholder="Notes about this job…">'+esc(j.notes||"")+'</textarea>'+
+      '<button class="jobbtn complete" style="background:var(--navy)" onclick="wlSaveNote(\''+esc(key)+'\')">Save note</button></div>'+
+    '<div style="height:16px"></div>';
+  $("overlay").classList.add("show"); var s=$("sheet"); s.classList.add("show"); s.scrollTop=0;
+}
+function wlSetStatus(key,st){
+  apiPost({action:"crewJobStatus", email:ME.email, code:ME.code, jobKey:key, status:st}).then(function(r){
+    if(r&&r.ok){ toast(st==="Complete"?"✓ Complete — sent to Marine HQ":("Set to "+st)); var j=CREWJOBS.filter(function(x){return x.key===key;})[0]; if(j)j.status=(st==="In hand"?"In Progress":st); loadJobs(); }
+    else toast((r&&r.error)||"Couldn’t update");
+  }).catch(function(){ toast("Couldn’t connect"); });
+}
+function wlSaveNote(key){
+  var notes=($("wlNote").value||"").trim();
+  apiPost({action:"crewJobNote", email:ME.email, code:ME.code, jobKey:key, notes:notes}).then(function(r){
+    if(r&&r.ok){ toast("Note saved"); var j=CREWJOBS.filter(function(x){return x.key===key;})[0]; if(j)j.notes=notes; loadJobs(); }
+    else toast((r&&r.error)||"Couldn’t save");
+  }).catch(function(){ toast("Couldn’t connect"); });
+}
+function wlAddPhotos(key, input){
+  var files=input.files; if(!files||!files.length)return;
+  toast("Uploading photo…");
+  var arr=[], n=files.length, done=0;
+  Array.prototype.forEach.call(files, function(f){ var fr=new FileReader(); fr.onload=function(){ arr.push({name:f.name, dataUrl:fr.result}); if(++done===n)send(); }; fr.onerror=function(){ if(++done===n)send(); }; fr.readAsDataURL(f); });
+  function send(){
+    apiPost({action:"crewJobPhotos", email:ME.email, code:ME.code, jobKey:key, photos:arr}).then(function(r){
+      if(r&&r.ok){ toast("📷 Photo added"); var j=CREWJOBS.filter(function(x){return x.key===key;})[0]; if(j)j.photos=r.photos; openWLJob(key); loadJobs(); }
+      else toast((r&&r.error)||"Couldn’t upload");
+    }).catch(function(){ toast("Couldn’t connect"); });
+  }
+}
 
 function trackerHTML(status){
   var stage=STAGE_OF[status], done=status==="done", labels=["To do","In progress","Done"], h='<div class="tracker">';
@@ -842,7 +936,7 @@ function clockIn(){
   else { v=sel; }
   var btn=document.querySelector(".clockbtn.doin"); if(btn){ btn.textContent="📍 Getting location…"; btn.disabled=true; }
   function send(lat,lng){
-    apiPost({action:"crewClockIn", email:ME.email, vessel:v, other:other, lat:lat, lng:lng}).then(function(j){
+    apiPost({action:"crewClockIn", email:ME.email, code:ME.code, vessel:v, other:other, lat:lat, lng:lng}).then(function(j){
       if(j&&j.ok){ var s=j.shift; c.in=true; c.at=s.inAt; c.vessel=s.vessel; c.loc=(lat!=null?"Location shared with Marine HQ":""); toast(other?("🟢 Clocked in — Marine HQ alerted about “"+v+"”"):("🟢 Clocked in at "+v+" — Marine HQ notified")); renderClock(); updateStrip(); loadShifts(); }
       else { toast((j&&j.error)||"Couldn’t clock in"); renderClock(); }
     }).catch(function(){ toast("Couldn’t connect"); renderClock(); });
@@ -855,7 +949,7 @@ function clockIn(){
   } else send(null,null);
 }
 function clockOut(){
-  apiPost({action:"crewClockOut", email:ME.email}).then(function(j){
+  apiPost({action:"crewClockOut", email:ME.email, code:ME.code}).then(function(j){
     if(j&&j.ok){ var c=clk(), s=j.shift; c.in=false; toast("Clocked out — "+shiftDur(s.minutes)+" · add what you did below"); renderClock(); updateStrip(); loadShifts(); }
     else { toast((j&&j.error)||"Couldn’t clock out"); }
   }).catch(function(){ toast("Couldn’t connect"); });
@@ -1014,7 +1108,7 @@ function clearSig(){ var c=$("sigpad"); if(!c||!sigCtx)return; sigCtx.clearRect(
 function signAccept(){
   if(!sigDrawn){ toast("Please sign in the box first"); return; }
   var b=$("sigSave"); if(b){ b.textContent="Saving…"; b.disabled=true; }
-  apiPost({action:"crewSignOnboarding", email:ME.email, signature:$("sigpad").toDataURL("image/png")}).then(function(j){
+  apiPost({action:"crewSignOnboarding", email:ME.email, code:ME.code, signature:$("sigpad").toDataURL("image/png")}).then(function(j){
     if(j&&j.ok){ ME.signedAt=j.signedAt; ME.signature=j.signature; toast("✓ Signed — thanks, that's on record"); openGuide(); renderSOP(); renderJobs(); }
     else { toast((j&&j.error)||"Couldn’t save"); if(b){ b.textContent="I have read, understood & accept"; b.disabled=false; } }
   }).catch(function(){ toast("Couldn’t connect"); if(b){ b.textContent="I have read, understood & accept"; b.disabled=false; } });
@@ -1024,7 +1118,7 @@ function signAccept(){
 var SHIFTS = [], editShiftId = null;
 function loadShifts(){
   if(!ME||!ME.email) return;
-  apiGet("fn=crewshifts&email="+encodeURIComponent(ME.email)).then(function(j){ SHIFTS=(j&&j.shifts)||[]; renderShifts(); }).catch(function(){});
+  apiGet("fn=crewshifts&email="+encodeURIComponent(ME.email)+"&code="+encodeURIComponent(ME.code||"")).then(function(j){ SHIFTS=(j&&j.shifts)||[]; renderShifts(); }).catch(function(){});
 }
 function renderShifts(){
   var sw=$("shiftsWrap"); if(!sw) return;
@@ -1063,13 +1157,13 @@ function openShiftEditor(id){
 function saveShiftNote(){
   var desc=($("s_desc").value||"").trim(); if(!desc){ toast("Add a short description"); return; }
   var btn=$("s_save"); if(btn){ btn.textContent="Saving…"; btn.disabled=true; }
-  apiPost({action:"crewShiftNote", email:ME.email, shiftId:editShiftId, desc:desc, products:($("s_prod").value||"").trim()}).then(function(j){
+  apiPost({action:"crewShiftNote", email:ME.email, code:ME.code, shiftId:editShiftId, desc:desc, products:($("s_prod").value||"").trim()}).then(function(j){
     if(btn){ btn.textContent="Save"; btn.disabled=false; }
     if(j&&j.ok){ closeModal("shiftModal"); toast("Saved"); loadShifts(); } else toast((j&&j.error)||"Couldn’t save");
   }).catch(function(){ if(btn){ btn.textContent="Save"; btn.disabled=false; } toast("Couldn’t connect"); });
 }
 function sendMyDay(){
-  apiPost({action:"crewSubmitDay", email:ME.email}).then(function(j){
+  apiPost({action:"crewSubmitDay", email:ME.email, code:ME.code}).then(function(j){
     if(j&&j.ok){ toast(j.sent?("🔔 Sent "+j.sent+" job"+(j.sent>1?"s":"")+" to Marine HQ"):"Nothing to send yet"); loadShifts(); }
     else toast((j&&j.error)||"Couldn’t send");
   }).catch(function(){ toast("Couldn’t connect"); });
