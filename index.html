@@ -759,7 +759,9 @@ function renderJobs(){
   if(!list.length){ el.innerHTML='<div class="empty">Nothing here right now.<br>Jobs Marine HQ assign to you on '+esc(JOBSVESSEL||"your vessel")+' show up here.</div>'; return; }
   // group into collapsible worklists (named lists) + one "Other jobs" group
   var groups={}, order=[];
-  list.forEach(function(j){ var g=j.list||"Other jobs"; if(!groups[g]){groups[g]=[];order.push(g);} groups[g].push(j); });
+  // Worklists start COLLAPSED — tap to expand. Only default on first sighting so
+  // a user's expand/collapse choice survives re-renders (after actions/reloads).
+  list.forEach(function(j){ var g=j.list||"Other jobs"; if(!groups[g]){groups[g]=[];order.push(g); if(!(g in WLCLOSED)) WLCLOSED[g]=true;} groups[g].push(j); });
   el.innerHTML=order.map(function(g){
     var jobs=groups[g], openN=jobs.filter(function(j){return hubBucket(j.status)!=="Done";}).length;
     var collapsed = WLCLOSED[g] ? " closed":"", bodyC = WLCLOSED[g] ? " closed":"";
