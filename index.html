@@ -17,7 +17,14 @@
   *{box-sizing:border-box}
   html,body{margin:0;height:100%}
   body{font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--ink);-webkit-text-size-adjust:100%}
-  .wrap{max-width:620px;margin:0 auto;padding:0 14px calc(84px + env(safe-area-inset-bottom))}
+  .wrap{max-width:620px;margin:0 auto;padding:0 14px calc(30px + env(safe-area-inset-bottom))}
+  /* top pill menu — matches the client portal */
+  .ptabs-bar{background:var(--navy);border-radius:12px;box-shadow:0 4px 14px rgba(20,30,50,.15);margin:12px 14px 4px;max-width:620px;position:sticky;top:0;z-index:30;overflow:hidden}
+  @media(min-width:648px){ .ptabs-bar{margin-left:auto;margin-right:auto} }
+  .ptabs-inner{display:flex;flex-wrap:wrap;justify-content:center;padding:2px 4px}
+  .ptab-btn{flex:0 1 auto;text-align:center;padding:11px 12px;color:rgba(255,255,255,0.62);font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;transition:color .2s,border-color .2s}
+  .ptab-btn:hover{color:#fff}
+  .ptab-btn.active{color:var(--orange);border-bottom-color:var(--orange)}
 
   /* ---------- header ---------- */
   header{background:linear-gradient(135deg,var(--navy),var(--navy2));color:#fff;padding:14px 14px calc(14px);position:sticky;top:0;z-index:30}
@@ -62,6 +69,7 @@
   .job.jobdone{opacity:.72;background:#f6f9f6}
   .job.jobdone h3{text-decoration:line-through;color:var(--muted)}
   .listhd{font-size:12px;font-weight:bold;letter-spacing:.5px;text-transform:uppercase;color:var(--orange);margin:6px 2px 9px;padding-top:2px}
+  .jnum{color:var(--orange);font-weight:900}
   .wlacc{background:linear-gradient(135deg,var(--navy),var(--navy2));color:#fff;border-radius:12px;padding:14px 15px;margin:4px 0 11px;cursor:pointer;display:flex;align-items:center;gap:10px}
   .wlacc h3{margin:0;font-size:15px;flex:1;line-height:1.25} .wlacc .n{background:rgba(255,255,255,.18);border-radius:12px;font-size:12px;font-weight:bold;padding:2px 9px}
   .wlacc .car{transition:transform .2s;font-size:15px} .wlacc.closed .car{transform:rotate(-90deg)}
@@ -373,6 +381,13 @@
     <button onclick="go('hours')">View</button>
   </div>
 
+  <div class="ptabs-bar"><div class="ptabs-inner">
+    <div class="ptab-btn active" data-tab="jobs"  onclick="go('jobs')">Jobs</div>
+    <div class="ptab-btn"        data-tab="check" onclick="go('check')">Checklists</div>
+    <div class="ptab-btn"        data-tab="hours" onclick="go('hours')">Time</div>
+    <div class="ptab-btn"        data-tab="sop"   onclick="go('sop')">SOP</div>
+  </div></div>
+
   <div class="wrap">
     <!-- JOBS -->
     <div id="tab-jobs">
@@ -412,12 +427,6 @@
 
   <button class="fab hidden" id="fab" onclick="openRaise()">+ Raise a job</button>
 
-  <nav class="tabbar">
-    <button class="tb on" data-tab="jobs" onclick="go('jobs')"><span class="ti">🧰</span>Jobs</button>
-    <button class="tb" data-tab="check" onclick="go('check')"><span class="ti">✅</span>Checklists</button>
-    <button class="tb" data-tab="hours" onclick="go('hours')"><span class="ti">⏱️</span>Time</button>
-    <button class="tb" data-tab="sop" onclick="go('sop')"><span class="ti">📖</span>SOP</button>
-  </nav>
 </div>
 
 <div class="overlay" id="overlay" onclick="closeSheet()"></div>
@@ -673,7 +682,7 @@ function enterReal(crew, shift){
 function go(tab){
   TAB=tab;
   ["jobs","check","hours","sop"].forEach(function(t){ $("tab-"+t).classList.toggle("hidden", t!==tab); });
-  document.querySelectorAll(".tabbar .tb").forEach(function(b){ b.classList.toggle("on", b.dataset.tab===tab); });
+  document.querySelectorAll(".ptab-btn").forEach(function(b){ b.classList.toggle("active", b.dataset.tab===tab); });
   $("fab").classList.toggle("hidden", tab!=="jobs");
   var titles={jobs:["Marine HQ Crew","Your jobs, checklists & hours"],check:["Checklists","Tick & sign off"],hours:["Time clock","Clock in · EOD · hours"],sop:["SOP & guides","Marine HQ standards"]};
   $("hdrTitle").textContent=titles[tab][0]; $("hdrSub").textContent=titles[tab][1];
@@ -719,11 +728,11 @@ function renderJobs(){
   el.innerHTML=order.map(function(g){
     var jobs=groups[g], openN=jobs.filter(function(j){return hubBucket(j.status)!=="Done";}).length;
     var collapsed = WLCLOSED[g] ? " closed":"", bodyC = WLCLOSED[g] ? " closed":"";
-    var cards=jobs.map(function(j){
+    var cards=jobs.map(function(j,idx){
       var b=hubBucket(j.status), done=b==="Done", cls=hubCls(b);
       var np=(j.photos&&j.photos.length)||0, hasNote=!!(j.notes&&j.notes.trim());
       return '<div class="job brd-'+cls+(done?" jobdone":"")+'" onclick="openWLJob(\''+esc(j.key)+'\')">'+
-        '<div class="top"><div style="flex:1"><h3>'+esc(j.task||j.desc||"(job)")+'</h3></div>'+
+        '<div class="top"><div style="flex:1"><h3><span class="jnum">'+(idx+1)+'.</span> '+esc(j.task||j.desc||"(job)")+'</h3></div>'+
         '<span class="badge s-'+cls+'">'+esc(b)+'</span></div>'+
         ((j.task&&j.desc)?('<p class="desc">'+esc(j.desc)+'</p>'):'')+
         '<div class="meta">'+(np?('<span>📷 '+np+'</span>'):'<span>Add photos</span>')+(hasNote?'<span>📝 note</span>':'')+
@@ -744,13 +753,14 @@ function wlBucketToStatus(j){ var b=hubBucket(j.status); return b==="Done"?"Comp
 function openWLJob(key){
   var j=CREWJOBS.filter(function(x){return x.key===key;})[0]; if(!j)return;
   openJobId=key;
+  var inList=CREWJOBS.filter(function(x){return (x.list||"")===(j.list||"");}); var num=inList.indexOf(j)+1;
   var cur=wlBucketToStatus(j);
   var opts=WLSTATUS.map(function(s){return '<option value="'+s+'"'+(s===cur?" selected":"")+'>'+s+'</option>';}).join("");
   var phHTML=(j.photos&&j.photos.length ? j.photos.map(function(p){return '<div class="ph"><img src="'+esc(p.url)+'" alt=""><small>'+esc(p.name||"photo")+'</small></div>';}).join("") : '<div style="font-size:13px;color:var(--muted)">No photos yet.</div>')
     +'<label class="addph" for="wlPhotoInput">＋<span>Add / camera</span></label><input id="wlPhotoInput" type="file" accept="image/*" capture="environment" multiple style="display:none" onchange="wlAddPhotos(\''+esc(key)+'\',this)">';
   $("sheet").innerHTML=
     '<div class="sheet-hd"><div style="flex:1"><div style="font-size:11px;font-weight:bold;letter-spacing:.4px;color:#ffd7b0">'+esc(j.vessel)+(j.list?(" · "+esc(j.list)):"")+'</div>'+
-      '<h3>'+esc(j.task||"(job)")+'</h3></div><button class="closeb" onclick="closeSheet()">✕</button></div>'+
+      '<h3>'+num+'. '+esc(j.task||"(job)")+'</h3></div><button class="closeb" onclick="closeSheet()">✕</button></div>'+
     (j.desc?('<div class="sec"><h4>The job</h4><p class="body">'+esc(j.desc)+'</p></div>'):'')+
     '<div class="sec"><h4>Status</h4><div class="statusrow"><label>Set</label><select id="wlStatus" onchange="wlSetStatus(\''+esc(key)+'\',this.value)">'+opts+'</select></div></div>'+
     '<div class="sec"><h4>Photos</h4><div class="photos">'+phHTML+'</div></div>'+
