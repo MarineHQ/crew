@@ -80,6 +80,10 @@
   .jcat.sched{color:#0f6b52;background:#dcf3ea} .jcat.unsched{color:#9a3412;background:#fde4d3}
   .jcat.upg{color:#5b3ea8;background:#ece4fb} .jcat.ops{color:#334155;background:#e5eaf1}
   .apprOn{background:#dcf3ea;color:#0f6b52;border:1px solid #bfe6d6;border-radius:8px;padding:9px 11px;font-size:13px;font-weight:600;margin-bottom:9px}
+  /* crew-activity "new / updated" markers (managers only) */
+  .upd{color:var(--orange);font-weight:800;font-size:11.5px}
+  .newn{background:var(--orange)!important;color:#fff!important}
+  .job.jobnew{box-shadow:0 0 0 2px var(--orange) inset}
   .wlacc{background:linear-gradient(135deg,var(--orange),var(--orange2));color:#fff;border-radius:12px;padding:14px 15px;margin:4px 0 11px;cursor:pointer;display:flex;align-items:center;gap:10px;box-shadow:0 4px 12px rgba(232,119,34,.28)}
   .wlacc h3{margin:0;font-size:15px;flex:1;line-height:1.25} .wlacc .n{background:rgba(255,255,255,.18);border-radius:12px;font-size:12px;font-weight:bold;padding:2px 9px}
   .wlacc .car{transition:transform .2s;font-size:15px} .wlacc.closed .car{transform:rotate(-90deg)}
@@ -764,24 +768,29 @@ function renderJobs(){
   list.forEach(function(j){ var g=j.list||"Other jobs"; if(!groups[g]){groups[g]=[];order.push(g); if(!(g in WLCLOSED)) WLCLOSED[g]=true;} groups[g].push(j); });
   el.innerHTML=order.map(function(g){
     var jobs=groups[g], openN=jobs.filter(function(j){return hubBucket(j.status)!=="Done";}).length;
+    var newN=jobs.filter(jobRecent).length;
     var collapsed = WLCLOSED[g] ? " closed":"", bodyC = WLCLOSED[g] ? " closed":"";
     var cards=jobs.map(function(j,idx){
       var b=hubBucket(j.status), done=b==="Done", cls=hubCls(b);
-      var np=(j.photos&&j.photos.length)||0, hasNote=!!(j.notes&&j.notes.trim());
+      var np=(j.photos&&j.photos.length)||0, hasNote=!!(j.notes&&j.notes.trim()), nd=(j.docs&&j.docs.length)||0;
       var codeChip = j.code ? ' <span class="jcode'+(j.standard==="Boat-specific"?" bs":"")+'">'+esc(j.code)+'</span>' : '';
       codeChip += catChip(j.category);
-      return '<div class="job brd-'+cls+(done?" jobdone":"")+'" onclick="openWLJob(\''+esc(j.key)+'\')">'+
+      var upd = jobRecent(j) ? '<span class="upd">● updated '+relTime(j.updated)+'</span>' : '';
+      return '<div class="job brd-'+cls+(done?" jobdone":"")+(jobRecent(j)?" jobnew":"")+'" onclick="openWLJob(\''+esc(j.key)+'\')">'+
         '<div class="top"><div style="flex:1"><h3><span class="jnum">'+(idx+1)+'.</span> '+esc(j.task||j.desc||"(job)")+codeChip+'</h3></div>'+
         '<span class="badge s-'+cls+'">'+esc(b)+'</span></div>'+
         ((j.task&&j.desc)?('<p class="desc">'+esc(j.desc)+'</p>'):'')+
-        '<div class="meta">'+(np?('<span>📷 '+np+'</span>'):'<span>Add photos</span>')+(hasNote?'<span>📝 note</span>':'')+
+        '<div class="meta">'+(np?('<span>📷 '+np+'</span>'):'<span>Add photos</span>')+(hasNote?'<span>📝 note</span>':'')+(nd?('<span>📄 '+nd+'</span>'):'')+upd+
           '<span style="margin-left:auto;color:var(--navy);font-weight:bold">Open ›</span></div></div>';
     }).join("");
     return '<div class="wlacc'+collapsed+'" onclick="toggleWL(\''+esc(g)+'\')"><span class="car">▾</span>'+
-      '<h3>'+esc(g)+'</h3><span class="n">'+openN+' open</span></div>'+
+      '<h3>'+esc(g)+'</h3>'+(newN?'<span class="n newn">'+newN+' new</span>':'')+'<span class="n">'+openN+' open</span></div>'+
       '<div class="wlbody'+bodyC+'" data-g="'+esc(g)+'">'+cards+'</div>';
   }).join("");
 }
+function isMgrRole(){ return /director|manager/i.test((ME&&ME.role)||""); }
+function jobRecent(j){ return isMgrRole() && j.source==="worklist" && j.updated && (Date.now()-j.updated < 2*864e5); }
+function relTime(ms){ if(!ms)return""; var s=Math.floor((Date.now()-ms)/1000); if(s<50)return"just now"; var m=Math.round(s/60); if(m<60)return m+"m ago"; var h=Math.round(m/60); if(h<24)return h+"h ago"; var d=Math.round(h/24); return d===1?"yesterday":d+"d ago"; }
 var WLCLOSED={};
 function toggleWL(g){ WLCLOSED[g]=!WLCLOSED[g]; renderJobs(); }
 function setJobFilter(f){ JOBFILTER=f; renderJobs(); }
