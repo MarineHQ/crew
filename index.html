@@ -812,7 +812,7 @@ function openWLJob(key){
       '<button class="jobbtn complete" style="background:var(--navy)" onclick="wlSaveNote(\''+esc(key)+'\')">Save note</button></div>'+
     wlApproveBlock(j,key)+
     '<div style="height:16px"></div>';
-  $("overlay").classList.add("show"); var s=$("sheet"); s.classList.add("show"); s.scrollTop=0;
+  showSheet();
 }
 /* Manager-only: approve a completed job → push it to the owner's app. */
 function wlApproveBlock(j,key){
@@ -906,8 +906,7 @@ function openJob(id){
       (thread||'<div style="font-size:13px;color:var(--muted);margin-bottom:6px">No notes yet.</div>')+
       '<div class="composer"><input id="jobNote" placeholder="Add a progress note…"><button onclick="addNote(\''+id+'\')">Send</button></div></div>'+
     '<div style="height:14px"></div>';
-  $("overlay").classList.add("show");
-  var s=$("sheet"); s.classList.add("show"); s.scrollTop=0;
+  showSheet();
 }
 function setJobStatus(id,st){
   var j=JOBS.filter(function(x){return x.id===id;})[0]; if(!j)return;
@@ -995,7 +994,7 @@ function openChecklist(id){
     signHTML+
     '<div class="sec" style="cursor:pointer" onclick="closeSheet();go(\'sop\');openSOP(\''+cl.sop+'\')"><h4>Related guide</h4><p class="body" style="color:var(--navy);font-weight:bold">📖 Open the SOP for this →</p></div>'+
     '<div style="height:14px"></div>';
-  $("overlay").classList.add("show"); var sh=$("sheet"); sh.classList.add("show"); sh.scrollTop=0;
+  showSheet();
 }
 function tickItem(id,idx){
   var cl=CHECKLISTS.filter(function(x){return x.id===id;})[0]; var s=clState(cl);
@@ -1276,7 +1275,7 @@ function openSOP(id){
       '<h3>'+esc(s.title)+'</h3></div><button class="closeb" onclick="closeSheet()">✕</button></div>'+
     '<div class="sec"><div class="sopbody">'+s.html+'</div></div>'+
     '<div style="height:14px"></div>';
-  $("overlay").classList.add("show"); var sh=$("sheet"); sh.classList.add("show"); sh.scrollTop=0;
+  showSheet();
 }
 
 /* ================= raise a job ================= */
@@ -1300,6 +1299,15 @@ function submitRaise(){
 }
 
 /* ================= sheet / modal ================= */
+/* Open the bottom sheet BELOW the Marine HQ banner/branding (measured live so
+   it adapts to any screen), and dim only the area under the branding. */
+function showSheet(){
+  var hd=document.querySelector('#app header');
+  var off=hd?Math.max(0,Math.round(hd.getBoundingClientRect().bottom)):0;
+  var ov=$("overlay"), s=$("sheet");
+  ov.style.top=off+"px"; s.style.top=off+"px";
+  ov.classList.add("show"); s.classList.add("show"); s.scrollTop=0;
+}
 function closeSheet(){ $("sheet").classList.remove("show"); $("overlay").classList.remove("show"); openJobId=null; openClId=null; }
 function closeModal(id){ $(id).classList.remove("show"); }
 
