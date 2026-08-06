@@ -903,8 +903,8 @@ function updateJobsBadge(){
 }
 // Drive image URLs: uc?id= no longer renders inline — use the thumbnail form for
 // <img>, and the /view link for tap-to-open-full. Works for old + new saves.
-function driveId(u){ u=(u||"").toString(); var m=/[?&]id=([^&]+)/.exec(u)||/\/d\/([^/]+)/.exec(u)||/\/file\/d\/([^/]+)/.exec(u); return m?m[1]:""; }
-function driveImg(u){ var id=driveId(u); return id?("https://drive.google.com/thumbnail?id="+id+"&sz=w1600"):(u||""); }
+function driveId(u){ u=(u||"").toString(); var m=/[?&]id=([^&]+)/.exec(u)||/\/d\/([^/=?]+)/.exec(u)||/\/file\/d\/([^/=?]+)/.exec(u); return m?m[1]:""; }
+function driveImg(u){ var id=driveId(u); return id?("https://lh3.googleusercontent.com/d/"+id+"=w1600"):(u||""); }   // direct 200, renders inline
 function driveView(u){ var id=driveId(u); return id?("https://drive.google.com/file/d/"+id+"/view"):(u||""); }
 function hubBucket(st){ st=(st||"").toLowerCase(); if(st.indexOf("progress")>=0)return"In progress"; if(st.indexOf("complete")>=0||st.indexOf("done")>=0)return"Done"; return"To do"; }
 function hubCls(b){ return b==="Done"?"done":(b==="In progress"?"inprog":"todo"); }
