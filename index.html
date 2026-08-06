@@ -32,6 +32,10 @@
   .ptab-btn.active{color:var(--orange);border-bottom-color:var(--orange)}
   .ptab-btn{position:relative}
   .tabbadge{position:absolute;top:4px;right:0;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:#e0271b;color:#fff;font-size:10.5px;font-weight:800;line-height:17px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.35)}
+  .vesselbar{display:flex;align-items:center;gap:9px;margin:8px 2px 2px}
+  .vesselbar:empty{display:none}
+  .vesselbar label{font-size:12px;font-weight:bold;color:var(--muted)}
+  .vesselbar select{flex:1;max-width:280px;border:1.5px solid var(--line);border-radius:9px;padding:9px 10px;font-size:14px;font-weight:bold;color:var(--navy);font-family:inherit;background:#fff}
 
   /* ---------- header ---------- */
   header{background:linear-gradient(135deg,var(--navy),var(--navy2));color:#fff;padding:14px 14px calc(14px);position:sticky;top:0;z-index:30}
@@ -443,6 +447,7 @@
     <!-- JOBS -->
     <div id="tab-jobs">
       <div class="hello" id="jobsHello"></div>
+      <div id="vesselBar" class="vesselbar"></div>
       <div class="subbar"><h2>My worklist</h2><span class="count" id="jobsCount"></span></div>
       <div class="chips" id="jobChips"></div>
       <div id="jobList"></div>
@@ -756,14 +761,35 @@ function jobBucket(st){ return st==="done"?"Done":st==="todo"?"To do":"In progre
 /* Real job list from the Works Register (the "centre"), for this crew member's
    vessel. Tick complete → written to our overlay only (never the owner). */
 var CREWJOBS = [], JOBSVESSEL = "";
+var CURVESSEL="", FLEETVESSELS=[];
 function loadJobs(){
   if(!ME) return;
-  var v = ME.vessels[0] || "Everywhen";
+  var v = CURVESSEL || ME.vessels[0] || "Everywhen";
   // Directors/Managers review the whole vessel (to approve crew work); crew see only their own.
   var mine = /director|manager/i.test(ME.role||"") ? "0" : "1";
   apiGet("fn=crewjobs&email="+encodeURIComponent(ME.email)+"&code="+encodeURIComponent(ME.code||"")+"&vessel="+encodeURIComponent(v)+"&mine="+mine)
-    .then(function(j){ CREWJOBS=(j&&j.jobs)||[]; JOBSVESSEL=(j&&j.vessel)||v; renderJobs(); updateJobsBadge(); startActivityWatch(); }).catch(function(){});
+    .then(function(j){ CREWJOBS=(j&&j.jobs)||[]; JOBSVESSEL=(j&&j.vessel)||v; renderJobs(); updateJobsBadge(); startActivityWatch(); renderVesselBar(); }).catch(function(){});
+  loadFleetVessels();
 }
+// Director/Manager boat switcher — lists every vessel that has a worklist.
+function loadFleetVessels(){
+  if(!isMgrRole() || FLEETVESSELS.length) return;   // fetch once
+  apiGet("fn=crewjobs&code="+encodeURIComponent(ME.code||"")+"&email="+encodeURIComponent(ME.email||"")+"&all=1&mine=0")
+    .then(function(j){
+      var set={}; ((j&&j.jobs)||[]).forEach(function(x){ if(x.vessel) set[x.vessel]=1; });
+      (ME.vessels||[]).forEach(function(v){ if(v) set[v]=1; });
+      FLEETVESSELS=Object.keys(set).sort();
+      renderVesselBar();
+    }).catch(function(){});
+}
+function renderVesselBar(){
+  var host=$("vesselBar"); if(!host) return;
+  if(!isMgrRole() || FLEETVESSELS.length<2){ host.innerHTML=""; return; }
+  var cur=CURVESSEL||JOBSVESSEL||ME.vessels[0]||"";
+  host.innerHTML='<label>Boat:</label><select onchange="pickVessel(this.value)">'+
+    FLEETVESSELS.map(function(v){return '<option'+(v===cur?' selected':'')+'>'+esc(v)+'</option>';}).join("")+'</select>';
+}
+function pickVessel(v){ CURVESSEL=v; WLCLOSED={}; loadJobs(); }
 // ---- Live in-app alerts: while a manager is signed in, watch for new crew
 // activity every 30s → toast + sound + badge (works with the app open; no push service). ----
 var _lastActMax=null, _actTimer=null;
