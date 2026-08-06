@@ -762,7 +762,45 @@ function loadJobs(){
   // Directors/Managers review the whole vessel (to approve crew work); crew see only their own.
   var mine = /director|manager/i.test(ME.role||"") ? "0" : "1";
   apiGet("fn=crewjobs&email="+encodeURIComponent(ME.email)+"&code="+encodeURIComponent(ME.code||"")+"&vessel="+encodeURIComponent(v)+"&mine="+mine)
-    .then(function(j){ CREWJOBS=(j&&j.jobs)||[]; JOBSVESSEL=(j&&j.vessel)||v; renderJobs(); updateJobsBadge(); }).catch(function(){});
+    .then(function(j){ CREWJOBS=(j&&j.jobs)||[]; JOBSVESSEL=(j&&j.vessel)||v; renderJobs(); updateJobsBadge(); startActivityWatch(); }).catch(function(){});
+}
+// ---- Live in-app alerts: while a manager is signed in, watch for new crew
+// activity every 30s → toast + sound + badge (works with the app open; no push service). ----
+var _lastActMax=null, _actTimer=null;
+function _wlMax(jobs){ var m=0; (jobs||[]).forEach(function(x){ if(x.source==="worklist" && x.updated>m) m=x.updated; }); return m; }
+function startActivityWatch(){
+  if(!ME || !isMgrRole()){ if(_actTimer){clearInterval(_actTimer);_actTimer=null;} return; }
+  try{ if(window.Notification && Notification.permission==="default") Notification.requestPermission(); }catch(e){}
+  if(_lastActMax===null) _lastActMax=_wlMax(CREWJOBS);   // baseline: don't alert for what's already there
+  if(_actTimer) return;
+  _actTimer=setInterval(pollActivity, 30000);
+}
+function pollActivity(){
+  if(!ME || !isMgrRole()) return;
+  var v=JOBSVESSEL||ME.vessels[0]||"Everywhen";
+  apiGet("fn=crewjobs&code="+encodeURIComponent(ME.code||"")+"&email="+encodeURIComponent(ME.email||"")+"&vessel="+encodeURIComponent(v)+"&mine=0")
+    .then(function(j){
+      var jobs=(j&&j.jobs)||[]; var m=_wlMax(jobs);
+      var isNew=(_lastActMax!==null && m>_lastActMax);
+      _lastActMax=Math.max(_lastActMax||0, m);
+      CREWJOBS=jobs; updateJobsBadge();
+      if(isNew){ var newest=null; jobs.forEach(function(x){ if(x.source==="worklist" && x.updated===m) newest=x; }); renderJobs(); notifyInApp(newest); }
+    }).catch(function(){});
+}
+function notifyInApp(job){
+  var line=job?((job.code?job.code+" ":"")+(job.task||"job")):"a job";
+  toast("🔔 New crew update — "+line);
+  try{ beep(); }catch(e){}
+  try{ if(window.Notification && Notification.permission==="granted") new Notification("Marine HQ Crew", { body:"New update on "+line, icon:"icon-192.png" }); }catch(e){}
+}
+function beep(){
+  try{ var C=window.AudioContext||window.webkitAudioContext; if(!C)return; var a=new C();
+    var o=a.createOscillator(), g=a.createGain(); o.type="sine"; o.frequency.value=880;
+    o.connect(g); g.connect(a.destination); g.gain.setValueAtTime(0.0001,a.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.15,a.currentTime+0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001,a.currentTime+0.28);
+    o.start(); o.stop(a.currentTime+0.3); setTimeout(function(){try{a.close();}catch(e){}},450);
+  }catch(e){}
 }
 // Red count badge on the Worklist tab = new crew activity (managers only).
 function updateJobsBadge(){
