@@ -181,6 +181,15 @@
   .upd-sub{font-size:12px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis}
   .upd-at{font-size:11px;color:var(--muted);white-space:nowrap;flex:0 0 auto}
   .ph img.imgerr{opacity:.35}
+  /* Fleet (director) links */
+  .fleetlink{display:flex;align-items:center;gap:13px;background:#fff;border:1px solid var(--line);border-radius:13px;padding:15px 15px;margin-bottom:11px;cursor:pointer;text-decoration:none;box-shadow:0 2px 8px rgba(20,30,50,.06)}
+  .fleetlink.soon{opacity:.6;cursor:default}
+  .fl-ic{font-size:26px;flex:0 0 auto}
+  .fl-main{flex:1;min-width:0}
+  .fl-t{font-size:16px;font-weight:bold;color:var(--navy)}
+  .fl-sub{font-size:12.5px;color:var(--muted);margin-top:2px;line-height:1.35}
+  .fl-go{font-size:24px;color:var(--orange);font-weight:bold;flex:0 0 auto}
+  .soonpill{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:#fff;background:var(--muted);border-radius:8px;padding:1px 6px;vertical-align:middle;margin-left:5px}
   .lightbox{position:fixed;inset:0;background:rgba(8,12,24,.93);z-index:200;display:none;align-items:center;justify-content:center;padding:16px}
   .lightbox.show{display:flex}
   .lightbox img{max-width:100%;max-height:100%;object-fit:contain;border-radius:8px}
@@ -452,6 +461,7 @@
   <div class="ptabs-bar"><div class="ptabs-inner">
     <div class="ptab-btn active" data-tab="jobs"  onclick="go('jobs')">Worklist</div>
     <div class="ptab-btn"        data-tab="updates" onclick="go('updates')">Updates</div>
+    <div class="ptab-btn mgrtab" data-tab="fleet" onclick="go('fleet')" style="display:none">Fleet</div>
     <div class="ptab-btn"        data-tab="check" onclick="go('check')">Checklists</div>
     <div class="ptab-btn"        data-tab="hours" onclick="go('hours')">Time</div>
     <div class="ptab-btn"        data-tab="sop"   onclick="go('sop')">SOP</div>
@@ -472,6 +482,26 @@
       <div class="subbar"><h2>Updates</h2><span class="count" id="updCount"></span></div>
       <p class="hello">Everything the crew &amp; Marine HQ have done, newest first. Tap any one to jump straight to that job.</p>
       <div id="updList"></div>
+    </div>
+
+    <!-- FLEET (directors/managers only) -->
+    <div id="tab-fleet" class="hidden">
+      <div class="subbar"><h2>Fleet</h2></div>
+      <p class="hello">Your director view across the whole operation.</p>
+      <div class="fleetlink" onclick="openCommand()">
+        <div class="fl-ic">🎛️</div>
+        <div class="fl-main"><div class="fl-t">Command Centre</div><div class="fl-sub">Who's on now · live crew map · today's shifts · all jobs by status</div></div>
+        <div class="fl-go">›</div>
+      </div>
+      <a class="fleetlink" href="https://fleet.marinehq.com.au" target="_blank" rel="noopener">
+        <div class="fl-ic">🚢</div>
+        <div class="fl-main"><div class="fl-t">Fleet Dashboard</div><div class="fl-sub">Every vessel — maintenance, documents, status, reports</div></div>
+        <div class="fl-go">›</div>
+      </a>
+      <div class="fleetlink soon">
+        <div class="fl-ic">👁️</div>
+        <div class="fl-main"><div class="fl-t">View as owner <span class="soonpill">soon</span></div><div class="fl-sub">See each client's MyYacht portal exactly as they see it</div></div>
+      </div>
     </div>
 
     <!-- CHECKLISTS -->
@@ -761,10 +791,12 @@ function enterReal(crew, shift){
 /* ================= tabs ================= */
 function go(tab){
   TAB=tab;
-  ["jobs","updates","check","hours","sop"].forEach(function(t){ $("tab-"+t).classList.toggle("hidden", t!==tab); });
+  // Fleet tab is Directors/Managers only.
+  var fb=document.querySelector('.ptab-btn[data-tab="fleet"]'); if(fb) fb.style.display=isMgrRole()?"":"none";
+  ["jobs","updates","fleet","check","hours","sop"].forEach(function(t){ $("tab-"+t).classList.toggle("hidden", t!==tab); });
   document.querySelectorAll(".ptab-btn").forEach(function(b){ b.classList.toggle("active", b.dataset.tab===tab); });
   $("fab").classList.toggle("hidden", tab!=="jobs");
-  var titles={jobs:["Marine HQ Crew","Your jobs, checklists & hours"],updates:["Updates","Crew activity — newest first"],check:["Checklists","Tick & sign off"],hours:["Time clock","Clock in · EOD · hours"],sop:["SOP & guides","Marine HQ standards"]};
+  var titles={jobs:["Marine HQ Crew","Your jobs, checklists & hours"],updates:["Updates","Crew activity — newest first"],fleet:["Fleet","Director view — whole operation"],check:["Checklists","Tick & sign off"],hours:["Time clock","Clock in · EOD · hours"],sop:["SOP & guides","Marine HQ standards"]};
   $("hdrTitle").textContent=titles[tab][0]; $("hdrSub").textContent=titles[tab][1];
   if(tab==="jobs") loadJobs();
   if(tab==="updates") renderUpdates();
@@ -813,6 +845,8 @@ function renderVesselBar(){
     FLEETVESSELS.map(function(v){return '<option'+(v===cur?' selected':'')+'>'+esc(v)+'</option>';}).join("")+'</select>';
 }
 function pickVessel(v){ CURVESSEL=v; WLCLOSED={}; loadJobs(); }
+// Open the Command Centre, passing the director's code so it unlocks (no 2nd passcode).
+function openCommand(){ try{ if(ME&&ME.code) localStorage.setItem("mhq_crew_key", ME.code); }catch(e){} location.href="overview.html"; }
 // ---- Updates feed + live alerts. While signed in, poll the activity feed every
 // 30s → toast + sound + unread badge (works with the app open). The feed itself
 // is a persistent list, so when you open the app you see everything you missed. ----
