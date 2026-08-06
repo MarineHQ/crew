@@ -181,6 +181,10 @@
   .upd-sub{font-size:12px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis}
   .upd-at{font-size:11px;color:var(--muted);white-space:nowrap;flex:0 0 auto}
   .ph img.imgerr{opacity:.35}
+  .lightbox{position:fixed;inset:0;background:rgba(8,12,24,.93);z-index:200;display:none;align-items:center;justify-content:center;padding:16px}
+  .lightbox.show{display:flex}
+  .lightbox img{max-width:100%;max-height:100%;object-fit:contain;border-radius:8px}
+  .lightclose{position:absolute;top:calc(14px + env(safe-area-inset-top));right:16px;width:40px;height:40px;border-radius:50%;border:0;background:rgba(255,255,255,.16);color:#fff;font-size:19px;font-weight:bold;cursor:pointer;z-index:2}
   .ph img,.ph .thumb{width:92px;height:70px;border-radius:9px;object-fit:cover;display:block}
   .ph .thumb{display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;background:linear-gradient(135deg,#42607f,#2b4763)}
   .ph small{display:block;font-size:9.5px;color:var(--muted);margin-top:3px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -506,6 +510,7 @@
 
 <div class="overlay" id="overlay" onclick="closeSheet()"></div>
 <div class="sheet" id="sheet"></div>
+<div class="lightbox" id="lightbox" onclick="closePhoto()"><button class="lightclose" onclick="closePhoto()">✕</button><img id="lightImg" src="" alt="" onclick="event.stopPropagation()"></div>
 
 <!-- Raise a job modal -->
 <div class="modal" id="raiseModal"><div class="card2">
@@ -906,6 +911,9 @@ function updateJobsBadge(){
 function driveId(u){ u=(u||"").toString(); var m=/[?&]id=([^&]+)/.exec(u)||/\/d\/([^/=?]+)/.exec(u)||/\/file\/d\/([^/=?]+)/.exec(u); return m?m[1]:""; }
 function driveImg(u){ var id=driveId(u); return id?("https://lh3.googleusercontent.com/d/"+id+"=w1600"):(u||""); }   // direct 200, renders inline
 function driveView(u){ var id=driveId(u); return id?("https://drive.google.com/file/d/"+id+"/view"):(u||""); }
+// In-app full-screen photo viewer (no Drive redirect)
+function openPhoto(u){ var im=$("lightImg"); if(im){ im.src=driveImg(u); } $("lightbox").classList.add("show"); }
+function closePhoto(){ $("lightbox").classList.remove("show"); var im=$("lightImg"); if(im) im.src=""; }
 function hubBucket(st){ st=(st||"").toLowerCase(); if(st.indexOf("progress")>=0)return"In progress"; if(st.indexOf("complete")>=0||st.indexOf("done")>=0)return"Done"; return"To do"; }
 function hubCls(b){ return b==="Done"?"done":(b==="In progress"?"inprog":"todo"); }
 function catChip(cat){
@@ -969,7 +977,7 @@ function openWLJob(key){
   var dcls={"To do":"d-todo","In hand":"d-inhand","Complete":"d-done"};
   var pills=WLSTATUS.map(function(s){return '<button class="spill '+dcls[s]+(s===cur?" on":"")+'" onclick="wlSetStatus(\''+esc(key)+'\',\''+s+'\')"><span class="dot"></span>'+s+'</button>';}).join("");
   var canDel = !j.shared || isMgrRole();   // crew can remove their own until it's approved to the owner
-  var phHTML=(j.photos&&j.photos.length ? j.photos.map(function(p){return '<div class="ph"><a href="'+esc(driveView(p.url))+'" target="_blank" rel="noopener"><img src="'+esc(driveImg(p.url))+'" alt="" loading="lazy" onerror="this.classList.add(\'imgerr\')"></a><small>'+esc(p.name||"photo")+'</small>'+(canDel?'<button class="attdel" title="Remove" onclick="event.stopPropagation();wlDelAtt(\''+esc(key)+'\',\''+esc(p.url)+'\',\'photo\')">✕</button>':'')+'</div>';}).join("") : '<div style="font-size:13px;color:var(--muted)">No photos yet.</div>')
+  var phHTML=(j.photos&&j.photos.length ? j.photos.map(function(p){return '<div class="ph"><img src="'+esc(driveImg(p.url))+'" alt="" loading="lazy" onerror="this.classList.add(\'imgerr\')" onclick="event.stopPropagation();openPhoto(\''+esc(p.url)+'\')" style="cursor:pointer"><small>'+esc(p.name||"photo")+'</small>'+(canDel?'<button class="attdel" title="Remove" onclick="event.stopPropagation();wlDelAtt(\''+esc(key)+'\',\''+esc(p.url)+'\',\'photo\')">✕</button>':'')+'</div>';}).join("") : '<div style="font-size:13px;color:var(--muted)">No photos yet.</div>')
     +'<label class="addph" for="wlPhotoInput">＋<span>Add / camera</span></label><input id="wlPhotoInput" type="file" accept="image/*" capture="environment" multiple style="display:none" onchange="wlAddPhotos(\''+esc(key)+'\',this)">';
   var docHTML=(j.docs&&j.docs.length ? j.docs.map(function(dd){return '<div class="docrowitem"><a class="docitem" href="'+esc(driveView(dd.url))+'" target="_blank" rel="noopener"><span class="ic">📄</span>'+esc(dd.name||"document")+'</a>'+(canDel?'<button class="attdel doc" title="Remove" onclick="wlDelAtt(\''+esc(key)+'\',\''+esc(dd.url)+'\',\'doc\')">✕</button>':'')+'</div>';}).join("") : '')
     +'<label class="adddoc" for="wlDocInput">＋ Attach a document (quote, PDF…)</label><input id="wlDocInput" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,image/*" multiple style="display:none" onchange="wlAddDocs(\''+esc(key)+'\',this)">';
