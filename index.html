@@ -889,7 +889,7 @@ function fileToUpload(file, maxDim, quality){
 function uploadFilesSeq(key, input, action, field, maxDim, quality){
   var files=Array.prototype.slice.call(input.files||[]); if(!files.length)return;
   input.value="";                       // let them re-pick the same file later
-  var total=files.length, i=0, okc=0, label=(field==="docs"?"document":"photo");
+  var total=files.length, i=0, okc=0, first=true, label=(field==="docs"?"document":"photo");
   toast("Uploading "+label+"…");
   (function next(){
     if(i>=total){
@@ -901,6 +901,7 @@ function uploadFilesSeq(key, input, action, field, maxDim, quality){
     fileToUpload(f, maxDim, quality).then(function(p){
       if(!p){ next(); return; }
       var body={action:action, email:ME.email, code:ME.code, jobKey:key}; body[field]=[p];
+      if(first){ body.batch=total; first=false; }   // tag first sent file → one ping per upload session
       apiPost(body).then(function(r){
         if(r&&r.ok){ okc++; var j=CREWJOBS.filter(function(x){return x.key===key;})[0]; if(j){ if(r.photos)j.photos=r.photos; if(r.docs)j.docs=r.docs; } }
         next();
