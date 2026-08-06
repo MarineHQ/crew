@@ -858,30 +858,58 @@ function wlSaveNote(key){
     else toast((r&&r.error)||"Couldn’t save");
   }).catch(function(){ toast("Couldn’t connect"); });
 }
-function wlAddPhotos(key, input){
-  var files=input.files; if(!files||!files.length)return;
-  toast("Uploading photo…");
-  var arr=[], n=files.length, done=0;
-  Array.prototype.forEach.call(files, function(f){ var fr=new FileReader(); fr.onload=function(){ arr.push({name:f.name, dataUrl:fr.result}); if(++done===n)send(); }; fr.onerror=function(){ if(++done===n)send(); }; fr.readAsDataURL(f); });
-  function send(){
-    apiPost({action:"crewJobPhotos", email:ME.email, code:ME.code, jobKey:key, photos:arr}).then(function(r){
-      if(r&&r.ok){ toast("📷 Photo added"); var j=CREWJOBS.filter(function(x){return x.key===key;})[0]; if(j)j.photos=r.photos; openWLJob(key); loadJobs(); }
-      else toast((r&&r.error)||"Couldn’t upload");
-    }).catch(function(){ toast("Couldn’t connect"); });
-  }
+/* Read a file to a data URL; if it's an image, resize+compress it first so big
+   phone photos (3–8MB) become small (~200–500KB) and upload reliably. */
+function fileToUpload(file, maxDim, quality){
+  return new Promise(function(resolve){
+    if(!/^image\//i.test(file.type||"")){
+      var fr0=new FileReader(); fr0.onload=function(){resolve({name:file.name||"file", dataUrl:fr0.result});};
+      fr0.onerror=function(){resolve(null);}; fr0.readAsDataURL(file); return;
+    }
+    var url=URL.createObjectURL(file), img=new Image();
+    img.onload=function(){
+      try{
+        var w=img.naturalWidth||img.width, h=img.naturalHeight||img.height;
+        var s=Math.min(1, maxDim/Math.max(w,h||1));
+        var cw=Math.max(1,Math.round(w*s)), ch=Math.max(1,Math.round(h*s));
+        var c=document.createElement("canvas"); c.width=cw; c.height=ch;
+        c.getContext("2d").drawImage(img,0,0,cw,ch);
+        var out=c.toDataURL("image/jpeg", quality);
+        URL.revokeObjectURL(url);
+        resolve({name:(file.name||"photo").replace(/\.[a-z0-9]+$/i,"")+".jpg", dataUrl:out});
+      }catch(e){ URL.revokeObjectURL(url); rawRead(); }
+    };
+    img.onerror=function(){ URL.revokeObjectURL(url); rawRead(); };
+    function rawRead(){ var fr=new FileReader(); fr.onload=function(){resolve({name:file.name||"photo", dataUrl:fr.result});}; fr.onerror=function(){resolve(null);}; fr.readAsDataURL(file); }
+    img.src=url;
+  });
 }
-function wlAddDocs(key, input){
-  var files=input.files; if(!files||!files.length)return;
-  toast("Uploading document…");
-  var arr=[], n=files.length, done=0;
-  Array.prototype.forEach.call(files, function(f){ var fr=new FileReader(); fr.onload=function(){ arr.push({name:f.name, dataUrl:fr.result}); if(++done===n)send(); }; fr.onerror=function(){ if(++done===n)send(); }; fr.readAsDataURL(f); });
-  function send(){
-    apiPost({action:"crewJobDocs", email:ME.email, code:ME.code, jobKey:key, docs:arr}).then(function(r){
-      if(r&&r.ok){ toast("📄 Document added"); var j=CREWJOBS.filter(function(x){return x.key===key;})[0]; if(j)j.docs=r.docs; openWLJob(key); loadJobs(); }
-      else toast((r&&r.error)||"Couldn’t upload");
-    }).catch(function(){ toast("Couldn’t connect"); });
-  }
+/* Upload files ONE AT A TIME (a small request each) so a big or flaky one can't
+   sink the whole batch — the real cause of "clicked upload, nothing saved". */
+function uploadFilesSeq(key, input, action, field, maxDim, quality){
+  var files=Array.prototype.slice.call(input.files||[]); if(!files.length)return;
+  input.value="";                       // let them re-pick the same file later
+  var total=files.length, i=0, okc=0, label=(field==="docs"?"document":"photo");
+  toast("Uploading "+label+"…");
+  (function next(){
+    if(i>=total){
+      toast(okc?("✓ "+okc+" "+label+(okc>1?"s":"")+" added"):"Couldn’t upload — check signal & try again");
+      if(okc){ openWLJob(key); loadJobs(); }
+      return;
+    }
+    var f=files[i++]; if(total>1) toast("Uploading "+i+" of "+total+"…");
+    fileToUpload(f, maxDim, quality).then(function(p){
+      if(!p){ next(); return; }
+      var body={action:action, email:ME.email, code:ME.code, jobKey:key}; body[field]=[p];
+      apiPost(body).then(function(r){
+        if(r&&r.ok){ okc++; var j=CREWJOBS.filter(function(x){return x.key===key;})[0]; if(j){ if(r.photos)j.photos=r.photos; if(r.docs)j.docs=r.docs; } }
+        next();
+      }).catch(function(){ next(); });   // skip the failed one, keep going
+    });
+  })();
 }
+function wlAddPhotos(key, input){ uploadFilesSeq(key, input, "crewJobPhotos", "photos", 1600, 0.7); }
+function wlAddDocs(key, input){ uploadFilesSeq(key, input, "crewJobDocs", "docs", 2000, 0.8); }
 
 function trackerHTML(status){
   var stage=STAGE_OF[status], done=status==="done", labels=["To do","In progress","Done"], h='<div class="tracker">';
