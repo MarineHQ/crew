@@ -156,6 +156,16 @@
   .docrowitem{display:flex;align-items:center;gap:8px}
   .docrowitem .docitem{flex:1}
   .attdel.doc{position:static;width:26px;height:26px;flex:0 0 auto}
+  /* notes & timeline */
+  .cmts{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
+  .cmt{background:#f4f6fa;border:1px solid var(--line);border-radius:10px;padding:9px 11px}
+  .cmt.mgr{background:#fff5ec;border-color:#f3d9bd}
+  .cmt-hd{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:3px}
+  .cmt-hd b{font-size:13px;color:var(--navy)}
+  .cmt-role{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.3px;color:#fff;background:var(--navy);border-radius:8px;padding:1px 6px}
+  .cmt.mgr .cmt-role{background:var(--orange)}
+  .cmt-at{margin-left:auto;font-size:11px;color:var(--muted)}
+  .cmt-tx{font-size:13.5px;color:#243; line-height:1.4;white-space:pre-wrap}
   .ph img,.ph .thumb{width:92px;height:70px;border-radius:9px;object-fit:cover;display:block}
   .ph .thumb{display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;background:linear-gradient(135deg,#42607f,#2b4763)}
   .ph small{display:block;font-size:9.5px;color:var(--muted);margin-top:3px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -819,6 +829,10 @@ function openWLJob(key){
     +'<label class="addph" for="wlPhotoInput">＋<span>Add / camera</span></label><input id="wlPhotoInput" type="file" accept="image/*" capture="environment" multiple style="display:none" onchange="wlAddPhotos(\''+esc(key)+'\',this)">';
   var docHTML=(j.docs&&j.docs.length ? j.docs.map(function(dd){return '<div class="docrowitem"><a class="docitem" href="'+esc(dd.url)+'" target="_blank" rel="noopener"><span class="ic">📄</span>'+esc(dd.name||"document")+'</a>'+(canDel?'<button class="attdel doc" title="Remove" onclick="wlDelAtt(\''+esc(key)+'\',\''+esc(dd.url)+'\',\'doc\')">✕</button>':'')+'</div>';}).join("") : '')
     +'<label class="adddoc" for="wlDocInput">＋ Attach a document (quote, PDF…)</label><input id="wlDocInput" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,image/*" multiple style="display:none" onchange="wlAddDocs(\''+esc(key)+'\',this)">';
+  var cmtHTML=(j.comments&&j.comments.length ? j.comments.map(function(cm){
+    var mgr=/director|manager/i.test(cm.role||"");
+    return '<div class="cmt'+(mgr?" mgr":"")+'"><div class="cmt-hd"><b>'+esc(cm.by||"—")+'</b>'+(cm.role?'<span class="cmt-role">'+esc(cm.role)+'</span>':'')+'<span class="cmt-at">'+fmtDateTime(cm.at)+'</span></div><div class="cmt-tx">'+esc(cm.text||"").replace(/\n/g,"<br>")+'</div></div>';
+  }).join("") : '<div style="font-size:13px;color:var(--muted)">No notes yet.</div>');
   $("sheet").innerHTML=
     '<div class="sheet-hd"><div style="flex:1"><div style="font-size:11px;font-weight:bold;letter-spacing:.4px;color:#ffd7b0">'+esc(j.vessel)+(j.list?(" · "+esc(j.list)):"")+(j.code?(' &nbsp;<span class="jcode">'+esc(j.code)+'</span>'):'')+catChip(j.category)+'</div>'+
       '<h3>'+num+'. '+esc(j.task||"(job)")+'</h3></div><button class="closeb" onclick="closeSheet()">✕</button></div>'+
@@ -826,9 +840,9 @@ function openWLJob(key){
     '<div class="sec"><h4>Status</h4><div class="pillrow">'+pills+'</div></div>'+
     '<div class="sec"><h4>Photos</h4><div class="photos">'+phHTML+'</div></div>'+
     '<div class="sec"><h4>Documents</h4><div class="docrow">'+docHTML+'</div></div>'+
-    '<div class="sec"><h4>Notes for this job</h4>'+
-      '<textarea id="wlNote" class="fld-ta" placeholder="Notes about this job…">'+esc(j.notes||"")+'</textarea>'+
-      '<button class="jobbtn complete" style="background:var(--navy)" onclick="wlSaveNote(\''+esc(key)+'\')">Save note</button></div>'+
+    '<div class="sec"><h4>Notes &amp; timeline</h4><div class="cmts">'+cmtHTML+'</div>'+
+      '<textarea id="wlNote" class="fld-ta" placeholder="Add a note… (crew &amp; Marine HQ can both post here)"></textarea>'+
+      '<button class="jobbtn complete" style="background:var(--navy)" onclick="wlAddComment(\''+esc(key)+'\')">Add note</button></div>'+
     wlApproveBlock(j,key)+
     '<div style="height:16px"></div>';
   showSheet();
@@ -861,12 +875,20 @@ function wlSetStatus(key,st){
     else toast((r&&r.error)||"Couldn’t update");
   }).catch(function(){ toast("Couldn’t connect"); });
 }
-function wlSaveNote(key){
-  var notes=($("wlNote").value||"").trim();
-  apiPost({action:"crewJobNote", email:ME.email, code:ME.code, jobKey:key, notes:notes}).then(function(r){
-    if(r&&r.ok){ toast("Note saved"); var j=CREWJOBS.filter(function(x){return x.key===key;})[0]; if(j)j.notes=notes; loadJobs(); }
-    else toast((r&&r.error)||"Couldn’t save");
-  }).catch(function(){ toast("Couldn’t connect"); });
+function fmtDateTime(ms){
+  if(!ms) return "earlier";
+  var d=new Date(ms), mon=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()];
+  var h=d.getHours(),m=d.getMinutes(),ap=h<12?"am":"pm",hh=h%12||12;
+  return d.getDate()+" "+mon+" · "+hh+":"+(m<10?"0":"")+m+ap;
+}
+function wlAddComment(key){
+  var el=$("wlNote"), text=(el&&el.value||"").trim();
+  if(!text){ toast("Type a note first"); return; }
+  if(el) el.disabled=true;
+  apiPost({action:"crewJobComment", email:ME.email, code:ME.code, jobKey:key, text:text}).then(function(r){
+    if(r&&r.ok){ toast("Note added"); var j=CREWJOBS.filter(function(x){return x.key===key;})[0]; if(j)j.comments=r.comments||[]; openWLJob(key); loadJobs(); }
+    else { toast((r&&r.error)||"Couldn’t add"); if(el) el.disabled=false; }
+  }).catch(function(){ toast("Couldn’t connect"); if(el) el.disabled=false; });
 }
 /* Read a file to a data URL; if it's an image, resize+compress it first so big
    phone photos (3–8MB) become small (~200–500KB) and upload reliably. */
