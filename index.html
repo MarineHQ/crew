@@ -190,6 +190,7 @@
   .fl-sub{font-size:12.5px;color:var(--muted);margin-top:2px;line-height:1.35}
   .fl-go{font-size:24px;color:var(--orange);font-weight:bold;flex:0 0 auto}
   .soonpill{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:#fff;background:var(--muted);border-radius:8px;padding:1px 6px;vertical-align:middle;margin-left:5px}
+  .ownerhd{background:#eef4ff;border:1px solid #d5e2f7;border-radius:10px;padding:10px 12px;font-size:13px;color:var(--navy);margin:4px 0 11px;line-height:1.4}
   .lightbox{position:fixed;inset:0;background:rgba(8,12,24,.93);z-index:200;display:none;align-items:center;justify-content:center;padding:16px}
   .lightbox.show{display:flex}
   .lightbox img{max-width:100%;max-height:100%;object-fit:contain;border-radius:8px}
@@ -498,9 +499,14 @@
         <div class="fl-main"><div class="fl-t">Fleet Dashboard</div><div class="fl-sub">Every vessel — maintenance, documents, status, reports</div></div>
         <div class="fl-go">›</div>
       </a>
-      <div class="fleetlink soon">
+      <div class="fleetlink" onclick="toggleOwnerPreview()">
         <div class="fl-ic">👁️</div>
-        <div class="fl-main"><div class="fl-t">View as owner <span class="soonpill">soon</span></div><div class="fl-sub">See each client's MyYacht portal exactly as they see it</div></div>
+        <div class="fl-main"><div class="fl-t">View as owner</div><div class="fl-sub">See each client's MyYacht portal exactly as they see it</div></div>
+        <div class="fl-go">›</div>
+      </div>
+      <div id="ownerPreviewPanel" class="hidden">
+        <div class="vesselbar"><label>Owner of:</label><select id="ownerVesselSel" onchange="loadOwnerPreview(this.value)"></select></div>
+        <div id="ownerPreviewList"></div>
       </div>
     </div>
 
@@ -847,6 +853,33 @@ function renderVesselBar(){
 function pickVessel(v){ CURVESSEL=v; WLCLOSED={}; loadJobs(); }
 // Open the Command Centre, passing the director's code so it unlocks (no 2nd passcode).
 function openCommand(){ try{ if(ME&&ME.code) localStorage.setItem("mhq_crew_key", ME.code); }catch(e){} location.href="overview.html"; }
+// View as owner — director previews a vessel's MyYacht portal as the client sees it.
+function toggleOwnerPreview(){
+  var p=$("ownerPreviewPanel"); if(!p) return;
+  p.classList.toggle("hidden");
+  if(!p.classList.contains("hidden")){
+    var sel=$("ownerVesselSel");
+    var vessels = (FLEETVESSELS&&FLEETVESSELS.length? FLEETVESSELS : (ME.vessels||[])).filter(function(v){ return !/test boat/i.test(v); });
+    sel.innerHTML=vessels.map(function(v){return '<option>'+esc(v)+'</option>';}).join("");
+    if(vessels.length) loadOwnerPreview(vessels[0]);
+  }
+}
+function loadOwnerPreview(vessel){
+  var el=$("ownerPreviewList"); if(!el) return;
+  el.innerHTML='<div class="empty">Loading '+esc(vessel)+"'s view…</div>";
+  apiGet("fn=worklist&key="+encodeURIComponent(ME.code||"")+"&asOwner="+encodeURIComponent(vessel)).then(function(r){
+    if(!r||!r.ok){ el.innerHTML='<div class="empty">Couldn’t load.</div>'; return; }
+    if(!r.ownerPreview){ el.innerHTML='<div class="empty">View-as-owner is being switched on.<br>It goes live with the next update.</div>'; return; }
+    var jobs=(r.jobs||[]);
+    el.innerHTML='<div class="ownerhd">👁️ You are seeing <b>'+esc(vessel)+'</b> exactly as the owner does — only approved works ('+jobs.length+').</div>'+
+      (jobs.length? jobs.map(function(j){
+        var b=hubBucket(j.status), cls=hubCls(b), np=(j.photos&&j.photos.length)||0;
+        return '<div class="job brd-'+cls+'"><div class="top"><div style="flex:1"><h3>'+esc(j.title||j.task||"(job)")+'</h3></div><span class="badge s-'+cls+'">'+esc(j.status||b)+'</span></div>'+
+          (j.desc&&j.desc!==j.title?('<p class="desc">'+esc(j.desc)+'</p>'):'')+
+          (np?('<div class="meta"><span>📷 '+np+'</span></div>'):'')+'</div>';
+      }).join("") : '<div class="empty">Nothing shared with this owner yet.<br>Approved works will appear in their portal here.</div>');
+  }).catch(function(){ el.innerHTML='<div class="empty">Couldn’t connect.</div>'; });
+}
 // ---- Updates feed + live alerts. While signed in, poll the activity feed every
 // 30s → toast + sound + unread badge (works with the app open). The feed itself
 // is a persistent list, so when you open the app you see everything you missed. ----
