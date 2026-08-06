@@ -30,6 +30,8 @@
   .ptab-btn{flex:0 1 auto;text-align:center;padding:11px 12px;color:rgba(255,255,255,0.62);font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;transition:color .2s,border-color .2s}
   .ptab-btn:hover{color:#fff}
   .ptab-btn.active{color:var(--orange);border-bottom-color:var(--orange)}
+  .ptab-btn{position:relative}
+  .tabbadge{position:absolute;top:4px;right:0;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:#e0271b;color:#fff;font-size:10.5px;font-weight:800;line-height:17px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.35)}
 
   /* ---------- header ---------- */
   header{background:linear-gradient(135deg,var(--navy),var(--navy2));color:#fff;padding:14px 14px calc(14px);position:sticky;top:0;z-index:30}
@@ -760,7 +762,19 @@ function loadJobs(){
   // Directors/Managers review the whole vessel (to approve crew work); crew see only their own.
   var mine = /director|manager/i.test(ME.role||"") ? "0" : "1";
   apiGet("fn=crewjobs&email="+encodeURIComponent(ME.email)+"&code="+encodeURIComponent(ME.code||"")+"&vessel="+encodeURIComponent(v)+"&mine="+mine)
-    .then(function(j){ CREWJOBS=(j&&j.jobs)||[]; JOBSVESSEL=(j&&j.vessel)||v; renderJobs(); }).catch(function(){});
+    .then(function(j){ CREWJOBS=(j&&j.jobs)||[]; JOBSVESSEL=(j&&j.vessel)||v; renderJobs(); updateJobsBadge(); }).catch(function(){});
+}
+// Red count badge on the Worklist tab = new crew activity (managers only).
+function updateJobsBadge(){
+  var n = (typeof CREWJOBS!=="undefined" && CREWJOBS) ? CREWJOBS.filter(jobRecent).length : 0;
+  var btn = document.querySelector('.ptab-btn[data-tab="jobs"]');
+  if(btn){
+    var b = btn.querySelector('.tabbadge');
+    if(n>0){ if(!b){ b=document.createElement('span'); b.className='tabbadge'; btn.appendChild(b); } b.textContent = n>99?'99+':n; }
+    else if(b){ b.parentNode.removeChild(b); }
+  }
+  // Bonus: real home-screen badge where the platform supports it (Android/desktop PWAs; iOS ignores it).
+  try{ if(navigator.setAppBadge){ n>0 ? navigator.setAppBadge(n) : navigator.clearAppBadge(); } }catch(e){}
 }
 function hubBucket(st){ st=(st||"").toLowerCase(); if(st.indexOf("progress")>=0)return"In progress"; if(st.indexOf("complete")>=0||st.indexOf("done")>=0)return"Done"; return"To do"; }
 function hubCls(b){ return b==="Done"?"done":(b==="In progress"?"inprog":"todo"); }
