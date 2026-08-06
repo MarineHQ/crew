@@ -151,7 +151,11 @@
 
   /* photos */
   .photos{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;flex-wrap:wrap}
-  .ph{flex:0 0 auto;width:92px}
+  .ph{flex:0 0 auto;width:92px;position:relative}
+  .attdel{position:absolute;top:-7px;right:-7px;width:22px;height:22px;border-radius:50%;border:1.5px solid #fff;background:#c0392b;color:#fff;font-size:12px;font-weight:bold;line-height:1;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;padding:0}
+  .docrowitem{display:flex;align-items:center;gap:8px}
+  .docrowitem .docitem{flex:1}
+  .attdel.doc{position:static;width:26px;height:26px;flex:0 0 auto}
   .ph img,.ph .thumb{width:92px;height:70px;border-radius:9px;object-fit:cover;display:block}
   .ph .thumb{display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;background:linear-gradient(135deg,#42607f,#2b4763)}
   .ph small{display:block;font-size:9.5px;color:var(--muted);margin-top:3px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -810,9 +814,10 @@ function openWLJob(key){
   var cur=wlBucketToStatus(j);
   var dcls={"To do":"d-todo","In hand":"d-inhand","Complete":"d-done"};
   var pills=WLSTATUS.map(function(s){return '<button class="spill '+dcls[s]+(s===cur?" on":"")+'" onclick="wlSetStatus(\''+esc(key)+'\',\''+s+'\')"><span class="dot"></span>'+s+'</button>';}).join("");
-  var phHTML=(j.photos&&j.photos.length ? j.photos.map(function(p){return '<div class="ph"><img src="'+esc(p.url)+'" alt=""><small>'+esc(p.name||"photo")+'</small></div>';}).join("") : '<div style="font-size:13px;color:var(--muted)">No photos yet.</div>')
+  var canDel = !j.shared || isMgrRole();   // crew can remove their own until it's approved to the owner
+  var phHTML=(j.photos&&j.photos.length ? j.photos.map(function(p){return '<div class="ph"><img src="'+esc(p.url)+'" alt=""><small>'+esc(p.name||"photo")+'</small>'+(canDel?'<button class="attdel" title="Remove" onclick="event.stopPropagation();wlDelAtt(\''+esc(key)+'\',\''+esc(p.url)+'\',\'photo\')">✕</button>':'')+'</div>';}).join("") : '<div style="font-size:13px;color:var(--muted)">No photos yet.</div>')
     +'<label class="addph" for="wlPhotoInput">＋<span>Add / camera</span></label><input id="wlPhotoInput" type="file" accept="image/*" capture="environment" multiple style="display:none" onchange="wlAddPhotos(\''+esc(key)+'\',this)">';
-  var docHTML=(j.docs&&j.docs.length ? j.docs.map(function(dd){return '<a class="docitem" href="'+esc(dd.url)+'" target="_blank" rel="noopener"><span class="ic">📄</span>'+esc(dd.name||"document")+'</a>';}).join("") : '')
+  var docHTML=(j.docs&&j.docs.length ? j.docs.map(function(dd){return '<div class="docrowitem"><a class="docitem" href="'+esc(dd.url)+'" target="_blank" rel="noopener"><span class="ic">📄</span>'+esc(dd.name||"document")+'</a>'+(canDel?'<button class="attdel doc" title="Remove" onclick="wlDelAtt(\''+esc(key)+'\',\''+esc(dd.url)+'\',\'doc\')">✕</button>':'')+'</div>';}).join("") : '')
     +'<label class="adddoc" for="wlDocInput">＋ Attach a document (quote, PDF…)</label><input id="wlDocInput" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,image/*" multiple style="display:none" onchange="wlAddDocs(\''+esc(key)+'\',this)">';
   $("sheet").innerHTML=
     '<div class="sheet-hd"><div style="flex:1"><div style="font-size:11px;font-weight:bold;letter-spacing:.4px;color:#ffd7b0">'+esc(j.vessel)+(j.list?(" · "+esc(j.list)):"")+(j.code?(' &nbsp;<span class="jcode">'+esc(j.code)+'</span>'):'')+catChip(j.category)+'</div>'+
@@ -916,6 +921,16 @@ function uploadFilesSeq(key, input, action, field, maxDim, quality){
 }
 function wlAddPhotos(key, input){ uploadFilesSeq(key, input, "crewJobPhotos", "photos", 1600, 0.7); }
 function wlAddDocs(key, input){ uploadFilesSeq(key, input, "crewJobDocs", "docs", 2000, 0.8); }
+function wlDelAtt(key, url, kind){
+  if(!confirm("Remove this "+(kind==="doc"?"document":"photo")+"?")) return;
+  apiPost({action:"crewJobDeleteAttachment", email:ME.email, code:ME.code, jobKey:key, kind:kind, url:url}).then(function(r){
+    if(r&&r.ok){ toast((kind==="doc"?"Document":"Photo")+" removed");
+      var j=CREWJOBS.filter(function(x){return x.key===key;})[0];
+      if(j){ if(kind==="doc")j.docs=r.docs||[]; else j.photos=r.photos||[]; }
+      openWLJob(key); loadJobs(); }
+    else toast((r&&r.error)||"Couldn’t remove");
+  }).catch(function(){ toast("Couldn’t connect"); });
+}
 
 function trackerHTML(status){
   var stage=STAGE_OF[status], done=status==="done", labels=["To do","In progress","Done"], h='<div class="tracker">';
