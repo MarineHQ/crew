@@ -172,6 +172,15 @@
   .cmt.mgr .cmt-role{background:var(--orange)}
   .cmt-at{margin-left:auto;font-size:11px;color:var(--muted)}
   .cmt-tx{font-size:13.5px;color:#243; line-height:1.4;white-space:pre-wrap}
+  /* Updates feed */
+  .upditem{display:flex;align-items:flex-start;gap:11px;background:#fff;border:1px solid var(--line);border-radius:11px;padding:11px 12px;margin-bottom:8px;cursor:pointer}
+  .upditem.unread{border-left:4px solid var(--orange);background:#fff8f1}
+  .upd-ic{font-size:19px;line-height:1.2;flex:0 0 auto}
+  .upd-main{flex:1;min-width:0}
+  .upd-t{font-size:14px;color:var(--ink)} .upd-t b{color:var(--navy)}
+  .upd-sub{font-size:12px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis}
+  .upd-at{font-size:11px;color:var(--muted);white-space:nowrap;flex:0 0 auto}
+  .ph img.imgerr{opacity:.35}
   .ph img,.ph .thumb{width:92px;height:70px;border-radius:9px;object-fit:cover;display:block}
   .ph .thumb{display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;background:linear-gradient(135deg,#42607f,#2b4763)}
   .ph small{display:block;font-size:9.5px;color:var(--muted);margin-top:3px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -438,6 +447,7 @@
 
   <div class="ptabs-bar"><div class="ptabs-inner">
     <div class="ptab-btn active" data-tab="jobs"  onclick="go('jobs')">Worklist</div>
+    <div class="ptab-btn"        data-tab="updates" onclick="go('updates')">Updates</div>
     <div class="ptab-btn"        data-tab="check" onclick="go('check')">Checklists</div>
     <div class="ptab-btn"        data-tab="hours" onclick="go('hours')">Time</div>
     <div class="ptab-btn"        data-tab="sop"   onclick="go('sop')">SOP</div>
@@ -451,6 +461,13 @@
       <div class="subbar"><h2>My worklist</h2><span class="count" id="jobsCount"></span></div>
       <div class="chips" id="jobChips"></div>
       <div id="jobList"></div>
+    </div>
+
+    <!-- UPDATES / notifications feed -->
+    <div id="tab-updates" class="hidden">
+      <div class="subbar"><h2>Updates</h2><span class="count" id="updCount"></span></div>
+      <p class="hello">Everything the crew &amp; Marine HQ have done, newest first. Tap any one to jump straight to that job.</p>
+      <div id="updList"></div>
     </div>
 
     <!-- CHECKLISTS -->
@@ -739,12 +756,13 @@ function enterReal(crew, shift){
 /* ================= tabs ================= */
 function go(tab){
   TAB=tab;
-  ["jobs","check","hours","sop"].forEach(function(t){ $("tab-"+t).classList.toggle("hidden", t!==tab); });
+  ["jobs","updates","check","hours","sop"].forEach(function(t){ $("tab-"+t).classList.toggle("hidden", t!==tab); });
   document.querySelectorAll(".ptab-btn").forEach(function(b){ b.classList.toggle("active", b.dataset.tab===tab); });
   $("fab").classList.toggle("hidden", tab!=="jobs");
-  var titles={jobs:["Marine HQ Crew","Your jobs, checklists & hours"],check:["Checklists","Tick & sign off"],hours:["Time clock","Clock in · EOD · hours"],sop:["SOP & guides","Marine HQ standards"]};
+  var titles={jobs:["Marine HQ Crew","Your jobs, checklists & hours"],updates:["Updates","Crew activity — newest first"],check:["Checklists","Tick & sign off"],hours:["Time clock","Clock in · EOD · hours"],sop:["SOP & guides","Marine HQ standards"]};
   $("hdrTitle").textContent=titles[tab][0]; $("hdrSub").textContent=titles[tab][1];
   if(tab==="jobs") loadJobs();
+  if(tab==="updates") renderUpdates();
   if(tab==="hours"){ renderClock(); loadShifts(); }
   if(tab==="check") loadChecklists();
   updateStrip();
@@ -790,33 +808,77 @@ function renderVesselBar(){
     FLEETVESSELS.map(function(v){return '<option'+(v===cur?' selected':'')+'>'+esc(v)+'</option>';}).join("")+'</select>';
 }
 function pickVessel(v){ CURVESSEL=v; WLCLOSED={}; loadJobs(); }
-// ---- Live in-app alerts: while a manager is signed in, watch for new crew
-// activity every 30s → toast + sound + badge (works with the app open; no push service). ----
-var _lastActMax=null, _actTimer=null;
-function _wlMax(jobs){ var m=0; (jobs||[]).forEach(function(x){ if(x.source==="worklist" && x.updated>m) m=x.updated; }); return m; }
+// ---- Updates feed + live alerts. While signed in, poll the activity feed every
+// 30s → toast + sound + unread badge (works with the app open). The feed itself
+// is a persistent list, so when you open the app you see everything you missed. ----
+var UPDATES=[], _lastEventAt=null, _actTimer=null;
 function startActivityWatch(){
-  if(!ME || !isMgrRole()){ if(_actTimer){clearInterval(_actTimer);_actTimer=null;} _lastActMax=null; return; }
+  if(!ME){ if(_actTimer){clearInterval(_actTimer);_actTimer=null;} return; }
   try{ if(window.Notification && Notification.permission==="default") Notification.requestPermission(); }catch(e){}
   if(_actTimer) return;
-  pollActivity();                        // first call sets the baseline (no alert), fleet-wide
+  pollActivity();                        // prime baseline (no alert on first load)
   _actTimer=setInterval(pollActivity, 30000);
 }
-// Detection-only, FLEET-WIDE (all=1): alerts a director about crew activity on ANY vessel.
 function pollActivity(){
-  if(!ME || !isMgrRole()) return;
-  apiGet("fn=crewjobs&code="+encodeURIComponent(ME.code||"")+"&email="+encodeURIComponent(ME.email||"")+"&all=1&mine=0")
+  if(!ME) return;
+  apiGet("fn=crewactivity&code="+encodeURIComponent(ME.code||"")+"&email="+encodeURIComponent(ME.email||"")+"&limit=80")
     .then(function(j){
-      var jobs=(j&&j.jobs)||[]; var m=_wlMax(jobs);
-      var isNew=(_lastActMax!==null && m>_lastActMax);
-      if(isNew){ var newest=null; jobs.forEach(function(x){ if(x.source==="worklist" && x.updated===m) newest=x; }); notifyInApp(newest); }
-      _lastActMax=Math.max(_lastActMax||0, m);
+      var evs=(j&&j.events)||[]; UPDATES=evs;
+      var newest=evs.length?evs[0].at:0;
+      if(_lastEventAt!==null && newest>_lastEventAt && evs.length) notifyInApp(evs[0]);
+      _lastEventAt=Math.max(_lastEventAt||0, newest);
+      updateUpdBadge();
+      if(TAB==="updates") renderUpdatesList();
     }).catch(function(){});
 }
-function notifyInApp(job){
-  var line=job?((job.code?job.code+" ":"")+(job.task||"job")):"a job";
-  toast("🔔 New crew update — "+line);
+function notifyInApp(ev){
+  var line=((ev&&ev.code)?ev.code+" ":"")+((ev&&ev.task)||"a job");
+  toast("🔔 "+((ev&&ev.by)||"Update")+" "+((ev&&ev.action)||"updated")+" — "+line);
   try{ beep(); }catch(e){}
-  try{ if(window.Notification && Notification.permission==="granted") new Notification("Marine HQ Crew", { body:"New update on "+line, icon:"icon-192.png" }); }catch(e){}
+  try{ if(window.Notification && Notification.permission==="granted") new Notification("Marine HQ Crew", { body:((ev&&ev.by)||"")+" "+((ev&&ev.action)||"update")+" — "+line, icon:"icon-192.png" }); }catch(e){}
+}
+/* ---- the Updates list ---- */
+function updSeenKey(){ return "mhq_upd_seen_"+((ME&&ME.code)||""); }
+function updLastSeen(){ try{ return parseInt(localStorage.getItem(updSeenKey())||"0",10)||0; }catch(e){ return 0; } }
+function markUpdatesRead(){ try{ var m=0; (UPDATES||[]).forEach(function(e){ if(e.at>m)m=e.at; }); if(m) localStorage.setItem(updSeenKey(), String(m)); }catch(e){} updateUpdBadge(); }
+function updUnread(){ var ls=updLastSeen(); return (UPDATES||[]).filter(function(e){ return e.at>ls; }).length; }
+function updateUpdBadge(){
+  var n=updUnread(), btn=document.querySelector('.ptab-btn[data-tab="updates"]');
+  if(btn){ var b=btn.querySelector('.tabbadge'); if(n>0){ if(!b){b=document.createElement('span');b.className='tabbadge';btn.appendChild(b);} b.textContent=n>99?'99+':n; } else if(b){ b.parentNode.removeChild(b); } }
+  try{ if(navigator.setAppBadge){ n>0?navigator.setAppBadge(n):navigator.clearAppBadge(); } }catch(e){}
+}
+function updIcon(a){ a=(a||"").toLowerCase(); return /photo/.test(a)?"📷":(/document/.test(a)?"📄":(/approv/.test(a)?"📤":(/marked/.test(a)?"✓":"📝"))); }
+function renderUpdates(){
+  var el=$("updList"); if(!el) return;
+  if(!UPDATES.length) el.innerHTML='<div class="empty">Loading…</div>';
+  apiGet("fn=crewactivity&code="+encodeURIComponent(ME.code||"")+"&email="+encodeURIComponent(ME.email||"")+"&limit=150")
+    .then(function(j){ UPDATES=(j&&j.events)||[]; renderUpdatesList(); markUpdatesRead(); })
+    .catch(function(){ if(!UPDATES.length) el.innerHTML='<div class="empty">Couldn’t load updates.</div>'; });
+}
+function renderUpdatesList(){
+  var el=$("updList"); if(!el) return;
+  var ls=updLastSeen();
+  if($("updCount")) $("updCount").textContent=(UPDATES.length||0)+(UPDATES.length===1?" update":" updates");
+  if(!UPDATES.length){ el.innerHTML='<div class="empty">No updates yet.<br>Crew activity will show up here.</div>'; return; }
+  el.innerHTML=UPDATES.map(function(ev){
+    return '<div class="upditem'+(ev.at>ls?' unread':'')+'" onclick="openFromUpdate(\''+esc(ev.jobKey)+'\',\''+esc(ev.vessel)+'\')">'+
+      '<div class="upd-ic">'+updIcon(ev.action)+'</div>'+
+      '<div class="upd-main"><div class="upd-t"><b>'+esc(ev.by||"—")+'</b> '+esc(ev.action||"")+'</div>'+
+      '<div class="upd-sub">'+(ev.code?'<span class="jcode">'+esc(ev.code)+'</span> ':'')+esc(ev.task||"")+' · '+esc(ev.vessel||"")+'</div></div>'+
+      '<div class="upd-at">'+relTime(ev.at)+'</div></div>';
+  }).join("");
+}
+function openFromUpdate(jobKey, vessel){
+  go("jobs");
+  if(isMgrRole() && vessel) CURVESSEL=vessel;
+  var v=CURVESSEL||ME.vessels[0]||"Everywhen";
+  apiGet("fn=crewjobs&code="+encodeURIComponent(ME.code||"")+"&email="+encodeURIComponent(ME.email||"")+"&vessel="+encodeURIComponent(v)+"&mine="+(isMgrRole()?"0":"1"))
+    .then(function(j){ CREWJOBS=(j&&j.jobs)||[]; JOBSVESSEL=(j&&j.vessel)||v;
+      var job=CREWJOBS.filter(function(x){return x.key===jobKey;})[0];
+      if(job) WLCLOSED[job.list||"Other jobs"]=false;
+      renderJobs(); updateJobsBadge(); renderVesselBar();
+      if(job) openWLJob(jobKey); else toast("Job not found on "+esc(v));
+    }).catch(function(){ toast("Couldn’t open"); });
 }
 function beep(){
   try{ var C=window.AudioContext||window.webkitAudioContext; if(!C)return; var a=new C();
@@ -839,6 +901,11 @@ function updateJobsBadge(){
   // Bonus: real home-screen badge where the platform supports it (Android/desktop PWAs; iOS ignores it).
   try{ if(navigator.setAppBadge){ n>0 ? navigator.setAppBadge(n) : navigator.clearAppBadge(); } }catch(e){}
 }
+// Drive image URLs: uc?id= no longer renders inline — use the thumbnail form for
+// <img>, and the /view link for tap-to-open-full. Works for old + new saves.
+function driveId(u){ u=(u||"").toString(); var m=/[?&]id=([^&]+)/.exec(u)||/\/d\/([^/]+)/.exec(u)||/\/file\/d\/([^/]+)/.exec(u); return m?m[1]:""; }
+function driveImg(u){ var id=driveId(u); return id?("https://drive.google.com/thumbnail?id="+id+"&sz=w1600"):(u||""); }
+function driveView(u){ var id=driveId(u); return id?("https://drive.google.com/file/d/"+id+"/view"):(u||""); }
 function hubBucket(st){ st=(st||"").toLowerCase(); if(st.indexOf("progress")>=0)return"In progress"; if(st.indexOf("complete")>=0||st.indexOf("done")>=0)return"Done"; return"To do"; }
 function hubCls(b){ return b==="Done"?"done":(b==="In progress"?"inprog":"todo"); }
 function catChip(cat){
@@ -902,9 +969,9 @@ function openWLJob(key){
   var dcls={"To do":"d-todo","In hand":"d-inhand","Complete":"d-done"};
   var pills=WLSTATUS.map(function(s){return '<button class="spill '+dcls[s]+(s===cur?" on":"")+'" onclick="wlSetStatus(\''+esc(key)+'\',\''+s+'\')"><span class="dot"></span>'+s+'</button>';}).join("");
   var canDel = !j.shared || isMgrRole();   // crew can remove their own until it's approved to the owner
-  var phHTML=(j.photos&&j.photos.length ? j.photos.map(function(p){return '<div class="ph"><img src="'+esc(p.url)+'" alt=""><small>'+esc(p.name||"photo")+'</small>'+(canDel?'<button class="attdel" title="Remove" onclick="event.stopPropagation();wlDelAtt(\''+esc(key)+'\',\''+esc(p.url)+'\',\'photo\')">✕</button>':'')+'</div>';}).join("") : '<div style="font-size:13px;color:var(--muted)">No photos yet.</div>')
+  var phHTML=(j.photos&&j.photos.length ? j.photos.map(function(p){return '<div class="ph"><a href="'+esc(driveView(p.url))+'" target="_blank" rel="noopener"><img src="'+esc(driveImg(p.url))+'" alt="" loading="lazy" onerror="this.classList.add(\'imgerr\')"></a><small>'+esc(p.name||"photo")+'</small>'+(canDel?'<button class="attdel" title="Remove" onclick="event.stopPropagation();wlDelAtt(\''+esc(key)+'\',\''+esc(p.url)+'\',\'photo\')">✕</button>':'')+'</div>';}).join("") : '<div style="font-size:13px;color:var(--muted)">No photos yet.</div>')
     +'<label class="addph" for="wlPhotoInput">＋<span>Add / camera</span></label><input id="wlPhotoInput" type="file" accept="image/*" capture="environment" multiple style="display:none" onchange="wlAddPhotos(\''+esc(key)+'\',this)">';
-  var docHTML=(j.docs&&j.docs.length ? j.docs.map(function(dd){return '<div class="docrowitem"><a class="docitem" href="'+esc(dd.url)+'" target="_blank" rel="noopener"><span class="ic">📄</span>'+esc(dd.name||"document")+'</a>'+(canDel?'<button class="attdel doc" title="Remove" onclick="wlDelAtt(\''+esc(key)+'\',\''+esc(dd.url)+'\',\'doc\')">✕</button>':'')+'</div>';}).join("") : '')
+  var docHTML=(j.docs&&j.docs.length ? j.docs.map(function(dd){return '<div class="docrowitem"><a class="docitem" href="'+esc(driveView(dd.url))+'" target="_blank" rel="noopener"><span class="ic">📄</span>'+esc(dd.name||"document")+'</a>'+(canDel?'<button class="attdel doc" title="Remove" onclick="wlDelAtt(\''+esc(key)+'\',\''+esc(dd.url)+'\',\'doc\')">✕</button>':'')+'</div>';}).join("") : '')
     +'<label class="adddoc" for="wlDocInput">＋ Attach a document (quote, PDF…)</label><input id="wlDocInput" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,image/*" multiple style="display:none" onchange="wlAddDocs(\''+esc(key)+'\',this)">';
   var cmtHTML=(j.comments&&j.comments.length ? j.comments.map(function(cm){
     var mgr=/director|manager/i.test(cm.role||"");
