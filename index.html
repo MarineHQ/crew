@@ -1072,7 +1072,8 @@ function pollActivity(){
       var evs=(j&&j.events)||[]; UPDATES=evs; _cSet(_ck("upd"), evs);
       var newest=evs.length?evs[0].at:0;
       var firstLoad=(_lastEventAt===null);
-      if(!firstLoad && newest>_lastEventAt && evs.length) notifyInApp(evs[0]);
+      // live ping (app already open): only for MY tags or general activity — never someone else's tag
+      if(!firstLoad && newest>_lastEventAt && evs.length && !isForeignTag_(evs[0])) notifyInApp(evs[0]);
       _lastEventAt=Math.max(_lastEventAt||0, newest);
       updateUpdBadge();
       if(TAB==="updates") renderUpdatesList();
@@ -1080,20 +1081,33 @@ function pollActivity(){
     }).catch(function(){});
 }
 /* ── Welcome / "you've been tagged" pop-up ─────────────────────
-   Shows once when you open the app and there's something new since the
-   last pop — tags aimed at YOU come first, otherwise a quick "what's new". */
+   Shows once when you open the app and there's something NEW since the last
+   pop — anything you've already seen never comes back. Tags aimed at YOU come
+   first; a tag meant for someone else never notifies you. */
+function myLower_(){ return (ME&&ME.name||"").toLowerCase().replace(/\s*\(test\)/,"").trim(); }
+function isTagForMe_(e){ var me=myLower_(); return !!(e&&e.mention&&me&&e.mention.toLowerCase().indexOf(me)>=0); }
+function isForeignTag_(e){ return !!(e&&e.mention) && !isTagForMe_(e); }   // a tag meant for someone else
 function updPoppedKey(){ return "mhq_upd_popped_"+((ME&&ME.code)||""); }
 function updLastPopped(){ try{ return parseInt(localStorage.getItem(updPoppedKey())||"0",10)||0; }catch(e){ return 0; } }
 function setLastPopped(v){ try{ localStorage.setItem(updPoppedKey(), String(v||0)); }catch(e){} }
 function maybeWelcomePopup(evs){
   if(!evs||!evs.length) return;
-  var myName=(ME.name||"").toLowerCase().replace(/\s*\(test\)/,"").trim();
-  var lastPop=updLastPopped(), ls=updLastSeen(), newest=evs[0].at;
-  if(newest<=lastPop) return;                         // nothing newer than we've already popped
-  var mine=evs.filter(function(e){ return e.mention && myName && e.mention.toLowerCase().indexOf(myName)>=0 && e.at>lastPop; });
-  var unread=evs.filter(function(e){ return e.at>ls; });
-  if(mine.length){ showWelcome(mine, true); setLastPopped(newest); try{beep();}catch(e){} }
-  else if(unread.length){ showWelcome(unread.slice(0,4), false); setLastPopped(newest); }
+  var lastPop=updLastPopped(), newest=evs[0].at;
+  if(newest<=lastPop) return;                                  // nothing newer than we've already shown → don't pop again
+  var fresh=evs.filter(function(e){ return e.at>lastPop; });   // ONLY things that happened since the last pop
+  if(!fresh.length){ return; }
+  var mine=fresh.filter(isTagForMe_);                          // tags aimed specifically at me
+  if(mine.length){ showWelcome(mine, true); setLastPopped(newest); try{beep();}catch(e){} return; }
+  var general=fresh.filter(function(e){ return !isForeignTag_(e); });   // drop other people's tags
+  if(general.length){ showWelcome(general.slice(0,4), false); }
+  setLastPopped(newest);                                       // mark everything up to now as seen either way
+}
+// Render an event's action from THIS viewer's perspective: "tagged you" only if
+// it was actually me; otherwise name who was tagged ("tagged Tyrone").
+function actionText_(ev){
+  var a=(ev&&ev.action)||"";
+  if(ev&&ev.mention && /^tagged you/i.test(a) && !isTagForMe_(ev)) return a.replace(/^tagged you/i, "tagged "+ev.mention);
+  return a;
 }
 function showWelcome(items, tagged){
   var ic=$("wpopIc"), tt=$("wpopTitle"), ls=$("wpopList"); if(!ls) return;
@@ -1102,14 +1116,14 @@ function showWelcome(items, tagged){
                           : (items.length===1 ? "1 new update" : (items.length+"+ new updates"));
   ls.innerHTML = items.map(function(ev){
     var who=esc(firstName(ev.by)||"Someone");
-    var isTag = tagged || !!ev.mention || /tagged you/i.test(ev.action||"");
+    var isTag = tagged || isTagForMe_(ev);     // only MY tags render as a 🔔 "tagged you"
     var main, sub;
     if(isTag){
       var note=""; var m=/tagged you:\s*[“"]?([\s\S]*?)[”"]?\s*$/.exec(ev.action||""); if(m&&m[1]) note=m[1];
       main='<b>'+who+'</b> tagged you'+(ev.task?(' in <b>'+esc(ev.task)+'</b>'):'');
       sub=(note?('“'+esc(note)+'”'):'')+(ev.code?(note?' · ':'')+'<span class="jcode">'+esc(ev.code)+'</span>':'')+' · '+esc(ev.vessel||"");
     } else {
-      main='<b>'+who+'</b> '+esc(ev.action||"posted an update");
+      main='<b>'+who+'</b> '+esc(actionText_(ev)||"posted an update");
       sub=(ev.code?'<span class="jcode">'+esc(ev.code)+'</span> ':'')+esc(ev.task||"")+' · '+esc(ev.vessel||"");
     }
     return '<div class="wpop-item'+(isTag?' tag':'')+'" onclick="welcomeOpen(\''+esc(ev.jobKey)+'\',\''+esc(ev.vessel)+'\')">'+
@@ -1124,9 +1138,10 @@ function welcomeViewAll(){ closeWelcome(); go("updates"); }
 function welcomeOpen(jobKey, vessel){ closeWelcome(); openFromUpdate(jobKey, vessel); }
 function notifyInApp(ev){
   var line=((ev&&ev.code)?ev.code+" ":"")+((ev&&ev.task)||"a job");
-  toast("🔔 "+((ev&&ev.by)||"Update")+" "+((ev&&ev.action)||"updated")+" — "+line);
+  var act=actionText_(ev)||"updated";
+  toast("🔔 "+((ev&&ev.by)||"Update")+" "+act+" — "+line);
   try{ beep(); }catch(e){}
-  try{ if(window.Notification && Notification.permission==="granted") new Notification("Marine HQ Crew", { body:((ev&&ev.by)||"")+" "+((ev&&ev.action)||"update")+" — "+line, icon:"icon-192.png" }); }catch(e){}
+  try{ if(window.Notification && Notification.permission==="granted") new Notification("Marine HQ Crew", { body:((ev&&ev.by)||"")+" "+act+" — "+line, icon:"icon-192.png" }); }catch(e){}
 }
 /* ---- the Updates list ---- */
 function updSeenKey(){ return "mhq_upd_seen_"+((ME&&ME.code)||""); }
@@ -1153,10 +1168,10 @@ function renderUpdatesList(){
   if($("updCount")) $("updCount").textContent=(UPDATES.length||0)+(UPDATES.length===1?" update":" updates");
   if(!UPDATES.length){ el.innerHTML='<div class="empty">No updates yet.<br>Crew activity will show up here.</div>'; return; }
   el.innerHTML=UPDATES.map(function(ev){
-    var tagged=/tagged you/i.test(ev.action||"");
-    return '<div class="upditem'+(ev.at>ls?' unread':'')+(tagged?' tagged':'')+'" onclick="openFromUpdate(\''+esc(ev.jobKey)+'\',\''+esc(ev.vessel)+'\')">'+
-      '<div class="upd-ic">'+updIcon(ev.action)+'</div>'+
-      '<div class="upd-main"><div class="upd-t"><b>'+esc(ev.by||"—")+'</b> '+esc(ev.action||"")+'</div>'+
+    var forMe=isTagForMe_(ev);            // only highlight tags that are actually MINE
+    return '<div class="upditem'+(ev.at>ls?' unread':'')+(forMe?' tagged':'')+'" onclick="openFromUpdate(\''+esc(ev.jobKey)+'\',\''+esc(ev.vessel)+'\')">'+
+      '<div class="upd-ic">'+(forMe?'🔔':updIcon(ev.action))+'</div>'+
+      '<div class="upd-main"><div class="upd-t"><b>'+esc(ev.by||"—")+'</b> '+esc(actionText_(ev)||"")+'</div>'+
       '<div class="upd-sub">'+(ev.code?'<span class="jcode">'+esc(ev.code)+'</span> ':'')+esc(ev.task||"")+' · '+esc(ev.vessel||"")+'</div></div>'+
       '<div class="upd-at">'+relTime(ev.at)+'</div></div>';
   }).join("");
