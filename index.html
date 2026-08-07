@@ -921,30 +921,39 @@ function pickVessel(v){ CURVESSEL=v; WLCLOSED={}; loadJobs(); }
 // Open the Command Centre, passing the director's code so it unlocks (no 2nd passcode).
 function openCommand(){ try{ if(ME&&ME.code) localStorage.setItem("mhq_crew_key", ME.code); }catch(e){} location.href="overview.html"; }
 /* What's Due — scheduled maintenance from the maintenance schedule → add to a worklist */
-var DUE_ITEMS=[];
+var DUE_ITEMS=[], DUE_ALL=[], DUE_VESSEL="__all__";
 function _parseDMY(s){ var m=/^(\d{2})\/(\d{2})\/(\d{4})$/.exec(s||""); return m?new Date(+m[3],+m[2]-1,+m[1]):null; }
-function toggleDuePanel(){ var p=$("duePanel"); if(!p)return; p.classList.toggle("hidden"); if(!p.classList.contains("hidden")) loadDuePanel(); }
+function toggleDuePanel(){ var p=$("duePanel"); if(!p)return; p.classList.toggle("hidden"); if(!p.classList.contains("hidden")){ if(DUE_ALL.length) renderDueList(); else loadDuePanel(); } }
 function loadDuePanel(){
   var el=$("dueList"); if(!el)return;
   el.innerHTML='<div class="loadingbox"><span class="spin"></span> Loading what\'s due…</div>';
   apiGet("fn=maintenance").then(function(r){
     var now=Date.now();
-    DUE_ITEMS=((r&&r.items)||[]).filter(function(i){return i.nextDue;});
-    DUE_ITEMS.forEach(function(i,idx){ var d=_parseDMY(i.nextDue); i._idx=idx; i._t=d?d.getTime():Infinity; i._days=d?Math.round((d.getTime()-now)/86400000):9999; i._over=/overdue/i.test(i.status||"")||i._days<0; });
-    DUE_ITEMS.sort(function(a,b){return a._t-b._t;});
-    DUE_ITEMS.forEach(function(i,idx){ i._idx=idx; });
-    var over=DUE_ITEMS.filter(function(i){return i._over;});
-    var soon=DUE_ITEMS.filter(function(i){return !i._over && i._days<=60;});
-    var later=DUE_ITEMS.filter(function(i){return !i._over && i._days>60;});
-    var dc=$("dueCount"); if(dc){ if(over.length){dc.textContent=over.length+' overdue';dc.style.display='';} else dc.style.display='none'; }
-    function card(i,cls,badge){ return '<div class="duerow"><div class="due-main"><div class="due-t">'+esc(i.item)+'</div><div class="due-sub"><b>'+esc(i.vessel)+'</b> · '+esc(i.interval||'')+' · due '+esc(i.nextDue)+'</div></div><span class="due-badge '+cls+'">'+badge+'</span><button class="due-add" onclick="addDueToWorklist(this,'+i._idx+')">＋ Worklist</button></div>'; }
-    var html='';
-    if(over.length) html+='<div class="listhd" style="color:#c0392b">⚠ Overdue ('+over.length+')</div>'+over.map(function(i){return card(i,'over','OVERDUE');}).join("");
-    if(soon.length) html+='<div class="listhd" style="color:#8a5a12">Due soon ('+soon.length+')</div>'+soon.map(function(i){return card(i,'soon',i._days<0?'now':('in '+i._days+'d'));}).join("");
-    if(later.length) html+='<div class="listhd">Upcoming ('+later.length+')</div>'+later.map(function(i){return card(i,'up','due '+esc(i.nextDue));}).join("");
-    el.innerHTML = html || '<div class="empty">No scheduled items with due dates yet.</div>';
+    DUE_ALL=((r&&r.items)||[]).filter(function(i){return i.nextDue;});
+    DUE_ALL.forEach(function(i){ var d=_parseDMY(i.nextDue); i._t=d?d.getTime():Infinity; i._days=d?Math.round((d.getTime()-now)/86400000):9999; i._over=/overdue/i.test(i.status||"")||i._days<0; });
+    DUE_ALL.sort(function(a,b){return a._t-b._t;});
+    renderDueList();
   }).catch(function(){ el.innerHTML='<div class="empty">Couldn’t load the schedule.</div>'; });
 }
+function renderDueList(){
+  var el=$("dueList"); if(!el)return;
+  var vessels=[], seen={}; DUE_ALL.forEach(function(i){ if(i.vessel&&!seen[i.vessel]){seen[i.vessel]=1;vessels.push(i.vessel);} }); vessels.sort();
+  var bar='<div class="vesselbar"><label>Boat:</label><select onchange="pickDueVessel(this.value)"><option value="__all__"'+(DUE_VESSEL==="__all__"?' selected':'')+'>🚢 All boats — overview</option>'+vessels.map(function(v){return '<option'+(v===DUE_VESSEL?' selected':'')+'>'+esc(v)+'</option>';}).join("")+'</select></div>';
+  DUE_ITEMS = (DUE_VESSEL==="__all__") ? DUE_ALL.slice() : DUE_ALL.filter(function(i){return i.vessel===DUE_VESSEL;});
+  DUE_ITEMS.forEach(function(i,idx){ i._idx=idx; });
+  var over=DUE_ITEMS.filter(function(i){return i._over;});
+  var soon=DUE_ITEMS.filter(function(i){return !i._over && i._days<=60;});
+  var later=DUE_ITEMS.filter(function(i){return !i._over && i._days>60;});
+  var dc=$("dueCount"); if(dc){ if(over.length){dc.textContent=over.length+' overdue';dc.style.display='';} else dc.style.display='none'; }
+  function card(i,cls,badge){ return '<div class="duerow"><div class="due-main"><div class="due-t">'+esc(i.item)+'</div><div class="due-sub"><b>'+esc(i.vessel)+'</b> · '+esc(i.interval||'')+' · due '+esc(i.nextDue)+'</div></div><span class="due-badge '+cls+'">'+badge+'</span><button class="due-add" onclick="addDueToWorklist(this,'+i._idx+')">＋ Worklist</button></div>'; }
+  var html=bar;
+  if(over.length) html+='<div class="listhd" style="color:#c0392b">⚠ Overdue ('+over.length+')</div>'+over.map(function(i){return card(i,'over','OVERDUE');}).join("");
+  if(soon.length) html+='<div class="listhd" style="color:#8a5a12">Due soon ('+soon.length+')</div>'+soon.map(function(i){return card(i,'soon',i._days<0?'now':('in '+i._days+'d'));}).join("");
+  if(later.length) html+='<div class="listhd">Upcoming ('+later.length+')</div>'+later.map(function(i){return card(i,'up','due '+esc(i.nextDue));}).join("");
+  if(!DUE_ITEMS.length) html+='<div class="empty">Nothing with a due date for this boat.</div>';
+  el.innerHTML=html;
+}
+function pickDueVessel(v){ DUE_VESSEL=v; renderDueList(); }
 function addDueToWorklist(btn, idx){
   var i=DUE_ITEMS[idx]; if(!i)return;
   btn.disabled=true; btn.textContent='Adding…';
