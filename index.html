@@ -197,6 +197,14 @@
   .fl-go{font-size:24px;color:var(--orange);font-weight:bold;flex:0 0 auto}
   .soonpill{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:#fff;background:var(--muted);border-radius:8px;padding:1px 6px;vertical-align:middle;margin-left:5px}
   .ownerhd{background:#eef4ff;border:1px solid #d5e2f7;border-radius:10px;padding:10px 12px;font-size:13px;color:var(--navy);margin:4px 0 11px;line-height:1.4}
+  .duerow{display:flex;align-items:center;gap:9px;background:#fff;border:1px solid var(--line);border-radius:11px;padding:11px 12px;margin-bottom:8px}
+  .due-main{flex:1;min-width:0}
+  .due-t{font-size:14px;font-weight:bold;color:var(--navy)}
+  .due-sub{font-size:11.5px;color:var(--muted);margin-top:2px}
+  .due-badge{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.3px;color:#fff;border-radius:8px;padding:2px 7px;white-space:nowrap;flex:0 0 auto}
+  .due-badge.over{background:#c0392b} .due-badge.soon{background:#d99a2b} .due-badge.up{background:#7a8aa0}
+  .due-add{flex:0 0 auto;border:0;border-radius:9px;background:var(--navy);color:#fff;font-weight:bold;font-size:12px;padding:8px 10px;cursor:pointer;white-space:nowrap}
+  .due-add.added{background:var(--ok)}
   .loadingbox{display:flex;align-items:center;justify-content:center;gap:9px;padding:26px 10px;color:var(--muted);font-size:14px}
   .spin{width:16px;height:16px;border:2px solid var(--line);border-top-color:var(--orange);border-radius:50%;display:inline-block;animation:spin .7s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
@@ -520,6 +528,12 @@
         <div class="fl-main"><div class="fl-t">Fleet Dashboard</div><div class="fl-sub">Every vessel — maintenance, documents, status, reports</div></div>
         <div class="fl-go">›</div>
       </a>
+      <div class="fleetlink" onclick="toggleDuePanel()">
+        <div class="fl-ic">🗓️</div>
+        <div class="fl-main"><div class="fl-t">What's due <span id="dueCount" class="soonpill" style="background:#c0392b;display:none"></span></div><div class="fl-sub">Scheduled maintenance due across the fleet — add straight to a worklist</div></div>
+        <div class="fl-go">›</div>
+      </div>
+      <div id="duePanel" class="hidden"><div id="dueList"></div></div>
       <div class="fleetlink" onclick="toggleOwnerPreview()">
         <div class="fl-ic">👁️</div>
         <div class="fl-main"><div class="fl-t">View as owner</div><div class="fl-sub">See each client's MyYacht portal exactly as they see it</div></div>
@@ -906,6 +920,39 @@ function renderVesselBar(){
 function pickVessel(v){ CURVESSEL=v; WLCLOSED={}; loadJobs(); }
 // Open the Command Centre, passing the director's code so it unlocks (no 2nd passcode).
 function openCommand(){ try{ if(ME&&ME.code) localStorage.setItem("mhq_crew_key", ME.code); }catch(e){} location.href="overview.html"; }
+/* What's Due — scheduled maintenance from the maintenance schedule → add to a worklist */
+var DUE_ITEMS=[];
+function _parseDMY(s){ var m=/^(\d{2})\/(\d{2})\/(\d{4})$/.exec(s||""); return m?new Date(+m[3],+m[2]-1,+m[1]):null; }
+function toggleDuePanel(){ var p=$("duePanel"); if(!p)return; p.classList.toggle("hidden"); if(!p.classList.contains("hidden")) loadDuePanel(); }
+function loadDuePanel(){
+  var el=$("dueList"); if(!el)return;
+  el.innerHTML='<div class="loadingbox"><span class="spin"></span> Loading what\'s due…</div>';
+  apiGet("fn=maintenance").then(function(r){
+    var now=Date.now();
+    DUE_ITEMS=((r&&r.items)||[]).filter(function(i){return i.nextDue;});
+    DUE_ITEMS.forEach(function(i,idx){ var d=_parseDMY(i.nextDue); i._idx=idx; i._t=d?d.getTime():Infinity; i._days=d?Math.round((d.getTime()-now)/86400000):9999; i._over=/overdue/i.test(i.status||"")||i._days<0; });
+    DUE_ITEMS.sort(function(a,b){return a._t-b._t;});
+    DUE_ITEMS.forEach(function(i,idx){ i._idx=idx; });
+    var over=DUE_ITEMS.filter(function(i){return i._over;});
+    var soon=DUE_ITEMS.filter(function(i){return !i._over && i._days<=60;});
+    var later=DUE_ITEMS.filter(function(i){return !i._over && i._days>60;});
+    var dc=$("dueCount"); if(dc){ if(over.length){dc.textContent=over.length+' overdue';dc.style.display='';} else dc.style.display='none'; }
+    function card(i,cls,badge){ return '<div class="duerow"><div class="due-main"><div class="due-t">'+esc(i.item)+'</div><div class="due-sub"><b>'+esc(i.vessel)+'</b> · '+esc(i.interval||'')+' · due '+esc(i.nextDue)+'</div></div><span class="due-badge '+cls+'">'+badge+'</span><button class="due-add" onclick="addDueToWorklist(this,'+i._idx+')">＋ Worklist</button></div>'; }
+    var html='';
+    if(over.length) html+='<div class="listhd" style="color:#c0392b">⚠ Overdue ('+over.length+')</div>'+over.map(function(i){return card(i,'over','OVERDUE');}).join("");
+    if(soon.length) html+='<div class="listhd" style="color:#8a5a12">Due soon ('+soon.length+')</div>'+soon.map(function(i){return card(i,'soon',i._days<0?'now':('in '+i._days+'d'));}).join("");
+    if(later.length) html+='<div class="listhd">Upcoming ('+later.length+')</div>'+later.map(function(i){return card(i,'up','due '+esc(i.nextDue));}).join("");
+    el.innerHTML = html || '<div class="empty">No scheduled items with due dates yet.</div>';
+  }).catch(function(){ el.innerHTML='<div class="empty">Couldn’t load the schedule.</div>'; });
+}
+function addDueToWorklist(btn, idx){
+  var i=DUE_ITEMS[idx]; if(!i)return;
+  btn.disabled=true; btn.textContent='Adding…';
+  apiPost({action:"crewRaiseJob", email:ME.email, code:ME.code, vessel:i.vessel, title:i.item, desc:"Scheduled maintenance — due "+i.nextDue, category:"Scheduled"}).then(function(r){
+    if(r&&r.ok){ btn.textContent='✓ Added '+(r.code||''); btn.classList.add('added'); toast("✓ Added to "+i.vessel+" worklist"); }
+    else { btn.disabled=false; btn.textContent='＋ Worklist'; toast((r&&r.error)||"Couldn’t add"); }
+  }).catch(function(){ btn.disabled=false; btn.textContent='＋ Worklist'; toast("Couldn’t connect"); });
+}
 // View as owner — director previews a vessel's MyYacht portal as the client sees it.
 function toggleOwnerPreview(){
   var p=$("ownerPreviewPanel"); if(!p) return;
