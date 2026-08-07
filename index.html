@@ -41,6 +41,9 @@
   .vesselbar:empty{display:none}
   .vesselbar label{font-size:12px;font-weight:bold;color:var(--muted)}
   .vesselbar select{flex:1;max-width:280px;border:1.5px solid var(--line);border-radius:9px;padding:9px 10px;font-size:14px;font-weight:bold;color:var(--navy);font-family:inherit;background:#fff}
+  .boatchips{display:flex;gap:7px;overflow-x:auto;flex-wrap:nowrap;padding:2px 0 8px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .boatchips::-webkit-scrollbar{display:none}
+  .boatchips .chip{flex:0 0 auto}
 
   /* ---------- header ---------- */
   header{background:linear-gradient(135deg,var(--navy),var(--navy2));color:#fff;padding:14px 14px calc(14px);position:sticky;top:0;z-index:30}
@@ -913,9 +916,9 @@ function renderVesselBar(){
   var host=$("vesselBar"); if(!host) return;
   if(!isMgrRole() || FLEETVESSELS.length<2){ host.innerHTML=""; return; }
   var cur=CURVESSEL||JOBSVESSEL||ME.vessels[0]||"";
-  var opts='<option value="__all__"'+(CURVESSEL==="__all__"?' selected':'')+'>🚢 All boats — overview</option>'+
-    FLEETVESSELS.map(function(v){return '<option'+(v===cur&&CURVESSEL!=="__all__"?' selected':'')+'>'+esc(v)+'</option>';}).join("");
-  host.innerHTML='<label>Boat:</label><select onchange="pickVessel(this.value)">'+opts+'</select>';
+  var chips='<div class="chip '+(CURVESSEL==="__all__"?"on":"")+'" onclick="pickVessel(\'__all__\')">🚢 All boats</div>'+
+    FLEETVESSELS.map(function(v){var on=(v===cur&&CURVESSEL!=="__all__");return '<div class="chip '+(on?"on":"")+'" onclick="pickVessel(\''+v.replace(/'/g,"\\'")+'\')">'+esc(v)+'</div>';}).join("");
+  host.innerHTML='<div class="chips boatchips">'+chips+'</div>';
 }
 function pickVessel(v){ CURVESSEL=v; WLCLOSED={}; loadJobs(); }
 // Open the Command Centre, passing the director's code so it unlocks (no 2nd passcode).
@@ -938,7 +941,7 @@ function loadDuePanel(){
 function renderDueList(){
   var el=$("dueList"); if(!el)return;
   var vessels=[], seen={}; DUE_ALL.forEach(function(i){ if(i.vessel&&!seen[i.vessel]){seen[i.vessel]=1;vessels.push(i.vessel);} }); vessels.sort();
-  var bar='<div class="vesselbar"><label>Boat:</label><select onchange="pickDueVessel(this.value)"><option value="__all__"'+(DUE_VESSEL==="__all__"?' selected':'')+'>🚢 All boats — overview</option>'+vessels.map(function(v){return '<option'+(v===DUE_VESSEL?' selected':'')+'>'+esc(v)+'</option>';}).join("")+'</select></div>';
+  var bar='<div class="chips boatchips"><div class="chip '+(DUE_VESSEL==="__all__"?"on":"")+'" onclick="pickDueVessel(\'__all__\')">🚢 All boats</div>'+vessels.map(function(v){return '<div class="chip '+(v===DUE_VESSEL?"on":"")+'" onclick="pickDueVessel(\''+v.replace(/'/g,"\\'")+'\')">'+esc(v)+'</div>';}).join("")+'</div>';
   DUE_ITEMS = (DUE_VESSEL==="__all__") ? DUE_ALL.slice() : DUE_ALL.filter(function(i){return i.vessel===DUE_VESSEL;});
   DUE_ITEMS.forEach(function(i,idx){ i._idx=idx; });
   var over=DUE_ITEMS.filter(function(i){return i._over;});
