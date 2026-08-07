@@ -778,6 +778,10 @@ function esc(s){ return (s||"").replace(/[&<>"]/g,function(c){return {'&':'&amp;
 function initials(n){ var w=(n||"?").replace(/[^A-Za-z ]/g,"").trim().split(/\s+/).filter(Boolean); return ((w[0]||"?")[0]+((w[1]||"")[0]||"")).toUpperCase(); }
 function toast(m){ var t=$("toast"); t.textContent=m; t.classList.add("show"); clearTimeout(toast._t); toast._t=setTimeout(function(){t.classList.remove("show");},2800); }
 function crewById(id){ return CREW.filter(function(c){return c.id===id;})[0]; }
+/* local cache so the app shows last-known data INSTANTLY, then refreshes in the background */
+function _cGet(k){ try{ var s=localStorage.getItem(k); return s?JSON.parse(s):null; }catch(e){ return null; } }
+function _cSet(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+function _ck(kind,extra){ return "mhqc_"+kind+"_"+((ME&&ME.code)||"")+(extra?("_"+extra):""); }
 function fmtDate(d){ var p=(d||"").split("-"); return p.length===3? (p[2]+"/"+p[1]+"/"+p[0].slice(2)) : d; }
 
 /* ================= login (real — email → crewlogin API) ================= */
@@ -861,25 +865,31 @@ function loadJobs(){
   var v = allBoats ? "" : (CURVESSEL || ME.vessels[0] || "Everywhen");
   // Directors/Managers review the whole vessel (to approve crew work); crew see only their own.
   var mine = isMgrRole() ? "0" : "1";
+  var vk = allBoats ? "__all__" : (v||"Everywhen");
   var url = "fn=crewjobs&email="+encodeURIComponent(ME.email)+"&code="+encodeURIComponent(ME.code||"")+
     (allBoats ? "&all=1&mine=0" : ("&vessel="+encodeURIComponent(v)+"&mine="+mine));
-  // instant feedback: clear the old view + show loading so a tap never looks stuck
   var lbl = allBoats ? "all boats" : (v||"jobs");
-  if($("jobList")) $("jobList").innerHTML='<div class="loadingbox"><span class="spin"></span> Loading '+esc(lbl)+'…</div>';
-  if($("jobsCount")) $("jobsCount").textContent="";
-  if($("jobsHello")) $("jobsHello").innerHTML='Loading <b>'+esc(lbl)+'</b>…';
+  // INSTANT: render last-known jobs from cache immediately; else a spinner
+  var cached=_cGet(_ck("jobs",vk));
+  if(cached && cached.length){ CREWJOBS=cached; JOBSVESSEL=allBoats?"all boats":vk; renderJobs(); updateJobsBadge(); }
+  else {
+    if($("jobList")) $("jobList").innerHTML='<div class="loadingbox"><span class="spin"></span> Loading '+esc(lbl)+'…</div>';
+    if($("jobsCount")) $("jobsCount").textContent="";
+    if($("jobsHello")) $("jobsHello").innerHTML='Loading <b>'+esc(lbl)+'</b>…';
+  }
   apiGet(url)
-    .then(function(j){ CREWJOBS=(j&&j.jobs)||[]; JOBSVESSEL=allBoats?"all boats":((j&&j.vessel)||v); renderJobs(); updateJobsBadge(); startActivityWatch(); renderVesselBar(); }).catch(function(){});
+    .then(function(j){ CREWJOBS=(j&&j.jobs)||[]; JOBSVESSEL=allBoats?"all boats":((j&&j.vessel)||v); _cSet(_ck("jobs",vk), CREWJOBS); renderJobs(); updateJobsBadge(); startActivityWatch(); renderVesselBar(); }).catch(function(){});
   loadFleetVessels();
 }
 // Director/Manager boat switcher — lists every vessel that has a worklist.
 function loadFleetVessels(){
   if(!isMgrRole() || FLEETVESSELS.length) return;   // fetch once
+  var cachedFV=_cGet(_ck("fleetv")); if(cachedFV&&cachedFV.length){ FLEETVESSELS=cachedFV; renderVesselBar(); }
   apiGet("fn=crewjobs&code="+encodeURIComponent(ME.code||"")+"&email="+encodeURIComponent(ME.email||"")+"&all=1&mine=0")
     .then(function(j){
       var set={}; ((j&&j.jobs)||[]).forEach(function(x){ if(x.vessel) set[x.vessel]=1; });
       (ME.vessels||[]).forEach(function(v){ if(v) set[v]=1; });
-      FLEETVESSELS=Object.keys(set).sort();
+      FLEETVESSELS=Object.keys(set).sort(); _cSet(_ck("fleetv"), FLEETVESSELS);
       renderVesselBar();
     }).catch(function(){});
 }
@@ -935,6 +945,8 @@ function startActivityWatch(){
   if(!ME){ if(_actTimer){clearInterval(_actTimer);_actTimer=null;} return; }
   try{ if(window.Notification && Notification.permission==="default") Notification.requestPermission(); }catch(e){}
   if(_actTimer) return;
+  // instant: show cached updates + badge on open, before the first network poll
+  if(!UPDATES.length){ var c=_cGet(_ck("upd")); if(c&&c.length){ UPDATES=c; updateUpdBadge(); } }
   pollActivity();                        // prime baseline (no alert on first load)
   _actTimer=setInterval(pollActivity, 30000);
 }
@@ -942,7 +954,7 @@ function pollActivity(){
   if(!ME) return;
   apiGet("fn=crewactivity&code="+encodeURIComponent(ME.code||"")+"&email="+encodeURIComponent(ME.email||"")+"&limit=80")
     .then(function(j){
-      var evs=(j&&j.events)||[]; UPDATES=evs;
+      var evs=(j&&j.events)||[]; UPDATES=evs; _cSet(_ck("upd"), evs);
       var newest=evs.length?evs[0].at:0;
       if(_lastEventAt!==null && newest>_lastEventAt && evs.length) notifyInApp(evs[0]);
       _lastEventAt=Math.max(_lastEventAt||0, newest);
@@ -969,9 +981,10 @@ function updateUpdBadge(){
 function updIcon(a){ a=(a||"").toLowerCase(); return /photo/.test(a)?"📷":(/document/.test(a)?"📄":(/approv/.test(a)?"📤":(/marked/.test(a)?"✓":"📝"))); }
 function renderUpdates(){
   var el=$("updList"); if(!el) return;
-  if(!UPDATES.length) el.innerHTML='<div class="loadingbox"><span class="spin"></span> Loading updates…</div>';
+  if(!UPDATES.length){ var c=_cGet(_ck("upd")); if(c&&c.length) UPDATES=c; }   // instant from cache
+  if(UPDATES.length) renderUpdatesList(); else el.innerHTML='<div class="loadingbox"><span class="spin"></span> Loading updates…</div>';
   apiGet("fn=crewactivity&code="+encodeURIComponent(ME.code||"")+"&email="+encodeURIComponent(ME.email||"")+"&limit=150")
-    .then(function(j){ UPDATES=(j&&j.events)||[]; renderUpdatesList(); markUpdatesRead(); })
+    .then(function(j){ UPDATES=(j&&j.events)||[]; _cSet(_ck("upd"), UPDATES); renderUpdatesList(); markUpdatesRead(); })
     .catch(function(){ if(!UPDATES.length) el.innerHTML='<div class="empty">Couldn’t load updates.</div>'; });
 }
 function renderUpdatesList(){
