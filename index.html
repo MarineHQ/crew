@@ -948,7 +948,7 @@ function renderDueList(){
   var soon=DUE_ITEMS.filter(function(i){return !i._over && i._days<=60;});
   var later=DUE_ITEMS.filter(function(i){return !i._over && i._days>60;});
   var dc=$("dueCount"); if(dc){ if(over.length){dc.textContent=over.length+' overdue';dc.style.display='';} else dc.style.display='none'; }
-  function card(i,cls,badge){ return '<div class="duerow"><div class="due-main"><div class="due-t">'+esc(i.item)+'</div><div class="due-sub"><b>'+esc(i.vessel)+'</b> · '+esc(i.interval||'')+' · due '+esc(i.nextDue)+'</div></div><span class="due-badge '+cls+'">'+badge+'</span><button class="due-add" onclick="addDueToWorklist(this,'+i._idx+')">＋ Worklist</button></div>'; }
+  function card(i,cls,badge){ return '<div class="duerow"><div class="due-main"><div class="due-t">'+(i.code?'<span class="jcode">'+esc(i.code)+'</span> ':'')+esc(i.item)+'</div><div class="due-sub"><b>'+esc(i.vessel)+'</b> · '+esc(i.interval||'')+' · due '+esc(i.nextDue)+'</div></div><span class="due-badge '+cls+'">'+badge+'</span><button class="due-add" onclick="addDueToWorklist(this,'+i._idx+')">＋ Worklist</button></div>'; }
   var html=bar;
   if(over.length) html+='<div class="listhd" style="color:#c0392b">⚠ Overdue ('+over.length+')</div>'+over.map(function(i){return card(i,'over','OVERDUE');}).join("");
   if(soon.length) html+='<div class="listhd" style="color:#8a5a12">Due soon ('+soon.length+')</div>'+soon.map(function(i){return card(i,'soon',i._days<0?'now':('in '+i._days+'d'));}).join("");
