@@ -1098,14 +1098,23 @@ function maybeWelcomePopup(evs){
 function showWelcome(items, tagged){
   var ic=$("wpopIc"), tt=$("wpopTitle"), ls=$("wpopList"); if(!ls) return;
   ic.textContent = tagged?"🔔":"📋";
-  tt.textContent = tagged ? (items.length>1 ? ("You've been tagged ·"+" "+items.length) : "You've been tagged")
+  tt.textContent = tagged ? (items.length>1 ? ("You've been tagged · "+items.length) : "You've been tagged")
                           : (items.length===1 ? "1 new update" : (items.length+"+ new updates"));
   ls.innerHTML = items.map(function(ev){
-    var who=esc(ev.by||"Someone"), what=esc(ev.action||"posted an update");
-    var sub=(ev.code?'<span class="jcode">'+esc(ev.code)+'</span> ':'')+esc(ev.task||"")+' · '+esc(ev.vessel||"");
-    return '<div class="wpop-item" onclick="welcomeOpen(\''+esc(ev.jobKey)+'\',\''+esc(ev.vessel)+'\')">'+
-      '<div class="wpop-item-ic">'+updIcon(ev.action)+'</div>'+
-      '<div class="wpop-item-main"><div class="wpop-item-t"><b>'+who+'</b> '+what+'</div>'+
+    var who=esc(firstName(ev.by)||"Someone");
+    var isTag = tagged || !!ev.mention || /tagged you/i.test(ev.action||"");
+    var main, sub;
+    if(isTag){
+      var note=""; var m=/tagged you:\s*[“"]?([\s\S]*?)[”"]?\s*$/.exec(ev.action||""); if(m&&m[1]) note=m[1];
+      main='<b>'+who+'</b> tagged you'+(ev.task?(' in <b>'+esc(ev.task)+'</b>'):'');
+      sub=(note?('“'+esc(note)+'”'):'')+(ev.code?(note?' · ':'')+'<span class="jcode">'+esc(ev.code)+'</span>':'')+' · '+esc(ev.vessel||"");
+    } else {
+      main='<b>'+who+'</b> '+esc(ev.action||"posted an update");
+      sub=(ev.code?'<span class="jcode">'+esc(ev.code)+'</span> ':'')+esc(ev.task||"")+' · '+esc(ev.vessel||"");
+    }
+    return '<div class="wpop-item'+(isTag?' tag':'')+'" onclick="welcomeOpen(\''+esc(ev.jobKey)+'\',\''+esc(ev.vessel)+'\')">'+
+      '<div class="wpop-item-ic">'+(isTag?'🔔':updIcon(ev.action))+'</div>'+
+      '<div class="wpop-item-main"><div class="wpop-item-t">'+main+'</div>'+
       '<div class="wpop-item-sub">'+sub+'</div></div><div class="wpop-item-go">›</div></div>';
   }).join("");
   $("welcomePop").classList.add("show");
