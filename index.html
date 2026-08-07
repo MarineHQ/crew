@@ -830,11 +830,14 @@ var CREWJOBS = [], JOBSVESSEL = "";
 var CURVESSEL="", FLEETVESSELS=[];
 function loadJobs(){
   if(!ME) return;
-  var v = CURVESSEL || ME.vessels[0] || "Everywhen";
+  var allBoats = (CURVESSEL==="__all__" && isMgrRole());
+  var v = allBoats ? "" : (CURVESSEL || ME.vessels[0] || "Everywhen");
   // Directors/Managers review the whole vessel (to approve crew work); crew see only their own.
-  var mine = /director|manager/i.test(ME.role||"") ? "0" : "1";
-  apiGet("fn=crewjobs&email="+encodeURIComponent(ME.email)+"&code="+encodeURIComponent(ME.code||"")+"&vessel="+encodeURIComponent(v)+"&mine="+mine)
-    .then(function(j){ CREWJOBS=(j&&j.jobs)||[]; JOBSVESSEL=(j&&j.vessel)||v; renderJobs(); updateJobsBadge(); startActivityWatch(); renderVesselBar(); }).catch(function(){});
+  var mine = isMgrRole() ? "0" : "1";
+  var url = "fn=crewjobs&email="+encodeURIComponent(ME.email)+"&code="+encodeURIComponent(ME.code||"")+
+    (allBoats ? "&all=1&mine=0" : ("&vessel="+encodeURIComponent(v)+"&mine="+mine));
+  apiGet(url)
+    .then(function(j){ CREWJOBS=(j&&j.jobs)||[]; JOBSVESSEL=allBoats?"all boats":((j&&j.vessel)||v); renderJobs(); updateJobsBadge(); startActivityWatch(); renderVesselBar(); }).catch(function(){});
   loadFleetVessels();
 }
 // Director/Manager boat switcher — lists every vessel that has a worklist.
@@ -852,8 +855,9 @@ function renderVesselBar(){
   var host=$("vesselBar"); if(!host) return;
   if(!isMgrRole() || FLEETVESSELS.length<2){ host.innerHTML=""; return; }
   var cur=CURVESSEL||JOBSVESSEL||ME.vessels[0]||"";
-  host.innerHTML='<label>Boat:</label><select onchange="pickVessel(this.value)">'+
-    FLEETVESSELS.map(function(v){return '<option'+(v===cur?' selected':'')+'>'+esc(v)+'</option>';}).join("")+'</select>';
+  var opts='<option value="__all__"'+(CURVESSEL==="__all__"?' selected':'')+'>🚢 All boats — overview</option>'+
+    FLEETVESSELS.map(function(v){return '<option'+(v===cur&&CURVESSEL!=="__all__"?' selected':'')+'>'+esc(v)+'</option>';}).join("");
+  host.innerHTML='<label>Boat:</label><select onchange="pickVessel(this.value)">'+opts+'</select>';
 }
 function pickVessel(v){ CURVESSEL=v; WLCLOSED={}; loadJobs(); }
 // Open the Command Centre, passing the director's code so it unlocks (no 2nd passcode).
@@ -1008,7 +1012,9 @@ function renderJobs(){
   var groups={}, order=[];
   // Worklists start COLLAPSED — tap to expand. Only default on first sighting so
   // a user's expand/collapse choice survives re-renders (after actions/reloads).
-  list.forEach(function(j){ var g=j.list||"Other jobs"; if(!groups[g]){groups[g]=[];order.push(g); if(!(g in WLCLOSED)) WLCLOSED[g]=true;} groups[g].push(j); });
+  // In "all boats" overview, group by vessel; otherwise by worklist.
+  var allBoats=(CURVESSEL==="__all__");
+  list.forEach(function(j){ var g=allBoats?(j.vessel||"Other"):(j.list||"Other jobs"); if(!groups[g]){groups[g]=[];order.push(g); if(!(g in WLCLOSED)) WLCLOSED[g]=true;} groups[g].push(j); });
   el.innerHTML=order.map(function(g){
     var jobs=groups[g], openN=jobs.filter(function(j){return hubBucket(j.status)!=="Done";}).length;
     var newN=jobs.filter(jobRecent).length;
