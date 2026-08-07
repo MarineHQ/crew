@@ -289,6 +289,23 @@
   /* modal */
   .modal{position:fixed;inset:0;z-index:60;display:none;align-items:flex-end;justify-content:center}
   .modal.show{display:flex}
+  /* Welcome / tagged pop-up */
+  .wpop{position:fixed;inset:0;z-index:210;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(8,12,24,.55)}
+  .wpop.show{display:flex}
+  .wpop-card{background:#fff;width:100%;max-width:440px;border-radius:20px;padding:22px 18px calc(18px + env(safe-area-inset-bottom));box-shadow:0 18px 50px rgba(0,0,0,.35);position:relative;text-align:center;animation:wpopIn .22s ease}
+  @keyframes wpopIn{from{transform:translateY(14px) scale(.97);opacity:0}to{transform:none;opacity:1}}
+  .wpop-x{position:absolute;top:12px;right:12px;border:none;background:#f1f5f9;color:var(--muted);width:30px;height:30px;border-radius:50%;font-size:15px;cursor:pointer}
+  .wpop-ic{font-size:40px;line-height:1;margin:2px 0 6px}
+  .wpop-card h3{margin:0 0 14px;font-size:19px;color:var(--navy)}
+  .wpop-list{text-align:left;display:flex;flex-direction:column;gap:8px;margin-bottom:16px;max-height:46vh;overflow-y:auto}
+  .wpop-item{display:flex;align-items:flex-start;gap:10px;background:#fff8f1;border:1px solid #f0dcb8;border-radius:12px;padding:11px 12px;cursor:pointer}
+  .wpop-item-ic{font-size:18px;flex:0 0 auto}
+  .wpop-item-main{flex:1;min-width:0}
+  .wpop-item-t{font-size:14px;color:var(--ink)} .wpop-item-t b{color:var(--navy)}
+  .wpop-item-sub{font-size:12px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis}
+  .wpop-item-go{font-size:22px;color:var(--orange);align-self:center;flex:0 0 auto}
+  .wpop-go{width:100%;background:var(--orange);color:#fff;border:none;border-radius:12px;padding:13px;font-size:15px;font-weight:700;cursor:pointer}
+  .wpop-dismiss{width:100%;background:none;border:none;color:var(--muted);font-size:13px;font-weight:700;padding:11px 0 2px;cursor:pointer}
   .modal .card2{background:#fff;width:100%;max-width:620px;border-radius:18px 18px 0 0;padding:18px 16px calc(24px + env(safe-area-inset-bottom));max-height:94vh;overflow-y:auto}
   .modal h3{margin:0 0 4px;font-size:17px;color:var(--navy)}
   .modal .mhint{font-size:12px;color:var(--muted);margin:0 0 12px}
@@ -612,6 +629,18 @@
     </div>
   </div>
   <div class="lightcount" id="lightCount"></div>
+</div>
+
+<!-- Welcome / "you've been tagged" pop-up (shows on open when there's something new) -->
+<div class="wpop" id="welcomePop">
+  <div class="wpop-card">
+    <button class="wpop-x" onclick="closeWelcome()">✕</button>
+    <div class="wpop-ic" id="wpopIc">🔔</div>
+    <h3 id="wpopTitle">You've been tagged</h3>
+    <div class="wpop-list" id="wpopList"></div>
+    <button class="wpop-go" onclick="welcomeViewAll()">View all updates</button>
+    <button class="wpop-dismiss" onclick="closeWelcome()">Dismiss</button>
+  </div>
 </div>
 
 <!-- Raise a job modal -->
@@ -1042,12 +1071,48 @@ function pollActivity(){
     .then(function(j){
       var evs=(j&&j.events)||[]; UPDATES=evs; _cSet(_ck("upd"), evs);
       var newest=evs.length?evs[0].at:0;
-      if(_lastEventAt!==null && newest>_lastEventAt && evs.length) notifyInApp(evs[0]);
+      var firstLoad=(_lastEventAt===null);
+      if(!firstLoad && newest>_lastEventAt && evs.length) notifyInApp(evs[0]);
       _lastEventAt=Math.max(_lastEventAt||0, newest);
       updateUpdBadge();
       if(TAB==="updates") renderUpdatesList();
+      if(firstLoad) maybeWelcomePopup(evs);   // pop-up on open when there's something new
     }).catch(function(){});
 }
+/* ── Welcome / "you've been tagged" pop-up ─────────────────────
+   Shows once when you open the app and there's something new since the
+   last pop — tags aimed at YOU come first, otherwise a quick "what's new". */
+function updPoppedKey(){ return "mhq_upd_popped_"+((ME&&ME.code)||""); }
+function updLastPopped(){ try{ return parseInt(localStorage.getItem(updPoppedKey())||"0",10)||0; }catch(e){ return 0; } }
+function setLastPopped(v){ try{ localStorage.setItem(updPoppedKey(), String(v||0)); }catch(e){} }
+function maybeWelcomePopup(evs){
+  if(!evs||!evs.length) return;
+  var myName=(ME.name||"").toLowerCase().replace(/\s*\(test\)/,"").trim();
+  var lastPop=updLastPopped(), ls=updLastSeen(), newest=evs[0].at;
+  if(newest<=lastPop) return;                         // nothing newer than we've already popped
+  var mine=evs.filter(function(e){ return e.mention && myName && e.mention.toLowerCase().indexOf(myName)>=0 && e.at>lastPop; });
+  var unread=evs.filter(function(e){ return e.at>ls; });
+  if(mine.length){ showWelcome(mine, true); setLastPopped(newest); try{beep();}catch(e){} }
+  else if(unread.length){ showWelcome(unread.slice(0,4), false); setLastPopped(newest); }
+}
+function showWelcome(items, tagged){
+  var ic=$("wpopIc"), tt=$("wpopTitle"), ls=$("wpopList"); if(!ls) return;
+  ic.textContent = tagged?"🔔":"📋";
+  tt.textContent = tagged ? (items.length>1 ? ("You've been tagged ·"+" "+items.length) : "You've been tagged")
+                          : (items.length===1 ? "1 new update" : (items.length+"+ new updates"));
+  ls.innerHTML = items.map(function(ev){
+    var who=esc(ev.by||"Someone"), what=esc(ev.action||"posted an update");
+    var sub=(ev.code?'<span class="jcode">'+esc(ev.code)+'</span> ':'')+esc(ev.task||"")+' · '+esc(ev.vessel||"");
+    return '<div class="wpop-item" onclick="welcomeOpen(\''+esc(ev.jobKey)+'\',\''+esc(ev.vessel)+'\')">'+
+      '<div class="wpop-item-ic">'+updIcon(ev.action)+'</div>'+
+      '<div class="wpop-item-main"><div class="wpop-item-t"><b>'+who+'</b> '+what+'</div>'+
+      '<div class="wpop-item-sub">'+sub+'</div></div><div class="wpop-item-go">›</div></div>';
+  }).join("");
+  $("welcomePop").classList.add("show");
+}
+function closeWelcome(){ var p=$("welcomePop"); if(p) p.classList.remove("show"); }
+function welcomeViewAll(){ closeWelcome(); go("updates"); }
+function welcomeOpen(jobKey, vessel){ closeWelcome(); openFromUpdate(jobKey, vessel); }
 function notifyInApp(ev){
   var line=((ev&&ev.code)?ev.code+" ":"")+((ev&&ev.task)||"a job");
   toast("🔔 "+((ev&&ev.by)||"Update")+" "+((ev&&ev.action)||"updated")+" — "+line);
