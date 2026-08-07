@@ -181,6 +181,22 @@
   .cmt.mgr .cmt-role{background:var(--orange)}
   .cmt-at{margin-left:auto;font-size:11px;color:var(--muted)}
   .cmt-tx{font-size:13.5px;color:#243; line-height:1.4;white-space:pre-wrap}
+  .cmt-tx .ment{color:var(--orange);font-weight:700}
+  .cmt-tag{display:inline-block;margin-top:5px;font-size:11px;font-weight:700;color:#8a5a12;background:#fdf3e3;border:1px solid #f0dcb8;border-radius:20px;padding:2px 9px}
+  /* @tag picker */
+  .taghd{display:flex;align-items:center;gap:9px;margin:9px 0 4px}
+  .tagbtn{border:1.5px solid var(--orange);background:#fff;color:var(--orange);font-weight:700;font-size:13px;border-radius:20px;padding:7px 13px;cursor:pointer}
+  .taghint{font-size:11.5px;color:var(--muted)}
+  .tagpicker{display:flex;flex-wrap:wrap;gap:7px;margin:2px 0 10px}
+  .tagopt{border:1px solid var(--line);background:#fff;border-radius:20px;padding:7px 12px;font-size:13px;color:var(--ink);cursor:pointer}
+  .tagopt small{color:var(--muted);font-size:11px}
+  .tagopt.on{border-color:var(--orange);background:#fff8f1}
+  .tagopt .tk{color:var(--orange);font-weight:800}
+  .tagempty{font-size:12.5px;color:var(--muted);padding:4px 2px}
+  .tagchips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .tagchip{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:#8a5a12;background:#fdf3e3;border:1px solid #f0dcb8;border-radius:20px;padding:3px 5px 3px 10px}
+  .tagchip button{border:none;background:rgba(138,90,18,.14);color:#8a5a12;border-radius:50%;width:18px;height:18px;font-size:11px;line-height:1;cursor:pointer}
+  .upditem.tagged{border-left:4px solid var(--orange);background:#fff4e8}
   /* Updates feed */
   .upditem{display:flex;align-items:flex-start;gap:11px;background:#fff;border:1px solid var(--line);border-radius:11px;padding:11px 12px;margin-bottom:8px;cursor:pointer}
   .upditem.unread{border-left:4px solid var(--orange);background:#fff8f1}
@@ -1002,9 +1018,18 @@ function loadOwnerPreview(vessel){
 // 30s → toast + sound + unread badge (works with the app open). The feed itself
 // is a persistent list, so when you open the app you see everything you missed. ----
 var UPDATES=[], _lastEventAt=null, _actTimer=null;
+// Crew roster for the @tag picker (names + roles only — no codes/emails)
+var CREWNAMES=[];
+function loadCrewNames(){
+  var c=_cGet(_ck("names")); if(c&&c.length) CREWNAMES=c;                // instant from cache
+  apiGet("fn=crewnames&code="+encodeURIComponent(ME.code||"")+"&email="+encodeURIComponent(ME.email||""))
+    .then(function(j){ if(j&&j.ok&&j.crew){ CREWNAMES=j.crew; _cSet(_ck("names"), CREWNAMES); } })
+    .catch(function(){});
+}
 function startActivityWatch(){
   if(!ME){ if(_actTimer){clearInterval(_actTimer);_actTimer=null;} return; }
   try{ if(window.Notification && Notification.permission==="default") Notification.requestPermission(); }catch(e){}
+  loadCrewNames();
   if(_actTimer) return;
   // instant: show cached updates + badge on open, before the first network poll
   if(!UPDATES.length){ var c=_cGet(_ck("upd")); if(c&&c.length){ UPDATES=c; updateUpdBadge(); } }
@@ -1039,7 +1064,7 @@ function updateUpdBadge(){
   if(btn){ var b=btn.querySelector('.tabbadge'); if(n>0){ if(!b){b=document.createElement('span');b.className='tabbadge';btn.appendChild(b);} b.textContent=n>99?'99+':n; } else if(b){ b.parentNode.removeChild(b); } }
   try{ if(navigator.setAppBadge){ n>0?navigator.setAppBadge(n):navigator.clearAppBadge(); } }catch(e){}
 }
-function updIcon(a){ a=(a||"").toLowerCase(); return /photo/.test(a)?"📷":(/document/.test(a)?"📄":(/approv/.test(a)?"📤":(/marked/.test(a)?"✓":"📝"))); }
+function updIcon(a){ a=(a||"").toLowerCase(); return /tagged/.test(a)?"🔔":(/photo/.test(a)?"📷":(/document/.test(a)?"📄":(/approv/.test(a)?"📤":(/marked/.test(a)?"✓":"📝")))); }
 function renderUpdates(){
   var el=$("updList"); if(!el) return;
   if(!UPDATES.length){ var c=_cGet(_ck("upd")); if(c&&c.length) UPDATES=c; }   // instant from cache
@@ -1054,7 +1079,8 @@ function renderUpdatesList(){
   if($("updCount")) $("updCount").textContent=(UPDATES.length||0)+(UPDATES.length===1?" update":" updates");
   if(!UPDATES.length){ el.innerHTML='<div class="empty">No updates yet.<br>Crew activity will show up here.</div>'; return; }
   el.innerHTML=UPDATES.map(function(ev){
-    return '<div class="upditem'+(ev.at>ls?' unread':'')+'" onclick="openFromUpdate(\''+esc(ev.jobKey)+'\',\''+esc(ev.vessel)+'\')">'+
+    var tagged=/tagged you/i.test(ev.action||"");
+    return '<div class="upditem'+(ev.at>ls?' unread':'')+(tagged?' tagged':'')+'" onclick="openFromUpdate(\''+esc(ev.jobKey)+'\',\''+esc(ev.vessel)+'\')">'+
       '<div class="upd-ic">'+updIcon(ev.action)+'</div>'+
       '<div class="upd-main"><div class="upd-t"><b>'+esc(ev.by||"—")+'</b> '+esc(ev.action||"")+'</div>'+
       '<div class="upd-sub">'+(ev.code?'<span class="jcode">'+esc(ev.code)+'</span> ':'')+esc(ev.task||"")+' · '+esc(ev.vessel||"")+'</div></div>'+
@@ -1192,7 +1218,7 @@ var WLSTATUS=["To do","In hand","Complete"];
 function wlBucketToStatus(j){ var b=hubBucket(j.status); return b==="Done"?"Complete":(b==="In progress"?"In hand":"To do"); }
 function openWLJob(key){
   var j=CREWJOBS.filter(function(x){return x.key===key;})[0]; if(!j)return;
-  openJobId=key;
+  openJobId=key; WLMENTIONS=[];
   var inList=CREWJOBS.filter(function(x){return (x.list||"")===(j.list||"");}); var num=inList.indexOf(j)+1;
   var cur=wlBucketToStatus(j);
   var dcls={"To do":"d-todo","In hand":"d-inhand","Complete":"d-done"};
@@ -1209,7 +1235,8 @@ function openWLJob(key){
     +'<label class="adddoc" for="wlDocInput">＋ Attach a document (quote, PDF…)</label><input id="wlDocInput" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,image/*" multiple style="display:none" onchange="wlAddDocs(\''+esc(key)+'\',this)">';
   var cmtHTML=(j.comments&&j.comments.length ? j.comments.map(function(cm){
     var mgr=/director|manager/i.test(cm.role||"");
-    return '<div class="cmt'+(mgr?" mgr":"")+'"><div class="cmt-hd"><b>'+esc(cm.by||"—")+'</b>'+(cm.role?'<span class="cmt-role">'+esc(cm.role)+'</span>':'')+'<span class="cmt-at">'+fmtDateTime(cm.at)+'</span></div><div class="cmt-tx">'+esc(cm.text||"").replace(/\n/g,"<br>")+'</div></div>';
+    var tag=(cm.mentions&&cm.mentions.length)?'<span class="cmt-tag">🔔 '+cm.mentions.map(function(n){return esc(firstName(n));}).join(", ")+'</span>':'';
+    return '<div class="cmt'+(mgr?" mgr":"")+'"><div class="cmt-hd"><b>'+esc(cm.by||"—")+'</b>'+(cm.role?'<span class="cmt-role">'+esc(cm.role)+'</span>':'')+'<span class="cmt-at">'+fmtDateTime(cm.at)+'</span></div><div class="cmt-tx">'+hlMentions(cm.text||"")+'</div>'+tag+'</div>';
   }).join("") : '<div style="font-size:13px;color:var(--muted)">No notes yet.</div>');
   $("sheet").innerHTML=
     '<div class="sheet-hd"><div style="flex:1"><div style="font-size:11px;font-weight:bold;letter-spacing:.4px;color:#ffd7b0">'+esc(j.vessel)+(j.list?(" · "+esc(j.list)):"")+(j.code?(' &nbsp;<span class="jcode">'+esc(j.code)+'</span>'):'')+catChip(j.category)+'</div>'+
@@ -1221,6 +1248,9 @@ function openWLJob(key){
     '<div class="sec"><h4>Documents</h4><div class="docrow">'+docHTML+'</div></div>'+
     '<div class="sec"><h4>Notes &amp; timeline</h4><div class="cmts">'+cmtHTML+'</div>'+
       '<textarea id="wlNote" class="fld-ta" placeholder="Add a note… (crew &amp; Marine HQ can both post here)"></textarea>'+
+      '<div id="tagChips" class="tagchips"></div>'+
+      '<div class="taghd"><button class="tagbtn" onclick="toggleTagPicker(\''+esc(key)+'\')">🔔 Tag someone</button><span class="taghint">they get an alert + email</span></div>'+
+      '<div id="tagPicker" class="tagpicker" style="display:none"></div>'+
       '<button class="jobbtn complete" style="background:var(--navy)" onclick="wlAddComment(\''+esc(key)+'\')">Add note</button></div>'+
     wlApproveBlock(j,key)+
     '<div style="height:16px"></div>';
@@ -1260,12 +1290,42 @@ function fmtDateTime(ms){
   var h=d.getHours(),m=d.getMinutes(),ap=h<12?"am":"pm",hh=h%12||12;
   return d.getDate()+" "+mon+" · "+hh+":"+(m<10?"0":"")+m+ap;
 }
+/* ── @tag mentions ─────────────────────────────────────────── */
+var WLMENTIONS=[];   // names pending on the note being written
+function hlMentions(t){ return esc(t||"").replace(/\n/g,"<br>").replace(/@([A-Za-z][A-Za-z'’-]*(?:\s[A-Za-z][A-Za-z'’-]*)?)/g,'<span class="ment">@$1</span>'); }
+function fillTagPicker(){
+  var p=$("tagPicker"); if(!p) return;
+  var myName=(ME.name||"").toLowerCase().replace(/\s*\(test\)/,"").trim();
+  var list=(CREWNAMES||[]).filter(function(c){ return (c.name||"").toLowerCase()!==myName; });
+  if(!list.length){ p.innerHTML='<div class="tagempty">Loading crew…</div>'; loadCrewNames(); return; }
+  p.innerHTML=list.map(function(c){
+    var on=WLMENTIONS.indexOf(c.name)>=0;
+    return '<button class="tagopt'+(on?' on':'')+'" onclick="toggleMention(\''+esc((c.name||"").replace(/'/g,"\\'"))+'\')"><b>'+esc(firstName(c.name))+'</b> <small>'+esc(c.role||"")+'</small>'+(on?' <span class="tk">✓</span>':'')+'</button>';
+  }).join("");
+}
+function toggleTagPicker(key){
+  var p=$("tagPicker"); if(!p) return;
+  if(p.style.display!=="none"){ p.style.display="none"; return; }
+  fillTagPicker(); p.style.display="";
+}
+function toggleMention(name){
+  var i=WLMENTIONS.indexOf(name);
+  if(i>=0) WLMENTIONS.splice(i,1); else WLMENTIONS.push(name);
+  renderTagChips(); var p=$("tagPicker"); if(p&&p.style.display!=="none") fillTagPicker();
+}
+function renderTagChips(){
+  var el=$("tagChips"); if(!el) return;
+  el.innerHTML=WLMENTIONS.map(function(n){
+    return '<span class="tagchip">🔔 '+esc(firstName(n))+'<button onclick="toggleMention(\''+esc(n.replace(/'/g,"\\'"))+'\')">✕</button></span>';
+  }).join("");
+}
 function wlAddComment(key){
   var el=$("wlNote"), text=(el&&el.value||"").trim();
   if(!text){ toast("Type a note first"); return; }
   if(el) el.disabled=true;
-  apiPost({action:"crewJobComment", email:ME.email, code:ME.code, jobKey:key, text:text}).then(function(r){
-    if(r&&r.ok){ toast("Note added"); var j=CREWJOBS.filter(function(x){return x.key===key;})[0]; if(j)j.comments=r.comments||[]; openWLJob(key); loadJobs(); }
+  var mentions=WLMENTIONS.slice();
+  apiPost({action:"crewJobComment", email:ME.email, code:ME.code, jobKey:key, text:text, mentions:mentions}).then(function(r){
+    if(r&&r.ok){ toast(mentions.length?("Note added · tagged "+mentions.map(firstName).join(", ")):"Note added"); WLMENTIONS=[]; var j=CREWJOBS.filter(function(x){return x.key===key;})[0]; if(j)j.comments=r.comments||[]; openWLJob(key); loadJobs(); }
     else { toast((r&&r.error)||"Couldn’t add"); if(el) el.disabled=false; }
   }).catch(function(){ toast("Couldn’t connect"); if(el) el.disabled=false; });
 }
