@@ -912,13 +912,19 @@ function loadOwnerPreview(vessel){
     if(!r||!r.ok){ el.innerHTML='<div class="empty">Couldn’t load.</div>'; return; }
     if(!r.ownerPreview){ el.innerHTML='<div class="empty">View-as-owner is being switched on.<br>It goes live with the next update.</div>'; return; }
     var jobs=(r.jobs||[]);
-    el.innerHTML='<div class="ownerhd">👁️ You are seeing <b>'+esc(vessel)+'</b> exactly as the owner does — only approved works ('+jobs.length+').</div>'+
-      (jobs.length? jobs.map(function(j){
-        var b=hubBucket(j.status), cls=hubCls(b), np=(j.photos&&j.photos.length)||0;
-        return '<div class="job brd-'+cls+'"><div class="top"><div style="flex:1"><h3>'+esc(j.title||j.task||"(job)")+'</h3></div><span class="badge s-'+cls+'">'+esc(j.status||b)+'</span></div>'+
-          (j.desc&&j.desc!==j.title?('<p class="desc">'+esc(j.desc)+'</p>'):'')+
-          (np?('<div class="meta"><span>📷 '+np+'</span></div>'):'')+'</div>';
-      }).join("") : '<div class="empty">Nothing shared with this owner yet.<br>Approved works will appear in their portal here.</div>');
+    function ownerCard(j){
+      var b=hubBucket(j.status), cls=hubCls(b), np=(j.photos&&j.photos.length)||0, nd=(j.docs&&j.docs.length)||0;
+      return '<div class="job brd-'+cls+'"><div class="top"><div style="flex:1"><h3>'+esc(j.title||j.task||"(job)")+'</h3></div><span class="badge s-'+cls+'">'+esc(j.status||b)+'</span></div>'+
+        (j.desc&&j.desc!==j.title?('<p class="desc">'+esc(j.desc)+'</p>'):'')+
+        ((np||nd)?('<div class="meta">'+(np?'<span>📷 '+np+'</span>':'')+(nd?'<span>📄 '+nd+'</span>':'')+'</div>'):'')+'</div>';
+    }
+    var done=jobs.filter(function(j){return hubBucket(j.status)==="Done";});
+    var open=jobs.filter(function(j){return hubBucket(j.status)!=="Done";});
+    var html='<div class="ownerhd">👁️ Seeing <b>'+esc(vessel)+'</b> exactly as the owner does — only works you\'ve shared ('+jobs.length+').</div>';
+    if(!jobs.length){ html+='<div class="empty">Nothing shared with this owner yet.<br>Approve a completed job and it appears here.</div>'; }
+    if(done.length){ html+='<div class="listhd">✓ Works completed ('+done.length+')</div>'+done.map(ownerCard).join(""); }
+    if(open.length){ html+='<div class="listhd">In progress / requested ('+open.length+')</div>'+open.map(ownerCard).join(""); }
+    el.innerHTML=html;
   }).catch(function(){ el.innerHTML='<div class="empty">Couldn’t connect.</div>'; });
 }
 // ---- Updates feed + live alerts. While signed in, poll the activity feed every
