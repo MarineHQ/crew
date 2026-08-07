@@ -82,6 +82,7 @@
   .s-inprog{background:var(--amber)} .brd-inprog{border-left-color:var(--amber)}
   .s-parts{background:#a8641c} .brd-parts{border-left-color:#a8641c}
   .s-done{background:var(--ok)} .brd-done{border-left-color:var(--ok)}
+  .s-req{background:#8a5a12} .brd-req{border-left-color:#d99a2b}
   .jobbtn{width:100%;margin-top:11px;border:0;border-radius:10px;padding:12px;font-size:14px;font-weight:bold;cursor:pointer}
   .jobbtn.complete{background:var(--ok);color:#fff}
   .jobbtn.reopen{background:#fff;color:var(--muted);border:1px solid var(--line)!important}
@@ -1103,6 +1104,7 @@ function renderJobs(){
     var collapsed = WLCLOSED[g] ? " closed":"", bodyC = WLCLOSED[g] ? " closed":"";
     var cards=jobs.map(function(j,idx){
       var b=hubBucket(j.status), done=b==="Done", cls=hubCls(b);
+      if((j.status||"").toLowerCase()==="requested"){ b="Requested"; cls="req"; done=false; }
       var np=(j.photos&&j.photos.length)||0, hasNote=!!(j.notes&&j.notes.trim()), nd=(j.docs&&j.docs.length)||0;
       var codeChip = j.code ? ' <span class="jcode'+(j.standard==="Boat-specific"?" bs":"")+'">'+esc(j.code)+'</span>' : '';
       codeChip += catChip(j.category);
@@ -1136,6 +1138,10 @@ function openWLJob(key){
   var cur=wlBucketToStatus(j);
   var dcls={"To do":"d-todo","In hand":"d-inhand","Complete":"d-done"};
   var pills=WLSTATUS.map(function(s){return '<button class="spill '+dcls[s]+(s===cur?" on":"")+'" onclick="wlSetStatus(\''+esc(key)+'\',\''+s+'\')"><span class="dot"></span>'+s+'</button>';}).join("");
+  var isReq=(j.status||"").toLowerCase()==="requested";
+  var reqBlock = !isReq ? '' : (isMgrRole()
+    ? '<div class="sec"><h4>New request</h4><p class="body" style="font-size:13px;color:var(--muted);margin-bottom:8px">Raised by crew — approve to make it an active job on the worklist.</p><button class="jobbtn complete" onclick="wlSetStatus(\''+esc(key)+'\',\'To do\')">✓ Approve — activate this job</button></div>'
+    : '<div class="sec"><div class="apprOn" style="background:#fdf3e3;color:#8a5a12;border-color:#f0dcb8">⏳ Requested — waiting for Marine HQ to approve.</div></div>');
   var canDel = !j.shared || isMgrRole();   // crew can remove their own until it's approved to the owner
   var phHTML=(j.photos&&j.photos.length ? j.photos.map(function(p,idx){return '<div class="ph"><img src="'+esc(driveImg(p.url))+'" alt="" loading="lazy" onerror="this.classList.add(\'imgerr\')" onclick="event.stopPropagation();openPhoto(\''+esc(key)+'\','+idx+')" style="cursor:pointer">'+(p.caption?'<span class="phcap" title="'+esc(p.caption)+'">💬</span>':'')+'<small>'+esc(p.by?firstName(p.by):(p.name||"photo"))+(p.at?(' · '+relTime(p.at)):'')+'</small>'+(canDel?'<button class="attdel" title="Remove" onclick="event.stopPropagation();wlDelAtt(\''+esc(key)+'\',\''+esc(p.url)+'\',\'photo\')">✕</button>':'')+'</div>';}).join("") : '<div style="font-size:13px;color:var(--muted)">No photos yet.</div>')
     +'<label class="addph" for="wlPhotoCam">📷<span>Camera</span></label><input id="wlPhotoCam" type="file" accept="image/*" capture="environment" multiple style="display:none" onchange="wlAddPhotos(\''+esc(key)+'\',this)">'
@@ -1150,6 +1156,7 @@ function openWLJob(key){
     '<div class="sheet-hd"><div style="flex:1"><div style="font-size:11px;font-weight:bold;letter-spacing:.4px;color:#ffd7b0">'+esc(j.vessel)+(j.list?(" · "+esc(j.list)):"")+(j.code?(' &nbsp;<span class="jcode">'+esc(j.code)+'</span>'):'')+catChip(j.category)+'</div>'+
       '<h3>'+num+'. '+esc(j.task||"(job)")+'</h3></div><button class="closeb" onclick="closeSheet()">✕</button></div>'+
     (j.desc?('<div class="sec"><h4>The job</h4><p class="body">'+esc(j.desc)+'</p></div>'):'')+
+    reqBlock+
     '<div class="sec"><h4>Status</h4><div class="pillrow">'+pills+'</div></div>'+
     '<div class="sec"><h4>Photos</h4><div class="photos">'+phHTML+'</div></div>'+
     '<div class="sec"><h4>Documents</h4><div class="docrow">'+docHTML+'</div></div>'+
@@ -1682,13 +1689,17 @@ function submitRaise(){
   var vsel=$("r_vessel").value, vessel;
   if(vsel==="__other__"){ vessel=($("r_other").value||"").trim(); if(!vessel){ toast("Type the yacht name"); return; } vessel="Other — "+vessel; }
   else { vessel=vsel; }
-  var nPhotos=($("r_photos").files||[]).length;
-  var j={ id:"J"+(JOBS.length+1), vessel:vessel, assignedTo:ME.id, title:t,
-    desc:($("r_desc").value||"").trim()||"(No detail added)", status:"todo", priority:false,
-    photos:[], thread:[{who:"Marine HQ",role:"mhq",text:"Thanks — we've got this and we'll review it.",when:"Just now"}] };
-  for(var i=0;i<nPhotos;i++) j.photos.push({name:"photo-"+(i+1)+".jpg",thumb:true});
-  JOBS.push(j);
-  closeModal("raiseModal"); toast("🔔 Sent to Marine HQ — job raised"); go("jobs"); renderJobs();
+  var desc=($("r_desc").value||"").trim();
+  var files=Array.prototype.slice.call(($("r_photos").files)||[]);
+  toast("Raising job…");
+  apiPost({action:"crewRaiseJob", email:ME.email, code:ME.code, vessel:vessel, title:t, desc:desc}).then(function(r){
+    if(!r||!r.ok){ toast((r&&r.error)||"Couldn’t raise the job"); return; }
+    closeModal("raiseModal");
+    toast(r.status==="Requested" ? "🔔 Sent to Marine HQ — awaiting approval" : ("✓ Job added — "+(r.code||"")));
+    if(isMgrRole() && r.vessel) CURVESSEL=r.vessel;   // jump to that boat so it's visible
+    go("jobs");
+    if(files.length) uploadFilesSeq(r.key, {files:files, value:""}, "crewJobPhotos", "photos", 1600, 0.7);
+  }).catch(function(){ toast("Couldn’t connect"); });
 }
 
 /* ================= sheet / modal ================= */
