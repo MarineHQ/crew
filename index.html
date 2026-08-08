@@ -205,9 +205,10 @@
   .lanebtn{flex:1 1 auto;border:1.5px solid var(--line);background:#fff;border-radius:10px;padding:10px 8px;font-size:13px;font-weight:700;color:var(--navy);cursor:pointer;white-space:nowrap}
   .lanebtn.on[data-lane=crew]{background:#0f766e;border-color:#0f766e;color:#fff}
   .lanebtn.on[data-lane=owner]{background:var(--orange);border-color:var(--orange);color:#fff}
+  .lanebtn.on[data-lane=both]{background:#1d4ed8;border-color:#1d4ed8;color:#fff}
   .lanebtn.on[data-lane=dir]{background:#5b21b6;border-color:#5b21b6;color:#fff}
   .lanepill{display:inline-block;font-size:10px;font-weight:800;border-radius:8px;padding:1px 7px;margin-left:6px;vertical-align:middle}
-  .lanepill.crew{background:#ccfbf1;color:#0f766e} .lanepill.owner{background:#ffe6cf;color:#9a4a09} .lanepill.dir{background:#ede9fe;color:#5b21b6}
+  .lanepill.crew{background:#ccfbf1;color:#0f766e} .lanepill.owner{background:#ffe6cf;color:#9a4a09} .lanepill.both{background:#dbeafe;color:#1d4ed8} .lanepill.dir{background:#ede9fe;color:#5b21b6}
   .cmt-lane{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:6px}
   .cmt-lane .movelbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px}
   .movebtn{border:1px solid var(--line);background:#fff;border-radius:14px;padding:3px 8px;font-size:11px;font-weight:700;color:var(--navy);cursor:pointer}
@@ -1368,7 +1369,7 @@ function openWLJob(key){
     var tag=(cm.mentions&&cm.mentions.length)?'<span class="cmt-tag">🔔 '+cm.mentions.map(function(n){return esc(firstName(n));}).join(", ")+'</span>':'';
     var aud=(cm.aud==="owner"||cm.aud==="dir")?cm.aud:"crew";
     var laneRow = isMgrRole() ? ('<div class="cmt-lane">'+lanePill(aud)+'<span class="movelbl">move:</span>'+
-      ["crew","owner","dir"].filter(function(l){return l!==aud;}).map(function(l){ return '<button class="movebtn" onclick="wlNoteAud(\''+esc(key)+'\','+(parseInt(cm.at,10)||0)+',\''+l+'\')">'+LANE_META[l].ic+' '+LANE_META[l].lbl+'</button>'; }).join('')+'</div>') : '';
+      LANE_ORDER.filter(function(l){return l!==aud;}).map(function(l){ return '<button class="movebtn" onclick="wlNoteAud(\''+esc(key)+'\','+(parseInt(cm.at,10)||0)+',\''+l+'\')">'+LANE_META[l].ic+' '+LANE_META[l].lbl+'</button>'; }).join('')+'</div>') : '';
     return '<div class="cmt'+(mgr?" mgr":"")+" lane-"+aud+'"><div class="cmt-hd"><b>'+esc(cm.by||"—")+'</b>'+((cm.role&&isMgrRole())?'<span class="cmt-role">'+esc(cm.role)+'</span>':'')+'<span class="cmt-at">'+fmtDateTime(cm.at)+'</span></div><div class="cmt-tx">'+hlMentions(cm.text||"")+'</div>'+tag+laneRow+'</div>';
   }).join("") : '<div style="font-size:13px;color:var(--muted)">No notes yet.</div>');
   // Assign-to (Directors/Managers only) — hand the job to a crew member; they then see it in their worklist
@@ -1389,7 +1390,7 @@ function openWLJob(key){
     '<div class="lanebar" id="laneBar">'+
       '<button class="lanebtn" data-lane="crew" onclick="setLane(\'crew\')">👷 Crew</button>'+
       '<button class="lanebtn" data-lane="owner" onclick="setLane(\'owner\')">👤 Owner</button>'+
-      '<button class="lanebtn" data-lane="dir" onclick="setLane(\'dir\')">🔒 Directors</button>'+
+      '<button class="lanebtn" data-lane="both" onclick="setLane(\'both\')">👥 Crew + Owner</button>'+'<button class="lanebtn" data-lane="dir" onclick="setLane(\'dir\')">🔒 Directors</button>'+
     '</div>'+
     '<p class="body" style="font-size:12px;color:var(--muted);margin-top:7px">Pick a lane, then add a note, photo or quote below — <b>only that group sees it</b>. Crew and owner never see each other’s lane; you &amp; Jack see all three.</p></div>';
   $("sheet").innerHTML=
@@ -1553,7 +1554,8 @@ function wlAssignContractor(key){
 }
 /* ── Conversation lanes ── who sees what a director adds next */
 var WLLANE="";                        // "", "crew", "owner", "dir" — reset each time a job opens ("ask each time")
-var LANE_META={ crew:{ic:"👷",lbl:"Crew"}, owner:{ic:"👤",lbl:"Owner"}, dir:{ic:"🔒",lbl:"Directors"} };
+var LANE_META={ crew:{ic:"👷",lbl:"Crew"}, owner:{ic:"👤",lbl:"Owner"}, both:{ic:"👥",lbl:"Crew + Owner"}, dir:{ic:"🔒",lbl:"Directors"} };
+var LANE_ORDER=["crew","owner","both","dir"];
 function setLane(l){ WLLANE=l; document.querySelectorAll('.lanebtn').forEach(function(b){ b.classList.toggle('on', b.dataset.lane===l); }); }
 function laneReady(){ if(!isMgrRole()) return true; if(WLLANE) return true;
   toast("Tap Crew, Owner or Directors first"); var lb=$("laneBar"); if(lb){ lb.classList.add('pulse'); setTimeout(function(){lb.classList.remove('pulse');},700); } return false; }
@@ -1564,7 +1566,7 @@ function attMoveRow(key, kind, url, aud){
   aud=(aud==="owner"||aud==="dir")?aud:"crew";
   var u=(url||"").replace(/'/g,"\\'");
   return '<div class="att-move">'+lanePill(aud)+'<span class="movelbl">move:</span>'+
-    ["crew","owner","dir"].filter(function(l){return l!==aud;}).map(function(l){
+    LANE_ORDER.filter(function(l){return l!==aud;}).map(function(l){
       return '<button class="movebtn" title="Move to '+LANE_META[l].lbl+'" onclick="event.stopPropagation();attMove(\''+esc(key)+'\',\''+kind+'\',\''+esc(u)+'\',\''+l+'\')">'+LANE_META[l].ic+' '+LANE_META[l].lbl+'</button>';
     }).join('')+'</div>';
 }
