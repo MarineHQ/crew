@@ -216,6 +216,8 @@
   .att-move{display:flex;align-items:center;flex-wrap:wrap;gap:4px;margin-top:5px}
   .att-move .movelbl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px}
   .ph .att-move{padding:0 4px 4px}
+  .opv-photos{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .opv-photos img{width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--line);cursor:pointer}
   .ph .lanepill{position:absolute;top:4px;left:4px;margin:0}
   .tagchips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
   .tagchip{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:#8a5a12;background:#fdf3e3;border:1px solid #f0dcb8;border-radius:20px;padding:3px 5px 3px 10px}
@@ -1063,11 +1065,15 @@ function loadOwnerPreview(vessel){
     if(!r||!r.ok){ el.innerHTML='<div class="empty">Couldn’t load.</div>'; return; }
     if(!r.ownerPreview){ el.innerHTML='<div class="empty">View-as-owner is being switched on.<br>It goes live with the next update.</div>'; return; }
     var jobs=(r.jobs||[]);
+    window._OPV=[];   // per-card photo lists, so preview thumbnails can open the viewer
     function ownerCard(j){
-      var b=hubBucket(j.status), cls=hubCls(b), np=(j.photos&&j.photos.length)||0, nd=(j.docs&&j.docs.length)||0;
+      var b=hubBucket(j.status), cls=hubCls(b), pics=(j.photos||[]), nd=(j.docs&&j.docs.length)||0;
+      var ci=window._OPV.length; window._OPV.push(pics);
+      var thumbs = pics.length ? ('<div class="opv-photos">'+pics.map(function(p,pi){ return '<img src="'+esc(driveImg(p.url))+'" loading="lazy" onerror="this.style.display=\'none\'" onclick="opvView('+ci+','+pi+')">'; }).join('')+'</div>') : '';
       return '<div class="job brd-'+cls+'"><div class="top"><div style="flex:1"><h3>'+esc(j.title||j.task||"(job)")+'</h3></div><span class="badge s-'+cls+'">'+esc(j.status||b)+'</span></div>'+
         (j.desc&&j.desc!==j.title?('<p class="desc">'+esc(j.desc)+'</p>'):'')+
-        ((np||nd)?('<div class="meta">'+(np?'<span>📷 '+np+'</span>':'')+(nd?'<span>📄 '+nd+'</span>':'')+'</div>'):'')+'</div>';
+        thumbs+
+        (nd?('<div class="meta"><span>📄 '+nd+'</span></div>'):'')+'</div>';
     }
     var done=jobs.filter(function(j){return hubBucket(j.status)==="Done";});
     var open=jobs.filter(function(j){return hubBucket(j.status)!=="Done";});
@@ -1258,6 +1264,12 @@ function openPhoto(key, idx){
   var j=CREWJOBS.filter(function(x){return x.key===key;})[0];
   if(!j||!j.photos||!j.photos.length) return;
   LB_KEY=key; LB_PHOTOS=j.photos; LB_I=Math.max(0, Math.min(idx||0, LB_PHOTOS.length-1));
+  renderLightbox(); $("lightbox").classList.add("show");
+}
+// View-as-owner preview: open the same swipe lightbox from a preview card's photos.
+function opvView(ci, pi){
+  var pics=(window._OPV&&window._OPV[ci])||[]; if(!pics.length) return;
+  LB_KEY=""; LB_PHOTOS=pics; LB_I=Math.max(0, Math.min(pi||0, pics.length-1));
   renderLightbox(); $("lightbox").classList.add("show");
 }
 function renderLightbox(){
