@@ -212,6 +212,9 @@
   .cmt-lane .movelbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px}
   .movebtn{border:1px solid var(--line);background:#fff;border-radius:14px;padding:3px 8px;font-size:11px;font-weight:700;color:var(--navy);cursor:pointer}
   .cmt.lane-owner{border-left:3px solid var(--orange)} .cmt.lane-dir{border-left:3px solid #5b21b6}
+  .att-move{display:flex;align-items:center;flex-wrap:wrap;gap:4px;margin-top:5px}
+  .att-move .movelbl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px}
+  .ph .att-move{padding:0 4px 4px}
   .ph .lanepill{position:absolute;top:4px;left:4px;margin:0}
   .tagchips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
   .tagchip{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:#8a5a12;background:#fdf3e3;border:1px solid #f0dcb8;border-radius:20px;padding:3px 5px 3px 10px}
@@ -1350,15 +1353,15 @@ function openWLJob(key){
     ? '<div class="sec"><h4>New request</h4><p class="body" style="font-size:13px;color:var(--muted);margin-bottom:8px">Raised by crew — approve to make it an active job on the worklist.</p><button class="jobbtn complete" onclick="wlSetStatus(\''+esc(key)+'\',\'To do\')">✓ Approve — activate this job</button></div>'
     : '<div class="sec"><div class="apprOn" style="background:#fdf3e3;color:#8a5a12;border-color:#f0dcb8">⏳ Requested — waiting for Marine HQ to approve.</div></div>');
   var canDel = !j.shared || isMgrRole();   // crew can remove their own until it's approved to the owner
-  var phHTML=(j.photos&&j.photos.length ? j.photos.map(function(p,idx){return '<div class="ph"><img src="'+esc(driveImg(p.url))+'" alt="" loading="lazy" onerror="this.classList.add(\'imgerr\')" onclick="event.stopPropagation();openPhoto(\''+esc(key)+'\','+idx+')" style="cursor:pointer">'+(p.caption?'<span class="phcap" title="'+esc(p.caption)+'">💬</span>':'')+(isMgrRole()?lanePill(p.aud):'')+'<small>'+esc(p.by?firstName(p.by):(p.name||"photo"))+(p.at?(' · '+relTime(p.at)):'')+'</small>'+(canDel?'<button class="attdel" title="Remove" onclick="event.stopPropagation();wlDelAtt(\''+esc(key)+'\',\''+esc(p.url)+'\',\'photo\')">✕</button>':'')+'</div>';}).join("") : '<div style="font-size:13px;color:var(--muted)">No photos yet.</div>')
+  var phHTML=(j.photos&&j.photos.length ? j.photos.map(function(p,idx){return '<div class="ph"><img src="'+esc(driveImg(p.url))+'" alt="" loading="lazy" onerror="this.classList.add(\'imgerr\')" onclick="event.stopPropagation();openPhoto(\''+esc(key)+'\','+idx+')" style="cursor:pointer">'+(p.caption?'<span class="phcap" title="'+esc(p.caption)+'">💬</span>':'')+'<small>'+esc(p.by?firstName(p.by):(p.name||"photo"))+(p.at?(' · '+relTime(p.at)):'')+'</small>'+(canDel?'<button class="attdel" title="Remove" onclick="event.stopPropagation();wlDelAtt(\''+esc(key)+'\',\''+esc(p.url)+'\',\'photo\')">✕</button>':'')+attMoveRow(key,'photo',p.url,p.aud)+'</div>';}).join("") : '<div style="font-size:13px;color:var(--muted)">No photos yet.</div>')
     +'<label class="addph" for="wlPhotoInput" onclick="if(!laneReady())return event.preventDefault();">📷<span>Add</span></label><input id="wlPhotoInput" type="file" accept="image/*" multiple style="display:none" onchange="wlAddPhotos(\''+esc(key)+'\',this)">';
   // Images (even ones added via the 📎 button) show as thumbnails; real files (PDF/xls…) show as rows.
   var _docs=j.docs||[];
   var _imgDocs=_docs.filter(function(d){return isImgFile(d.name,d.url);});
   var _fileDocs=_docs.filter(function(d){return !isImgFile(d.name,d.url);});
   var docHTML=
-    (_imgDocs.length?('<div class="photos">'+_imgDocs.map(function(dd){return '<div class="ph"><img src="'+esc(driveImg(dd.url))+'" alt="" loading="lazy" onerror="this.classList.add(\'imgerr\')" onclick="window.open(\''+esc(driveView(dd.url))+'\',\'_blank\')" style="cursor:pointer"><small>'+esc(dd.by?firstName(dd.by):(dd.name||"photo"))+(dd.at?(' · '+relTime(dd.at)):'')+'</small>'+(isMgrRole()?lanePill(dd.aud):'')+(canDel?'<button class="attdel" title="Remove" onclick="event.stopPropagation();wlDelAtt(\''+esc(key)+'\',\''+esc(dd.url)+'\',\'doc\')">✕</button>':'')+'</div>';}).join("")+'</div>'):'')
-    +(_fileDocs.length?_fileDocs.map(function(dd){return '<div class="docrowitem"><a class="docitem" href="'+esc(driveView(dd.url))+'" target="_blank" rel="noopener"><span class="ic">📄</span><span class="docmain">'+esc(dd.name||"document")+(dd.by?('<span class="docby">'+esc(firstName(dd.by))+(dd.at?(' · '+fmtDateTime(dd.at)):'')+'</span>'):'')+'</span></a>'+(isMgrRole()?lanePill(dd.aud):'')+(canDel?'<button class="attdel doc" title="Remove" onclick="wlDelAtt(\''+esc(key)+'\',\''+esc(dd.url)+'\',\'doc\')">✕</button>':'')+'</div>';}).join(""):'')
+    (_imgDocs.length?('<div class="photos">'+_imgDocs.map(function(dd){return '<div class="ph"><img src="'+esc(driveImg(dd.url))+'" alt="" loading="lazy" onerror="this.classList.add(\'imgerr\')" onclick="window.open(\''+esc(driveView(dd.url))+'\',\'_blank\')" style="cursor:pointer"><small>'+esc(dd.by?firstName(dd.by):(dd.name||"photo"))+(dd.at?(' · '+relTime(dd.at)):'')+'</small>'+(canDel?'<button class="attdel" title="Remove" onclick="event.stopPropagation();wlDelAtt(\''+esc(key)+'\',\''+esc(dd.url)+'\',\'doc\')">✕</button>':'')+attMoveRow(key,'doc',dd.url,dd.aud)+'</div>';}).join("")+'</div>'):'')
+    +(_fileDocs.length?_fileDocs.map(function(dd){return '<div class="docrowitem"><a class="docitem" href="'+esc(driveView(dd.url))+'" target="_blank" rel="noopener"><span class="ic">📄</span><span class="docmain">'+esc(dd.name||"document")+(dd.by?('<span class="docby">'+esc(firstName(dd.by))+(dd.at?(' · '+fmtDateTime(dd.at)):'')+'</span>'):'')+'</span></a>'+(canDel?'<button class="attdel doc" title="Remove" onclick="wlDelAtt(\''+esc(key)+'\',\''+esc(dd.url)+'\',\'doc\')">✕</button>':'')+attMoveRow(key,'doc',dd.url,dd.aud)+'</div>';}).join(""):'')
     +'<label class="addph" for="wlDocInput" onclick="if(!laneReady())return event.preventDefault();">📎<span>Add</span></label><input id="wlDocInput" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,image/*" multiple style="display:none" onchange="wlAddDocs(\''+esc(key)+'\',this)">';
   var cmtHTML=(j.comments&&j.comments.length ? j.comments.map(function(cm){
     var mgr=/director|manager/i.test(cm.role||"");
@@ -1555,6 +1558,25 @@ function setLane(l){ WLLANE=l; document.querySelectorAll('.lanebtn').forEach(fun
 function laneReady(){ if(!isMgrRole()) return true; if(WLLANE) return true;
   toast("Tap Crew, Owner or Directors first"); var lb=$("laneBar"); if(lb){ lb.classList.add('pulse'); setTimeout(function(){lb.classList.remove('pulse');},700); } return false; }
 function lanePill(aud){ var m=LANE_META[aud]||LANE_META.crew; return '<span class="lanepill '+ (aud||'crew') +'">'+m.ic+' '+m.lbl+'</span>'; }
+/* Director-only lane control for a photo/doc: current lane + buttons to move it */
+function attMoveRow(key, kind, url, aud){
+  if(!isMgrRole()) return '';
+  aud=(aud==="owner"||aud==="dir")?aud:"crew";
+  var u=(url||"").replace(/'/g,"\\'");
+  return '<div class="att-move">'+lanePill(aud)+'<span class="movelbl">move:</span>'+
+    ["crew","owner","dir"].filter(function(l){return l!==aud;}).map(function(l){
+      return '<button class="movebtn" title="Move to '+LANE_META[l].lbl+'" onclick="event.stopPropagation();attMove(\''+esc(key)+'\',\''+kind+'\',\''+esc(u)+'\',\''+l+'\')">'+LANE_META[l].ic+' '+LANE_META[l].lbl+'</button>';
+    }).join('')+'</div>';
+}
+function attMove(key, kind, url, lane){
+  apiPost({action:"crewJobAttAud", email:ME.email, code:ME.code, jobKey:key, kind:kind, url:url, aud:lane}).then(function(r){
+    if(r&&r.ok){ toast("Moved to "+LANE_META[lane].ic+" "+LANE_META[lane].lbl);
+      var j=CREWJOBS.filter(function(x){return x.key===key;})[0];
+      if(j){ var arr=(kind==="doc"?j.docs:j.photos)||[]; for(var i=0;i<arr.length;i++){ if((arr[i].url||"")===url){ arr[i].aud=lane; break; } } }
+      openWLJob(key); loadJobs(); }
+    else toast((r&&r.error)||"Couldn’t move");
+  }).catch(function(){ toast("Couldn’t connect"); });
+}
 /* Move a note to another lane — Directors/Managers */
 function wlNoteAud(key, at, lane){
   apiPost({action:"crewJobNoteAud", email:ME.email, code:ME.code, jobKey:key, at:at, aud:lane}).then(function(r){
