@@ -966,10 +966,10 @@ function loadJobs(){
   var vk = allBoats ? "__all__" : (v||"Everywhen");
   var url = "fn=crewjobs&email="+encodeURIComponent(ME.email)+"&code="+encodeURIComponent(ME.code||"")+
     (allBoats ? "&all=1&mine=0" : ("&vessel="+encodeURIComponent(v)+"&mine="+mine));
-  var lbl = allBoats ? "all boats" : (v||"jobs");
+  var lbl = allBoats ? "all yachts" : (v||"jobs");
   // INSTANT: render last-known jobs from cache immediately; else a spinner
   var cached=_cGet(_ck("jobs",vk));
-  if(cached && cached.length){ CREWJOBS=cached; JOBSVESSEL=allBoats?"all boats":vk; renderJobs(); updateJobsBadge(); }
+  if(cached && cached.length){ CREWJOBS=cached; JOBSVESSEL=allBoats?"all yachts":vk; renderJobs(); updateJobsBadge(); }
   else {
     if($("jobList")) $("jobList").innerHTML='<div class="loadingbox"><span class="spin"></span> Loading '+esc(lbl)+'…</div>';
     if($("jobsCount")) $("jobsCount").textContent="";
@@ -977,7 +977,7 @@ function loadJobs(){
   }
   startActivityWatch();   // fire the activity fetch in PARALLEL with jobs (not after)
   apiGet(url)
-    .then(function(j){ CREWJOBS=(j&&j.jobs)||[]; JOBSVESSEL=allBoats?"all boats":((j&&j.vessel)||v); _cSet(_ck("jobs",vk), CREWJOBS); renderJobs(); updateJobsBadge(); renderVesselBar(); }).catch(function(){});
+    .then(function(j){ CREWJOBS=(j&&j.jobs)||[]; JOBSVESSEL=allBoats?"all yachts":((j&&j.vessel)||v); _cSet(_ck("jobs",vk), CREWJOBS); renderJobs(); updateJobsBadge(); renderVesselBar(); }).catch(function(){});
   loadFleetVessels();
 }
 // Director/Manager boat switcher — lists every vessel that has a worklist.
@@ -996,7 +996,7 @@ function renderVesselBar(){
   var host=$("vesselBar"); if(!host) return;
   if(!isMgrRole() || FLEETVESSELS.length<2){ host.innerHTML=""; return; }
   var cur=CURVESSEL||JOBSVESSEL||ME.vessels[0]||"";
-  var chips='<div class="chip '+(CURVESSEL==="__all__"?"on":"")+'" onclick="pickVessel(\'__all__\')">🚢 All boats</div>'+
+  var chips='<div class="chip '+(CURVESSEL==="__all__"?"on":"")+'" onclick="pickVessel(\'__all__\')">🚢 All Yachts</div>'+
     FLEETVESSELS.map(function(v){var on=(v===cur&&CURVESSEL!=="__all__");return '<div class="chip '+(on?"on":"")+'" onclick="pickVessel(\''+v.replace(/'/g,"\\'")+'\')">'+esc(v)+'</div>';}).join("");
   host.innerHTML='<div class="chips boatchips">'+chips+'</div>';
 }
@@ -1021,7 +1021,7 @@ function loadDuePanel(){
 function renderDueList(){
   var el=$("dueList"); if(!el)return;
   var vessels=[], seen={}; DUE_ALL.forEach(function(i){ if(i.vessel&&!seen[i.vessel]){seen[i.vessel]=1;vessels.push(i.vessel);} }); vessels.sort();
-  var bar='<div class="chips boatchips"><div class="chip '+(DUE_VESSEL==="__all__"?"on":"")+'" onclick="pickDueVessel(\'__all__\')">🚢 All boats</div>'+vessels.map(function(v){return '<div class="chip '+(v===DUE_VESSEL?"on":"")+'" onclick="pickDueVessel(\''+v.replace(/'/g,"\\'")+'\')">'+esc(v)+'</div>';}).join("")+'</div>';
+  var bar='<div class="chips boatchips"><div class="chip '+(DUE_VESSEL==="__all__"?"on":"")+'" onclick="pickDueVessel(\'__all__\')">🚢 All Yachts</div>'+vessels.map(function(v){return '<div class="chip '+(v===DUE_VESSEL?"on":"")+'" onclick="pickDueVessel(\''+v.replace(/'/g,"\\'")+'\')">'+esc(v)+'</div>';}).join("")+'</div>';
   DUE_ITEMS = (DUE_VESSEL==="__all__") ? DUE_ALL.slice() : DUE_ALL.filter(function(i){return i.vessel===DUE_VESSEL;});
   DUE_ITEMS.forEach(function(i,idx){ i._idx=idx; });
   var over=DUE_ITEMS.filter(function(i){return i._over;});
@@ -1306,9 +1306,11 @@ function renderJobs(){
   var groups={}, order=[];
   // Worklists start COLLAPSED — tap to expand. Only default on first sighting so
   // a user's expand/collapse choice survives re-renders (after actions/reloads).
-  // In "all boats" overview, group by vessel; otherwise by worklist.
+  // In "All Yachts" overview, group by WORKLIST NAME (already yacht-prefixed, e.g.
+  // "Andiamo — Bundaberg Work List") so every list shows by name; listless items
+  // fall back to "<Yacht> — Other jobs". Single-yacht view groups by worklist.
   var allBoats=(CURVESSEL==="__all__");
-  list.forEach(function(j){ var g=allBoats?(j.vessel||"Other"):(j.list||"Other jobs"); if(!groups[g]){groups[g]=[];order.push(g); if(!(g in WLCLOSED)) WLCLOSED[g]=true;} groups[g].push(j); });
+  list.forEach(function(j){ var g=allBoats?(j.list||((j.vessel||"Other")+" — Other jobs")):(j.list||"Other jobs"); if(!groups[g]){groups[g]=[];order.push(g); if(!(g in WLCLOSED)) WLCLOSED[g]=true;} groups[g].push(j); });
   el.innerHTML=order.map(function(g){
     var jobs=groups[g], openN=jobs.filter(function(j){return hubBucket(j.status)!=="Done";}).length;
     var newN=jobs.filter(jobRecent).length;
