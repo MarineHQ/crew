@@ -194,6 +194,10 @@
   .tagopt.on{border-color:var(--orange);background:#fff8f1}
   .tagopt .tk{color:var(--orange);font-weight:800}
   .tagempty{font-size:12.5px;color:var(--muted);padding:4px 2px}
+  /* Assign-to picker */
+  .assignrow{display:flex;flex-wrap:wrap;gap:7px}
+  .aopt{border:1px solid var(--line);background:#fff;border-radius:20px;padding:8px 13px;font-size:13px;font-weight:700;color:var(--navy);cursor:pointer}
+  .aopt.on{border-color:var(--navy);background:var(--navy);color:#fff}
   .tagchips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
   .tagchip{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:#8a5a12;background:#fdf3e3;border:1px solid #f0dcb8;border-radius:20px;padding:3px 5px 3px 10px}
   .tagchip button{border:none;background:rgba(138,90,18,.14);color:#8a5a12;border-radius:50%;width:18px;height:18px;font-size:11px;line-height:1;cursor:pointer}
@@ -1330,8 +1334,7 @@ function openWLJob(key){
     : '<div class="sec"><div class="apprOn" style="background:#fdf3e3;color:#8a5a12;border-color:#f0dcb8">⏳ Requested — waiting for Marine HQ to approve.</div></div>');
   var canDel = !j.shared || isMgrRole();   // crew can remove their own until it's approved to the owner
   var phHTML=(j.photos&&j.photos.length ? j.photos.map(function(p,idx){return '<div class="ph"><img src="'+esc(driveImg(p.url))+'" alt="" loading="lazy" onerror="this.classList.add(\'imgerr\')" onclick="event.stopPropagation();openPhoto(\''+esc(key)+'\','+idx+')" style="cursor:pointer">'+(p.caption?'<span class="phcap" title="'+esc(p.caption)+'">💬</span>':'')+'<small>'+esc(p.by?firstName(p.by):(p.name||"photo"))+(p.at?(' · '+relTime(p.at)):'')+'</small>'+(canDel?'<button class="attdel" title="Remove" onclick="event.stopPropagation();wlDelAtt(\''+esc(key)+'\',\''+esc(p.url)+'\',\'photo\')">✕</button>':'')+'</div>';}).join("") : '<div style="font-size:13px;color:var(--muted)">No photos yet.</div>')
-    +'<label class="addph" for="wlPhotoCam">📷<span>Camera</span></label><input id="wlPhotoCam" type="file" accept="image/*" capture="environment" multiple style="display:none" onchange="wlAddPhotos(\''+esc(key)+'\',this)">'
-    +'<label class="addph" for="wlPhotoLib">🖼️<span>Library</span></label><input id="wlPhotoLib" type="file" accept="image/*" multiple style="display:none" onchange="wlAddPhotos(\''+esc(key)+'\',this)">';
+    +'<label class="adddoc" for="wlPhotoInput">📷 ＋ Add a photo (library, camera or files)</label><input id="wlPhotoInput" type="file" accept="image/*" multiple style="display:none" onchange="wlAddPhotos(\''+esc(key)+'\',this)">';
   var docHTML=(j.docs&&j.docs.length ? j.docs.map(function(dd){return '<div class="docrowitem"><a class="docitem" href="'+esc(driveView(dd.url))+'" target="_blank" rel="noopener"><span class="ic">📄</span><span class="docmain">'+esc(dd.name||"document")+(dd.by?('<span class="docby">'+esc(firstName(dd.by))+(dd.at?(' · '+fmtDateTime(dd.at)):'')+'</span>'):'')+'</span></a>'+(canDel?'<button class="attdel doc" title="Remove" onclick="wlDelAtt(\''+esc(key)+'\',\''+esc(dd.url)+'\',\'doc\')">✕</button>':'')+'</div>';}).join("") : '')
     +'<label class="adddoc" for="wlDocInput">＋ Attach a document (quote, PDF…)</label><input id="wlDocInput" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,image/*" multiple style="display:none" onchange="wlAddDocs(\''+esc(key)+'\',this)">';
   var cmtHTML=(j.comments&&j.comments.length ? j.comments.map(function(cm){
@@ -1339,12 +1342,21 @@ function openWLJob(key){
     var tag=(cm.mentions&&cm.mentions.length)?'<span class="cmt-tag">🔔 '+cm.mentions.map(function(n){return esc(firstName(n));}).join(", ")+'</span>':'';
     return '<div class="cmt'+(mgr?" mgr":"")+'"><div class="cmt-hd"><b>'+esc(cm.by||"—")+'</b>'+((cm.role&&isMgrRole())?'<span class="cmt-role">'+esc(cm.role)+'</span>':'')+'<span class="cmt-at">'+fmtDateTime(cm.at)+'</span></div><div class="cmt-tx">'+hlMentions(cm.text||"")+'</div>'+tag+'</div>';
   }).join("") : '<div style="font-size:13px;color:var(--muted)">No notes yet.</div>');
+  // Assign-to (Directors/Managers only) — hand the job to a crew member; they then see it in their worklist
+  var curAlloc=(j.allocatedTo||"").toLowerCase();
+  var assignHTML = !isMgrRole() ? '' :
+    '<div class="sec"><h4>Assigned to</h4><div class="assignrow">'+
+      (CREWNAMES||[]).map(function(c){ var on=curAlloc===(c.name||"").toLowerCase();
+        return '<button class="aopt'+(on?' on':'')+'" onclick="wlAssign(\''+esc(key)+'\',\''+esc((c.name||"").replace(/'/g,"\\'"))+'\')">'+esc(firstName(c.name))+(on?' ✓':'')+'</button>'; }).join('')+
+      '<button class="aopt'+(!curAlloc?' on':'')+'" onclick="wlAssign(\''+esc(key)+'\',\'\')">Unassigned</button>'+
+    '</div><p class="body" style="font-size:12px;color:var(--muted);margin-top:7px">The person you pick sees this job in their own worklist.</p></div>';
   $("sheet").innerHTML=
     '<div class="sheet-hd"><div style="flex:1"><div style="font-size:11px;font-weight:bold;letter-spacing:.4px;color:#ffd7b0">'+esc(j.vessel)+(j.list?(" · "+esc(j.list)):"")+(j.code?(' &nbsp;<span class="jcode">'+esc(j.code)+'</span>'):'')+catChip(j.category)+'</div>'+
       '<h3>'+num+'. '+esc(j.task||"(job)")+'</h3></div><button class="closeb" onclick="closeSheet()">✕</button></div>'+
     (j.desc?('<div class="sec"><h4>The job</h4><p class="body">'+esc(j.desc)+'</p></div>'):'')+
     reqBlock+
     '<div class="sec"><h4>Status</h4><div class="pillrow">'+pills+'</div></div>'+
+    assignHTML+
     '<div class="sec"><h4>Photos</h4><div class="photos">'+phHTML+'</div></div>'+
     '<div class="sec"><h4>Documents</h4><div class="docrow">'+docHTML+'</div></div>'+
     '<div class="sec"><h4>Notes &amp; timeline</h4><div class="cmts">'+cmtHTML+'</div>'+
@@ -1480,6 +1492,15 @@ function uploadFilesSeq(key, input, action, field, maxDim, quality){
       }).catch(function(){ next(); });   // skip the failed one, keep going
     });
   })();
+}
+/* Assign / reassign a job to a crew member (Directors/Managers) */
+function wlAssign(key, name){
+  apiPost({action:"crewJobAssign", email:ME.email, code:ME.code, jobKey:key, allocatedTo:name}).then(function(r){
+    if(r&&r.ok){ toast(name?("Assigned to "+firstName(name)):"Unassigned");
+      var j=CREWJOBS.filter(function(x){return x.key===key;})[0]; if(j)j.allocatedTo=name;
+      openWLJob(key); loadJobs(); }
+    else toast((r&&r.error)||"Couldn’t assign");
+  }).catch(function(){ toast("Couldn’t connect"); });
 }
 function wlAddPhotos(key, input){ uploadFilesSeq(key, input, "crewJobPhotos", "photos", 1600, 0.7); }
 function wlAddDocs(key, input){ uploadFilesSeq(key, input, "crewJobDocs", "docs", 2000, 0.8); }
