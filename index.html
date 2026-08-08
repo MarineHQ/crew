@@ -739,6 +739,17 @@
 
 var TODAY = "2026-07-19";
 
+/* Lock zoom on iPhone Safari. iOS ignores the viewport meta's user-scalable /
+   maximum-scale, so a stray two-finger pinch (or double-tap) zooms the page and
+   lets it pan sideways — which reads as "the screen bleeds past the edge". These
+   listeners are the only reliable way to actually stop it in a browser tab. */
+(function(){
+  // Blocking the pinch gesture is safe — it never affects taps, scrolls or swipes.
+  ["gesturestart","gesturechange","gestureend"].forEach(function(ev){
+    document.addEventListener(ev, function(e){ e.preventDefault(); }, {passive:false});
+  });
+})();
+
 /* ---- live backend (Marine HQ Apps Script web app) ---- */
 var API = "https://script.google.com/macros/s/AKfycbx5sC5b4rIF1tcMPWRdM9hpc8Lwj26TP7w8ikc0nR1KLyYNDv0CagCZYD3uBfmbQCxh/exec";
 var TEST_EMAIL = "trishkperez@gmail.com";
