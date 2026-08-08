@@ -218,6 +218,9 @@
   .ph .att-move{padding:0 4px 4px}
   .opv-photos{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
   .opv-photos img{width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--line);cursor:pointer}
+  .duechip{display:inline-block;font-size:10.5px;font-weight:800;border-radius:8px;padding:1px 7px;background:#e6efff;color:#1d4ed8;vertical-align:middle}
+  .duechip.today{background:#dcfce7;color:#166534} .duechip.overdue{background:#fde2e1;color:#b3261e}
+  .chip.sched.on{background:var(--orange);border-color:var(--orange);color:#fff}
   .ph .lanepill{position:absolute;top:4px;left:4px;margin:0}
   .tagchips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
   .tagchip{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:#8a5a12;background:#fdf3e3;border:1px solid #f0dcb8;border-radius:20px;padding:3px 5px 3px 10px}
@@ -1309,7 +1312,8 @@ function renderJobs(){
   $("jobsHello").innerHTML="Hi <b>"+esc(first)+"</b> — <b>"+openN+"</b> open "+(openN===1?"job":"jobs")+" on <b>"+esc(JOBSVESSEL||"your vessel")+"</b>."+
     (ME.signedAt ? "" : '<div class="guideprompt" onclick="openGuide()">📋 Please read &amp; sign the Crew Onboarding Guide — tap here.</div>');
   var FILTERS=["All","To do","In progress","Done"];
-  $("jobChips").innerHTML=FILTERS.map(function(f){return '<div class="chip '+(f===JOBFILTER?"on":"")+'" onclick="setJobFilter(\''+f+'\')">'+f+'</div>';}).join("");
+  $("jobChips").innerHTML=FILTERS.map(function(f){return '<div class="chip '+(f===JOBFILTER?"on":"")+'" onclick="setJobFilter(\''+f+'\')">'+f+'</div>';}).join("")
+    +'<div class="chip sched'+(SCHEDVIEW?" on":"")+'" onclick="toggleSched()">📅 Schedule</div>';
   var list=CREWJOBS.filter(function(j){ return JOBFILTER==="All"||hubBucket(j.status)===JOBFILTER; });
   $("jobsCount").textContent=list.length+(list.length===1?" job":" jobs");
   var el=$("jobList");
@@ -1322,7 +1326,16 @@ function renderJobs(){
   // "Andiamo — Bundaberg Work List") so every list shows by name; listless items
   // fall back to "<Yacht> — Other jobs". Single-yacht view groups by worklist.
   var allBoats=(CURVESSEL==="__all__");
-  list.forEach(function(j){ var g=allBoats?(j.list||((j.vessel||"Other")+" — Other jobs")):(j.list||"Other jobs"); if(!groups[g]){groups[g]=[];order.push(g); if(!(g in WLCLOSED)) WLCLOSED[g]=true;} groups[g].push(j); });
+  if(SCHEDVIEW){
+    // Schedule view: group by DAY (Overdue / Today / Tomorrow / This week / Later / No day).
+    var buckets={};
+    list.forEach(function(j){ var bk=dayBucket(j.dueTs); if(!buckets[bk.k]){buckets[bk.k]={label:bk.label,items:[]};} buckets[bk.k].items.push(j); });
+    Object.keys(buckets).sort().forEach(function(k){ var g=buckets[k].label;
+      groups[g]=buckets[k].items.sort(function(a,b){ return (a.dueTs||9e15)-(b.dueTs||9e15); });
+      order.push(g); if(!(g in WLCLOSED)) WLCLOSED[g]=false; });   // schedule groups OPEN by default
+  } else {
+    list.forEach(function(j){ var g=allBoats?(j.list||((j.vessel||"Other")+" — Other jobs")):(j.list||"Other jobs"); if(!groups[g]){groups[g]=[];order.push(g); if(!(g in WLCLOSED)) WLCLOSED[g]=true;} groups[g].push(j); });
+  }
   el.innerHTML=order.map(function(g){
     var jobs=groups[g], openN=jobs.filter(function(j){return hubBucket(j.status)!=="Done";}).length;
     var newN=jobs.filter(jobRecent).length;
@@ -1333,6 +1346,7 @@ function renderJobs(){
       var np=(j.photos&&j.photos.length)||0, hasNote=!!(j.notes&&j.notes.trim()), nd=(j.docs&&j.docs.length)||0;
       var codeChip = j.code ? ' <span class="jcode'+(j.standard==="Boat-specific"?" bs":"")+'">'+esc(j.code)+'</span>' : '';
       codeChip += catChip(j.category);
+      if(j.dueTs){ codeChip += ' <span class="duechip'+dueCls(j.dueTs,done)+'">📅 '+esc(dayLabel(j.dueTs))+'</span>'; }
       var upd = jobRecent(j) ? '<span class="upd">● updated '+relTime(j.updated)+'</span>' : '';
       return '<div class="job brd-'+cls+(done?" jobdone":"")+(jobRecent(j)?" jobnew":"")+'" onclick="openWLJob(\''+esc(j.key)+'\')">'+
         '<div class="top"><div style="flex:1"><h3><span class="jnum">'+(idx+1)+'.</span> '+esc(j.task||j.desc||"(job)")+codeChip+'</h3></div>'+
@@ -1352,6 +1366,23 @@ function relTime(ms){ if(!ms)return""; var s=Math.floor((Date.now()-ms)/1000); i
 var WLCLOSED={};
 function toggleWL(g){ WLCLOSED[g]=!WLCLOSED[g]; renderJobs(); }
 function setJobFilter(f){ JOBFILTER=f; renderJobs(); }
+/* ── Scheduling: a due day per job + a Schedule (agenda-by-day) view ── */
+var SCHEDVIEW=false;
+function toggleSched(){ SCHEDVIEW=!SCHEDVIEW; renderJobs(); }
+var _WD=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"], _MO=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function _dayDiff(ts){ var d=new Date(ts), t=new Date(); return Math.round((new Date(d.getFullYear(),d.getMonth(),d.getDate())-new Date(t.getFullYear(),t.getMonth(),t.getDate()))/864e5); }
+function dayLabel(ts){ if(!ts)return""; var n=_dayDiff(ts); if(n===0)return"Today"; if(n===1)return"Tomorrow"; if(n===-1)return"Yesterday"; var d=new Date(ts); return _WD[d.getDay()]+" "+d.getDate()+" "+_MO[d.getMonth()]; }
+function dueCls(ts,done){ if(!ts||done)return""; var n=_dayDiff(ts); if(n<0)return" overdue"; if(n===0)return" today"; return""; }
+function dayBucket(ts){ if(!ts)return{k:"9",label:"📋 No day set"}; var n=_dayDiff(ts);
+  if(n<0)return{k:"0",label:"⚠️ Overdue"}; if(n===0)return{k:"1",label:"Today"}; if(n===1)return{k:"2",label:"Tomorrow"}; if(n<=7)return{k:"3",label:"This week"}; return{k:"4",label:"Later"}; }
+/* Set / clear a job's day (Directors & Managers) */
+function wlSetDue(key, val){
+  apiPost({action:"crewJobDue", email:ME.email, code:ME.code, jobKey:key, due:val}).then(function(r){
+    if(r&&r.ok){ toast(val?("📅 Scheduled "+dayLabel(r.dueTs)):"Day cleared");
+      var j=CREWJOBS.filter(function(x){return x.key===key;})[0]; if(j){ j.due=r.due||""; j.dueTs=r.dueTs||0; } loadJobs(); }
+    else toast((r&&r.error)||"Couldn’t set day");
+  }).catch(function(){ toast("Couldn’t connect"); });
+}
 
 /* ---- worklist job detail: status · notes · photos ---- */
 var WLSTATUS=["To do","In hand","Complete"];
@@ -1398,6 +1429,12 @@ function openWLJob(key){
       '<button class="aopt contractor" onclick="wlAssignContractor(\''+esc(key)+'\')">🏢 ＋ Contractor…</button>'+
       '<button class="aopt'+(!curAlloc?' on':'')+'" onclick="wlAssign(\''+esc(key)+'\',\'\')">Unassigned</button>'+
     '</div><p class="body" style="font-size:12px;color:var(--muted);margin-top:7px">Only you &amp; Jack see this. The crew member you pick sees the job in their own worklist. The owner never sees who it’s assigned to.</p></div>';
+  // Day / due (Directors & Managers) — shows on the crew's Schedule
+  var dueHTML = !isMgrRole() ? '' :
+    '<div class="sec"><h4>Day '+(j.due?('· <span style="color:var(--orange)">'+esc(dayLabel(j.dueTs))+'</span>'):'')+'</h4>'+
+    '<input type="date" id="wlDue" class="fld-in" value="'+esc(j.due||"")+'" onchange="wlSetDue(\''+esc(key)+'\',this.value)">'+
+    (j.due?' <button class="aopt" style="margin-left:6px" onclick="wlSetDue(\''+esc(key)+'\',\'\')">Clear</button>':'')+
+    '<p class="body" style="font-size:12px;color:var(--muted);margin-top:6px">Sets the day this job is scheduled — the crew see it on their 📅 Schedule.</p></div>';
   // Conversation lanes — directors pick who their next note / photo / quote is for
   var laneHTML = !isMgrRole() ? '' :
     '<div class="sec"><h4>Who sees what you add next</h4>'+
@@ -1414,6 +1451,7 @@ function openWLJob(key){
     reqBlock+
     '<div class="sec"><h4>Status</h4><div class="pillrow">'+pills+'</div></div>'+
     assignHTML+
+    dueHTML+
     laneHTML+
     '<div class="sec"><h4>Photos</h4><div class="photos">'+phHTML+'</div></div>'+
     '<div class="sec"><h4>Documents</h4><div class="docrow">'+docHTML+'</div></div>'+
