@@ -1326,7 +1326,7 @@ function openWLJob(key){
   var cmtHTML=(j.comments&&j.comments.length ? j.comments.map(function(cm){
     var mgr=/director|manager/i.test(cm.role||"");
     var tag=(cm.mentions&&cm.mentions.length)?'<span class="cmt-tag">🔔 '+cm.mentions.map(function(n){return esc(firstName(n));}).join(", ")+'</span>':'';
-    return '<div class="cmt'+(mgr?" mgr":"")+'"><div class="cmt-hd"><b>'+esc(cm.by||"—")+'</b>'+(cm.role?'<span class="cmt-role">'+esc(cm.role)+'</span>':'')+'<span class="cmt-at">'+fmtDateTime(cm.at)+'</span></div><div class="cmt-tx">'+hlMentions(cm.text||"")+'</div>'+tag+'</div>';
+    return '<div class="cmt'+(mgr?" mgr":"")+'"><div class="cmt-hd"><b>'+esc(cm.by||"—")+'</b>'+((cm.role&&isMgrRole())?'<span class="cmt-role">'+esc(cm.role)+'</span>':'')+'<span class="cmt-at">'+fmtDateTime(cm.at)+'</span></div><div class="cmt-tx">'+hlMentions(cm.text||"")+'</div>'+tag+'</div>';
   }).join("") : '<div style="font-size:13px;color:var(--muted)">No notes yet.</div>');
   $("sheet").innerHTML=
     '<div class="sheet-hd"><div style="flex:1"><div style="font-size:11px;font-weight:bold;letter-spacing:.4px;color:#ffd7b0">'+esc(j.vessel)+(j.list?(" · "+esc(j.list)):"")+(j.code?(' &nbsp;<span class="jcode">'+esc(j.code)+'</span>'):'')+catChip(j.category)+'</div>'+
@@ -1390,7 +1390,7 @@ function fillTagPicker(){
   if(!list.length){ p.innerHTML='<div class="tagempty">Loading crew…</div>'; loadCrewNames(); return; }
   p.innerHTML=list.map(function(c){
     var on=WLMENTIONS.indexOf(c.name)>=0;
-    return '<button class="tagopt'+(on?' on':'')+'" onclick="toggleMention(\''+esc((c.name||"").replace(/'/g,"\\'"))+'\')"><b>'+esc(firstName(c.name))+'</b> <small>'+esc(c.role||"")+'</small>'+(on?' <span class="tk">✓</span>':'')+'</button>';
+    return '<button class="tagopt'+(on?' on':'')+'" onclick="toggleMention(\''+esc((c.name||"").replace(/'/g,"\\'"))+'\')"><b>'+esc(firstName(c.name))+'</b>'+(isMgrRole()?' <small>'+esc(c.role||"")+'</small>':'')+(on?' <span class="tk">✓</span>':'')+'</button>';
   }).join("");
 }
 function toggleTagPicker(key){
