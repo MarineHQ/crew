@@ -221,6 +221,7 @@
   .duechip{display:inline-block;font-size:10.5px;font-weight:800;border-radius:8px;padding:1px 7px;background:#e6efff;color:#1d4ed8;vertical-align:middle}
   .duechip.today{background:#dcfce7;color:#166534} .duechip.overdue{background:#fde2e1;color:#b3261e}
   .chip.sched.on{background:var(--orange);border-color:var(--orange);color:#fff}
+  .donebtn{background:#0f766e;color:#fff;margin-top:14px;font-size:16px;padding:15px}
   .ph .lanepill{position:absolute;top:4px;left:4px;margin:0}
   .tagchips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
   .tagchip{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:#8a5a12;background:#fdf3e3;border:1px solid #f0dcb8;border-radius:20px;padding:3px 5px 3px 10px}
@@ -1460,8 +1461,10 @@ function openWLJob(key){
       '<div id="tagChips" class="tagchips"></div>'+
       '<div class="taghd"><button class="tagbtn" onclick="toggleTagPicker(\''+esc(key)+'\')">🔔 Tag someone</button><span class="taghint">they get an alert + email</span></div>'+
       '<div id="tagPicker" class="tagpicker" style="display:none"></div>'+
-      '<button class="jobbtn complete" style="background:var(--navy)" onclick="wlAddComment(\''+esc(key)+'\')">Add note</button></div>'+
+      '<button class="jobbtn complete" style="background:var(--navy)" onclick="wlAddComment(\''+esc(key)+'\')">Add note</button>'+
+      '<p class="body" style="font-size:11.5px;color:var(--muted);text-align:center;margin:8px 0 0">A note is optional — everything else (status, photos, day) saves as you go.</p></div>'+
     wlApproveBlock(j,key)+
+    '<button class="jobbtn donebtn" onclick="closeSheet()">✓ Done</button>'+
     '<div style="height:16px"></div>';
   showSheet();
 }
