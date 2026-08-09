@@ -222,6 +222,22 @@
   .duechip.today{background:#dcfce7;color:#166534} .duechip.overdue{background:#fde2e1;color:#b3261e}
   .chip.sched.on{background:var(--orange);border-color:var(--orange);color:#fff}
   .donebtn{background:#0f766e;color:#fff;margin-top:14px;font-size:16px;padding:15px}
+  /* Calendar */
+  .calhd{display:flex;align-items:center;justify-content:space-between;margin:4px 0 10px}
+  .caltitle{font-size:16px;font-weight:800;color:var(--navy)}
+  .calnav{border:1px solid var(--line);background:#fff;color:var(--navy);width:38px;height:38px;border-radius:10px;font-size:20px;font-weight:800;cursor:pointer}
+  .calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+  .caldow{text-align:center;font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;padding-bottom:2px}
+  .calcell{position:relative;aspect-ratio:1/1;border:1px solid var(--line);border-radius:9px;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;min-height:38px}
+  .calcell.empty{border:none;background:transparent;cursor:default}
+  .calcell .cald{font-size:13px;color:var(--ink);font-weight:600}
+  .calcell.today{border-color:var(--navy);border-width:2px}
+  .calcell.today .cald{color:var(--navy);font-weight:800}
+  .calcell.has{background:#eef4ff;border-color:#c7dbff}
+  .calcell.over{background:#fde8e6;border-color:#f4b6b0}
+  .calcell.sel{outline:3px solid var(--orange);outline-offset:-1px}
+  .calcell .caln{position:absolute;top:3px;right:4px;background:var(--navy);color:#fff;font-size:9px;font-weight:800;border-radius:9px;min-width:15px;height:15px;line-height:15px;text-align:center;padding:0 2px}
+  .calcell.over .caln{background:#b3261e}
   .ph .lanepill{position:absolute;top:4px;left:4px;margin:0}
   .tagchips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
   .tagchip{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:#8a5a12;background:#fdf3e3;border:1px solid #f0dcb8;border-radius:20px;padding:3px 5px 3px 10px}
@@ -557,6 +573,7 @@
   <div class="ptabs-bar"><div class="ptabs-inner">
     <div class="ptab-btn active" data-tab="jobs"  onclick="go('jobs')">Worklist</div>
     <div class="ptab-btn"        data-tab="updates" onclick="go('updates')">Updates</div>
+    <div class="ptab-btn"        data-tab="cal" onclick="go('cal')">Calendar</div>
     <div class="ptab-btn mgrtab" data-tab="fleet" onclick="go('fleet')" style="display:none">Fleet</div>
     <div class="ptab-btn"        data-tab="check" onclick="go('check')">Checklists</div>
     <div class="ptab-btn"        data-tab="hours" onclick="go('hours')">Time</div>
@@ -578,6 +595,15 @@
       <div class="subbar"><h2>Updates</h2><span class="count" id="updCount"></span></div>
       <p class="hello">Everything the crew &amp; Marine HQ have done, newest first. Tap any one to jump straight to that job.</p>
       <div id="updList"></div>
+    </div>
+
+    <!-- CALENDAR -->
+    <div id="tab-cal" class="hidden">
+      <div class="subbar"><h2>Calendar</h2></div>
+      <p class="hello" id="calHello">Scheduled jobs by day.</p>
+      <div class="calhd"><button class="calnav" onclick="calMove(-1)">‹</button><div id="calTitle" class="caltitle"></div><button class="calnav" onclick="calMove(1)">›</button></div>
+      <div class="calgrid" id="calGrid"></div>
+      <div id="calDay"></div>
     </div>
 
     <!-- FLEET (directors/managers only) -->
@@ -939,13 +965,14 @@ function go(tab){
   TAB=tab;
   // Fleet tab is Directors/Managers only.
   var fb=document.querySelector('.ptab-btn[data-tab="fleet"]'); if(fb) fb.style.display=isMgrRole()?"":"none";
-  ["jobs","updates","fleet","check","hours","sop"].forEach(function(t){ $("tab-"+t).classList.toggle("hidden", t!==tab); });
+  ["jobs","updates","cal","fleet","check","hours","sop"].forEach(function(t){ $("tab-"+t).classList.toggle("hidden", t!==tab); });
   document.querySelectorAll(".ptab-btn").forEach(function(b){ b.classList.toggle("active", b.dataset.tab===tab); });
   $("fab").classList.toggle("hidden", tab!=="jobs");
-  var titles={jobs:["Marine HQ Crew","Your jobs, checklists & hours"],updates:["Updates","Crew activity — newest first"],fleet:["Fleet","Director view — whole operation"],check:["Checklists","Tick & sign off"],hours:["Time clock","Clock in · EOD · hours"],sop:["SOP & guides","Marine HQ standards"]};
+  var titles={jobs:["Marine HQ Crew","Your jobs, checklists & hours"],updates:["Updates","Crew activity — newest first"],cal:["Calendar","Scheduled jobs by day"],fleet:["Fleet","Director view — whole operation"],check:["Checklists","Tick & sign off"],hours:["Time clock","Clock in · EOD · hours"],sop:["SOP & guides","Marine HQ standards"]};
   $("hdrTitle").textContent=titles[tab][0]; $("hdrSub").textContent=titles[tab][1];
   if(tab==="jobs") loadJobs();
   if(tab==="updates") renderUpdates();
+  if(tab==="cal") loadCal();
   if(tab==="hours"){ renderClock(); loadShifts(); }
   if(tab==="check") loadChecklists();
   updateStrip();
@@ -1376,6 +1403,55 @@ function dayLabel(ts){ if(!ts)return""; var n=_dayDiff(ts); if(n===0)return"Toda
 function dueCls(ts,done){ if(!ts||done)return""; var n=_dayDiff(ts); if(n<0)return" overdue"; if(n===0)return" today"; return""; }
 function dayBucket(ts){ if(!ts)return{k:"9",label:"📋 No day set"}; var n=_dayDiff(ts);
   if(n<0)return{k:"0",label:"⚠️ Overdue"}; if(n===0)return{k:"1",label:"Today"}; if(n===1)return{k:"2",label:"Tomorrow"}; if(n<=7)return{k:"3",label:"This week"}; return{k:"4",label:"Later"}; }
+/* ── Calendar tab ── month grid of scheduled jobs.
+   Directors/Managers see the WHOLE fleet's scheduled jobs; crew see only
+   what's assigned & scheduled to them. */
+var _MO_FULL=["January","February","March","April","May","June","July","August","September","October","November","December"];
+var CAL_JOBS=[], CAL_MONTH=null, CAL_SEL=null;
+function _sameDay(ts,ts2){ var a=new Date(ts),b=new Date(ts2); return a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate(); }
+function _isDoneJob(j){ return hubBucket(j.status)==="Done"; }
+function loadCal(){
+  var el=$("calGrid"); if(el) el.innerHTML='<div class="loadingbox"><span class="spin"></span> Loading…</div>';
+  if($("calHello")) $("calHello").textContent = isMgrRole() ? "Every yacht's scheduled jobs, by day." : "Your scheduled jobs, by day.";
+  var q = isMgrRole() ? "&all=1&mine=0" : "&mine=1";
+  apiGet("fn=crewjobs&code="+encodeURIComponent(ME.code||"")+"&email="+encodeURIComponent(ME.email||"")+q).then(function(j){
+    CAL_JOBS=((j&&j.jobs)||[]).filter(function(x){ return x.dueTs; });
+    if(!CAL_MONTH){ var t=new Date(); CAL_MONTH=new Date(t.getFullYear(),t.getMonth(),1); }
+    renderCal();
+    var td=new Date(); calShowDay(new Date(td.getFullYear(),td.getMonth(),td.getDate(),12,0,0).getTime());
+  }).catch(function(){ if(el) el.innerHTML='<div class="empty">Couldn’t load.</div>'; });
+}
+function calMove(d){ CAL_MONTH=new Date(CAL_MONTH.getFullYear(),CAL_MONTH.getMonth()+d,1); renderCal(); }
+function renderCal(){
+  if(!CAL_MONTH) return; var y=CAL_MONTH.getFullYear(), m=CAL_MONTH.getMonth();
+  $("calTitle").textContent=_MO_FULL[m]+" "+y;
+  var counts={}, over={}, today=new Date(); today.setHours(0,0,0,0);
+  CAL_JOBS.forEach(function(j){ var d=new Date(j.dueTs); if(d.getFullYear()===y&&d.getMonth()===m){ var k=d.getDate(); counts[k]=(counts[k]||0)+1; if(j.dueTs<today.getTime()&&!_isDoneJob(j)) over[k]=true; } });
+  var first=new Date(y,m,1).getDay(), dim=new Date(y,m+1,0).getDate();
+  var cells=["S","M","T","W","T","F","S"].map(function(w){return '<div class="caldow">'+w+'</div>';}).join("");
+  for(var b=0;b<first;b++) cells+='<div class="calcell empty"></div>';
+  for(var day=1;day<=dim;day++){
+    var ts=new Date(y,m,day,12,0,0).getTime(), n=counts[day]||0;
+    var isToday=_sameDay(ts, today.getTime()+12*36e5);
+    cells+='<div class="calcell'+(isToday?" today":"")+(n?" has":"")+(over[day]?" over":"")+(CAL_SEL===ts?" sel":"")+'" onclick="calShowDay('+ts+')"><span class="cald">'+day+'</span>'+(n?'<span class="caln">'+n+'</span>':'')+'</div>';
+  }
+  $("calGrid").innerHTML=cells;
+}
+function calShowDay(ts){
+  CAL_SEL=ts; renderCal();
+  var list=CAL_JOBS.filter(function(j){ return _sameDay(j.dueTs, ts); }).sort(function(a,b){ return (_isDoneJob(a)-_isDoneJob(b)); });
+  var d=new Date(ts);
+  var html='<div class="listhd">'+esc(dayLabel(ts))+' · '+d.getDate()+' '+_MO[d.getMonth()]+' <span style="color:var(--muted)">('+list.length+')</span></div>';
+  if(!list.length){ html+='<div class="empty" style="padding:16px">Nothing scheduled for this day.</div>'; }
+  else html+=list.map(function(j){
+    var b=hubBucket(j.status), cls=hubCls(b);
+    return '<div class="job brd-'+cls+(_isDoneJob(j)?" jobdone":"")+'" onclick="openFromUpdate(\''+esc(j.key)+'\',\''+esc(j.vessel)+'\')">'+
+      '<div class="top"><div style="flex:1"><h3>'+esc(j.task||j.title||"(job)")+(j.code?' <span class="jcode">'+esc(j.code)+'</span>':'')+'</h3>'+
+      '<div style="font-size:12px;color:var(--muted);margin-top:2px">'+esc(j.vessel||"")+(j.allocatedTo?(" · "+esc(firstName(j.allocatedTo))):"")+'</div></div>'+
+      '<span class="badge s-'+cls+'">'+esc(j.status||b)+'</span></div></div>';
+  }).join("");
+  $("calDay").innerHTML=html;
+}
 /* Set / clear a job's day (Directors & Managers) */
 function wlSetDue(key, val){
   apiPost({action:"crewJobDue", email:ME.email, code:ME.code, jobKey:key, due:val}).then(function(r){
