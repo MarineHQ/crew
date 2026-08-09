@@ -1440,8 +1440,7 @@ function renderCal(){
 function calShowDay(ts){
   CAL_SEL=ts; renderCal();
   var list=CAL_JOBS.filter(function(j){ return _sameDay(j.dueTs, ts); }).sort(function(a,b){ return (_isDoneJob(a)-_isDoneJob(b)); });
-  var d=new Date(ts);
-  var html='<div class="listhd">'+esc(dayLabel(ts))+' · '+d.getDate()+' '+_MO[d.getMonth()]+' <span style="color:var(--muted)">('+list.length+')</span></div>';
+  var html='<div class="listhd">'+esc(dayLabel(ts))+' <span style="color:var(--muted)">('+list.length+')</span></div>';
   if(!list.length){ html+='<div class="empty" style="padding:16px">Nothing scheduled for this day.</div>'; }
   else html+=list.map(function(j){
     var b=hubBucket(j.status), cls=hubCls(b);
