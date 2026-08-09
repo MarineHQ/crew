@@ -216,6 +216,12 @@
   .att-move{display:flex;align-items:center;flex-wrap:wrap;gap:4px;margin-top:5px}
   .att-move .movelbl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px}
   .ph .att-move{padding:0 4px 4px}
+  .bulklane{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-top:10px;padding-top:9px;border-top:1px dashed var(--line)}
+  .movebtn.on{border-color:var(--navy);background:var(--navy);color:#fff}
+  .lightlane{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:2px 0 4px}
+  .lightlane .movelbl{color:#cbd5e1;font-size:10px;text-transform:uppercase;letter-spacing:.3px}
+  .lightlane .movebtn{background:rgba(255,255,255,.14);color:#fff;border:1px solid rgba(255,255,255,.28)}
+  .lightlane .movebtn.on{background:var(--orange);border-color:var(--orange)}
   .opv-photos{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
   .opv-photos img{width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--line);cursor:pointer}
   .duechip{display:inline-block;font-size:10.5px;font-weight:800;border-radius:8px;padding:1px 7px;background:#e6efff;color:#1d4ed8;vertical-align:middle}
@@ -681,6 +687,7 @@
     <img id="lightImg" src="" alt="">
     <div class="lightbar">
       <div class="lightmeta" id="lightMeta"></div>
+      <div class="lightlane" id="lightLane" style="display:none"></div>
       <div class="lightcaprow"><input id="lightCap" placeholder="Add a note — e.g. see the rust here"><button onclick="lbSaveCap()">Save</button></div>
     </div>
   </div>
@@ -1308,6 +1315,16 @@ function renderLightbox(){
   $("lightImg").src=driveImg(p.url);
   $("lightMeta").innerHTML=(p.by?('📷 <b>'+esc(firstName(p.by))+'</b>'):'')+(p.at?(' · '+esc(fmtDateTime(p.at))):'');
   $("lightCap").value=p.caption||"";
+  // Per-photo lane control (directors only) — lives here so the grid stays clean.
+  var ll=$("lightLane");
+  if(ll){
+    if(isMgrRole() && LB_KEY){
+      var aud=(p.aud==="owner"||p.aud==="dir"||p.aud==="both")?p.aud:"crew";
+      ll.innerHTML='<span class="movelbl">Who sees this:</span>'+LANE_ORDER.map(function(l){
+        return '<button class="movebtn'+(l===aud?" on":"")+'" onclick="event.stopPropagation();lbSetLane(\''+l+'\')">'+LANE_META[l].ic+' '+LANE_META[l].lbl+'</button>'; }).join('');
+      ll.style.display="";
+    } else ll.style.display="none";
+  }
   $("lightCount").textContent=LB_PHOTOS.length>1 ? (LB_I+1)+' / '+LB_PHOTOS.length : '';
   var multi=LB_PHOTOS.length>1;
   var pv=document.querySelector('.lightnav.prev'), nx=document.querySelector('.lightnav.next');
@@ -1320,6 +1337,28 @@ function lbSaveCap(){
     if(r&&r.ok){ p.caption=cap; toast("📝 Note saved on photo"); var j=CREWJOBS.filter(function(x){return x.key===LB_KEY;})[0]; if(j&&r.photos)j.photos=r.photos; }
     else toast((r&&r.error)||"Couldn’t save");
   }).catch(function(){ toast("Couldn’t connect"); });
+}
+/* Move the photo currently open in the viewer to a lane (directors) */
+function lbSetLane(lane){
+  var p=LB_PHOTOS[LB_I]; if(!p||!LB_KEY)return;
+  apiPost({action:"crewJobAttAud", email:ME.email, code:ME.code, jobKey:LB_KEY, kind:"photo", url:p.url, aud:lane}).then(function(r){
+    if(r&&r.ok){ p.aud=lane; toast("Moved to "+LANE_META[lane].ic+" "+LANE_META[lane].lbl); renderLightbox();
+      var j=CREWJOBS.filter(function(x){return x.key===LB_KEY;})[0]; if(j&&r.photos)j.photos=r.photos; loadJobs(); }
+    else toast((r&&r.error)||"Couldn’t move");
+  }).catch(function(){ toast("Couldn’t connect"); });
+}
+/* Move ALL photos or docs on a job to one lane in a single tap (directors) */
+function bulkLane(key, kind, lane){
+  apiPost({action:"crewJobAttAudAll", email:ME.email, code:ME.code, jobKey:key, kind:kind, aud:lane}).then(function(r){
+    if(r&&r.ok){ toast("All "+(kind==="doc"?"documents":"photos")+" → "+LANE_META[lane].ic+" "+LANE_META[lane].lbl);
+      var j=CREWJOBS.filter(function(x){return x.key===key;})[0]; if(j){ if(kind==="doc"&&r.docs)j.docs=r.docs; if(kind!=="doc"&&r.photos)j.photos=r.photos; } openWLJob(key); loadJobs(); }
+    else toast((r&&r.error)||"Couldn’t move");
+  }).catch(function(){ toast("Couldn’t connect"); });
+}
+function bulkBar(kind, key){
+  if(!isMgrRole()) return '';
+  return '<div class="bulklane"><span class="movelbl">Send all to:</span>'+
+    ["owner","both","crew","dir"].map(function(l){ return '<button class="movebtn" onclick="bulkLane(\''+esc(key)+'\',\''+kind+'\',\''+l+'\')">'+LANE_META[l].ic+' '+LANE_META[l].lbl+'</button>'; }).join('')+'</div>';
 }
 function closePhoto(){ $("lightbox").classList.remove("show"); var im=$("lightImg"); if(im) im.src=""; LB_PHOTOS=[]; }
 // swipe left/right to move through the gallery
@@ -1475,15 +1514,15 @@ function openWLJob(key){
     ? '<div class="sec"><h4>New request</h4><p class="body" style="font-size:13px;color:var(--muted);margin-bottom:8px">Raised by crew — approve to make it an active job on the worklist.</p><button class="jobbtn complete" onclick="wlSetStatus(\''+esc(key)+'\',\'To do\')">✓ Approve — activate this job</button></div>'
     : '<div class="sec"><div class="apprOn" style="background:#fdf3e3;color:#8a5a12;border-color:#f0dcb8">⏳ Requested — waiting for Marine HQ to approve.</div></div>');
   var canDel = !j.shared || isMgrRole();   // crew can remove their own until it's approved to the owner
-  var phHTML=(j.photos&&j.photos.length ? j.photos.map(function(p,idx){return '<div class="ph"><img src="'+esc(driveImg(p.url))+'" alt="" loading="lazy" onerror="this.classList.add(\'imgerr\')" onclick="event.stopPropagation();openPhoto(\''+esc(key)+'\','+idx+')" style="cursor:pointer">'+(p.caption?'<span class="phcap" title="'+esc(p.caption)+'">💬</span>':'')+'<small>'+esc(p.by?firstName(p.by):(p.name||"photo"))+(p.at?(' · '+relTime(p.at)):'')+'</small>'+(canDel?'<button class="attdel" title="Remove" onclick="event.stopPropagation();wlDelAtt(\''+esc(key)+'\',\''+esc(p.url)+'\',\'photo\')">✕</button>':'')+attMoveRow(key,'photo',p.url,p.aud)+'</div>';}).join("") : '<div style="font-size:13px;color:var(--muted)">No photos yet.</div>')
+  var phHTML=(j.photos&&j.photos.length ? j.photos.map(function(p,idx){return '<div class="ph"><img src="'+esc(driveImg(p.url))+'" alt="" loading="lazy" onerror="this.classList.add(\'imgerr\')" onclick="event.stopPropagation();openPhoto(\''+esc(key)+'\','+idx+')" style="cursor:pointer">'+(p.caption?'<span class="phcap" title="'+esc(p.caption)+'">💬</span>':'')+'<small>'+esc(p.by?firstName(p.by):(p.name||"photo"))+(p.at?(' · '+relTime(p.at)):'')+'</small>'+(canDel?'<button class="attdel" title="Remove" onclick="event.stopPropagation();wlDelAtt(\''+esc(key)+'\',\''+esc(p.url)+'\',\'photo\')">✕</button>':'')+(isMgrRole()?lanePill(p.aud):'')+'</div>';}).join("") : '<div style="font-size:13px;color:var(--muted)">No photos yet.</div>')
     +'<label class="addph" for="wlPhotoInput" onclick="if(!laneReady())return event.preventDefault();">📷<span>Add</span></label><input id="wlPhotoInput" type="file" accept="image/*" multiple style="display:none" onchange="wlAddPhotos(\''+esc(key)+'\',this)">';
   // Images (even ones added via the 📎 button) show as thumbnails; real files (PDF/xls…) show as rows.
   var _docs=j.docs||[];
   var _imgDocs=_docs.filter(function(d){return isImgFile(d.name,d.url);});
   var _fileDocs=_docs.filter(function(d){return !isImgFile(d.name,d.url);});
   var docHTML=
-    (_imgDocs.length?('<div class="photos">'+_imgDocs.map(function(dd){return '<div class="ph"><img src="'+esc(driveImg(dd.url))+'" alt="" loading="lazy" onerror="this.classList.add(\'imgerr\')" onclick="window.open(\''+esc(driveView(dd.url))+'\',\'_blank\')" style="cursor:pointer"><small>'+esc(dd.by?firstName(dd.by):(dd.name||"photo"))+(dd.at?(' · '+relTime(dd.at)):'')+'</small>'+(canDel?'<button class="attdel" title="Remove" onclick="event.stopPropagation();wlDelAtt(\''+esc(key)+'\',\''+esc(dd.url)+'\',\'doc\')">✕</button>':'')+attMoveRow(key,'doc',dd.url,dd.aud)+'</div>';}).join("")+'</div>'):'')
-    +(_fileDocs.length?_fileDocs.map(function(dd){return '<div class="docrowitem"><a class="docitem" href="'+esc(driveView(dd.url))+'" target="_blank" rel="noopener"><span class="ic">📄</span><span class="docmain">'+esc(dd.name||"document")+(dd.by?('<span class="docby">'+esc(firstName(dd.by))+(dd.at?(' · '+fmtDateTime(dd.at)):'')+'</span>'):'')+'</span></a>'+(canDel?'<button class="attdel doc" title="Remove" onclick="wlDelAtt(\''+esc(key)+'\',\''+esc(dd.url)+'\',\'doc\')">✕</button>':'')+attMoveRow(key,'doc',dd.url,dd.aud)+'</div>';}).join(""):'')
+    (_imgDocs.length?('<div class="photos">'+_imgDocs.map(function(dd){return '<div class="ph"><img src="'+esc(driveImg(dd.url))+'" alt="" loading="lazy" onerror="this.classList.add(\'imgerr\')" onclick="window.open(\''+esc(driveView(dd.url))+'\',\'_blank\')" style="cursor:pointer"><small>'+esc(dd.by?firstName(dd.by):(dd.name||"photo"))+(dd.at?(' · '+relTime(dd.at)):'')+'</small>'+(canDel?'<button class="attdel" title="Remove" onclick="event.stopPropagation();wlDelAtt(\''+esc(key)+'\',\''+esc(dd.url)+'\',\'doc\')">✕</button>':'')+(isMgrRole()?lanePill(dd.aud):'')+'</div>';}).join("")+'</div>'):'')
+    +(_fileDocs.length?_fileDocs.map(function(dd){return '<div class="docrowitem"><a class="docitem" href="'+esc(driveView(dd.url))+'" target="_blank" rel="noopener"><span class="ic">📄</span><span class="docmain">'+esc(dd.name||"document")+(dd.by?('<span class="docby">'+esc(firstName(dd.by))+(dd.at?(' · '+fmtDateTime(dd.at)):'')+'</span>'):'')+'</span></a>'+(canDel?'<button class="attdel doc" title="Remove" onclick="wlDelAtt(\''+esc(key)+'\',\''+esc(dd.url)+'\',\'doc\')">✕</button>':'')+(isMgrRole()?lanePill(dd.aud):'')+'</div>';}).join(""):'')
     +'<label class="addph" for="wlDocInput" onclick="if(!laneReady())return event.preventDefault();">📎<span>Add</span></label><input id="wlDocInput" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,image/*" multiple style="display:none" onchange="wlAddDocs(\''+esc(key)+'\',this)">';
   var cmtHTML=(j.comments&&j.comments.length ? j.comments.map(function(cm){
     var mgr=/director|manager/i.test(cm.role||"");
@@ -1529,8 +1568,8 @@ function openWLJob(key){
     assignHTML+
     dueHTML+
     laneHTML+
-    '<div class="sec"><h4>Photos</h4><div class="photos">'+phHTML+'</div></div>'+
-    '<div class="sec"><h4>Documents</h4><div class="docrow">'+docHTML+'</div></div>'+
+    '<div class="sec"><h4>Photos</h4><div class="photos">'+phHTML+'</div>'+((j.photos&&j.photos.length)?bulkBar('photo',key):'')+'</div>'+
+    '<div class="sec"><h4>Documents</h4><div class="docrow">'+docHTML+'</div>'+((j.docs&&j.docs.length)?bulkBar('doc',key):'')+'</div>'+
     '<div class="sec"><h4>Notes &amp; timeline</h4><div class="cmts">'+cmtHTML+'</div>'+
       '<textarea id="wlNote" class="fld-ta" placeholder="Add a note… (crew &amp; Marine HQ can both post here)"></textarea>'+
       '<div id="tagChips" class="tagchips"></div>'+
