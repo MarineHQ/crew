@@ -230,6 +230,14 @@
   .duechip.today{background:#dcfce7;color:#166534} .duechip.overdue{background:#fde2e1;color:#b3261e}
   .acptchip{display:inline-block;font-size:10.5px;font-weight:800;border-radius:8px;padding:1px 7px;vertical-align:middle}
   .acptchip.ok{background:#dcfce7;color:#166534} .acptchip.wait{background:#fef3d7;color:#8a5a12}
+  .acptchip.urgent{background:#fee2e2;color:#b91c1c;animation:acptpulse 1.6s ease-in-out infinite}
+  @keyframes acptpulse{0%,100%{opacity:1}50%{opacity:.55}}
+  .acceptcall{background:#fef2f2;border:1.5px solid #fca5a5;border-radius:12px;padding:13px 14px;box-shadow:0 2px 10px rgba(220,38,38,.12)}
+  .acceptcall .ac-hd{font-size:15px;font-weight:800;color:#b91c1c;margin-bottom:4px}
+  .acceptcall .ac-tx{font-size:13px;color:#7f1d1d;margin:0 0 11px;line-height:1.45}
+  .acceptcall .acbtn{background:#dc2626!important;font-size:15px;padding:12px}
+  .assignedto{font-size:12.5px;color:var(--navy);background:#eef4fb;border:1px solid #d3e2f2;border-radius:8px;padding:7px 10px;font-weight:600}
+  .assignedto b{color:#0f766e}
   .wlnote{margin:-7px 0 11px;padding:8px 13px;background:#fff5e9;border:1px solid #f0d3ad;border-top:none;border-radius:0 0 11px 11px;font-size:12.5px;font-weight:700;color:#8a5a12;cursor:pointer}
   .wlnote.empty{background:#f6f9fc;border-color:var(--line);color:var(--muted);font-weight:600}
   .wlnote-ed{opacity:.55;margin-left:3px}
@@ -366,6 +374,9 @@
   .wpop-item-t{font-size:14px;color:var(--ink)} .wpop-item-t b{color:var(--navy)}
   .wpop-item-sub{font-size:12px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis}
   .wpop-item-go{font-size:22px;color:var(--orange);align-self:center;flex:0 0 auto}
+  .wpop-accept-lead{font-size:13.5px;color:#7f1d1d;line-height:1.5;margin-bottom:4px}
+  .wpop-item.accept{background:#fef2f2;border:1.5px solid #fca5a5}
+  .wpop-item.accept .wpop-item-go{color:#dc2626}
   .wpop-go{width:100%;background:var(--orange);color:#fff;border:none;border-radius:12px;padding:13px;font-size:15px;font-weight:700;cursor:pointer}
   .wpop-dismiss{width:100%;background:none;border:none;color:var(--muted);font-size:13px;font-weight:700;padding:11px 0 2px;cursor:pointer}
   .modal .card2{background:#fff;width:100%;max-width:620px;border-radius:18px 18px 0 0;padding:18px 16px calc(24px + env(safe-area-inset-bottom));max-height:94vh;overflow-y:auto}
@@ -1038,7 +1049,7 @@ function loadJobs(){
   }
   startActivityWatch();   // fire the activity fetch in PARALLEL with jobs (not after)
   apiGet(url)
-    .then(function(j){ CREWJOBS=(j&&j.jobs)||[]; if(j&&j.listMeta)LISTMETA=j.listMeta; JOBSVESSEL=allBoats?"all yachts":((j&&j.vessel)||v); _cSet(_ck("jobs",vk), CREWJOBS); renderJobs(); updateJobsBadge(); renderVesselBar(); }).catch(function(){});
+    .then(function(j){ CREWJOBS=(j&&j.jobs)||[]; if(j&&j.listMeta)LISTMETA=j.listMeta; JOBSVESSEL=allBoats?"all yachts":((j&&j.vessel)||v); _cSet(_ck("jobs",vk), CREWJOBS); renderJobs(); updateJobsBadge(); renderVesselBar(); checkPendingAccepts(); }).catch(function(){});
   loadFleetVessels();
 }
 // Director/Manager boat switcher — lists every vessel that has a worklist.
@@ -1201,7 +1212,33 @@ function isForeignTag_(e){ return !!(e&&e.mention) && !isTagForMe_(e); }   // a 
 function updPoppedKey(){ return "mhq_upd_popped_"+((ME&&ME.code)||""); }
 function updLastPopped(){ try{ return parseInt(localStorage.getItem(updPoppedKey())||"0",10)||0; }catch(e){ return 0; } }
 function setLastPopped(v){ try{ localStorage.setItem(updPoppedKey(), String(v||0)); }catch(e){} }
+// Urgent on-open prompt: crew have task(s) assigned to them but not yet accepted.
+// Takes priority over the general tag/updates pop-up, and re-shows each app open until accepted.
+var _acceptPromptShown=false;
+function checkPendingAccepts(){
+  if(_acceptPromptShown || isMgrRole()) return;
+  var me=(ME.name||"").toLowerCase().replace(/\s*\(test\)/,"").trim(); if(!me) return;
+  var pend=(CREWJOBS||[]).filter(function(j){
+    if(!j.allocatedTo || j.allocatedTo.toLowerCase().indexOf(me)<0) return false;
+    if(j.accepted && j.accepted.by) return false;
+    return hubBucket(j.status)!=="Done";
+  });
+  if(!pend.length) return;
+  _acceptPromptShown=true; window._wpopLock=true;
+  var ic=$("wpopIc"), tt=$("wpopTitle"), ls=$("wpopList"); if(!ls) return;
+  ic.textContent="🚨";
+  tt.textContent = pend.length>1 ? (pend.length+" tasks to accept") : "You have a task to accept";
+  ls.innerHTML='<div class="wpop-accept-lead">Marine HQ has assigned '+(pend.length>1?('you <b>'+pend.length+' tasks</b>'):'<b>you a task</b>')+' — please open and <b>accept</b> so we know you’ve got it. 🙌</div>'+
+    pend.map(function(j){
+      return '<div class="wpop-item accept" onclick="welcomeOpen(\''+esc(j.key)+'\',\''+esc(j.vessel)+'\')">'+
+        '<div class="wpop-item-ic">🚨</div>'+
+        '<div class="wpop-item-main"><div class="wpop-item-t"><b>'+esc(j.task||j.desc||"Task")+'</b></div>'+
+        '<div class="wpop-item-sub">'+(j.code?'<span class="jcode">'+esc(j.code)+'</span> ':'')+esc(j.vessel||"")+' · tap to accept</div></div><div class="wpop-item-go">›</div></div>';
+    }).join("");
+  $("welcomePop").classList.add("show"); try{beep();}catch(e){}
+}
 function maybeWelcomePopup(evs){
+  if(window._wpopLock) return;                                  // an urgent "please accept" prompt owns the pop-up
   if(!evs||!evs.length) return;
   var lastPop=updLastPopped(), newest=evs[0].at;
   if(newest<=lastPop) return;                                  // nothing newer than we've already shown → don't pop again
@@ -1448,6 +1485,7 @@ function renderJobs(){
       codeChip += catChip(j.category);
       if(j.dueTs){ codeChip += ' <span class="duechip'+dueCls(j.dueTs,done)+'">📅 '+esc(dayLabel(j.dueTs))+(j.dueTime?(' '+esc(fmtTime12(j.dueTime))):'')+'</span>'; }
       if(isMgrRole() && j.allocatedTo){ codeChip += (j.accepted&&j.accepted.by) ? ' <span class="acptchip ok">✓ '+esc(firstName(j.accepted.by))+'</span>' : ' <span class="acptchip wait">⏳ '+esc(firstNames(j.allocatedTo))+'</span>'; }
+      else if(!isMgrRole() && j.allocatedTo){ var _meLc=(ME.name||"").toLowerCase().replace(/\s*\(test\)/,"").trim(); if(_meLc && j.allocatedTo.toLowerCase().indexOf(_meLc)>=0){ codeChip += (j.accepted&&j.accepted.by) ? ' <span class="acptchip ok">✓ accepted</span>' : ' <span class="acptchip urgent">🚨 Accept</span>'; } }
       var upd = jobRecent(j) ? '<span class="upd">● updated '+relTime(j.updated)+'</span>' : '';
       return '<div class="job brd-'+cls+(done?" jobdone":"")+(jobRecent(j)?" jobnew":"")+'" onclick="openWLJob(\''+esc(j.key)+'\')">'+
         '<div class="top"><div style="flex:1"><h3><span class="jnum">'+(idx+1)+'.</span> '+esc(j.task||j.desc||"(job)")+codeChip+'</h3></div>'+
@@ -1646,14 +1684,24 @@ function openWLJob(key){
   var _me=(ME.name||"").toLowerCase().replace(/\s*\(test\)/,"").trim();
   var mineJob = j.allocatedTo && _me && j.allocatedTo.toLowerCase().indexOf(_me)>=0;
   var acc = j.accepted;
+  var _others=allocList.filter(function(n){return n.toLowerCase()!==_me;});
   var acceptHTML='';
   if(acc && acc.by){
     acceptHTML='<div class="sec"><div class="apprOn">✓ Accepted by '+esc(firstName(acc.by))+(acc.date?(' · '+esc(acc.date)):'')+'</div></div>';
   } else if(mineJob){
-    acceptHTML='<div class="sec"><button class="jobbtn complete" style="background:#0f766e" onclick="wlAccept(\''+esc(key)+'\')">✓ Accept this task</button><p class="body" style="font-size:12px;color:var(--muted);margin-top:6px">Tap to let Marine HQ know you’ve got this one.</p></div>';
+    // Urgent, unmissable call to accept a task Marine HQ has assigned to this crew member.
+    acceptHTML='<div class="sec"><div class="acceptcall">'+
+      '<div class="ac-hd">🚨 Please accept this task</div>'+
+      '<p class="ac-tx">Marine HQ has assigned this job to <b>you</b>'+(_others.length?(' (with '+esc(_others.map(firstName).join(", "))+')'):'')+'. Tap below so they know you’ve got it.</p>'+
+      '<button class="jobbtn complete acbtn" onclick="wlAccept(\''+esc(key)+'\')">✓ Accept this task</button></div></div>';
   } else if(isMgrRole() && j.allocatedTo){
     acceptHTML='<div class="sec"><div class="apprOn" style="background:#fdf3e3;color:#8a5a12;border-color:#f0dcb8">⏳ Awaiting acceptance from '+esc(firstNames(j.allocatedTo))+'</div></div>';
   }
+  // Crew see a clear read-only "Assigned to" line (directors get the editable picker instead).
+  var crewAssignHTML = (!isMgrRole() && allocList.length) ?
+    ('<div class="sec"><div class="assignedto">👷 Assigned to <b>'+
+      allocList.map(function(n){ return (n.toLowerCase()===_me) ? "you" : esc(firstName(n)); }).join(", ")+
+      '</b>'+(mineJob&&acc&&acc.by?'':(mineJob?' · please accept above 🚨':''))+'</div></div>') : '';
   $("sheet").innerHTML=
     '<div class="sheet-hd"><div style="flex:1"><div style="font-size:11px;font-weight:bold;letter-spacing:.4px;color:#ffd7b0">'+esc(j.vessel)+(j.list?(" · "+esc(j.list)):"")+(j.code?(' &nbsp;<span class="jcode">'+esc(j.code)+'</span>'):'')+catChip(j.category)+'</div>'+
       '<h3>'+num+'. '+esc(j.task||"(job)")+'</h3></div><button class="closeb" onclick="closeSheet()">✕</button></div>'+
@@ -1661,6 +1709,7 @@ function openWLJob(key){
     ((j.subNote||isMgrRole())?('<div class="sec"><h4>Sub note</h4><div class="subnote-box'+(j.subNote?"":" empty")+'"'+(isMgrRole()?(' onclick="wlSetSubNote(\''+esc(key)+'\')"'):'')+'>'+(j.subNote?('📌 '+esc(j.subNote)):'＋ add a quick note')+(isMgrRole()?' <span class="wlnote-ed">✎</span>':'')+'</div></div>'):'')+
     reqBlock+
     acceptHTML+
+    crewAssignHTML+
     '<div class="sec"><h4>Status</h4><div class="pillrow">'+pills+'</div>'+(j.completed?'<div class="apprOn" style="margin-top:8px">✓ Completed '+esc(j.completed)+'</div>':'')+'</div>'+
     assignHTML+
     dueHTML+
