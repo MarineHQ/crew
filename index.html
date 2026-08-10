@@ -712,6 +712,16 @@
 </div>
 
 <!-- Raise a job modal -->
+<!-- Mark complete confirmation -->
+<div class="modal" id="completeModal"><div class="card2">
+  <h3>✓ Mark task complete</h3>
+  <p class="mhint" id="completeMsg">You’re marking this task as complete.</p>
+  <label class="fld">Completed on</label>
+  <input type="date" id="completeDate" class="fld-in">
+  <button class="jobbtn complete" style="background:#0f766e;margin-top:14px" onclick="confirmComplete()">✓ Confirm complete</button>
+  <button class="jobbtn" style="background:none;color:var(--muted);margin-top:4px" onclick="closeCompleteModal()">Cancel</button>
+</div></div>
+
 <div class="modal" id="raiseModal"><div class="card2">
   <h3>Raise a job</h3>
   <p class="mhint">Spotted something that needs doing? Send it to Marine HQ — they'll review and schedule it.</p>
@@ -1429,7 +1439,7 @@ function renderJobs(){
       var np=(j.photos&&j.photos.length)||0, hasNote=!!(j.notes&&j.notes.trim()), nd=(j.docs&&j.docs.length)||0;
       var codeChip = j.code ? ' <span class="jcode'+(j.standard==="Boat-specific"?" bs":"")+'">'+esc(j.code)+'</span>' : '';
       codeChip += catChip(j.category);
-      if(j.dueTs){ codeChip += ' <span class="duechip'+dueCls(j.dueTs,done)+'">📅 '+esc(dayLabel(j.dueTs))+'</span>'; }
+      if(j.dueTs){ codeChip += ' <span class="duechip'+dueCls(j.dueTs,done)+'">📅 '+esc(dayLabel(j.dueTs))+(j.dueTime?(' '+esc(fmtTime12(j.dueTime))):'')+'</span>'; }
       if(isMgrRole() && j.allocatedTo){ codeChip += (j.accepted&&j.accepted.by) ? ' <span class="acptchip ok">✓ '+esc(firstName(j.accepted.by))+'</span>' : ' <span class="acptchip wait">⏳ '+esc(firstName(j.allocatedTo))+'</span>'; }
       var upd = jobRecent(j) ? '<span class="upd">● updated '+relTime(j.updated)+'</span>' : '';
       return '<div class="job brd-'+cls+(done?" jobdone":"")+(jobRecent(j)?" jobnew":"")+'" onclick="openWLJob(\''+esc(j.key)+'\')">'+
@@ -1523,10 +1533,13 @@ function wlAccept(key){
   }).catch(function(){ toast("Couldn’t connect"); });
 }
 /* Set / clear a job's day (Directors & Managers) */
-function wlSetDue(key, val){
-  apiPost({action:"crewJobDue", email:ME.email, code:ME.code, jobKey:key, due:val}).then(function(r){
-    if(r&&r.ok){ toast(val?("📅 Scheduled "+dayLabel(r.dueTs)):"Day cleared");
-      var j=CREWJOBS.filter(function(x){return x.key===key;})[0]; if(j){ j.due=r.due||""; j.dueTs=r.dueTs||0; } loadJobs(); }
+function fmtTime12(t){ var m=/^(\d{1,2}):(\d{2})/.exec(t||""); if(!m)return""; var h=+m[1],mi=m[2],ap=h<12?"am":"pm",hh=h%12||12; return hh+":"+mi+ap; }
+function wlSetDue(key, clear){
+  var d = clear ? "" : (($("wlDue")&&$("wlDue").value)||"");
+  var tm = clear ? "" : (($("wlDueTime")&&$("wlDueTime").value)||"");
+  apiPost({action:"crewJobDue", email:ME.email, code:ME.code, jobKey:key, due:d, time:tm}).then(function(r){
+    if(r&&r.ok){ toast(d?("📅 Scheduled "+dayLabel(r.dueTs)+(r.dueTime?(" "+fmtTime12(r.dueTime)):"")):"Day cleared");
+      var j=CREWJOBS.filter(function(x){return x.key===key;})[0]; if(j){ j.due=r.due||""; j.dueTs=r.dueTs||0; j.dueTime=r.dueTime||""; } loadJobs(); }
     else toast((r&&r.error)||"Couldn’t set day");
   }).catch(function(){ toast("Couldn’t connect"); });
 }
@@ -1540,7 +1553,7 @@ function openWLJob(key){
   var inList=CREWJOBS.filter(function(x){return (x.list||"")===(j.list||"");}); var num=inList.indexOf(j)+1;
   var cur=wlBucketToStatus(j);
   var dcls={"To do":"d-todo","In hand":"d-inhand","Complete":"d-done"};
-  var pills=WLSTATUS.map(function(s){return '<button class="spill '+dcls[s]+(s===cur?" on":"")+'" onclick="wlSetStatus(\''+esc(key)+'\',\''+s+'\')"><span class="dot"></span>'+s+'</button>';}).join("");
+  var pills=WLSTATUS.map(function(s){var oc = (s==="Complete") ? ('openCompleteModal(\''+esc(key)+'\')') : ('wlSetStatus(\''+esc(key)+'\',\''+s+'\')'); return '<button class="spill '+dcls[s]+(s===cur?" on":"")+'" onclick="'+oc+'"><span class="dot"></span>'+s+'</button>';}).join("");
   var isReq=(j.status||"").toLowerCase()==="requested";
   var reqBlock = !isReq ? '' : (isMgrRole()
     ? '<div class="sec"><h4>New request</h4><p class="body" style="font-size:13px;color:var(--muted);margin-bottom:8px">Raised by crew — approve to make it an active job on the worklist.</p><button class="jobbtn complete" onclick="wlSetStatus(\''+esc(key)+'\',\'To do\')">✓ Approve — activate this job</button></div>'
@@ -1579,10 +1592,11 @@ function openWLJob(key){
     '</div><p class="body" style="font-size:12px;color:var(--muted);margin-top:7px">Only you &amp; Jack see this. The crew member you pick sees the job in their own worklist. The owner never sees who it’s assigned to.</p></div>';
   // Day / due (Directors & Managers) — shows on the crew's Schedule
   var dueHTML = !isMgrRole() ? '' :
-    '<div class="sec"><h4>Day '+(j.due?('· <span style="color:var(--orange)">'+esc(dayLabel(j.dueTs))+'</span>'):'')+'</h4>'+
-    '<input type="date" id="wlDue" class="fld-in" value="'+esc(j.due||"")+'" onchange="wlSetDue(\''+esc(key)+'\',this.value)">'+
-    (j.due?' <button class="aopt" style="margin-left:6px" onclick="wlSetDue(\''+esc(key)+'\',\'\')">Clear</button>':'')+
-    '<p class="body" style="font-size:12px;color:var(--muted);margin-top:6px">Sets the day this job is scheduled — the crew see it on their 📅 Schedule.</p></div>';
+    '<div class="sec"><h4>Day '+(j.due?('· <span style="color:var(--orange)">'+esc(dayLabel(j.dueTs))+(j.dueTime?(" "+esc(fmtTime12(j.dueTime))):"")+'</span>'):'')+'</h4>'+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap"><input type="date" id="wlDue" class="fld-in" style="flex:1;min-width:130px" value="'+esc(j.due||"")+'" onchange="wlSetDue(\''+esc(key)+'\')">'+
+    '<input type="time" id="wlDueTime" class="fld-in" style="max-width:120px" value="'+esc(j.dueTime||"")+'" onchange="wlSetDue(\''+esc(key)+'\')"></div>'+
+    (j.due?'<button class="aopt" style="margin-top:8px" onclick="wlSetDue(\''+esc(key)+'\',true)">Clear day</button>':'')+
+    '<p class="body" style="font-size:12px;color:var(--muted);margin-top:6px">Sets the day (and optional time — e.g. haul-out) — the crew see it on their 📅 Schedule.</p></div>';
   // Conversation lanes — directors pick who their next note / photo / quote is for
   var laneHTML = !isMgrRole() ? '' :
     '<div class="sec"><h4>Who sees what you add next</h4>'+
@@ -1610,7 +1624,7 @@ function openWLJob(key){
     (j.desc?('<div class="sec"><h4>The job</h4><p class="body">'+esc(j.desc)+'</p></div>'):'')+
     reqBlock+
     acceptHTML+
-    '<div class="sec"><h4>Status</h4><div class="pillrow">'+pills+'</div></div>'+
+    '<div class="sec"><h4>Status</h4><div class="pillrow">'+pills+'</div>'+(j.completed?'<div class="apprOn" style="margin-top:8px">✓ Completed '+esc(j.completed)+'</div>':'')+'</div>'+
     assignHTML+
     dueHTML+
     laneHTML+
@@ -1650,12 +1664,24 @@ function wlApprove(key, share){
     else toast((r&&r.error)||"Couldn’t approve");
   }).catch(function(){ toast("Couldn’t connect"); });
 }
-function wlSetStatus(key,st){
-  apiPost({action:"crewJobStatus", email:ME.email, code:ME.code, jobKey:key, status:st}).then(function(r){
-    if(r&&r.ok){ toast(st==="Complete"?"✓ Complete — sent to Marine HQ":("Set to "+st)); var j=CREWJOBS.filter(function(x){return x.key===key;})[0]; if(j)j.status=(st==="In hand"?"In Progress":st); openWLJob(key); loadJobs(); }
+function wlSetStatus(key,st,completedDate){
+  apiPost({action:"crewJobStatus", email:ME.email, code:ME.code, jobKey:key, status:st, completedDate:completedDate||""}).then(function(r){
+    if(r&&r.ok){ toast(st==="Complete"?("✓ Complete"+(r.completed?(" · dated "+r.completed):"")):("Set to "+st)); var j=CREWJOBS.filter(function(x){return x.key===key;})[0]; if(j){ j.status=(st==="In hand"?"In Progress":st); if(st==="Complete")j.completed=r.completed||""; else j.completed=""; } openWLJob(key); loadJobs(); }
     else toast((r&&r.error)||"Couldn’t update");
   }).catch(function(){ toast("Couldn’t connect"); });
 }
+/* Marking complete → confirm the completion date (auto = today, editable). */
+var _completeKey="";
+function openCompleteModal(key){
+  _completeKey=key;
+  var d=new Date(), today=d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2);
+  var el=$("completeDate"); if(el) el.value=today;
+  var j=CREWJOBS.filter(function(x){return x.key===key;})[0];
+  var msg=$("completeMsg"); if(msg) msg.innerHTML="You’re marking <b>"+esc((j&&(j.task||j.title))||"this task")+"</b> as complete — dated below. Change it only if it was finished on a different day.";
+  $("completeModal").classList.add("show");
+}
+function closeCompleteModal(){ $("completeModal").classList.remove("show"); }
+function confirmComplete(){ var d=($("completeDate")&&$("completeDate").value)||""; closeCompleteModal(); wlSetStatus(_completeKey,"Complete",d); }
 function fmtDateTime(ms){
   if(!ms) return "earlier";
   var d=new Date(ms), mon=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()];
