@@ -1090,7 +1090,7 @@ function addDueToWorklist(btn, idx){
 // mode (no PIN needed — the server authorises the director code).
 function openFullOwnerPortal(){
   var v=($("ownerVesselSel")||{}).value||""; if(!v){ toast("Pick a client first"); return; }
-  var url="https://my.marinehq.com.au/?preview="+encodeURIComponent(ME.code||"")+"&vessel="+encodeURIComponent(v);
+  var url="https://myyacht-marinehq.netlify.app/?preview="+encodeURIComponent(ME.code||"")+"&vessel="+encodeURIComponent(v);
   window.open(url, "_blank");
 }
 // View as owner — director previews a vessel's MyYacht portal as the client sees it.
