@@ -233,6 +233,9 @@
   .wlnote{margin:-7px 0 11px;padding:8px 13px;background:#fff5e9;border:1px solid #f0d3ad;border-top:none;border-radius:0 0 11px 11px;font-size:12.5px;font-weight:700;color:#8a5a12;cursor:pointer}
   .wlnote.empty{background:#f6f9fc;border-color:var(--line);color:var(--muted);font-weight:600}
   .wlnote-ed{opacity:.55;margin-left:3px}
+  .subnote{font-size:12.5px;color:#8a5a12;background:#fff8ec;border-left:3px solid #f0c987;border-radius:0 6px 6px 0;padding:4px 9px;margin:5px 0 0;font-weight:600}
+  .subnote-box{font-size:13px;color:#8a5a12;background:#fff8ec;border:1px solid #f0d3ad;border-radius:9px;padding:10px 12px;font-weight:700;cursor:pointer}
+  .subnote-box.empty{background:#f6f9fc;border-color:var(--line);color:var(--muted);font-weight:600}
   .chip.sched.on{background:var(--orange);border-color:var(--orange);color:#fff}
   .donebtn{background:#0f766e;color:#fff;margin-top:14px;font-size:16px;padding:15px}
   /* Calendar */
@@ -1450,11 +1453,12 @@ function renderJobs(){
         '<div class="top"><div style="flex:1"><h3><span class="jnum">'+(idx+1)+'.</span> '+esc(j.task||j.desc||"(job)")+codeChip+'</h3></div>'+
         '<span class="badge s-'+cls+'">'+esc(b)+'</span></div>'+
         ((j.task&&j.desc)?('<p class="desc">'+esc(j.desc)+'</p>'):'')+
+        (j.subNote?('<p class="subnote">📌 '+esc(j.subNote)+'</p>'):'')+
         '<div class="meta">'+(np?('<span>📷 '+np+'</span>'):'<span>Add photos</span>')+(hasNote?'<span>📝 note</span>':'')+(nd?('<span>📄 '+nd+'</span>'):'')+upd+
           '<span style="margin-left:auto;color:var(--navy);font-weight:bold">Open ›</span></div></div>';
     }).join("");
     var note=(LISTMETA&&LISTMETA[g])||"";
-    var noteRow = (note || isMgrRole()) ? ('<div class="wlnote'+(note?"":" empty")+'" onclick="event.stopPropagation();setListNote(\''+esc(g.replace(/'/g,"\\'"))+'\')">'+(note?('🎯 '+esc(note)):'＋ add a deadline / note')+(isMgrRole()?' <span class="wlnote-ed">✎</span>':'')+'</div>') : '';
+    var noteRow = (note || isMgrRole()) ? ('<div class="wlnote'+(note?"":" empty")+'" onclick="event.stopPropagation();setListNote(\''+esc(g.replace(/'/g,"\\'"))+'\')">'+(note?esc(note):'＋ add a deadline / note')+(isMgrRole()?' <span class="wlnote-ed">✎</span>':'')+'</div>') : '';
     return '<div class="wlacc'+collapsed+'" onclick="toggleWL(\''+esc(g)+'\')"><span class="car">▾</span>'+
       '<h3>'+esc(g)+'</h3>'+(newN?'<span class="n newn">'+newN+' new</span>':'')+'<span class="n">'+openN+' open</span></div>'+
       noteRow+
@@ -1467,6 +1471,18 @@ function relTime(ms){ if(!ms)return""; var s=Math.floor((Date.now()-ms)/1000); i
 var WLCLOSED={};
 var LISTMETA={};
 function toggleWL(g){ WLCLOSED[g]=!WLCLOSED[g]; renderJobs(); }
+/* Per-task quick "sub note" (Directors/Managers) */
+function wlSetSubNote(key){
+  if(!isMgrRole()) return;
+  var j=CREWJOBS.filter(function(x){return x.key===key;})[0];
+  var cur=(j&&j.subNote)||"";
+  var n=prompt("Sub note for this task (a quick line shown under the title):", cur);
+  if(n===null) return;
+  apiPost({action:"crewJobSubNote", email:ME.email, code:ME.code, jobKey:key, subNote:n.trim()}).then(function(r){
+    if(r&&r.ok){ if(j)j.subNote=r.subNote; toast(r.subNote?"Sub note saved":"Cleared"); openWLJob(key); loadJobs(); }
+    else toast((r&&r.error)||"Couldn’t save");
+  }).catch(function(){ toast("Couldn’t connect"); });
+}
 /* Per-worklist heading note / deadline (Directors/Managers) */
 function setListNote(g){
   if(!isMgrRole()) return;
@@ -1642,6 +1658,7 @@ function openWLJob(key){
     '<div class="sheet-hd"><div style="flex:1"><div style="font-size:11px;font-weight:bold;letter-spacing:.4px;color:#ffd7b0">'+esc(j.vessel)+(j.list?(" · "+esc(j.list)):"")+(j.code?(' &nbsp;<span class="jcode">'+esc(j.code)+'</span>'):'')+catChip(j.category)+'</div>'+
       '<h3>'+num+'. '+esc(j.task||"(job)")+'</h3></div><button class="closeb" onclick="closeSheet()">✕</button></div>'+
     (j.desc?('<div class="sec"><h4>The job</h4><p class="body">'+esc(j.desc)+'</p></div>'):'')+
+    ((j.subNote||isMgrRole())?('<div class="sec"><h4>Sub note</h4><div class="subnote-box'+(j.subNote?"":" empty")+'"'+(isMgrRole()?(' onclick="wlSetSubNote(\''+esc(key)+'\')"'):'')+'>'+(j.subNote?('📌 '+esc(j.subNote)):'＋ add a quick note')+(isMgrRole()?' <span class="wlnote-ed">✎</span>':'')+'</div></div>'):'')+
     reqBlock+
     acceptHTML+
     '<div class="sec"><h4>Status</h4><div class="pillrow">'+pills+'</div>'+(j.completed?'<div class="apprOn" style="margin-top:8px">✓ Completed '+esc(j.completed)+'</div>':'')+'</div>'+
