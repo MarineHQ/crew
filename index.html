@@ -1409,7 +1409,7 @@ function catChip(cat){
 function renderJobs(){
   var first=(ME.name||"").split(" ")[0].replace(/\(test\)/,"").trim();
   var openN=CREWJOBS.filter(function(j){return hubBucket(j.status)!=="Done";}).length;
-  $("jobsHello").innerHTML="Hi <b>"+esc(first)+"</b> — <b>"+openN+"</b> open "+(openN===1?"job":"jobs")+" on <b>"+esc(JOBSVESSEL||"your vessel")+"</b>."+
+  $("jobsHello").innerHTML="Hi <b>"+esc(first)+"</b> — <b>"+openN+"</b> open "+(openN===1?"job":"jobs")+(isMgrRole()?(" on <b>"+esc(JOBSVESSEL||"your vessel")+"</b>"):" assigned to you")+"."+
     (ME.signedAt ? "" : '<div class="guideprompt" onclick="openGuide()">📋 Please read &amp; sign the Crew Onboarding Guide — tap here.</div>');
   var FILTERS=["All","To do","In progress","Done"];
   $("jobChips").innerHTML=FILTERS.map(function(f){return '<div class="chip '+(f===JOBFILTER?"on":"")+'" onclick="setJobFilter(\''+f+'\')">'+f+'</div>';}).join("")
@@ -1417,7 +1417,7 @@ function renderJobs(){
   var list=CREWJOBS.filter(function(j){ return JOBFILTER==="All"||hubBucket(j.status)===JOBFILTER; });
   $("jobsCount").textContent=list.length+(list.length===1?" job":" jobs");
   var el=$("jobList");
-  if(!list.length){ el.innerHTML='<div class="empty">Nothing here right now.<br>Jobs Marine HQ assign to you on '+esc(JOBSVESSEL||"your vessel")+' show up here.</div>'; return; }
+  if(!list.length){ el.innerHTML='<div class="empty">Nothing here right now.<br>Jobs Marine HQ assign to you'+(isMgrRole()?(' on '+esc(JOBSVESSEL||"your vessel")):' (on any boat)')+' show up here.</div>'; return; }
   // group into collapsible worklists (named lists) + one "Other jobs" group
   var groups={}, order=[];
   // Worklists start COLLAPSED — tap to expand. Only default on first sighting so
