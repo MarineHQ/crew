@@ -241,6 +241,11 @@
   .wlnote{margin:-7px 0 11px;padding:8px 13px;background:#fff5e9;border:1px solid #f0d3ad;border-top:none;border-radius:0 0 11px 11px;font-size:12.5px;font-weight:700;color:#8a5a12;cursor:pointer}
   .wlnote.empty{background:#f6f9fc;border-color:var(--line);color:var(--muted);font-weight:600}
   .wlnote-ed{opacity:.55;margin-left:3px}
+  .wlctl{display:flex;gap:8px;margin:-4px 0 12px}
+  .wlctl button{flex:1;background:#eef4fb;border:1px solid #d3e2f2;color:var(--navy);font-size:12.5px;font-weight:700;border-radius:9px;padding:8px;cursor:pointer}
+  .wlctl button:active{background:#dce8f6}
+  .addtaskbtn{margin-left:auto;background:var(--navy);color:#fff;border:none;border-radius:9px;padding:7px 13px;font-size:13px;font-weight:700;cursor:pointer}
+  .fldhint{font-weight:600;color:var(--muted);font-size:11.5px}
   .subnote{font-size:12.5px;color:#8a5a12;background:#fff8ec;border-left:3px solid #f0c987;border-radius:0 6px 6px 0;padding:4px 9px;margin:5px 0 0;font-weight:600}
   .subnote-box{font-size:13px;color:#8a5a12;background:#fff8ec;border:1px solid #f0d3ad;border-radius:9px;padding:10px 12px;font-weight:700;cursor:pointer}
   .subnote-box.empty{background:#f6f9fc;border-color:var(--line);color:var(--muted);font-weight:600}
@@ -612,7 +617,7 @@
     <div id="tab-jobs">
       <div class="hello" id="jobsHello"></div>
       <div id="vesselBar" class="vesselbar"></div>
-      <div class="subbar"><h2>My worklist</h2><span class="count" id="jobsCount"></span></div>
+      <div class="subbar"><h2>My worklist</h2><span class="count" id="jobsCount"></span><button id="addTaskBtn" class="addtaskbtn" style="display:none" onclick="openAddTask()">＋ Add task</button></div>
       <div class="chips" id="jobChips"></div>
       <div id="jobList"></div>
     </div>
@@ -753,6 +758,34 @@
   <input type="file" id="r_photos" accept="image/*" multiple>
   <button class="go" onclick="submitRaise()">Send to Marine HQ</button>
   <button class="cancel" onclick="closeModal('raiseModal')">Cancel</button>
+</div></div>
+
+<!-- Directors: add a new task / new worklist -->
+<div class="modal" id="addTaskModal"><div class="card2">
+  <h3 id="atTitle">＋ Add task</h3>
+  <p class="mhint">Create a task. Pick a worklist or type a new name to start a new list.</p>
+  <label class="fld">Yacht</label>
+  <select class="fld-in" id="at_vessel" onchange="onVesselPick('at_vessel','at_vesselOther');atFillLists();"></select>
+  <input class="fld-in" id="at_vesselOther" placeholder="Type the yacht name" style="display:none;margin-top:8px">
+  <label class="fld">Worklist <span class="fldhint">— pick one, or type a new name</span></label>
+  <input class="fld-in" id="at_list" list="at_listOpts" placeholder="e.g. Mahalo Work List" autocomplete="off">
+  <datalist id="at_listOpts"></datalist>
+  <label class="fld">Task title</label>
+  <input class="fld-in" id="at_title" placeholder="e.g. Vessel wash down">
+  <label class="fld">Detail <span class="fldhint">(optional)</span></label>
+  <textarea class="fld-ta" id="at_desc" placeholder="Any specifics…"></textarea>
+  <label class="fld">Category</label>
+  <div class="assignrow" id="at_cats"></div>
+  <label class="fld">Assign to <span class="fldhint">(optional — internal only)</span></label>
+  <div class="assignrow" id="at_assign"></div>
+  <input class="fld-in" id="at_contractor" placeholder="…or type a contractor / 3rd party" style="margin-top:8px">
+  <label class="fld">Day <span class="fldhint">(optional)</span></label>
+  <div style="display:flex;gap:8px">
+    <input type="date" class="fld-in" id="at_due" style="flex:1">
+    <input type="time" class="fld-in" id="at_time" style="max-width:120px">
+  </div>
+  <button class="go" onclick="submitAddTask()">✓ Add task</button>
+  <button class="cancel" onclick="closeModal('addTaskModal')">Cancel</button>
 </div></div>
 
 <!-- Shift description modal (add what you did on a boat) -->
@@ -1448,6 +1481,7 @@ function renderJobs(){
   var openN=CREWJOBS.filter(function(j){return hubBucket(j.status)!=="Done";}).length;
   $("jobsHello").innerHTML="Hi <b>"+esc(first)+"</b> — <b>"+openN+"</b> open "+(openN===1?"job":"jobs")+(isMgrRole()?(" on <b>"+esc(JOBSVESSEL||"your vessel")+"</b>"):" assigned to you")+"."+
     (ME.signedAt ? "" : '<div class="guideprompt" onclick="openGuide()">📋 Please read &amp; sign the Crew Onboarding Guide — tap here.</div>');
+  var _atb=$("addTaskBtn"); if(_atb) _atb.style.display=isMgrRole()?"":"none";
   var FILTERS=["All","To do","In progress","Done"];
   $("jobChips").innerHTML=FILTERS.map(function(f){return '<div class="chip '+(f===JOBFILTER?"on":"")+'" onclick="setJobFilter(\''+f+'\')">'+f+'</div>';}).join("")
     +'<div class="chip sched'+(SCHEDVIEW?" on":"")+'" onclick="toggleSched()">📅 Schedule</div>';
@@ -1497,9 +1531,14 @@ function renderJobs(){
     }).join("");
     var note=(LISTMETA&&LISTMETA[g])||"";
     var noteRow = (note || isMgrRole()) ? ('<div class="wlnote'+(note?"":" empty")+'" onclick="event.stopPropagation();setListNote(\''+esc(g.replace(/'/g,"\\'"))+'\')">'+(note?esc(note):'＋ add a deadline / note')+(isMgrRole()?' <span class="wlnote-ed">✎</span>':'')+'</div>') : '';
+    // Directors: add a task to this list, or rename the list (not in Schedule/day view).
+    var gJs=g.replace(/\\/g,"\\\\").replace(/'/g,"\\'"), gVessel=((jobs[0]&&jobs[0].vessel)||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
+    var ctlRow = (isMgrRole() && !SCHEDVIEW) ? ('<div class="wlctl">'+
+      '<button onclick="event.stopPropagation();openAddTask(\''+esc(gJs)+'\',\''+esc(gVessel)+'\')">＋ Add task</button>'+
+      '<button onclick="event.stopPropagation();renameList(\''+esc(gJs)+'\')">✎ Rename</button></div>') : '';
     return '<div class="wlacc'+collapsed+'" onclick="toggleWL(\''+esc(g)+'\')"><span class="car">▾</span>'+
       '<h3>'+esc(g)+'</h3>'+(newN?'<span class="n newn">'+newN+' new</span>':'')+'<span class="n">'+openN+' open</span></div>'+
-      noteRow+
+      noteRow+ctlRow+
       '<div class="wlbody'+bodyC+'" data-g="'+esc(g)+'">'+cards+'</div>';
   }).join("");
 }
@@ -2364,6 +2403,57 @@ function submitRaise(){
   }).catch(function(){ toast("Couldn’t connect"); });
 }
 
+/* ===== Directors: add a task / new worklist, and rename a worklist ===== */
+var ADD_CATS=["Scheduled","Unscheduled","Upgrade","Ops"];
+var ADDCAT="Scheduled", ADDASSIGN=[];
+function openAddTask(prefList, prefVessel){
+  if(!isMgrRole()){ toast("Directors only"); return; }
+  var vs=(FLEETVESSELS&&FLEETVESSELS.length? FLEETVESSELS : (ME.vessels||[])).filter(function(v){ return !/test boat/i.test(v); });
+  var curV = prefVessel || (CURVESSEL && CURVESSEL!=="__all__" ? CURVESSEL : (vs[0]||""));
+  if(curV && vs.indexOf(curV)<0) vs.unshift(curV);
+  $("at_vessel").innerHTML=vs.map(function(v){return '<option'+(v===curV?' selected':'')+'>'+esc(v)+'</option>';}).join("")+'<option value="__other__">Other — a yacht not in the system…</option>';
+  $("at_vesselOther").style.display="none"; $("at_vesselOther").value="";
+  $("at_list").value=prefList||""; $("at_title").value=""; $("at_desc").value="";
+  $("at_contractor").value=""; $("at_due").value=""; $("at_time").value="";
+  ADDCAT="Scheduled"; ADDASSIGN=[];
+  atFillLists(); atRenderCats(); atRenderAssign();
+  if(!CREWNAMES.length) loadCrewNames();
+  $("addTaskModal").classList.add("show");
+}
+function atFillLists(){
+  var names={}; Object.keys(LISTMETA||{}).forEach(function(n){ if(n) names[n]=1; });
+  (CREWJOBS||[]).forEach(function(j){ if(j.list) names[j.list]=1; });
+  var el=$("at_listOpts"); if(el) el.innerHTML=Object.keys(names).sort().map(function(n){return '<option value="'+esc(n)+'">';}).join("");
+}
+function atRenderCats(){ var el=$("at_cats"); if(el) el.innerHTML=ADD_CATS.map(function(c){return '<button type="button" class="aopt'+(c===ADDCAT?' on':'')+'" onclick="ADDCAT=\''+c+'\';atRenderCats()">'+c+'</button>';}).join(""); }
+function atRenderAssign(){ var el=$("at_assign"); if(!el) return;
+  el.innerHTML=(CREWNAMES||[]).length ? (CREWNAMES).map(function(c){var on=ADDASSIGN.indexOf(c.name)>=0;return '<button type="button" class="aopt'+(on?' on':'')+'" onclick="atToggleAssign(\''+esc((c.name||"").replace(/'/g,"\\'"))+'\')">'+esc(firstName(c.name))+(on?' ✓':'')+'</button>';}).join("") : '<span class="fldhint">Loading crew…</span>'; }
+function atToggleAssign(n){ var i=ADDASSIGN.indexOf(n); if(i>=0) ADDASSIGN.splice(i,1); else ADDASSIGN.push(n); atRenderAssign(); }
+function submitAddTask(){
+  var title=($("at_title").value||"").trim(); if(!title){ toast("Give the task a title"); return; }
+  var vsel=$("at_vessel").value, vessel = vsel==="__other__" ? ($("at_vesselOther").value||"").trim() : vsel;
+  if(!vessel){ toast("Pick or type a yacht"); return; }
+  var alloc=ADDASSIGN.slice(); var contractor=($("at_contractor").value||"").trim(); if(contractor) alloc.push(contractor);
+  toast("Adding task…");
+  apiPost({action:"crewAddTask", email:ME.email, code:ME.code, vessel:vessel, list:($("at_list").value||"").trim(),
+    title:title, desc:($("at_desc").value||"").trim(), category:ADDCAT, allocatedTo:alloc.join(", "),
+    due:($("at_due").value||""), time:($("at_time").value||"")}).then(function(r){
+    if(!r||!r.ok){ toast((r&&r.error)||"Couldn’t add the task"); return; }
+    closeModal("addTaskModal");
+    toast("✓ Task added — "+(r.code||""));
+    if(r.vessel){ CURVESSEL=r.vessel; }
+    loadJobs();
+  }).catch(function(){ toast("Couldn’t connect"); });
+}
+function renameList(g){
+  var nn=window.prompt("Rename this worklist:", g); if(nn===null) return;
+  nn=(nn||"").trim(); if(!nn || nn===g) return;
+  toast("Renaming…");
+  apiPost({action:"crewRenameList", email:ME.email, code:ME.code, oldList:g, newList:nn}).then(function(r){
+    if(r&&r.ok){ toast("✓ Renamed"); if(LISTMETA&&LISTMETA[g]){ LISTMETA[nn]=LISTMETA[g]; delete LISTMETA[g]; } if(WLCLOSED&&(g in WLCLOSED)){ WLCLOSED[nn]=WLCLOSED[g]; delete WLCLOSED[g]; } loadJobs(); }
+    else toast((r&&r.error)||"Couldn’t rename");
+  }).catch(function(){ toast("Couldn’t connect"); });
+}
 /* ================= sheet / modal ================= */
 /* Open the bottom sheet BELOW the Marine HQ banner/branding (measured live so
    it adapts to any screen), and dim only the area under the branding. */
