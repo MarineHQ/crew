@@ -226,6 +226,8 @@
   .opv-photos img{width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--line);cursor:pointer}
   .duechip{display:inline-block;font-size:10.5px;font-weight:800;border-radius:8px;padding:1px 7px;background:#e6efff;color:#1d4ed8;vertical-align:middle}
   .duechip.today{background:#dcfce7;color:#166534} .duechip.overdue{background:#fde2e1;color:#b3261e}
+  .acptchip{display:inline-block;font-size:10.5px;font-weight:800;border-radius:8px;padding:1px 7px;vertical-align:middle}
+  .acptchip.ok{background:#dcfce7;color:#166534} .acptchip.wait{background:#fef3d7;color:#8a5a12}
   .chip.sched.on{background:var(--orange);border-color:var(--orange);color:#fff}
   .donebtn{background:#0f766e;color:#fff;margin-top:14px;font-size:16px;padding:15px}
   /* Calendar */
@@ -1426,6 +1428,7 @@ function renderJobs(){
       var codeChip = j.code ? ' <span class="jcode'+(j.standard==="Boat-specific"?" bs":"")+'">'+esc(j.code)+'</span>' : '';
       codeChip += catChip(j.category);
       if(j.dueTs){ codeChip += ' <span class="duechip'+dueCls(j.dueTs,done)+'">📅 '+esc(dayLabel(j.dueTs))+'</span>'; }
+      if(isMgrRole() && j.allocatedTo){ codeChip += (j.accepted&&j.accepted.by) ? ' <span class="acptchip ok">✓ '+esc(firstName(j.accepted.by))+'</span>' : ' <span class="acptchip wait">⏳ '+esc(firstName(j.allocatedTo))+'</span>'; }
       var upd = jobRecent(j) ? '<span class="upd">● updated '+relTime(j.updated)+'</span>' : '';
       return '<div class="job brd-'+cls+(done?" jobdone":"")+(jobRecent(j)?" jobnew":"")+'" onclick="openWLJob(\''+esc(j.key)+'\')">'+
         '<div class="top"><div style="flex:1"><h3><span class="jnum">'+(idx+1)+'.</span> '+esc(j.task||j.desc||"(job)")+codeChip+'</h3></div>'+
@@ -1502,6 +1505,13 @@ function calShowDay(ts){
   }).join("");
   $("calDay").innerHTML=html;
 }
+/* Crew accepts a task assigned to them — directors then see it's been taken on */
+function wlAccept(key){
+  apiPost({action:"crewJobAccept", email:ME.email, code:ME.code, jobKey:key}).then(function(r){
+    if(r&&r.ok){ toast("✓ Task accepted"); var j=CREWJOBS.filter(function(x){return x.key===key;})[0]; if(j)j.accepted=r.accepted; openWLJob(key); loadJobs(); }
+    else toast((r&&r.error)||"Couldn’t accept");
+  }).catch(function(){ toast("Couldn’t connect"); });
+}
 /* Set / clear a job's day (Directors & Managers) */
 function wlSetDue(key, val){
   apiPost({action:"crewJobDue", email:ME.email, code:ME.code, jobKey:key, due:val}).then(function(r){
@@ -1571,11 +1581,24 @@ function openWLJob(key){
       '<button class="lanebtn" data-lane="both" onclick="setLane(\'both\')">👥 Crew + Owner</button>'+'<button class="lanebtn" data-lane="dir" onclick="setLane(\'dir\')">🔒 Directors</button>'+
     '</div>'+
     '<p class="body" style="font-size:12px;color:var(--muted);margin-top:7px">Pick a lane, then add a note, photo or quote below — <b>only that group sees it</b>. Crew and owner never see each other’s lane; you &amp; Jack see all three.</p></div>';
+  // Accept — so directors know the crew member has taken the task on.
+  var _me=(ME.name||"").toLowerCase().replace(/\s*\(test\)/,"").trim();
+  var mineJob = j.allocatedTo && _me && j.allocatedTo.toLowerCase().indexOf(_me)>=0;
+  var acc = j.accepted;
+  var acceptHTML='';
+  if(acc && acc.by){
+    acceptHTML='<div class="sec"><div class="apprOn">✓ Accepted by '+esc(firstName(acc.by))+(acc.date?(' · '+esc(acc.date)):'')+'</div></div>';
+  } else if(mineJob){
+    acceptHTML='<div class="sec"><button class="jobbtn complete" style="background:#0f766e" onclick="wlAccept(\''+esc(key)+'\')">✓ Accept this task</button><p class="body" style="font-size:12px;color:var(--muted);margin-top:6px">Tap to let Marine HQ know you’ve got this one.</p></div>';
+  } else if(isMgrRole() && j.allocatedTo){
+    acceptHTML='<div class="sec"><div class="apprOn" style="background:#fdf3e3;color:#8a5a12;border-color:#f0dcb8">⏳ Awaiting acceptance from '+esc(firstName(j.allocatedTo))+'</div></div>';
+  }
   $("sheet").innerHTML=
     '<div class="sheet-hd"><div style="flex:1"><div style="font-size:11px;font-weight:bold;letter-spacing:.4px;color:#ffd7b0">'+esc(j.vessel)+(j.list?(" · "+esc(j.list)):"")+(j.code?(' &nbsp;<span class="jcode">'+esc(j.code)+'</span>'):'')+catChip(j.category)+'</div>'+
       '<h3>'+num+'. '+esc(j.task||"(job)")+'</h3></div><button class="closeb" onclick="closeSheet()">✕</button></div>'+
     (j.desc?('<div class="sec"><h4>The job</h4><p class="body">'+esc(j.desc)+'</p></div>'):'')+
     reqBlock+
+    acceptHTML+
     '<div class="sec"><h4>Status</h4><div class="pillrow">'+pills+'</div></div>'+
     assignHTML+
     dueHTML+
