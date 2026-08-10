@@ -1092,8 +1092,12 @@ function toggleOwnerPreview(){
   if(!p.classList.contains("hidden")){
     var sel=$("ownerVesselSel");
     var vessels = (FLEETVESSELS&&FLEETVESSELS.length? FLEETVESSELS : (ME.vessels||[])).filter(function(v){ return !/test boat/i.test(v); });
-    sel.innerHTML=vessels.map(function(v){return '<option>'+esc(v)+'</option>';}).join("");
-    if(vessels.length) loadOwnerPreview(vessels[0]);
+    // Put the director's own boats first (they're the ones with shared works), so it
+    // doesn't open on an empty boat and look like nothing's connected.
+    var mine=(ME.vessels||[]).filter(function(v){ return vessels.indexOf(v)>=0; });
+    var ordered=mine.concat(vessels.filter(function(v){ return mine.indexOf(v)<0; }));
+    sel.innerHTML=ordered.map(function(v){return '<option>'+esc(v)+'</option>';}).join("");
+    if(ordered.length){ sel.value=ordered[0]; loadOwnerPreview(ordered[0]); }
   }
 }
 function loadOwnerPreview(vessel){
