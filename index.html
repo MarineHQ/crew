@@ -178,6 +178,8 @@
   .cmt.mgr{background:#fff5ec;border-color:#f3d9bd}
   .cmt-hd{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:3px}
   .cmt-hd b{font-size:13px;color:var(--navy)}
+  .cmt-del{border:none;background:#f1f5f9;color:#94a3b8;width:20px;height:20px;border-radius:50%;font-size:11px;line-height:1;cursor:pointer;margin-left:4px}
+  .cmt-del:hover{background:#fde2e1;color:#b3261e}
   .cmt-role{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.3px;color:#fff;background:var(--navy);border-radius:8px;padding:1px 6px}
   .cmt.mgr .cmt-role{background:var(--orange)}
   .cmt-at{margin-left:auto;font-size:11px;color:var(--muted)}
@@ -1505,6 +1507,14 @@ function calShowDay(ts){
   }).join("");
   $("calDay").innerHTML=html;
 }
+/* Delete a note from the timeline (Directors/Managers) — even after it's shared */
+function wlDeleteNote(key, at){
+  if(!confirm("Delete this note?")) return;
+  apiPost({action:"crewJobCommentDelete", email:ME.email, code:ME.code, jobKey:key, at:at}).then(function(r){
+    if(r&&r.ok){ toast("Note deleted"); var j=CREWJOBS.filter(function(x){return x.key===key;})[0]; if(j)j.comments=r.comments||[]; openWLJob(key); loadJobs(); }
+    else toast((r&&r.error)||"Couldn’t delete");
+  }).catch(function(){ toast("Couldn’t connect"); });
+}
 /* Crew accepts a task assigned to them — directors then see it's been taken on */
 function wlAccept(key){
   apiPost({action:"crewJobAccept", email:ME.email, code:ME.code, jobKey:key}).then(function(r){
@@ -1552,7 +1562,8 @@ function openWLJob(key){
     var aud=(cm.aud==="owner"||cm.aud==="dir")?cm.aud:"crew";
     var laneRow = isMgrRole() ? ('<div class="cmt-lane">'+lanePill(aud)+'<span class="movelbl">move:</span>'+
       LANE_ORDER.filter(function(l){return l!==aud;}).map(function(l){ return '<button class="movebtn" onclick="wlNoteAud(\''+esc(key)+'\','+(parseInt(cm.at,10)||0)+',\''+l+'\')">'+LANE_META[l].ic+' '+LANE_META[l].lbl+'</button>'; }).join('')+'</div>') : '';
-    return '<div class="cmt'+(mgr?" mgr":"")+" lane-"+aud+'"><div class="cmt-hd"><b>'+esc(cm.by||"—")+'</b>'+((cm.role&&isMgrRole())?'<span class="cmt-role">'+esc(cm.role)+'</span>':'')+'<span class="cmt-at">'+fmtDateTime(cm.at)+'</span></div><div class="cmt-tx">'+hlMentions(cm.text||"")+'</div>'+tag+laneRow+'</div>';
+    var delBtn = isMgrRole() ? '<button class="cmt-del" title="Delete note" onclick="wlDeleteNote(\''+esc(key)+'\','+(parseInt(cm.at,10)||0)+')">✕</button>' : '';
+    return '<div class="cmt'+(mgr?" mgr":"")+" lane-"+aud+'"><div class="cmt-hd"><b>'+esc(cm.by||"—")+'</b>'+((cm.role&&isMgrRole())?'<span class="cmt-role">'+esc(cm.role)+'</span>':'')+'<span class="cmt-at">'+fmtDateTime(cm.at)+'</span>'+delBtn+'</div><div class="cmt-tx">'+hlMentions(cm.text||"")+'</div>'+tag+laneRow+'</div>';
   }).join("") : '<div style="font-size:13px;color:var(--muted)">No notes yet.</div>');
   // Assign-to (Directors/Managers only) — hand the job to a crew member; they then see it in their worklist
   var curAlloc=(j.allocatedTo||"").toLowerCase();
