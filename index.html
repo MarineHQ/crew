@@ -639,6 +639,7 @@
       </div>
       <div id="ownerPreviewPanel" class="hidden">
         <div class="vesselbar"><label>Owner of:</label><select id="ownerVesselSel" onchange="loadOwnerPreview(this.value)"></select></div>
+        <button class="jobbtn" style="background:var(--orange);margin:4px 0 10px" onclick="openFullOwnerPortal()">🔓 Open their FULL MyYacht portal ↗</button>
         <div id="ownerPreviewList"></div>
       </div>
     </div>
@@ -1084,6 +1085,13 @@ function addDueToWorklist(btn, idx){
     if(r&&r.ok){ btn.textContent='✓ Added '+(r.code||''); btn.classList.add('added'); toast("✓ Added to "+i.vessel+" worklist"); }
     else { btn.disabled=false; btn.textContent='＋ Worklist'; toast((r&&r.error)||"Couldn’t add"); }
   }).catch(function(){ btn.disabled=false; btn.textContent='＋ Worklist'; toast("Couldn’t connect"); });
+}
+// Open the REAL client MyYacht portal for the selected vessel, in director-preview
+// mode (no PIN needed — the server authorises the director code).
+function openFullOwnerPortal(){
+  var v=($("ownerVesselSel")||{}).value||""; if(!v){ toast("Pick a client first"); return; }
+  var url="https://my.marinehq.com.au/?preview="+encodeURIComponent(ME.code||"")+"&vessel="+encodeURIComponent(v);
+  window.open(url, "_blank");
 }
 // View as owner — director previews a vessel's MyYacht portal as the client sees it.
 function toggleOwnerPreview(){
