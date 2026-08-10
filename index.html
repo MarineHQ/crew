@@ -230,6 +230,9 @@
   .duechip.today{background:#dcfce7;color:#166534} .duechip.overdue{background:#fde2e1;color:#b3261e}
   .acptchip{display:inline-block;font-size:10.5px;font-weight:800;border-radius:8px;padding:1px 7px;vertical-align:middle}
   .acptchip.ok{background:#dcfce7;color:#166534} .acptchip.wait{background:#fef3d7;color:#8a5a12}
+  .wlnote{margin:-7px 0 11px;padding:8px 13px;background:#fff5e9;border:1px solid #f0d3ad;border-top:none;border-radius:0 0 11px 11px;font-size:12.5px;font-weight:700;color:#8a5a12;cursor:pointer}
+  .wlnote.empty{background:#f6f9fc;border-color:var(--line);color:var(--muted);font-weight:600}
+  .wlnote-ed{opacity:.55;margin-left:3px}
   .chip.sched.on{background:var(--orange);border-color:var(--orange);color:#fff}
   .donebtn{background:#0f766e;color:#fff;margin-top:14px;font-size:16px;padding:15px}
   /* Calendar */
@@ -1032,7 +1035,7 @@ function loadJobs(){
   }
   startActivityWatch();   // fire the activity fetch in PARALLEL with jobs (not after)
   apiGet(url)
-    .then(function(j){ CREWJOBS=(j&&j.jobs)||[]; JOBSVESSEL=allBoats?"all yachts":((j&&j.vessel)||v); _cSet(_ck("jobs",vk), CREWJOBS); renderJobs(); updateJobsBadge(); renderVesselBar(); }).catch(function(){});
+    .then(function(j){ CREWJOBS=(j&&j.jobs)||[]; if(j&&j.listMeta)LISTMETA=j.listMeta; JOBSVESSEL=allBoats?"all yachts":((j&&j.vessel)||v); _cSet(_ck("jobs",vk), CREWJOBS); renderJobs(); updateJobsBadge(); renderVesselBar(); }).catch(function(){});
   loadFleetVessels();
 }
 // Director/Manager boat switcher — lists every vessel that has a worklist.
@@ -1324,6 +1327,7 @@ function isImgFile(name, url){ return /\.(jpe?g|png|heic|heif|webp|gif|bmp|tiff?
 // In-app swipeable photo gallery with per-photo captions (no Drive redirect).
 var LB_KEY="", LB_PHOTOS=[], LB_I=0;
 function firstName(n){ return (n||"").toString().split(" ")[0].replace(/\(test\)/i,"").trim()||(n||""); }
+function firstNames(s){ return (s||"").toString().split(",").map(function(x){return firstName(x.trim());}).filter(String).join(", "); }
 function openPhoto(key, idx){
   var j=CREWJOBS.filter(function(x){return x.key===key;})[0];
   if(!j||!j.photos||!j.photos.length) return;
@@ -1440,7 +1444,7 @@ function renderJobs(){
       var codeChip = j.code ? ' <span class="jcode'+(j.standard==="Boat-specific"?" bs":"")+'">'+esc(j.code)+'</span>' : '';
       codeChip += catChip(j.category);
       if(j.dueTs){ codeChip += ' <span class="duechip'+dueCls(j.dueTs,done)+'">📅 '+esc(dayLabel(j.dueTs))+(j.dueTime?(' '+esc(fmtTime12(j.dueTime))):'')+'</span>'; }
-      if(isMgrRole() && j.allocatedTo){ codeChip += (j.accepted&&j.accepted.by) ? ' <span class="acptchip ok">✓ '+esc(firstName(j.accepted.by))+'</span>' : ' <span class="acptchip wait">⏳ '+esc(firstName(j.allocatedTo))+'</span>'; }
+      if(isMgrRole() && j.allocatedTo){ codeChip += (j.accepted&&j.accepted.by) ? ' <span class="acptchip ok">✓ '+esc(firstName(j.accepted.by))+'</span>' : ' <span class="acptchip wait">⏳ '+esc(firstNames(j.allocatedTo))+'</span>'; }
       var upd = jobRecent(j) ? '<span class="upd">● updated '+relTime(j.updated)+'</span>' : '';
       return '<div class="job brd-'+cls+(done?" jobdone":"")+(jobRecent(j)?" jobnew":"")+'" onclick="openWLJob(\''+esc(j.key)+'\')">'+
         '<div class="top"><div style="flex:1"><h3><span class="jnum">'+(idx+1)+'.</span> '+esc(j.task||j.desc||"(job)")+codeChip+'</h3></div>'+
@@ -1449,8 +1453,11 @@ function renderJobs(){
         '<div class="meta">'+(np?('<span>📷 '+np+'</span>'):'<span>Add photos</span>')+(hasNote?'<span>📝 note</span>':'')+(nd?('<span>📄 '+nd+'</span>'):'')+upd+
           '<span style="margin-left:auto;color:var(--navy);font-weight:bold">Open ›</span></div></div>';
     }).join("");
+    var note=(LISTMETA&&LISTMETA[g])||"";
+    var noteRow = (note || isMgrRole()) ? ('<div class="wlnote'+(note?"":" empty")+'" onclick="event.stopPropagation();setListNote(\''+esc(g.replace(/'/g,"\\'"))+'\')">'+(note?('🎯 '+esc(note)):'＋ add a deadline / note')+(isMgrRole()?' <span class="wlnote-ed">✎</span>':'')+'</div>') : '';
     return '<div class="wlacc'+collapsed+'" onclick="toggleWL(\''+esc(g)+'\')"><span class="car">▾</span>'+
       '<h3>'+esc(g)+'</h3>'+(newN?'<span class="n newn">'+newN+' new</span>':'')+'<span class="n">'+openN+' open</span></div>'+
+      noteRow+
       '<div class="wlbody'+bodyC+'" data-g="'+esc(g)+'">'+cards+'</div>';
   }).join("");
 }
@@ -1458,7 +1465,19 @@ function isMgrRole(){ return /director|manager/i.test((ME&&ME.role)||""); }
 function jobRecent(j){ return isMgrRole() && j.source==="worklist" && j.updated && (Date.now()-j.updated < 2*864e5); }
 function relTime(ms){ if(!ms)return""; var s=Math.floor((Date.now()-ms)/1000); if(s<50)return"just now"; var m=Math.round(s/60); if(m<60)return m+"m ago"; var h=Math.round(m/60); if(h<24)return h+"h ago"; var d=Math.round(h/24); return d===1?"yesterday":d+"d ago"; }
 var WLCLOSED={};
+var LISTMETA={};
 function toggleWL(g){ WLCLOSED[g]=!WLCLOSED[g]; renderJobs(); }
+/* Per-worklist heading note / deadline (Directors/Managers) */
+function setListNote(g){
+  if(!isMgrRole()) return;
+  var cur=(LISTMETA&&LISTMETA[g])||"";
+  var n=prompt("Note / deadline for “"+g+"” (shows on the heading, e.g. All tasks by 14 Aug 2026):", cur);
+  if(n===null) return;
+  apiPost({action:"crewListMeta", email:ME.email, code:ME.code, list:g, note:n.trim()}).then(function(r){
+    if(r&&r.ok){ LISTMETA[g]=r.note; toast(r.note?"Saved":"Cleared"); renderJobs(); }
+    else toast((r&&r.error)||"Couldn’t save");
+  }).catch(function(){ toast("Couldn’t connect"); });
+}
 function setJobFilter(f){ JOBFILTER=f; renderJobs(); }
 /* ── Scheduling: a due day per job + a Schedule (agenda-by-day) view ── */
 var SCHEDVIEW=false;
@@ -1578,18 +1597,19 @@ function openWLJob(key){
     var delBtn = isMgrRole() ? '<button class="cmt-del" title="Delete note" onclick="wlDeleteNote(\''+esc(key)+'\','+(parseInt(cm.at,10)||0)+')">✕</button>' : '';
     return '<div class="cmt'+(mgr?" mgr":"")+" lane-"+aud+'"><div class="cmt-hd"><b>'+esc(cm.by||"—")+'</b>'+((cm.role&&isMgrRole())?'<span class="cmt-role">'+esc(cm.role)+'</span>':'')+'<span class="cmt-at">'+fmtDateTime(cm.at)+'</span>'+delBtn+'</div><div class="cmt-tx">'+hlMentions(cm.text||"")+'</div>'+tag+laneRow+'</div>';
   }).join("") : '<div style="font-size:13px;color:var(--muted)">No notes yet.</div>');
-  // Assign-to (Directors/Managers only) — hand the job to a crew member; they then see it in their worklist
-  var curAlloc=(j.allocatedTo||"").toLowerCase();
+  // Assign-to (Directors/Managers only) — MULTI-select; tap people to add/remove.
+  var allocList=(j.allocatedTo||"").split(",").map(function(s){return s.trim();}).filter(String);
+  var allocLower=allocList.map(function(s){return s.toLowerCase();});
   var crewLower=(CREWNAMES||[]).map(function(c){return (c.name||"").toLowerCase();});
-  var isContractor = !!curAlloc && crewLower.indexOf(curAlloc)<0;   // assigned to a name that isn't crew = a contractor
+  var contractors=allocList.filter(function(n){return crewLower.indexOf(n.toLowerCase())<0;});
   var assignHTML = !isMgrRole() ? '' :
-    '<div class="sec"><h4>Assigned to <span style="font-size:11px;font-weight:600;color:var(--muted)">· internal only</span></h4><div class="assignrow">'+
-      (CREWNAMES||[]).map(function(c){ var on=curAlloc===(c.name||"").toLowerCase();
-        return '<button class="aopt'+(on?' on':'')+'" onclick="wlAssign(\''+esc(key)+'\',\''+esc((c.name||"").replace(/'/g,"\\'"))+'\')">'+esc(firstName(c.name))+(on?' ✓':'')+'</button>'; }).join('')+
-      (isContractor?'<button class="aopt on contractor">🏢 '+esc(j.allocatedTo)+' ✓</button>':'')+
+    '<div class="sec"><h4>Assigned to <span style="font-size:11px;font-weight:600;color:var(--muted)">· internal · tap to add/remove</span></h4><div class="assignrow">'+
+      (CREWNAMES||[]).map(function(c){ var on=allocLower.indexOf((c.name||"").toLowerCase())>=0;
+        return '<button class="aopt'+(on?' on':'')+'" onclick="wlToggleAssign(\''+esc(key)+'\',\''+esc((c.name||"").replace(/'/g,"\\'"))+'\')">'+esc(firstName(c.name))+(on?' ✓':'')+'</button>'; }).join('')+
+      contractors.map(function(cn){ return '<button class="aopt on contractor" onclick="wlToggleAssign(\''+esc(key)+'\',\''+esc(cn.replace(/'/g,"\\'"))+'\')">🏢 '+esc(cn)+' ✓</button>'; }).join('')+
       '<button class="aopt contractor" onclick="wlAssignContractor(\''+esc(key)+'\')">🏢 ＋ Contractor…</button>'+
-      '<button class="aopt'+(!curAlloc?' on':'')+'" onclick="wlAssign(\''+esc(key)+'\',\'\')">Unassigned</button>'+
-    '</div><p class="body" style="font-size:12px;color:var(--muted);margin-top:7px">Only you &amp; Jack see this. The crew member you pick sees the job in their own worklist. The owner never sees who it’s assigned to.</p></div>';
+      '<button class="aopt'+(!allocList.length?' on':'')+'" onclick="wlAssign(\''+esc(key)+'\',\'\')">None</button>'+
+    '</div><p class="body" style="font-size:12px;color:var(--muted);margin-top:7px">Tap people to add or remove — you can assign more than one. Only you &amp; Jack see this; the owner never sees who it’s assigned to.</p></div>';
   // Day / due (Directors & Managers) — shows on the crew's Schedule
   var dueHTML = !isMgrRole() ? '' :
     '<div class="sec"><h4>Day '+(j.due?('· <span style="color:var(--orange)">'+esc(dayLabel(j.dueTs))+(j.dueTime?(" "+esc(fmtTime12(j.dueTime))):"")+'</span>'):'')+'</h4>'+
@@ -1616,7 +1636,7 @@ function openWLJob(key){
   } else if(mineJob){
     acceptHTML='<div class="sec"><button class="jobbtn complete" style="background:#0f766e" onclick="wlAccept(\''+esc(key)+'\')">✓ Accept this task</button><p class="body" style="font-size:12px;color:var(--muted);margin-top:6px">Tap to let Marine HQ know you’ve got this one.</p></div>';
   } else if(isMgrRole() && j.allocatedTo){
-    acceptHTML='<div class="sec"><div class="apprOn" style="background:#fdf3e3;color:#8a5a12;border-color:#f0dcb8">⏳ Awaiting acceptance from '+esc(firstName(j.allocatedTo))+'</div></div>';
+    acceptHTML='<div class="sec"><div class="apprOn" style="background:#fdf3e3;color:#8a5a12;border-color:#f0dcb8">⏳ Awaiting acceptance from '+esc(firstNames(j.allocatedTo))+'</div></div>';
   }
   $("sheet").innerHTML=
     '<div class="sheet-hd"><div style="flex:1"><div style="font-size:11px;font-weight:bold;letter-spacing:.4px;color:#ffd7b0">'+esc(j.vessel)+(j.list?(" · "+esc(j.list)):"")+(j.code?(' &nbsp;<span class="jcode">'+esc(j.code)+'</span>'):'')+catChip(j.category)+'</div>'+
@@ -1779,19 +1799,28 @@ function uploadFilesSeq(key, input, action, field, maxDim, quality){
     });
   })();
 }
-/* Assign / reassign a job to a crew member (Directors/Managers) */
-function wlAssign(key, name){
-  apiPost({action:"crewJobAssign", email:ME.email, code:ME.code, jobKey:key, allocatedTo:name}).then(function(r){
-    if(r&&r.ok){ toast(name?("Assigned to "+firstName(name)):"Unassigned");
-      var j=CREWJOBS.filter(function(x){return x.key===key;})[0]; if(j)j.allocatedTo=name;
+/* Assign — supports MULTIPLE people. wlAssign sets the full list (or clears). */
+function wlAssign(key, whoList){
+  apiPost({action:"crewJobAssign", email:ME.email, code:ME.code, jobKey:key, allocatedTo:whoList}).then(function(r){
+    if(r&&r.ok){ toast(whoList?("Assigned: "+whoList):"Cleared");
+      var j=CREWJOBS.filter(function(x){return x.key===key;})[0]; if(j)j.allocatedTo=whoList;
       openWLJob(key); loadJobs(); }
     else toast((r&&r.error)||"Couldn’t assign");
   }).catch(function(){ toast("Couldn’t connect"); });
 }
-/* Assign to an outside contractor / company (free text) */
+/* Toggle one person on/off the assignment list */
+function wlToggleAssign(key, name){
+  var j=CREWJOBS.filter(function(x){return x.key===key;})[0]; if(!j) return;
+  var list=(j.allocatedTo||"").split(",").map(function(s){return s.trim();}).filter(String);
+  var low=list.map(function(s){return s.toLowerCase();});
+  var i=low.indexOf(name.toLowerCase());
+  if(i>=0) list.splice(i,1); else list.push(name);
+  wlAssign(key, list.join(", "));
+}
+/* Add an outside contractor / company (free text) to the assignment list */
 function wlAssignContractor(key){
   var n=prompt("Contractor / company name:"); if(n===null) return;
-  n=(n||"").trim(); if(!n) return; wlAssign(key, n);
+  n=(n||"").trim(); if(!n) return; wlToggleAssign(key, n);
 }
 /* ── Conversation lanes ── who sees what a director adds next */
 var WLLANE="";                        // "", "crew", "owner", "dir" — reset each time a job opens ("ask each time")
