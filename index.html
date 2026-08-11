@@ -241,9 +241,11 @@
   .wlnote{margin:-7px 0 11px;padding:8px 13px;background:#fff5e9;border:1px solid #f0d3ad;border-top:none;border-radius:0 0 11px 11px;font-size:12.5px;font-weight:700;color:#8a5a12;cursor:pointer}
   .wlnote.empty{background:#f6f9fc;border-color:var(--line);color:var(--muted);font-weight:600}
   .wlnote-ed{opacity:.55;margin-left:3px}
-  .wlctl{display:flex;gap:8px;margin:-4px 0 12px}
-  .wlctl button{flex:1;background:#eef4fb;border:1px solid #d3e2f2;color:var(--navy);font-size:12.5px;font-weight:700;border-radius:9px;padding:8px;cursor:pointer}
-  .wlctl button:active{background:#dce8f6}
+  .wledit{flex:0 0 auto;width:28px;height:28px;line-height:28px;text-align:center;border-radius:8px;background:rgba(255,255,255,.2);font-size:14px;cursor:pointer}
+  .wledit.on{background:#fff;color:var(--orange)}
+  .wlmenu{display:flex;flex-direction:column;gap:6px;margin:-4px 0 12px;padding:9px;background:#f6f9fc;border:1px solid var(--line);border-radius:11px}
+  .wlmenu button{width:100%;text-align:left;background:#fff;border:1px solid #d3e2f2;color:var(--navy);font-size:13px;font-weight:700;border-radius:9px;padding:10px 12px;cursor:pointer}
+  .wlmenu button:active{background:#eef4fb}
   .addtaskbtn{margin-left:auto;background:var(--navy);color:#fff;border:none;border-radius:9px;padding:7px 13px;font-size:13px;font-weight:700;cursor:pointer}
   .fldhint{font-weight:600;color:var(--muted);font-size:11.5px}
   .atmatch{margin:8px 0 2px;font-size:12.5px;line-height:1.45}
@@ -1545,15 +1547,20 @@ function renderJobs(){
           '<span style="margin-left:auto;color:var(--navy);font-weight:bold">Open ›</span></div></div>';
     }).join("");
     var note=(LISTMETA&&LISTMETA[g])||"";
-    var noteRow = (note || isMgrRole()) ? ('<div class="wlnote'+(note?"":" empty")+'" onclick="event.stopPropagation();setListNote(\''+esc(g.replace(/'/g,"\\'"))+'\')">'+(note?esc(note):'＋ add a deadline / note')+(isMgrRole()?' <span class="wlnote-ed">✎</span>':'')+'</div>') : '';
-    // Directors: add a task to this list, or rename the list (not in Schedule/day view).
     var gJs=g.replace(/\\/g,"\\\\").replace(/'/g,"\\'"), gVessel=((jobs[0]&&jobs[0].vessel)||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
-    var ctlRow = (isMgrRole() && !SCHEDVIEW) ? ('<div class="wlctl">'+
-      '<button onclick="event.stopPropagation();openAddTask(\''+esc(gJs)+'\',\''+esc(gVessel)+'\')">＋ Add task</button>'+
-      '<button onclick="event.stopPropagation();renameList(\''+esc(gJs)+'\')">✎ Rename</button></div>') : '';
+    var canEdit = isMgrRole() && !SCHEDVIEW;
+    // Deadline/note banner shows to EVERYONE when set (it's info for crew); directors tap it to edit.
+    var noteRow = note ? ('<div class="wlnote"'+(canEdit?(' onclick="event.stopPropagation();setListNote(\''+esc(gJs)+'\')"'):'')+'>'+esc(note)+(canEdit?' <span class="wlnote-ed">✎</span>':'')+'</div>') : '';
+    // Directors: an ✎ icon on the header drops down the edit menu (note / add task / rename),
+    // so by default the list headers sit neatly under each other.
+    var editIcon = canEdit ? ('<span class="wledit'+(WLEDIT[g]?' on':'')+'" onclick="event.stopPropagation();toggleWlEdit(\''+esc(gJs)+'\')" title="Edit list">✎</span>') : '';
+    var editMenu = (canEdit && WLEDIT[g]) ? ('<div class="wlmenu">'+
+      '<button onclick="event.stopPropagation();setListNote(\''+esc(gJs)+'\')">🗓️ '+(note?'Edit':'Add')+' deadline / note</button>'+
+      '<button onclick="event.stopPropagation();openAddTask(\''+esc(gJs)+'\',\''+esc(gVessel)+'\')">＋ Add task to this list</button>'+
+      '<button onclick="event.stopPropagation();renameList(\''+esc(gJs)+'\')">✎ Rename list</button></div>') : '';
     return '<div class="wlacc'+collapsed+'" onclick="toggleWL(\''+esc(g)+'\')"><span class="car">▾</span>'+
-      '<h3>'+esc(g)+'</h3>'+(newN?'<span class="n newn">'+newN+' new</span>':'')+'<span class="n">'+openN+' open</span></div>'+
-      noteRow+ctlRow+
+      '<h3>'+esc(g)+'</h3>'+(newN?'<span class="n newn">'+newN+' new</span>':'')+'<span class="n">'+openN+' open</span>'+editIcon+'</div>'+
+      noteRow+editMenu+
       '<div class="wlbody'+bodyC+'" data-g="'+esc(g)+'">'+cards+'</div>';
   }).join("");
 }
@@ -1563,6 +1570,8 @@ function relTime(ms){ if(!ms)return""; var s=Math.floor((Date.now()-ms)/1000); i
 var WLCLOSED={};
 var LISTMETA={};
 function toggleWL(g){ WLCLOSED[g]=!WLCLOSED[g]; renderJobs(); }
+var WLEDIT={};
+function toggleWlEdit(g){ WLEDIT[g]=!WLEDIT[g]; renderJobs(); }
 /* Per-task quick "sub note" (Directors/Managers) */
 function wlSetSubNote(key){
   if(!isMgrRole()) return;
