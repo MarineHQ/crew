@@ -759,7 +759,7 @@
       <div id="sopList"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-12·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-12·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1233,11 +1233,17 @@ function openFullOwnerPortal(){
   var url="https://myyacht-marinehq.netlify.app/?preview="+encodeURIComponent(ME.code||"")+"&vessel="+encodeURIComponent(v);
   window.open(url, "_blank");
 }
-// Open a vessel's full MyYacht Maintenance Schedule (the master record) via director preview.
+// The actual per-vessel maintenance schedule page (same one the client sees embedded).
+function planUrlFor(v){
+  var B="https://myyacht-marinehq.netlify.app/";
+  if(/everywhen|az70|azimut/i.test(v)) return B+"everywhen-maintenance-plan.html?embed=1";
+  if(/andiamo/i.test(v))               return B+"andiamo-maintenance-plan.html?embed=1";
+  return B+"fleet-maintenance.html?view=owner&vessel="+encodeURIComponent(v)+"&embed=1&lock=1";
+}
+// Open a vessel's full Care Schedule — the real schedule page directly (not the portal wrapper).
 function openMaintSchedule(vessel){
   if(!vessel || vessel==="__all__"){ toast("Pick a yacht first"); return; }
-  var url="https://myyacht-marinehq.netlify.app/?preview="+encodeURIComponent(ME.code||"")+"&vessel="+encodeURIComponent(vessel)+"&tab=maintenance";
-  window.open(url, "_blank");
+  window.open(planUrlFor(vessel), "_blank");
 }
 // View as owner — director previews a vessel's MyYacht portal as the client sees it.
 function toggleOwnerPreview(){
