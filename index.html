@@ -762,7 +762,7 @@
       <div id="sopList"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-12·c</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-12·d</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -834,7 +834,7 @@
   <h3 id="atTitle">＋ Add task</h3>
   <p class="mhint">Create a task. Pick a worklist or type a new name to start a new list.</p>
   <label class="fld">Yacht</label>
-  <select class="fld-in" id="at_vessel" onchange="onVesselPick('at_vessel','at_vesselOther');atFillLists();atCheckMatch();"></select>
+  <select class="fld-in" id="at_vessel" onchange="onVesselPick('at_vessel','at_vesselOther');atLoadVesselLists(atVessel());atFillLists();atCheckMatch();"></select>
   <input class="fld-in" id="at_vesselOther" placeholder="Type the yacht name" style="display:none;margin-top:8px">
   <label class="fld">Worklist <span class="fldhint">— pick one, or type a new name</span></label>
   <input class="fld-in" id="at_list" list="at_listOpts" placeholder="e.g. Mahalo Work List" autocomplete="off">
@@ -1695,13 +1695,9 @@ function dueLabel(n){ if(n<0) return {t:(-n)+(n===-1?" day overdue":" days overd
 // Directors: push a due/overdue maintenance item onto the worklist as a task, filed
 // under its standard code, then jump to it so you can assign a crew member.
 function maintToWorklist(vessel, code, task, category){
+  // Open the Add-task form pre-filled → director picks/creates the worklist + assigns.
   var num=parseInt((code||"").replace(/^.*-/,""),10)||"";
-  toast("Adding to worklist…");
-  apiPost({action:"crewAddTask", email:ME.email, code:ME.code, vessel:vessel, title:task, category:category, matchNum:num, list:"Maintenance"}).then(function(r){
-    if(!r||!r.ok){ toast((r&&r.error)||"Couldn’t add to worklist"); return; }
-    toast("✓ On the worklist — assign a crew member");
-    openFromUpdate(r.key, vessel);                   // switches to Worklist, loads the boat + opens the new task to assign
-  }).catch(function(){ toast("Couldn’t connect"); });
+  openAddTask("", vessel, { title:task, matchNum:num, code:code, category:category });
 }
 function renderMaintLog(){
   var el=$("maintList"); if(!el) return;
@@ -2641,20 +2637,34 @@ function submitRaise(){
 var ADD_CATS=["Scheduled","Unscheduled","Upgrade","Ops"];
 var ADDCAT="Scheduled", ADDASSIGN=[], ADDSCOPE="boat";
 var ATSUGG=[], ATCHOSEN=null, ATNEW=false, ATEXISTS=null, _atMatchT=null, _atMatchReq=null;
-function openAddTask(prefList, prefVessel){
+function openAddTask(prefList, prefVessel, opts){
   if(!isMgrRole()){ toast("Directors only"); return; }
+  opts=opts||{};
   var vs=(FLEETVESSELS&&FLEETVESSELS.length? FLEETVESSELS : (ME.vessels||[])).filter(function(v){ return !/test boat/i.test(v); });
   var curV = prefVessel || (CURVESSEL && CURVESSEL!=="__all__" ? CURVESSEL : (vs[0]||""));
   if(curV && vs.indexOf(curV)<0) vs.unshift(curV);
   $("at_vessel").innerHTML=vs.map(function(v){return '<option'+(v===curV?' selected':'')+'>'+esc(v)+'</option>';}).join("")+'<option value="__other__">Other — a yacht not in the system…</option>';
   $("at_vesselOther").style.display="none"; $("at_vesselOther").value="";
-  $("at_list").value=prefList||""; $("at_title").value=""; $("at_desc").value="";
+  $("at_list").value=prefList||""; $("at_title").value=opts.title||""; $("at_desc").value="";
   $("at_contractor").value=""; $("at_due").value=""; $("at_time").value="";
-  ADDCAT="Scheduled"; ADDASSIGN=[]; ADDSCOPE="boat";
-  ATSUGG=[]; ATCHOSEN=null; ATNEW=false; ATEXISTS=null;
-  atFillLists(); atRenderCats(); atRenderAssign(); atRenderMatch();
+  ADDCAT=opts.category||"Scheduled"; ADDASSIGN=[]; ADDSCOPE="boat";
+  ATSUGG=[]; ATNEW=false; ATEXISTS=null;
+  // Pushed from the maintenance schedule → file it under that standard task automatically.
+  ATCHOSEN = opts.matchNum ? { num:opts.matchNum, job:(opts.title||""), code:(opts.code||""), category:(opts.category||"") } : null;
+  atFillLists(); atLoadVesselLists(curV); atRenderCats(); atRenderAssign(); atRenderMatch();
   if(!CREWNAMES.length) loadCrewNames();
   $("addTaskModal").classList.add("show");
+}
+// Pull a specific vessel's existing worklist names into the "Worklist" picker.
+var ATVLISTS={};
+function atLoadVesselLists(vessel){
+  if(!vessel || vessel==="__other__") return;
+  if(ATVLISTS[vessel]){ atFillLists(); return; }
+  apiGet("fn=crewjobs&code="+encodeURIComponent(ME.code||"")+"&vessel="+encodeURIComponent(vessel)+"&mine=0").then(function(j){
+    var set={}; ((j&&j.jobs)||[]).forEach(function(x){ if(x.list) set[x.list]=1; });
+    if(j&&j.listMeta) Object.keys(j.listMeta).forEach(function(n){ if(n) set[n]=1; });
+    ATVLISTS[vessel]=Object.keys(set); if($("addTaskModal").classList.contains("show")) atFillLists();
+  }).catch(function(){});
 }
 function atVessel(){ var vsel=$("at_vessel").value; return vsel==="__other__" ? ($("at_vesselOther").value||"").trim() : vsel; }
 // As the director types, a choice they'd made no longer applies → reset it.
@@ -2710,6 +2720,7 @@ function atOpenExisting(key){ closeModal("addTaskModal"); openFromUpdate(key, at
 function atFillLists(){
   var names={}; Object.keys(LISTMETA||{}).forEach(function(n){ if(n) names[n]=1; });
   (CREWJOBS||[]).forEach(function(j){ if(j.list) names[j.list]=1; });
+  var v=atVessel(); if(v && ATVLISTS[v]) ATVLISTS[v].forEach(function(n){ if(n) names[n]=1; });   // this boat's own worklists
   var el=$("at_listOpts"); if(el) el.innerHTML=Object.keys(names).sort().map(function(n){return '<option value="'+esc(n)+'">';}).join("");
 }
 function atRenderCats(){ var el=$("at_cats"); if(el) el.innerHTML=ADD_CATS.map(function(c){return '<button type="button" class="aopt'+(c===ADDCAT?' on':'')+'" onclick="ADDCAT=\''+c+'\';atRenderCats()">'+c+'</button>';}).join(""); }
