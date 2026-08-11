@@ -246,6 +246,13 @@
   .wlmenu{display:flex;flex-direction:column;gap:6px;margin:-4px 0 12px;padding:9px;background:#f6f9fc;border:1px solid var(--line);border-radius:11px}
   .wlmenu button{width:100%;text-align:left;background:#fff;border:1px solid #d3e2f2;color:var(--navy);font-size:13px;font-weight:700;border-radius:9px;padding:10px 12px;cursor:pointer}
   .wlmenu button:active{background:#eef4fb}
+  .logvessel{font-size:12px;font-weight:800;color:var(--navy);letter-spacing:.3px;margin:14px 2px 7px;text-transform:uppercase}
+  .logitem{background:#fff;border:1px solid var(--line);border-left:4px solid #0f766e;border-radius:11px;padding:11px 13px;margin-bottom:9px;cursor:pointer}
+  .logitem:active{background:#f6f9fc}
+  .logtop{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+  .logtask{font-weight:700;color:var(--ink);font-size:14px}
+  .logmeta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:6px;font-size:12px;color:var(--muted)}
+  .logmeta .logdone{color:#0f766e;font-weight:700}
   .addtaskbtn{margin-left:auto;background:var(--navy);color:#fff;border:none;border-radius:9px;padding:7px 13px;font-size:13px;font-weight:700;cursor:pointer}
   .fldhint{font-weight:600;color:var(--muted);font-size:11.5px}
   .atmatch{margin:8px 0 2px;font-size:12.5px;line-height:1.45}
@@ -1501,7 +1508,9 @@ function renderJobs(){
   var _atb=$("addTaskBtn"); if(_atb) _atb.style.display=isMgrRole()?"":"none";
   var FILTERS=["All","To do","In progress","Done"];
   $("jobChips").innerHTML=FILTERS.map(function(f){return '<div class="chip '+(f===JOBFILTER?"on":"")+'" onclick="setJobFilter(\''+f+'\')">'+f+'</div>';}).join("")
-    +'<div class="chip sched'+(SCHEDVIEW?" on":"")+'" onclick="toggleSched()">📅 Schedule</div>';
+    +'<div class="chip sched'+(SCHEDVIEW?" on":"")+'" onclick="toggleSched()">📅 Schedule</div>'
+    +(isMgrRole()?('<div class="chip'+(LOGVIEW?" on":"")+'" onclick="toggleLog()">📖 Log</div>'):'');
+  if(LOGVIEW){ renderMaintLog(); return; }
   var list=CREWJOBS.filter(function(j){ return JOBFILTER==="All"||hubBucket(j.status)===JOBFILTER; });
   $("jobsCount").textContent=list.length+(list.length===1?" job":" jobs");
   var el=$("jobList");
@@ -1598,7 +1607,40 @@ function setListNote(g){
 function setJobFilter(f){ JOBFILTER=f; renderJobs(); }
 /* ── Scheduling: a due day per job + a Schedule (agenda-by-day) view ── */
 var SCHEDVIEW=false;
-function toggleSched(){ SCHEDVIEW=!SCHEDVIEW; renderJobs(); }
+function toggleSched(){ SCHEDVIEW=!SCHEDVIEW; if(SCHEDVIEW) LOGVIEW=false; renderJobs(); }
+/* ---- Maintenance Log (directors): every approved-to-owner job filed as service history ---- */
+var LOGVIEW=false, MAINTLOG=null, _logLoaded=false;
+function toggleLog(){ LOGVIEW=!LOGVIEW; if(LOGVIEW){ SCHEDVIEW=false; if(!_logLoaded) loadMaintLog(); } renderJobs(); }
+function loadMaintLog(){
+  apiGet("fn=maintlog&code="+encodeURIComponent(ME.code||"")+"&email="+encodeURIComponent(ME.email||""))
+    .then(function(j){ if(j&&j.ok){ MAINTLOG=j.log||[]; _logLoaded=true; if(LOGVIEW) renderMaintLog(); } })
+    .catch(function(){});
+}
+function renderMaintLog(){
+  var el=$("jobList"); if(!el) return;
+  var all=(CURVESSEL==="__all__");
+  var rows=(MAINTLOG||[]).filter(function(r){ return all || !CURVESSEL || (r.vessel||"").toLowerCase()===CURVESSEL.toLowerCase(); });
+  $("jobsCount").textContent=rows.length+(rows.length===1?" logged":" logged");
+  $("jobsHello").innerHTML="📖 <b>Maintenance log</b> — completed works filed when approved to the owner"+(all?"":(" · <b>"+esc(CURVESSEL||"")+"</b>"))+".";
+  if(!MAINTLOG){ el.innerHTML='<div class="loadingbox"><span class="spin"></span> Loading log…</div>'; return; }
+  if(!rows.length){ el.innerHTML='<div class="empty">Nothing logged yet.<br>When you approve a completed task to the owner, it’s filed here as service history.</div>'; return; }
+  // group by vessel (in All Yachts) else flat
+  var groups={}, order=[];
+  rows.forEach(function(r){ var g=all?(r.vessel||"—"):"__flat__"; if(!groups[g]){groups[g]=[];order.push(g);} groups[g].push(r); });
+  el.innerHTML=order.map(function(g){
+    var head = (g==="__flat__") ? "" : ('<div class="logvessel">'+esc(g)+'</div>');
+    return head+groups[g].map(function(r){
+      var when=r.completed||relTime(r.at);
+      return '<div class="logitem" onclick="openFromUpdate(\''+esc((r.key||"").replace(/'/g,"\\'"))+'\',\''+esc((r.vessel||"").replace(/'/g,"\\'"))+'\')">'+
+        '<div class="logtop"><span class="logtask">'+esc(r.task||"(job)")+'</span>'+(r.code?(' <span class="jcode">'+esc(r.code)+'</span>'):'')+catChip(r.category)+'</div>'+
+        '<div class="logmeta"><span class="logdone">✓ Done '+esc(when)+'</span>'+
+          (r.by?('<span>👷 '+esc(firstNames(r.by))+'</span>'):'')+
+          (r.photos?('<span>📷 '+r.photos+'</span>'):'')+(r.docs?('<span>📄 '+r.docs+'</span>'):'')+
+          (r.approvedBy?('<span>✅ '+esc(firstName(r.approvedBy))+'</span>'):'')+
+          '<span style="margin-left:auto;color:var(--navy);font-weight:bold">Open ›</span></div></div>';
+    }).join("");
+  }).join("");
+}
 var _WD=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"], _MO=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 function _dayDiff(ts){ var d=new Date(ts), t=new Date(); return Math.round((new Date(d.getFullYear(),d.getMonth(),d.getDate())-new Date(t.getFullYear(),t.getMonth(),t.getDate()))/864e5); }
 function dayLabel(ts){ if(!ts)return""; var n=_dayDiff(ts); if(n===0)return"Today"; if(n===1)return"Tomorrow"; if(n===-1)return"Yesterday"; var d=new Date(ts); return _WD[d.getDay()]+" "+d.getDate()+" "+_MO[d.getMonth()]; }
