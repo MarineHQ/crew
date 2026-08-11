@@ -645,6 +645,7 @@
     <div class="ptab-btn"        data-tab="updates" onclick="go('updates')">Updates</div>
     <div class="ptab-btn"        data-tab="cal" onclick="go('cal')">Calendar</div>
     <div class="ptab-btn mgrtab" data-tab="fleet" onclick="go('fleet')" style="display:none">Fleet</div>
+    <div class="ptab-btn mgrtab" data-tab="maint" onclick="go('maint')" style="display:none">Maintenance</div>
     <div class="ptab-btn"        data-tab="check" onclick="go('check')">Checklists</div>
     <div class="ptab-btn"        data-tab="hours" onclick="go('hours')">Time</div>
     <div class="ptab-btn"        data-tab="sop"   onclick="go('sop')">SOP</div>
@@ -706,6 +707,14 @@
         <button class="jobbtn" style="background:var(--orange);margin:4px 0 10px" onclick="openFullOwnerPortal()">🔓 Open their FULL MyYacht portal ↗</button>
         <div id="ownerPreviewList"></div>
       </div>
+    </div>
+
+    <!-- MAINTENANCE (directors/managers only) -->
+    <div id="tab-maint" class="hidden">
+      <div class="hello" id="maintHello"></div>
+      <div id="vesselBarM" class="vesselbar"></div>
+      <div class="subbar"><h2>Maintenance</h2><span class="count" id="maintCount"></span></div>
+      <div id="maintList"></div>
     </div>
 
     <!-- CHECKLISTS -->
@@ -1075,15 +1084,18 @@ function enterReal(crew, shift){
 function go(tab){
   TAB=tab;
   // Fleet tab is Directors/Managers only.
-  var fb=document.querySelector('.ptab-btn[data-tab="fleet"]'); if(fb) fb.style.display=isMgrRole()?"":"none";
-  ["jobs","updates","cal","fleet","check","hours","sop"].forEach(function(t){ $("tab-"+t).classList.toggle("hidden", t!==tab); });
+  var mgr=isMgrRole();
+  var fb=document.querySelector('.ptab-btn[data-tab="fleet"]'); if(fb) fb.style.display=mgr?"":"none";
+  var mb=document.querySelector('.ptab-btn[data-tab="maint"]'); if(mb) mb.style.display=mgr?"":"none";
+  ["jobs","updates","cal","fleet","maint","check","hours","sop"].forEach(function(t){ $("tab-"+t).classList.toggle("hidden", t!==tab); });
   document.querySelectorAll(".ptab-btn").forEach(function(b){ b.classList.toggle("active", b.dataset.tab===tab); });
   $("fab").classList.toggle("hidden", tab!=="jobs");
-  var titles={jobs:["Marine HQ Crew","Your jobs, checklists & hours"],updates:["Updates","Crew activity — newest first"],cal:["Calendar","Scheduled jobs by day"],fleet:["Fleet","Director view — whole operation"],check:["Checklists","Tick & sign off"],hours:["Time clock","Clock in · EOD · hours"],sop:["SOP & guides","Marine HQ standards"]};
+  var titles={jobs:["Marine HQ Crew","Your jobs, checklists & hours"],updates:["Updates","Crew activity — newest first"],cal:["Calendar","Scheduled jobs by day"],fleet:["Fleet","Director view — whole operation"],maint:["Maintenance","Care schedule — directors control"],check:["Checklists","Tick & sign off"],hours:["Time clock","Clock in · EOD · hours"],sop:["SOP & guides","Marine HQ standards"]};
   $("hdrTitle").textContent=titles[tab][0]; $("hdrSub").textContent=titles[tab][1];
   if(tab==="jobs") loadJobs();
   if(tab==="updates") renderUpdates();
   if(tab==="cal") loadCal();
+  if(tab==="maint") loadMaint();
   if(tab==="hours"){ renderClock(); loadShifts(); }
   if(tab==="check") loadChecklists();
   updateStrip();
@@ -1137,14 +1149,18 @@ function loadFleetVessels(){
     }).catch(function(){});
 }
 function renderVesselBar(){
-  var host=$("vesselBar"); if(!host) return;
-  if(!isMgrRole() || FLEETVESSELS.length<2){ host.innerHTML=""; return; }
-  var cur=CURVESSEL||JOBSVESSEL||ME.vessels[0]||"";
-  var chips='<div class="chip '+(CURVESSEL==="__all__"?"on":"")+'" onclick="pickVessel(\'__all__\')">🚢 All Yachts</div>'+
-    FLEETVESSELS.map(function(v){var on=(v===cur&&CURVESSEL!=="__all__");return '<div class="chip '+(on?"on":"")+'" onclick="pickVessel(\''+v.replace(/'/g,"\\'")+'\')">'+esc(v)+'</div>';}).join("");
-  host.innerHTML='<div class="chips boatchips">'+chips+'</div>';
+  var hosts=[$("vesselBar"),$("vesselBarM")];
+  var show=isMgrRole() && FLEETVESSELS.length>=2;
+  var html="";
+  if(show){
+    var cur=CURVESSEL||JOBSVESSEL||ME.vessels[0]||"";
+    var chips='<div class="chip '+(CURVESSEL==="__all__"?"on":"")+'" onclick="pickVessel(\'__all__\')">🚢 All Yachts</div>'+
+      FLEETVESSELS.map(function(v){var on=(v===cur&&CURVESSEL!=="__all__");return '<div class="chip '+(on?"on":"")+'" onclick="pickVessel(\''+v.replace(/'/g,"\\'")+'\')">'+esc(v)+'</div>';}).join("");
+    html='<div class="chips boatchips">'+chips+'</div>';
+  }
+  hosts.forEach(function(h){ if(h) h.innerHTML=html; });
 }
-function pickVessel(v){ CURVESSEL=v; WLCLOSED={}; loadJobs(); }
+function pickVessel(v){ CURVESSEL=v; WLCLOSED={}; renderVesselBar(); if(TAB==="maint") renderMaintLog(); else loadJobs(); }
 // Open the Command Centre, passing the director's code so it unlocks (no 2nd passcode).
 function openCommand(){ try{ if(ME&&ME.code) localStorage.setItem("mhq_crew_key", ME.code); }catch(e){} location.href="overview.html"; }
 /* What's Due — scheduled maintenance from the maintenance schedule → add to a worklist */
@@ -1529,9 +1545,7 @@ function renderJobs(){
   var _atb=$("addTaskBtn"); if(_atb) _atb.style.display=isMgrRole()?"":"none";
   var FILTERS=["All","To do","In progress","Done"];
   $("jobChips").innerHTML=FILTERS.map(function(f){return '<div class="chip '+(f===JOBFILTER?"on":"")+'" onclick="setJobFilter(\''+f+'\')">'+f+'</div>';}).join("")
-    +'<div class="chip sched'+(SCHEDVIEW?" on":"")+'" onclick="toggleSched()">📅 Schedule</div>'
-    +(isMgrRole()?('<div class="chip'+(LOGVIEW?" on":"")+'" onclick="toggleLog()">📖 Log</div>'):'');
-  if(LOGVIEW){ renderMaintLog(); return; }
+    +'<div class="chip sched'+(SCHEDVIEW?" on":"")+'" onclick="toggleSched()">📅 Schedule</div>';
   var list=CREWJOBS.filter(function(j){ return JOBFILTER==="All"||hubBucket(j.status)===JOBFILTER; });
   $("jobsCount").textContent=list.length+(list.length===1?" job":" jobs");
   var el=$("jobList");
@@ -1628,14 +1642,19 @@ function setListNote(g){
 function setJobFilter(f){ JOBFILTER=f; renderJobs(); }
 /* ── Scheduling: a due day per job + a Schedule (agenda-by-day) view ── */
 var SCHEDVIEW=false;
-function toggleSched(){ SCHEDVIEW=!SCHEDVIEW; if(SCHEDVIEW) LOGVIEW=false; renderJobs(); }
-/* ---- Maintenance Log (directors): every approved-to-owner job filed as service history ---- */
-var LOGVIEW=false, MAINTLOG=null, MAINTDUE=[], _logLoaded=false, LOGTAB="due";
-function toggleLog(){ LOGVIEW=!LOGVIEW; if(LOGVIEW){ SCHEDVIEW=false; if(!_logLoaded) loadMaintLog(); } renderJobs(); }
+function toggleSched(){ SCHEDVIEW=!SCHEDVIEW; renderJobs(); }
+/* ---- Maintenance tab (directors only): the care schedule they control ---- */
+var MAINTLOG=null, MAINTDUE=[], _logLoaded=false, LOGTAB="due";
+function loadMaint(){
+  if(!isMgrRole()){ go("jobs"); return; }
+  loadFleetVessels(); renderVesselBar();
+  renderMaintLog();                                  // paints (loading state if not loaded)
+  if(!_logLoaded) loadMaintLog();
+}
 function setLogTab(t){ LOGTAB=t; renderMaintLog(); }
 function loadMaintLog(){
   apiGet("fn=maintlog&code="+encodeURIComponent(ME.code||"")+"&email="+encodeURIComponent(ME.email||""))
-    .then(function(j){ if(j&&j.ok){ MAINTLOG=j.log||[]; MAINTDUE=j.upcoming||[]; _logLoaded=true; if(LOGVIEW) renderMaintLog(); } })
+    .then(function(j){ if(j&&j.ok){ MAINTLOG=j.log||[]; MAINTDUE=j.upcoming||[]; _logLoaded=true; if(TAB==="maint") renderMaintLog(); } })
     .catch(function(){});
 }
 function dueLabel(n){ if(n<0) return {t:(-n)+(n===-1?" day overdue":" days overdue"),c:"od"}; if(n===0) return {t:"Due today",c:"soon"}; if(n<=14) return {t:"Due in "+n+(n===1?" day":" days"),c:"soon"}; return {t:"Due in "+n+" days",c:"ok"}; }
@@ -1647,16 +1666,15 @@ function maintToWorklist(vessel, code, task, category){
   apiPost({action:"crewAddTask", email:ME.email, code:ME.code, vessel:vessel, title:task, category:category, matchNum:num, list:"Maintenance"}).then(function(r){
     if(!r||!r.ok){ toast((r&&r.error)||"Couldn’t add to worklist"); return; }
     toast("✓ On the worklist — assign a crew member");
-    LOGVIEW=false;                                  // leave the register, show the worklist
-    openFromUpdate(r.key, vessel);                   // loads that boat + opens the new task to assign
+    openFromUpdate(r.key, vessel);                   // switches to Worklist, loads the boat + opens the new task to assign
   }).catch(function(){ toast("Couldn’t connect"); });
 }
 function renderMaintLog(){
-  var el=$("jobList"); if(!el) return;
+  var el=$("maintList"); if(!el) return;
   var all=(CURVESSEL==="__all__"), vLc=(CURVESSEL||"").toLowerCase();
   var hist=(MAINTLOG||[]).filter(function(r){ return all || !CURVESSEL || (r.vessel||"").toLowerCase()===vLc; });
   var due=(MAINTDUE||[]).filter(function(r){ return all || !CURVESSEL || (r.vessel||"").toLowerCase()===vLc; });
-  $("jobsHello").innerHTML="🧰 <b>Maintenance register</b>"+(all?"":(" · <b>"+esc(CURVESSEL||"")+"</b>"))+" — directors only.";
+  $("maintHello").innerHTML="🧰 <b>Care schedule</b>"+(all?" · all yachts":(" · <b>"+esc(CURVESSEL||"")+"</b>"))+" — you control this; the client just sees their copy in MyYacht.";
   // link straight to the vessel's full MyYacht Maintenance Schedule (the master record owners see)
   var msLink = (!all && CURVESSEL) ?
     ('<div class="mslink" onclick="openMaintSchedule(\''+esc((CURVESSEL||"").replace(/'/g,"\\'"))+'\')">📋 Open the full <b>MyYacht Maintenance Schedule</b> for '+esc(CURVESSEL)+' ↗<div class="mslink-sub">The owner-facing service record — last done, history &amp; next due, insurance-ready.</div></div>')
@@ -1668,7 +1686,7 @@ function renderMaintLog(){
   if(!MAINTLOG){ el.innerHTML=tabs+'<div class="loadingbox"><span class="spin"></span> Loading…</div>'; $("jobsCount").textContent=""; return; }
   var body="";
   if(LOGTAB==="due"){
-    $("jobsCount").textContent=due.length+" due";
+    $("maintCount").textContent=due.length+" due";
     if(!due.length){ body='<div class="empty">Nothing scheduled yet.<br>Once recurring standard tasks (e.g. a wash-down) are completed &amp; approved, their <b>next due date</b> is worked out here automatically.</div>'; }
     else {
       var groups={}, order=[];
@@ -1684,7 +1702,7 @@ function renderMaintLog(){
         }).join(""); }).join("");
     }
   } else {
-    $("jobsCount").textContent=hist.length+" logged";
+    $("maintCount").textContent=hist.length+" logged";
     if(!hist.length){ body='<div class="empty">Nothing logged yet.<br>When you approve a completed task to the owner, it’s filed here as service history.</div>'; }
     else {
       var CAP=60, shown=hist.slice(0,CAP);
