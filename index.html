@@ -252,6 +252,13 @@
   .atmatch .atm-warn{background:#fff8ec;border:1px solid #f0d3ad;color:#8a5a12;border-radius:9px;padding:9px 11px}
   .atmatch .atm-open{display:inline-block;margin-left:6px;background:var(--navy);color:#fff;border:none;border-radius:7px;padding:3px 10px;font-size:12px;font-weight:700;cursor:pointer}
   .atmatch .atm-sub{font-size:11.5px;color:var(--muted);margin-top:5px;font-weight:600}
+  .atmatch .atm-sugg{background:#f6f9fc;border:1px solid var(--line);border-radius:11px;padding:9px}
+  .atmatch .atm-sugg-hd{font-size:12px;font-weight:700;color:var(--navy);margin:2px 2px 8px}
+  .atmatch .atm-row{display:flex;align-items:center;gap:8px;width:100%;text-align:left;background:#fff;border:1px solid var(--line);border-radius:9px;padding:9px 11px;margin-bottom:6px;cursor:pointer;font-size:13px}
+  .atmatch .atm-row:active{background:#eef4fb}
+  .atmatch .atm-row-j{font-weight:700;color:var(--ink);flex:1}
+  .atmatch .atm-row-c{font-size:10.5px;font-weight:800;color:#0f766e;background:#e6f4f0;border-radius:6px;padding:1px 7px}
+  .atmatch .atm-row.new{justify-content:center;font-weight:700;color:var(--navy);background:#eef4fb;border-style:dashed;margin-bottom:0}
   .subnote{font-size:12.5px;color:#8a5a12;background:#fff8ec;border-left:3px solid #f0c987;border-radius:0 6px 6px 0;padding:4px 9px;margin:5px 0 0;font-weight:600}
   .subnote-box{font-size:13px;color:#8a5a12;background:#fff8ec;border:1px solid #f0d3ad;border-radius:9px;padding:10px 12px;font-weight:700;cursor:pointer}
   .subnote-box.empty{background:#f6f9fc;border-color:var(--line);color:var(--muted);font-weight:600}
@@ -777,11 +784,9 @@
   <input class="fld-in" id="at_list" list="at_listOpts" placeholder="e.g. Mahalo Work List" autocomplete="off">
   <datalist id="at_listOpts"></datalist>
   <label class="fld">Task title</label>
-  <input class="fld-in" id="at_title" placeholder="e.g. Vessel wash down" onblur="atCheckMatch()">
+  <input class="fld-in" id="at_title" placeholder="e.g. Wash aft deck" onblur="atCheckMatch()" oninput="atTitleTyping()">
   <div id="at_match" class="atmatch" style="display:none"></div>
-  <label class="fld">Add as</label>
-  <div class="assignrow" id="at_scope"></div>
-  <label class="fld">Detail <span class="fldhint">(optional)</span></label>
+  <label class="fld">Detail / variation <span class="fldhint">(optional — e.g. “just the aft deck”)</span></label>
   <textarea class="fld-ta" id="at_desc" placeholder="Any specifics…"></textarea>
   <label class="fld">Category</label>
   <div class="assignrow" id="at_cats"></div>
@@ -2414,7 +2419,8 @@ function submitRaise(){
 
 /* ===== Directors: add a task / new worklist, and rename a worklist ===== */
 var ADD_CATS=["Scheduled","Unscheduled","Upgrade","Ops"];
-var ADDCAT="Scheduled", ADDASSIGN=[], ADDSCOPE="standard", ATMATCH=null, _atMatchT=null;
+var ADDCAT="Scheduled", ADDASSIGN=[], ADDSCOPE="boat";
+var ATSUGG=[], ATCHOSEN=null, ATNEW=false, ATEXISTS=null, _atMatchT=null, _atMatchReq=null;
 function openAddTask(prefList, prefVessel){
   if(!isMgrRole()){ toast("Directors only"); return; }
   var vs=(FLEETVESSELS&&FLEETVESSELS.length? FLEETVESSELS : (ME.vessels||[])).filter(function(v){ return !/test boat/i.test(v); });
@@ -2424,51 +2430,63 @@ function openAddTask(prefList, prefVessel){
   $("at_vesselOther").style.display="none"; $("at_vesselOther").value="";
   $("at_list").value=prefList||""; $("at_title").value=""; $("at_desc").value="";
   $("at_contractor").value=""; $("at_due").value=""; $("at_time").value="";
-  ADDCAT="Scheduled"; ADDASSIGN=[]; ADDSCOPE="standard"; ATMATCH=null;
-  atFillLists(); atRenderCats(); atRenderAssign(); atRenderScope(); atRenderMatch();
+  ADDCAT="Scheduled"; ADDASSIGN=[]; ADDSCOPE="boat";
+  ATSUGG=[]; ATCHOSEN=null; ATNEW=false; ATEXISTS=null;
+  atFillLists(); atRenderCats(); atRenderAssign(); atRenderMatch();
   if(!CREWNAMES.length) loadCrewNames();
   $("addTaskModal").classList.add("show");
 }
-function atRenderScope(){
-  var el=$("at_scope"); if(!el) return;
-  var opts=[["standard","🚢 Standard fleet task"],["boat","📍 Just this boat"]];
-  el.innerHTML=opts.map(function(o){return '<button type="button" class="aopt'+(o[0]===ADDSCOPE?' on':'')+'" onclick="ADDSCOPE=\''+o[0]+'\';atRenderScope();atRenderMatch()">'+o[1]+'</button>';}).join("");
-}
-// Ask the backend whether this title matches a standard fleet task and/or already
-// exists on this boat. Debounced so it fires once the director stops typing.
+function atVessel(){ var vsel=$("at_vessel").value; return vsel==="__other__" ? ($("at_vesselOther").value||"").trim() : vsel; }
+// As the director types, a choice they'd made no longer applies → reset it.
+function atTitleTyping(){ if(ATCHOSEN||ATNEW){ ATCHOSEN=null; ATNEW=false; atRenderMatch(); } }
+// Debounced lookup: ranked standard-task suggestions + "already on this boat?".
 function atCheckMatch(){
   clearTimeout(_atMatchT);
   _atMatchT=setTimeout(function(){
-    var title=($("at_title").value||"").trim();
-    var vsel=$("at_vessel").value, vessel = vsel==="__other__" ? ($("at_vesselOther").value||"").trim() : vsel;
-    if(!title || !vessel){ ATMATCH=null; atRenderMatch(); return; }
+    var title=($("at_title").value||"").trim(), vessel=atVessel();
+    if(!title || !vessel){ ATSUGG=[]; ATEXISTS=null; ATCHOSEN=null; ATNEW=false; atRenderMatch(); return; }
     var mine={t:title,v:vessel}; _atMatchReq=mine;
     apiPost({action:"crewMatchTask", email:ME.email, code:ME.code, vessel:vessel, title:title, desc:($("at_desc").value||"").trim()}).then(function(r){
       if(_atMatchReq!==mine) return;                 // a newer request superseded this one
-      ATMATCH=(r&&r.ok)?r:null; atRenderMatch();
+      ATSUGG=(r&&r.ok&&r.suggestions)||[]; ATEXISTS=(r&&r.ok&&r.exists)||null;
+      atRenderMatch();
     }).catch(function(){});
   }, 450);
 }
-var _atMatchReq=null;
+// One place decides what the match panel shows, from the current state.
+function atMode(){ var title=($("at_title").value||"").trim(); if(ATCHOSEN) return "chosen"; if(ATNEW) return "new"; if(ATSUGG.length) return "suggest"; return title?"new":"empty"; }
+function atChoose(num){ var s=ATSUGG.filter(function(x){return x.num===num;})[0]; if(!s) return; ATCHOSEN=s; ATNEW=false; if(s.category){ ADDCAT=s.category; atRenderCats(); } atRenderMatch(); }
+function atChooseNew(){ ATNEW=true; ATCHOSEN=null; atRenderMatch(); }
+function atClearChoice(){ ATCHOSEN=null; ATNEW=false; atRenderMatch(); }
 function atRenderMatch(){
   var el=$("at_match"); if(!el) return;
-  var m=ATMATCH;
-  if(!m || (!m.master && !m.exists)){ el.style.display="none"; el.innerHTML=""; return; }
-  var html="";
-  if(m.exists){
-    html='<div class="atm-warn">⚠️ <b>'+esc(($("at_vessel").value||"this boat"))+'</b> already has <b>'+esc(m.exists.title)+'</b>'+(m.exists.code?(' <span class="jcode">'+esc(m.exists.code)+'</span>'):'')+'.'+
-      '<button type="button" class="atm-open" onclick="atOpenExisting(\''+esc((m.exists.key||"").replace(/'/g,"\\'"))+'\')">Open it ›</button>'+
-      '<div class="atm-sub">Or fill in below to add another anyway.</div></div>';
-  } else if(m.master){
-    if(ADDSCOPE==="standard"){
-      html='<div class="atm-ok">✅ Matches a <b>standard fleet task</b> — <b>'+esc(m.master.job)+'</b>. It’ll use the shared number <span class="jcode">'+esc(m.master.code)+'</span> (same on every boat).</div>';
-    } else {
-      html='<div class="atm-info">📍 There’s a standard version of this (<b>'+esc(m.master.job)+'</b>, '+esc(m.master.code)+'). You’ve chosen <b>Just this boat</b>, so it’ll get its own one-off number instead.</div>';
-    }
+  var mode=atMode(), h="";
+  if(ATEXISTS){
+    h+='<div class="atm-warn">⚠️ <b>'+esc(atVessel()||"this boat")+'</b> already has <b>'+esc(ATEXISTS.title)+'</b>'+(ATEXISTS.code?(' <span class="jcode">'+esc(ATEXISTS.code)+'</span>'):'')+'.'+
+       '<button type="button" class="atm-open" onclick="atOpenExisting(\''+esc((ATEXISTS.key||"").replace(/'/g,"\\'"))+'\')">Open it ›</button>'+
+       '<div class="atm-sub">Or carry on below to add another.</div></div>';
   }
-  el.innerHTML=html; el.style.display="";
+  if(mode==="chosen"){
+    h+='<div class="atm-ok">✅ Filing under <b>'+esc(ATCHOSEN.job)+'</b>'+(ATCHOSEN.category?(' · '+esc(ATCHOSEN.category)):'')+' <span class="jcode">'+esc(ATCHOSEN.code)+'</span>'+
+       '<button type="button" class="atm-open" style="background:#64748b" onclick="atClearChoice()">Change</button>'+
+       '<div class="atm-sub">Shares that standard task’s number. Add the variation in “Detail” below — e.g. “just the aft deck”.</div></div>';
+  } else if(mode==="suggest"){
+    h+='<div class="atm-sugg"><div class="atm-sugg-hd">Looks like it could go under — tap one to file it there:</div>'+
+       ATSUGG.map(function(s){ return '<button type="button" class="atm-row" onclick="atChoose('+s.num+')"><span class="atm-row-j">'+esc(s.job)+'</span>'+(s.category?('<span class="atm-row-c">'+esc(s.category)+'</span>'):'')+'<span class="jcode">'+esc(s.code)+'</span></button>'; }).join("")+
+       '<button type="button" class="atm-row new" onclick="atChooseNew()">➕ None of these — add as a new task</button></div>';
+  } else if(mode==="new"){
+    var hadSugg=ATSUGG.length>0;
+    h+='<div class="atm-info"><b>New task</b> — not one of the standard ones. Add it to:'+
+       '<div class="assignrow" style="margin-top:8px">'+
+       '<button type="button" class="aopt'+(ADDSCOPE==="boat"?" on":"")+'" onclick="ADDSCOPE=\'boat\';atRenderMatch()">📍 Just this boat</button>'+
+       '<button type="button" class="aopt'+(ADDSCOPE==="standard"?" on":"")+'" onclick="ADDSCOPE=\'standard\';atRenderMatch()">🚢 Standard — every boat</button>'+
+       '</div>'+
+       (ADDSCOPE==="standard"?'<div class="atm-sub">Adds a brand-new <b>standard task</b> to the whole fleet’s list (and to this boat now).</div>':'<div class="atm-sub">A one-off for this boat only.</div>')+
+       (hadSugg?'<button type="button" class="atm-open" style="background:#64748b;margin-top:9px" onclick="atClearChoice()">← back to matches</button>':'')+'</div>';
+  }
+  el.innerHTML=h; el.style.display=h?"":"none";
 }
-function atOpenExisting(key){ closeModal("addTaskModal"); var vsel=$("at_vessel").value; openFromUpdate(key, vsel==="__other__"?"":vsel); }
+function atOpenExisting(key){ closeModal("addTaskModal"); openFromUpdate(key, atVessel()); }
 function atFillLists(){
   var names={}; Object.keys(LISTMETA||{}).forEach(function(n){ if(n) names[n]=1; });
   (CREWJOBS||[]).forEach(function(j){ if(j.list) names[j.list]=1; });
@@ -2480,16 +2498,22 @@ function atRenderAssign(){ var el=$("at_assign"); if(!el) return;
 function atToggleAssign(n){ var i=ADDASSIGN.indexOf(n); if(i>=0) ADDASSIGN.splice(i,1); else ADDASSIGN.push(n); atRenderAssign(); }
 function submitAddTask(){
   var title=($("at_title").value||"").trim(); if(!title){ toast("Give the task a title"); return; }
-  var vsel=$("at_vessel").value, vessel = vsel==="__other__" ? ($("at_vesselOther").value||"").trim() : vsel;
-  if(!vessel){ toast("Pick or type a yacht"); return; }
+  var vessel=atVessel(); if(!vessel){ toast("Pick or type a yacht"); return; }
   var alloc=ADDASSIGN.slice(); var contractor=($("at_contractor").value||"").trim(); if(contractor) alloc.push(contractor);
+  var body={ email:ME.email, code:ME.code, vessel:vessel, list:($("at_list").value||"").trim(),
+    title:title, desc:($("at_desc").value||"").trim(), category:ADDCAT, allocatedTo:alloc.join(", "),
+    due:($("at_due").value||""), time:($("at_time").value||"") };
+  var mode=atMode();
+  if(mode==="chosen"){ body.action="crewAddTask"; body.matchNum=ATCHOSEN.num; }
+  else if(mode==="new" && ADDSCOPE==="standard"){
+    if(!confirm("Add “"+title+"” as a NEW standard task for the WHOLE fleet?\n\nIt becomes a standard task on every boat, and is added to "+vessel+" now.")) return;
+    body.action="crewAddStandard";
+  } else { body.action="crewAddTask"; body.scope="boat"; }   // suggest-ignored or new+this-boat = one-off
   toast("Adding task…");
-  apiPost({action:"crewAddTask", email:ME.email, code:ME.code, vessel:vessel, list:($("at_list").value||"").trim(),
-    title:title, desc:($("at_desc").value||"").trim(), category:ADDCAT, scope:ADDSCOPE, allocatedTo:alloc.join(", "),
-    due:($("at_due").value||""), time:($("at_time").value||"")}).then(function(r){
+  apiPost(body).then(function(r){
     if(!r||!r.ok){ toast((r&&r.error)||"Couldn’t add the task"); return; }
     closeModal("addTaskModal");
-    toast("✓ Task added — "+(r.code||""));
+    toast((r.addedToStandard?"✓ Added to standard list — ":"✓ Task added — ")+(r.code||""));
     if(r.vessel){ CURVESSEL=r.vessel; }
     loadJobs();
   }).catch(function(){ toast("Couldn’t connect"); });
