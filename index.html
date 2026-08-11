@@ -1647,7 +1647,10 @@ function toggleSched(){ SCHEDVIEW=!SCHEDVIEW; renderJobs(); }
 var MAINTLOG=null, MAINTDUE=[], _logLoaded=false, LOGTAB="due";
 function loadMaint(){
   if(!isMgrRole()){ go("jobs"); return; }
-  loadFleetVessels(); renderVesselBar();
+  loadFleetVessels();
+  // Default to a real yacht so the tab opens straight onto one (not stuck on "pick a yacht").
+  if(!CURVESSEL || CURVESSEL==="__all__"){ CURVESSEL=(FLEETVESSELS&&FLEETVESSELS[0]) || (ME.vessels&&ME.vessels[0]) || CURVESSEL; }
+  renderVesselBar();
   renderMaintLog();                                  // paints (loading state if not loaded)
   if(!_logLoaded) loadMaintLog();
 }
@@ -1677,7 +1680,7 @@ function renderMaintLog(){
   $("maintHello").innerHTML="🧰 <b>Care schedule</b>"+(all?" · all yachts":(" · <b>"+esc(CURVESSEL||"")+"</b>"))+" — you control this; the client just sees their copy in MyYacht.";
   // link straight to the vessel's full MyYacht Maintenance Schedule (the master record owners see)
   var msLink = (!all && CURVESSEL) ?
-    ('<div class="mslink" onclick="openMaintSchedule(\''+esc((CURVESSEL||"").replace(/'/g,"\\'"))+'\')">📋 Open the full <b>MyYacht Maintenance Schedule</b> for '+esc(CURVESSEL)+' ↗<div class="mslink-sub">The owner-facing service record — last done, history &amp; next due, insurance-ready.</div></div>')
+    ('<div class="mslink" onclick="openMaintSchedule(\''+esc((CURVESSEL||"").replace(/'/g,"\\'"))+'\')">📋 Open '+esc(CURVESSEL)+'’s full Care Schedule ↗<div class="mslink-sub">Exactly what the client sees in MyYacht — every item, last done, history &amp; next due.</div></div>')
     : '<div class="mslink flat">📋 Pick a yacht (top) to open its full <b>MyYacht Maintenance Schedule</b> — the owner-facing record.</div>';
   // two tabs: Due / Completed
   var tabs=msLink+'<div class="logtabs">'+
