@@ -262,6 +262,12 @@
   .duepill{font-weight:800;font-size:11px;border-radius:8px;padding:2px 8px}
   .duepill.od{background:#fee2e2;color:#b91c1c} .duepill.soon{background:#fff1e3;color:#8a5a12} .duepill.ok{background:#eef2f6;color:#475569}
   .logmore{text-align:center;font-size:12px;color:var(--muted);padding:10px 0 2px}
+  .visec{background:#fff;border:1px solid var(--line);border-radius:12px;padding:13px 14px;margin-bottom:12px}
+  .visec h4{margin:0 0 4px;font-size:14px;color:var(--navy)}
+  .visec .vinote{font-size:12px;color:var(--muted);margin:0 0 10px;line-height:1.4}
+  .vifld{display:block;margin-top:10px}
+  .vifld span{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px}
+  .vifld textarea.fld-ta{min-height:70px}
   .mslink{background:linear-gradient(135deg,var(--navy),#16386b);color:#fff;border-radius:12px;padding:13px 15px;margin-bottom:12px;cursor:pointer;font-weight:700;font-size:14px}
   .mslink:active{opacity:.9}
   .mslink .mslink-sub{font-weight:500;font-size:12px;color:#cdd9ee;margin-top:4px}
@@ -646,6 +652,7 @@
     <div class="ptab-btn"        data-tab="cal" onclick="go('cal')">Calendar</div>
     <div class="ptab-btn mgrtab" data-tab="fleet" onclick="go('fleet')" style="display:none">Fleet</div>
     <div class="ptab-btn mgrtab" data-tab="maint" onclick="go('maint')" style="display:none">Maintenance</div>
+    <div class="ptab-btn mgrtab" data-tab="induct" onclick="go('induct')" style="display:none">Induction</div>
     <div class="ptab-btn"        data-tab="check" onclick="go('check')">Checklists</div>
     <div class="ptab-btn"        data-tab="hours" onclick="go('hours')">Time</div>
     <div class="ptab-btn"        data-tab="sop"   onclick="go('sop')">SOP</div>
@@ -715,6 +722,14 @@
       <div id="vesselBarM" class="vesselbar"></div>
       <div class="subbar"><h2>Maintenance</h2><span class="count" id="maintCount"></span></div>
       <div id="maintList"></div>
+    </div>
+
+    <!-- VESSEL INDUCTION (directors/managers only) -->
+    <div id="tab-induct" class="hidden">
+      <div class="hello" id="inductHello"></div>
+      <div id="vesselBarI" class="vesselbar"></div>
+      <div class="subbar"><h2>Vessel induction</h2><span class="count" id="inductStatus"></span></div>
+      <div id="inductForm"></div>
     </div>
 
     <!-- CHECKLISTS -->
@@ -1087,15 +1102,17 @@ function go(tab){
   var mgr=isMgrRole();
   var fb=document.querySelector('.ptab-btn[data-tab="fleet"]'); if(fb) fb.style.display=mgr?"":"none";
   var mb=document.querySelector('.ptab-btn[data-tab="maint"]'); if(mb) mb.style.display=mgr?"":"none";
-  ["jobs","updates","cal","fleet","maint","check","hours","sop"].forEach(function(t){ $("tab-"+t).classList.toggle("hidden", t!==tab); });
+  var ib=document.querySelector('.ptab-btn[data-tab="induct"]'); if(ib) ib.style.display=mgr?"":"none";
+  ["jobs","updates","cal","fleet","maint","induct","check","hours","sop"].forEach(function(t){ $("tab-"+t).classList.toggle("hidden", t!==tab); });
   document.querySelectorAll(".ptab-btn").forEach(function(b){ b.classList.toggle("active", b.dataset.tab===tab); });
   $("fab").classList.toggle("hidden", tab!=="jobs");
-  var titles={jobs:["Marine HQ Crew","Your jobs, checklists & hours"],updates:["Updates","Crew activity — newest first"],cal:["Calendar","Scheduled jobs by day"],fleet:["Fleet","Director view — whole operation"],maint:["Maintenance","Care schedule — directors control"],check:["Checklists","Tick & sign off"],hours:["Time clock","Clock in · EOD · hours"],sop:["SOP & guides","Marine HQ standards"]};
+  var titles={jobs:["Marine HQ Crew","Your jobs, checklists & hours"],updates:["Updates","Crew activity — newest first"],cal:["Calendar","Scheduled jobs by day"],fleet:["Fleet","Director view — whole operation"],maint:["Maintenance","Care schedule — directors control"],induct:["Vessel induction","Particulars & specialised gear"],check:["Checklists","Tick & sign off"],hours:["Time clock","Clock in · EOD · hours"],sop:["SOP & guides","Marine HQ standards"]};
   $("hdrTitle").textContent=titles[tab][0]; $("hdrSub").textContent=titles[tab][1];
   if(tab==="jobs") loadJobs();
   if(tab==="updates") renderUpdates();
   if(tab==="cal") loadCal();
   if(tab==="maint") loadMaint();
+  if(tab==="induct") loadInduct();
   if(tab==="hours"){ renderClock(); loadShifts(); }
   if(tab==="check") loadChecklists();
   updateStrip();
@@ -1149,7 +1166,7 @@ function loadFleetVessels(){
     }).catch(function(){});
 }
 function renderVesselBar(){
-  var hosts=[$("vesselBar"),$("vesselBarM")];
+  var hosts=[$("vesselBar"),$("vesselBarM"),$("vesselBarI")];
   var show=isMgrRole() && FLEETVESSELS.length>=2;
   var html="";
   if(show){
@@ -1160,7 +1177,7 @@ function renderVesselBar(){
   }
   hosts.forEach(function(h){ if(h) h.innerHTML=html; });
 }
-function pickVessel(v){ CURVESSEL=v; WLCLOSED={}; renderVesselBar(); if(TAB==="maint") renderMaintLog(); else loadJobs(); }
+function pickVessel(v){ CURVESSEL=v; WLCLOSED={}; renderVesselBar(); if(TAB==="maint") renderMaintLog(); else if(TAB==="induct") loadInduct(); else loadJobs(); }
 // Open the Command Centre, passing the director's code so it unlocks (no 2nd passcode).
 function openCommand(){ try{ if(ME&&ME.code) localStorage.setItem("mhq_crew_key", ME.code); }catch(e){} location.href="overview.html"; }
 /* What's Due — scheduled maintenance from the maintenance schedule → add to a worklist */
@@ -1917,6 +1934,58 @@ function openWLJob(key){
     '<button class="jobbtn donebtn" onclick="closeSheet()">✓ Done</button>'+
     '<div style="height:16px"></div>';
   showSheet();
+}
+/* ===== Vessel Induction (directors): particulars + specialised gear per boat ===== */
+var VI_SECTIONS=[
+  {h:"Particulars", f:[["owner","Owner"],["make","Make / model"],["year","Year built"],["builder","Builder"],["loa","Length (LOA)"],["beam","Beam"],["draft","Draft"],["hull","Hull material"],["flag","Flag"],["mmsi","MMSI"],["callsign","Call sign"],["berth","Home berth / marina"]]},
+  {h:"Machinery", f:[["engines","Main engines (make/model × no.)"],["enghrs","Engine hours"],["generator","Generator(s)"],["thruster","Bow / stern thruster"]]},
+  {h:"Systems & equipment", f:[["watermaker","Watermaker (brand)"],["aircon","Air-conditioning"],["divecomp","Dive compressor"],["tender","Tender (make · own insurance?)"],["electronics","Electronics / nav"],["comms","Comms / Starlink"],["stabilisers","Stabilisers"]]},
+  {h:"Specialised items", note:"Anything unique to this boat that needs its own jobs — these become the boat-specific maintenance tasks.", f:[["specialised","Specialised gear / notes",1]]},
+  {h:"Key dates", f:[["coc","Survey / CoC expiry"],["insurance","Insurance expiry"],["antifoulLast","Antifoul last done"],["antifoulInt","Antifoul interval"]]},
+  {h:"Operating", f:[["profile","Private / charter · cruising area"],["notes","Notes",1]]}
+];
+var VI_DATA={}, VI_LOADED_V="";
+function loadInduct(){
+  if(!isMgrRole()){ go("jobs"); return; }
+  loadFleetVessels();
+  if(!CURVESSEL || CURVESSEL==="__all__"){ CURVESSEL=(FLEETVESSELS&&FLEETVESSELS[0]) || (ME.vessels&&ME.vessels[0]) || CURVESSEL; }
+  renderVesselBar();
+  $("inductHello").innerHTML="🛥 <b>Vessel induction</b> — the boat's particulars &amp; specialised gear. Feeds the Overview and sets up the boat-specific maintenance.";
+  var v=CURVESSEL;
+  $("inductForm").innerHTML='<div class="loadingbox"><span class="spin"></span> Loading '+esc(v)+'…</div>';
+  $("inductStatus").textContent="";
+  apiGet("fn=vesselind&code="+encodeURIComponent(ME.code||"")+"&vessel="+encodeURIComponent(v)).then(function(j){
+    if(TAB!=="induct" || CURVESSEL!==v) return;
+    VI_DATA=(j&&j.ok&&j.data)||{}; VI_LOADED_V=v;
+    if(!VI_DATA.owner && ME && v){ /* pre-fill nothing risky; leave blank for director to confirm */ }
+    renderInduct();
+  }).catch(function(){ $("inductForm").innerHTML='<div class="empty">Couldn’t load. Try again.</div>'; });
+}
+function renderInduct(){
+  var host=$("inductForm"); if(!host) return; var v=CURVESSEL;
+  var filled=VI_SECTIONS.reduce(function(a,s){ return a+s.f.filter(function(f){ return (VI_DATA[f[0]]||"").toString().trim(); }).length; },0);
+  var total=VI_SECTIONS.reduce(function(a,s){ return a+s.f.length; },0);
+  $("inductStatus").textContent=filled+"/"+total+" filled";
+  var html=VI_SECTIONS.map(function(s){
+    return '<div class="visec"><h4>'+esc(s.h)+'</h4>'+(s.note?('<p class="vinote">'+esc(s.note)+'</p>'):'')+
+      s.f.map(function(f){ var key=f[0], lbl=f[1], ta=f[2], val=(VI_DATA[key]||"").toString();
+        return '<label class="vifld"><span>'+esc(lbl)+'</span>'+
+          (ta ? ('<textarea class="fld-ta" id="vi_'+key+'">'+esc(val)+'</textarea>')
+              : ('<input class="fld-in" id="vi_'+key+'" value="'+esc(val)+'">'))+'</label>';
+      }).join("")+'</div>';
+  }).join("");
+  host.innerHTML=html+
+    '<button class="jobbtn complete" style="background:var(--navy)" onclick="saveInduct()">✓ Save '+esc(v)+'’s induction</button>'+
+    '<p class="body" style="font-size:12px;color:var(--muted);text-align:center;margin:8px 0 16px">Only you &amp; Jack can edit this. Specialised items here become '+esc(v)+'’s boat-specific maintenance tasks.</p>';
+}
+function saveInduct(){
+  var v=CURVESSEL, data={};
+  VI_SECTIONS.forEach(function(s){ s.f.forEach(function(f){ var el=$("vi_"+f[0]); if(el) data[f[0]]=(el.value||"").trim(); }); });
+  toast("Saving…");
+  apiPost({action:"crewVesselInd", email:ME.email, code:ME.code, vessel:v, data:data}).then(function(r){
+    if(r&&r.ok){ VI_DATA=data; toast("✓ "+esc(v)+"’s induction saved"); renderInduct(); }
+    else toast((r&&r.error)||"Couldn’t save");
+  }).catch(function(){ toast("Couldn’t connect"); });
 }
 /* Manager-only: approve a completed job → push it to the owner's app. */
 function wlApproveBlock(j,key){
