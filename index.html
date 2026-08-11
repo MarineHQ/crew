@@ -262,6 +262,10 @@
   .duepill{font-weight:800;font-size:11px;border-radius:8px;padding:2px 8px}
   .duepill.od{background:#fee2e2;color:#b91c1c} .duepill.soon{background:#fff1e3;color:#8a5a12} .duepill.ok{background:#eef2f6;color:#475569}
   .logmore{text-align:center;font-size:12px;color:var(--muted);padding:10px 0 2px}
+  .mslink{background:linear-gradient(135deg,var(--navy),#16386b);color:#fff;border-radius:12px;padding:13px 15px;margin-bottom:12px;cursor:pointer;font-weight:700;font-size:14px}
+  .mslink:active{opacity:.9}
+  .mslink .mslink-sub{font-weight:500;font-size:12px;color:#cdd9ee;margin-top:4px}
+  .mslink.flat{background:#eef4fb;color:var(--navy);cursor:default;font-weight:600}
   .addtaskbtn{margin-left:auto;background:var(--navy);color:#fff;border:none;border-radius:9px;padding:7px 13px;font-size:13px;font-weight:700;cursor:pointer}
   .fldhint{font-weight:600;color:var(--muted);font-size:11.5px}
   .atmatch{margin:8px 0 2px;font-size:12.5px;line-height:1.45}
@@ -1190,6 +1194,12 @@ function openFullOwnerPortal(){
   var url="https://myyacht-marinehq.netlify.app/?preview="+encodeURIComponent(ME.code||"")+"&vessel="+encodeURIComponent(v);
   window.open(url, "_blank");
 }
+// Open a vessel's full MyYacht Maintenance Schedule (the master record) via director preview.
+function openMaintSchedule(vessel){
+  if(!vessel || vessel==="__all__"){ toast("Pick a yacht first"); return; }
+  var url="https://myyacht-marinehq.netlify.app/?preview="+encodeURIComponent(ME.code||"")+"&vessel="+encodeURIComponent(vessel)+"&tab=maintenance";
+  window.open(url, "_blank");
+}
 // View as owner — director previews a vessel's MyYacht portal as the client sees it.
 function toggleOwnerPreview(){
   var p=$("ownerPreviewPanel"); if(!p) return;
@@ -1633,8 +1643,12 @@ function renderMaintLog(){
   var hist=(MAINTLOG||[]).filter(function(r){ return all || !CURVESSEL || (r.vessel||"").toLowerCase()===vLc; });
   var due=(MAINTDUE||[]).filter(function(r){ return all || !CURVESSEL || (r.vessel||"").toLowerCase()===vLc; });
   $("jobsHello").innerHTML="🧰 <b>Maintenance register</b>"+(all?"":(" · <b>"+esc(CURVESSEL||"")+"</b>"))+" — directors only.";
+  // link straight to the vessel's full MyYacht Maintenance Schedule (the master record owners see)
+  var msLink = (!all && CURVESSEL) ?
+    ('<div class="mslink" onclick="openMaintSchedule(\''+esc((CURVESSEL||"").replace(/'/g,"\\'"))+'\')">📋 Open the full <b>MyYacht Maintenance Schedule</b> for '+esc(CURVESSEL)+' ↗<div class="mslink-sub">The owner-facing service record — last done, history &amp; next due, insurance-ready.</div></div>')
+    : '<div class="mslink flat">📋 Pick a yacht (top) to open its full <b>MyYacht Maintenance Schedule</b> — the owner-facing record.</div>';
   // two tabs: Due / Completed
-  var tabs='<div class="logtabs">'+
+  var tabs=msLink+'<div class="logtabs">'+
     '<button class="logtab'+(LOGTAB==="due"?" on":"")+'" onclick="setLogTab(\'due\')">🔜 Coming up'+(due.length?(' <span class="lt-n">'+due.length+'</span>'):'')+'</button>'+
     '<button class="logtab'+(LOGTAB==="done"?" on":"")+'" onclick="setLogTab(\'done\')">✓ Completed'+(hist.length?(' <span class="lt-n">'+hist.length+'</span>'):'')+'</button></div>';
   if(!MAINTLOG){ el.innerHTML=tabs+'<div class="loadingbox"><span class="spin"></span> Loading…</div>'; $("jobsCount").textContent=""; return; }
