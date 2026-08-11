@@ -253,6 +253,15 @@
   .logtask{font-weight:700;color:var(--ink);font-size:14px}
   .logmeta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:6px;font-size:12px;color:var(--muted)}
   .logmeta .logdone{color:#0f766e;font-weight:700}
+  .logtabs{display:flex;gap:8px;margin:2px 0 14px}
+  .logtab{flex:1;background:#fff;border:1px solid var(--line);color:var(--navy);font-size:13px;font-weight:700;border-radius:10px;padding:9px;cursor:pointer}
+  .logtab.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+  .logtab .lt-n{background:rgba(0,0,0,.12);border-radius:9px;padding:1px 7px;font-size:11px;margin-left:3px}
+  .logtab.on .lt-n{background:rgba(255,255,255,.25)}
+  .logitem.due-od{border-left-color:#dc2626} .logitem.due-soon{border-left-color:#e8823a} .logitem.due-ok{border-left-color:#94a3b8}
+  .duepill{font-weight:800;font-size:11px;border-radius:8px;padding:2px 8px}
+  .duepill.od{background:#fee2e2;color:#b91c1c} .duepill.soon{background:#fff1e3;color:#8a5a12} .duepill.ok{background:#eef2f6;color:#475569}
+  .logmore{text-align:center;font-size:12px;color:var(--muted);padding:10px 0 2px}
   .addtaskbtn{margin-left:auto;background:var(--navy);color:#fff;border:none;border-radius:9px;padding:7px 13px;font-size:13px;font-weight:700;cursor:pointer}
   .fldhint{font-weight:600;color:var(--muted);font-size:11.5px}
   .atmatch{margin:8px 0 2px;font-size:12.5px;line-height:1.45}
@@ -1609,37 +1618,61 @@ function setJobFilter(f){ JOBFILTER=f; renderJobs(); }
 var SCHEDVIEW=false;
 function toggleSched(){ SCHEDVIEW=!SCHEDVIEW; if(SCHEDVIEW) LOGVIEW=false; renderJobs(); }
 /* ---- Maintenance Log (directors): every approved-to-owner job filed as service history ---- */
-var LOGVIEW=false, MAINTLOG=null, _logLoaded=false;
+var LOGVIEW=false, MAINTLOG=null, MAINTDUE=[], _logLoaded=false, LOGTAB="due";
 function toggleLog(){ LOGVIEW=!LOGVIEW; if(LOGVIEW){ SCHEDVIEW=false; if(!_logLoaded) loadMaintLog(); } renderJobs(); }
+function setLogTab(t){ LOGTAB=t; renderMaintLog(); }
 function loadMaintLog(){
   apiGet("fn=maintlog&code="+encodeURIComponent(ME.code||"")+"&email="+encodeURIComponent(ME.email||""))
-    .then(function(j){ if(j&&j.ok){ MAINTLOG=j.log||[]; _logLoaded=true; if(LOGVIEW) renderMaintLog(); } })
+    .then(function(j){ if(j&&j.ok){ MAINTLOG=j.log||[]; MAINTDUE=j.upcoming||[]; _logLoaded=true; if(LOGVIEW) renderMaintLog(); } })
     .catch(function(){});
 }
+function dueLabel(n){ if(n<0) return {t:(-n)+(n===-1?" day overdue":" days overdue"),c:"od"}; if(n===0) return {t:"Due today",c:"soon"}; if(n<=14) return {t:"Due in "+n+(n===1?" day":" days"),c:"soon"}; return {t:"Due in "+n+" days",c:"ok"}; }
 function renderMaintLog(){
   var el=$("jobList"); if(!el) return;
-  var all=(CURVESSEL==="__all__");
-  var rows=(MAINTLOG||[]).filter(function(r){ return all || !CURVESSEL || (r.vessel||"").toLowerCase()===CURVESSEL.toLowerCase(); });
-  $("jobsCount").textContent=rows.length+(rows.length===1?" logged":" logged");
-  $("jobsHello").innerHTML="📖 <b>Maintenance log</b> — completed works filed when approved to the owner"+(all?"":(" · <b>"+esc(CURVESSEL||"")+"</b>"))+".";
-  if(!MAINTLOG){ el.innerHTML='<div class="loadingbox"><span class="spin"></span> Loading log…</div>'; return; }
-  if(!rows.length){ el.innerHTML='<div class="empty">Nothing logged yet.<br>When you approve a completed task to the owner, it’s filed here as service history.</div>'; return; }
-  // group by vessel (in All Yachts) else flat
-  var groups={}, order=[];
-  rows.forEach(function(r){ var g=all?(r.vessel||"—"):"__flat__"; if(!groups[g]){groups[g]=[];order.push(g);} groups[g].push(r); });
-  el.innerHTML=order.map(function(g){
-    var head = (g==="__flat__") ? "" : ('<div class="logvessel">'+esc(g)+'</div>');
-    return head+groups[g].map(function(r){
-      var when=r.completed||relTime(r.at);
-      return '<div class="logitem" onclick="openFromUpdate(\''+esc((r.key||"").replace(/'/g,"\\'"))+'\',\''+esc((r.vessel||"").replace(/'/g,"\\'"))+'\')">'+
-        '<div class="logtop"><span class="logtask">'+esc(r.task||"(job)")+'</span>'+(r.code?(' <span class="jcode">'+esc(r.code)+'</span>'):'')+catChip(r.category)+'</div>'+
-        '<div class="logmeta"><span class="logdone">✓ Done '+esc(when)+'</span>'+
-          (r.by?('<span>👷 '+esc(firstNames(r.by))+'</span>'):'')+
-          (r.photos?('<span>📷 '+r.photos+'</span>'):'')+(r.docs?('<span>📄 '+r.docs+'</span>'):'')+
-          (r.approvedBy?('<span>✅ '+esc(firstName(r.approvedBy))+'</span>'):'')+
-          '<span style="margin-left:auto;color:var(--navy);font-weight:bold">Open ›</span></div></div>';
-    }).join("");
-  }).join("");
+  var all=(CURVESSEL==="__all__"), vLc=(CURVESSEL||"").toLowerCase();
+  var hist=(MAINTLOG||[]).filter(function(r){ return all || !CURVESSEL || (r.vessel||"").toLowerCase()===vLc; });
+  var due=(MAINTDUE||[]).filter(function(r){ return all || !CURVESSEL || (r.vessel||"").toLowerCase()===vLc; });
+  $("jobsHello").innerHTML="🧰 <b>Maintenance register</b>"+(all?"":(" · <b>"+esc(CURVESSEL||"")+"</b>"))+" — directors only.";
+  // two tabs: Due / Completed
+  var tabs='<div class="logtabs">'+
+    '<button class="logtab'+(LOGTAB==="due"?" on":"")+'" onclick="setLogTab(\'due\')">🔜 Coming up'+(due.length?(' <span class="lt-n">'+due.length+'</span>'):'')+'</button>'+
+    '<button class="logtab'+(LOGTAB==="done"?" on":"")+'" onclick="setLogTab(\'done\')">✓ Completed'+(hist.length?(' <span class="lt-n">'+hist.length+'</span>'):'')+'</button></div>';
+  if(!MAINTLOG){ el.innerHTML=tabs+'<div class="loadingbox"><span class="spin"></span> Loading…</div>'; $("jobsCount").textContent=""; return; }
+  var body="";
+  if(LOGTAB==="due"){
+    $("jobsCount").textContent=due.length+" due";
+    if(!due.length){ body='<div class="empty">Nothing scheduled yet.<br>Once recurring standard tasks (e.g. a wash-down) are completed &amp; approved, their <b>next due date</b> is worked out here automatically.</div>'; }
+    else {
+      var groups={}, order=[];
+      due.forEach(function(r){ var g=all?(r.vessel||"—"):"__flat__"; if(!groups[g]){groups[g]=[];order.push(g);} groups[g].push(r); });
+      body=order.map(function(g){ var head=(g==="__flat__")?"":('<div class="logvessel">'+esc(g)+'</div>');
+        return head+groups[g].map(function(r){ var d=dueLabel(r.inDays);
+          return '<div class="logitem due-'+d.c+'">'+
+            '<div class="logtop"><span class="logtask">'+esc(r.task||"(task)")+'</span>'+(r.code?(' <span class="jcode">'+esc(r.code)+'</span>'):'')+catChip(r.category)+'</div>'+
+            '<div class="logmeta"><span class="duepill '+d.c+'">'+esc(d.t)+'</span><span>📅 '+esc(r.nextDue)+'</span>'+(r.freq?('<span>🔁 '+esc(r.freq)+'</span>'):'')+'<span>last done '+esc(r.lastDone)+'</span></div></div>';
+        }).join(""); }).join("");
+    }
+  } else {
+    $("jobsCount").textContent=hist.length+" logged";
+    if(!hist.length){ body='<div class="empty">Nothing logged yet.<br>When you approve a completed task to the owner, it’s filed here as service history.</div>'; }
+    else {
+      var CAP=60, shown=hist.slice(0,CAP);
+      var groups2={}, order2=[];
+      shown.forEach(function(r){ var g=all?(r.vessel||"—"):"__flat__"; if(!groups2[g]){groups2[g]=[];order2.push(g);} groups2[g].push(r); });
+      body=order2.map(function(g){ var head=(g==="__flat__")?"":('<div class="logvessel">'+esc(g)+'</div>');
+        return head+groups2[g].map(function(r){ var when=r.completed||relTime(r.at);
+          return '<div class="logitem" onclick="openFromUpdate(\''+esc((r.key||"").replace(/'/g,"\\'"))+'\',\''+esc((r.vessel||"").replace(/'/g,"\\'"))+'\')">'+
+            '<div class="logtop"><span class="logtask">'+esc(r.task||"(job)")+'</span>'+(r.code?(' <span class="jcode">'+esc(r.code)+'</span>'):'')+catChip(r.category)+'</div>'+
+            '<div class="logmeta"><span class="logdone">✓ Done '+esc(when)+'</span>'+
+              (r.by?('<span>👷 '+esc(firstNames(r.by))+'</span>'):'')+
+              (r.photos?('<span>📷 '+r.photos+'</span>'):'')+(r.docs?('<span>📄 '+r.docs+'</span>'):'')+
+              (r.approvedBy?('<span>✅ '+esc(firstName(r.approvedBy))+'</span>'):'')+
+              '<span style="margin-left:auto;color:var(--navy);font-weight:bold">Open ›</span></div></div>';
+        }).join(""); }).join("");
+      if(hist.length>CAP) body+='<div class="logmore">Showing the '+CAP+' most recent · full record kept in the Maintenance Log sheet.</div>';
+    }
+  }
+  el.innerHTML=tabs+body;
 }
 var _WD=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"], _MO=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 function _dayDiff(ts){ var d=new Date(ts), t=new Date(); return Math.round((new Date(d.getFullYear(),d.getMonth(),d.getDate())-new Date(t.getFullYear(),t.getMonth(),t.getDate()))/864e5); }
