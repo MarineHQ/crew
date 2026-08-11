@@ -268,6 +268,8 @@
   .vifld{display:block;margin-top:10px}
   .vifld span{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px}
   .vifld textarea.fld-ta{min-height:70px}
+  #buildStamp{text-align:center;font-size:11px;color:#9aa7b4;padding:16px 0 24px}
+  #buildStamp a{color:var(--navy);font-weight:700;cursor:pointer;text-decoration:underline}
   .mslink{background:linear-gradient(135deg,var(--navy),#16386b);color:#fff;border-radius:12px;padding:13px 15px;margin-bottom:12px;cursor:pointer;font-weight:700;font-size:14px}
   .mslink:active{opacity:.9}
   .mslink .mslink-sub{font-weight:500;font-size:12px;color:#cdd9ee;margin-top:4px}
@@ -756,6 +758,8 @@
       <p class="hello">Marine HQ's standard operating procedures. Tap any section to read it, right here on your phone.</p>
       <div id="sopList"></div>
     </div>
+
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-12·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
