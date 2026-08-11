@@ -268,6 +268,9 @@
   .vifld{display:block;margin-top:10px}
   .vifld span{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px}
   .vifld textarea.fld-ta{min-height:70px}
+  .cardthumbs{display:flex;gap:5px;margin:9px 0 3px;flex-wrap:wrap}
+  .cardthumbs img{width:48px;height:48px;object-fit:cover;border-radius:8px;border:1px solid var(--line);background:#eef2f6}
+  .cardthumb-more{width:48px;height:48px;border-radius:8px;background:#eef2f6;color:var(--muted);font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center}
   #buildStamp{text-align:center;font-size:11px;color:#9aa7b4;padding:16px 0 24px}
   #buildStamp a{color:var(--navy);font-weight:700;cursor:pointer;text-decoration:underline}
   .mslink{background:linear-gradient(135deg,var(--navy),#16386b);color:#fff;border-radius:12px;padding:13px 15px;margin-bottom:12px;cursor:pointer;font-weight:700;font-size:14px}
@@ -759,7 +762,7 @@
       <div id="sopList"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-12·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-12·c</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1614,6 +1617,7 @@ function renderJobs(){
         '<span class="badge s-'+cls+'">'+esc(b)+'</span></div>'+
         ((j.task&&j.desc)?('<p class="desc">'+esc(j.desc)+'</p>'):'')+
         (j.subNote?('<p class="subnote">📌 '+esc(j.subNote)+'</p>'):'')+
+        ((j.photos&&j.photos.length)?('<div class="cardthumbs">'+j.photos.slice(0,4).map(function(p){return '<img src="'+esc(driveImg(p.url))+'" loading="lazy" onerror="this.style.display=\'none\'">';}).join("")+(j.photos.length>4?('<span class="cardthumb-more">+'+(j.photos.length-4)+'</span>'):'')+'</div>'):'')+
         '<div class="meta">'+(np?('<span>📷 '+np+'</span>'):'<span>Add photos</span>')+(hasNote?'<span>📝 note</span>':'')+(nd?('<span>📄 '+nd+'</span>'):'')+upd+
           '<span style="margin-left:auto;color:var(--navy);font-weight:bold">Open ›</span></div></div>';
     }).join("");
