@@ -266,6 +266,8 @@
   .mslink:active{opacity:.9}
   .mslink .mslink-sub{font-weight:500;font-size:12px;color:#cdd9ee;margin-top:4px}
   .mslink.flat{background:#eef4fb;color:var(--navy);cursor:default;font-weight:600}
+  .m2w{margin-top:10px;width:100%;background:var(--orange);color:#fff;border:none;border-radius:9px;padding:9px;font-size:13px;font-weight:800;cursor:pointer}
+  .m2w:active{opacity:.9}
   .addtaskbtn{margin-left:auto;background:var(--navy);color:#fff;border:none;border-radius:9px;padding:7px 13px;font-size:13px;font-weight:700;cursor:pointer}
   .fldhint{font-weight:600;color:var(--muted);font-size:11.5px}
   .atmatch{margin:8px 0 2px;font-size:12.5px;line-height:1.45}
@@ -1637,6 +1639,18 @@ function loadMaintLog(){
     .catch(function(){});
 }
 function dueLabel(n){ if(n<0) return {t:(-n)+(n===-1?" day overdue":" days overdue"),c:"od"}; if(n===0) return {t:"Due today",c:"soon"}; if(n<=14) return {t:"Due in "+n+(n===1?" day":" days"),c:"soon"}; return {t:"Due in "+n+" days",c:"ok"}; }
+// Directors: push a due/overdue maintenance item onto the worklist as a task, filed
+// under its standard code, then jump to it so you can assign a crew member.
+function maintToWorklist(vessel, code, task, category){
+  var num=parseInt((code||"").replace(/^.*-/,""),10)||"";
+  toast("Adding to worklist…");
+  apiPost({action:"crewAddTask", email:ME.email, code:ME.code, vessel:vessel, title:task, category:category, matchNum:num, list:"Maintenance"}).then(function(r){
+    if(!r||!r.ok){ toast((r&&r.error)||"Couldn’t add to worklist"); return; }
+    toast("✓ On the worklist — assign a crew member");
+    LOGVIEW=false;                                  // leave the register, show the worklist
+    openFromUpdate(r.key, vessel);                   // loads that boat + opens the new task to assign
+  }).catch(function(){ toast("Couldn’t connect"); });
+}
 function renderMaintLog(){
   var el=$("jobList"); if(!el) return;
   var all=(CURVESSEL==="__all__"), vLc=(CURVESSEL||"").toLowerCase();
@@ -1661,9 +1675,12 @@ function renderMaintLog(){
       due.forEach(function(r){ var g=all?(r.vessel||"—"):"__flat__"; if(!groups[g]){groups[g]=[];order.push(g);} groups[g].push(r); });
       body=order.map(function(g){ var head=(g==="__flat__")?"":('<div class="logvessel">'+esc(g)+'</div>');
         return head+groups[g].map(function(r){ var d=dueLabel(r.inDays);
+          var vJs=(r.vessel||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'"), coJs=(r.code||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
+          var taJs=(r.task||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'"), caJs=(r.category||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
           return '<div class="logitem due-'+d.c+'">'+
             '<div class="logtop"><span class="logtask">'+esc(r.task||"(task)")+'</span>'+(r.code?(' <span class="jcode">'+esc(r.code)+'</span>'):'')+catChip(r.category)+'</div>'+
-            '<div class="logmeta"><span class="duepill '+d.c+'">'+esc(d.t)+'</span><span>📅 '+esc(r.nextDue)+'</span>'+(r.freq?('<span>🔁 '+esc(r.freq)+'</span>'):'')+'<span>last done '+esc(r.lastDone)+'</span></div></div>';
+            '<div class="logmeta"><span class="duepill '+d.c+'">'+esc(d.t)+'</span><span>📅 '+esc(r.nextDue)+'</span>'+(r.freq?('<span>🔁 '+esc(r.freq)+'</span>'):'')+'<span>last done '+esc(r.lastDone)+'</span></div>'+
+            '<button class="m2w" onclick="maintToWorklist(\''+esc(vJs)+'\',\''+esc(coJs)+'\',\''+esc(taJs)+'\',\''+esc(caJs)+'\')">➕ Add to worklist &amp; assign</button></div>';
         }).join(""); }).join("");
     }
   } else {
