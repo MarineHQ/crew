@@ -801,7 +801,7 @@
       <div id="sopList"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-12·q</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-12·r</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1391,17 +1391,24 @@ function setLastPopped(v){ try{ localStorage.setItem(updPoppedKey(), String(v||0
 // Takes priority over the general tag/updates pop-up, and re-shows each app open until accepted.
 var _acceptPromptShown=false;
 function checkPendingAccepts(){
-  if(_acceptPromptShown || isMgrRole()) return;
+  if(_acceptPromptShown) return;
   var me=(ME.name||"").toLowerCase().replace(/\s*\(test\)/,"").trim(); if(!me) return;
-  // (1) tasks assigned directly to me, not yet accepted
+  var mgr=isMgrRole();
+  // (1) tasks assigned directly to me by name, not yet accepted
   var pend=(CREWJOBS||[]).filter(function(j){
     if(!j.allocatedTo || j.allocatedTo.toLowerCase().indexOf(me)<0) return false;
     if(j.accepted && j.accepted.by) return false;
     return hubBucket(j.status)!=="Done";
   }).map(function(j){ return {j:j, off:false}; });
-  // (2) tasks Marine HQ has offered to me (or everyone) that I can approve/accept
-  var offered=(CREWOPEN||[]).filter(function(j){ return hubBucket(j.status)!=="Done"; })
-    .map(function(j){ return {j:j, off:true}; });
+  // (2) tasks Marine HQ has offered that I can approve/accept.
+  //   Crew: the server already scopes CREWOPEN to what's offered to them.
+  //   Directors/Managers: CREWOPEN is fleet-wide, so only nudge for offers naming ME
+  //   (never the fleet-wide backlog, and never plain "everyone" offers).
+  var offered=(CREWOPEN||[]).filter(function(j){
+    if(hubBucket(j.status)==="Done") return false;
+    if(!mgr) return true;
+    return j.offer && j.offer!=="*" && j.offer.toLowerCase().indexOf(me)>=0;
+  }).map(function(j){ return {j:j, off:true}; });
   var all=pend.concat(offered);
   if(!all.length) return;
   _acceptPromptShown=true; window._wpopLock=true;
