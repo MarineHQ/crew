@@ -808,7 +808,7 @@
       <div id="sopList"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-12·s</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-13·t</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2056,6 +2056,30 @@ function wlSetDue(key, clear){
     else toast((r&&r.error)||"Couldn’t set day");
   }).catch(function(){ toast("Couldn’t connect"); });
 }
+/* Directors only: edit a job's MAIN description inline (crew can't — the ✎ only renders
+   for managers and the backend rejects non-managers). In-app textarea, no native prompt. */
+function wlEditDesc(key){
+  if(!isMgrRole()) return;
+  var sec=$("wlDescSec"); if(!sec) return;
+  var j=(CREWJOBS.concat(CREWOPEN||[])).filter(function(x){return x.key===key;})[0]; var cur=(j&&j.desc)||"";
+  sec.innerHTML='<h4>The job</h4>'+
+    '<textarea id="wlDescEdit" class="fld-ta" style="width:100%;min-height:120px">'+esc(cur)+'</textarea>'+
+    '<div style="display:flex;gap:8px;margin-top:8px">'+
+      '<button class="jobbtn complete" style="flex:1;background:#0f766e" onclick="wlSaveDesc(\''+esc(key)+'\')">✓ Save description</button>'+
+      '<button class="jobbtn" style="background:none;color:var(--muted);max-width:110px" onclick="openWLJob(\''+esc(key)+'\')">Cancel</button>'+
+    '</div>';
+  var ta=$("wlDescEdit"); if(ta) ta.focus();
+}
+function wlSaveDesc(key){
+  var ta=$("wlDescEdit"); if(!ta) return; var desc=ta.value;
+  toast("Saving…");
+  apiPost({action:"crewJobDesc", email:ME.email, code:ME.code, jobKey:key, desc:desc}).then(function(r){
+    if(r&&r.ok){ toast("✓ Description updated");
+      var j=(CREWJOBS.concat(CREWOPEN||[])).filter(function(x){return x.key===key;})[0]; if(j) j.desc=desc;
+      openWLJob(key); loadJobs();
+    } else toast((r&&r.error)||"Couldn’t save");
+  }).catch(function(){ toast("Couldn’t connect"); });
+}
 
 /* ---- worklist job detail: status · notes · photos ---- */
 var WLSTATUS=["To do","In hand","Complete"];
@@ -2104,14 +2128,15 @@ function openWLJob(key){
       '<button class="aopt contractor" onclick="wlAssignContractor(\''+esc(key)+'\')">🏢 ＋ Contractor…</button>'+
       '<button class="aopt'+(!allocList.length?' on':'')+'" onclick="wlAssign(\''+esc(key)+'\',\'\')">None</button>'+
     '</div><p class="body" style="font-size:12px;color:var(--muted);margin-top:7px">Tap people to add or remove — you can assign more than one. Only you &amp; Jack see this; the owner never sees who it’s assigned to.</p></div>';
-  // Offer it (up for grabs) — only when NOT assigned. Pending → offer to everyone / specific crew → crew claim it.
+  // Offer it — a task can be assigned to some people AND offered to others at the same
+  // time (some must do it, others may accept). Pending → offer to everyone / specific crew.
   var offerArr=(j.offer==="*")?[]:(j.offer||"").split(",").map(function(s){return s.trim();}).filter(String);
   var offerLower=offerArr.map(function(s){return s.toLowerCase();});
   var offerAll=(j.offer==="*");
   var stateLbl = offerAll?'🗂 Offered to <b>everyone</b> — anyone can accept it'
-    : (j.offer?('🗂 Offered to <b>'+esc(firstNames(j.offer))+'</b> — they can accept it')
-             : '⏳ <b>Pending</b> — sitting in your backlog, crew can’t see it yet');
-  var offerHTML = (isMgrRole() && !allocList.length) ? (
+    : (j.offer?('🗂 Offered to <b>'+esc(firstNames(j.offer))+'</b> — they can accept it'+(allocList.length?' (as well as those assigned above)':''))
+             : (allocList.length?'Not offered to anyone else — tap a name to also offer it':'⏳ <b>Pending</b> — sitting in your backlog, crew can’t see it yet'));
+  var offerHTML = isMgrRole() ? (
     '<div class="sec"><h4>Or offer it</h4>'+
     '<div class="offstate">'+stateLbl+'</div>'+
     '<div class="assignrow">'+
@@ -2162,7 +2187,10 @@ function openWLJob(key){
   $("sheet").innerHTML=
     '<div class="sheet-hd"><div style="flex:1"><div style="font-size:11px;font-weight:bold;letter-spacing:.4px;color:#ffd7b0">'+esc(j.vessel)+(j.list?(" · "+esc(j.list)):"")+(j.code?(' &nbsp;<span class="jcode">'+esc(j.code)+'</span>'):'')+catChip(j.category)+'</div>'+
       '<h3>'+num+'. '+esc(j.task||"(job)")+'</h3></div><button class="closeb" onclick="closeSheet()">✕</button></div>'+
-    (j.desc?('<div class="sec"><h4>The job</h4><p class="body">'+esc(j.desc)+'</p></div>'):'')+
+    (function(){ if(!j.desc && !isMgrRole()) return '';
+      var b=j.desc?('<p class="body" id="wlDescText">'+esc(j.desc)+'</p>'):'<p class="body" id="wlDescText" style="color:var(--muted)">No description yet.</p>';
+      var ed=isMgrRole()?' <span class="wlnote-ed" style="cursor:pointer" onclick="wlEditDesc(\''+esc(key)+'\')">✎ Edit</span>':'';
+      return '<div class="sec" id="wlDescSec"><h4>The job'+ed+'</h4>'+b+'</div>'; })()+
     ((j.subNote||isMgrRole())?('<div class="sec"><h4>Sub note</h4><div class="subnote-box'+(j.subNote?"":" empty")+'"'+(isMgrRole()?(' onclick="wlSetSubNote(\''+esc(key)+'\')"'):'')+'>'+(j.subNote?('📌 '+esc(j.subNote)):'＋ add a quick note')+(isMgrRole()?' <span class="wlnote-ed">✎</span>':'')+'</div></div>'):'')+
     reqBlock+
     acceptHTML+
