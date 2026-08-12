@@ -692,6 +692,7 @@
 
   <div class="ptabs-bar"><div class="ptabs-inner">
     <div class="ptab-btn active" data-tab="jobs"  onclick="go('jobs')">Worklist</div>
+    <div class="ptab-btn mgrtab" data-tab="mine" onclick="go('mine')" style="display:none">My Tasks</div>
     <div class="ptab-btn"        data-tab="updates" onclick="go('updates')">Updates</div>
     <div class="ptab-btn"        data-tab="cal" onclick="go('cal')">Calendar</div>
     <div class="ptab-btn mgrtab" data-tab="fleet" onclick="go('fleet')" style="display:none">Fleet</div>
@@ -710,6 +711,12 @@
       <div class="subbar"><h2>My worklist</h2><span class="count" id="jobsCount"></span><button id="addTaskBtn" class="addtaskbtn" style="display:none" onclick="openAddTask()">＋ Add task</button></div>
       <div class="chips" id="jobChips"></div>
       <div id="jobList"></div>
+    </div>
+
+    <!-- MY TASKS (directors) — just their own assigned/offered jobs -->
+    <div id="tab-mine" class="hidden">
+      <div class="hello" id="mineHello"></div>
+      <div id="mineBody"></div>
     </div>
 
     <!-- UPDATES / notifications feed -->
@@ -801,7 +808,7 @@
       <div id="sopList"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-12·r</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-12·s</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1149,12 +1156,14 @@ function go(tab){
   var fb=document.querySelector('.ptab-btn[data-tab="fleet"]'); if(fb) fb.style.display=mgr?"":"none";
   var mb=document.querySelector('.ptab-btn[data-tab="maint"]'); if(mb) mb.style.display=mgr?"":"none";
   var ib=document.querySelector('.ptab-btn[data-tab="induct"]'); if(ib) ib.style.display=mgr?"":"none";
-  ["jobs","updates","cal","fleet","maint","induct","check","hours","sop"].forEach(function(t){ $("tab-"+t).classList.toggle("hidden", t!==tab); });
+  var nb=document.querySelector('.ptab-btn[data-tab="mine"]'); if(nb) nb.style.display=mgr?"":"none";
+  ["jobs","mine","updates","cal","fleet","maint","induct","check","hours","sop"].forEach(function(t){ $("tab-"+t).classList.toggle("hidden", t!==tab); });
   document.querySelectorAll(".ptab-btn").forEach(function(b){ b.classList.toggle("active", b.dataset.tab===tab); });
   $("fab").classList.toggle("hidden", tab!=="jobs");
-  var titles={jobs:["Marine HQ Crew","Your jobs, checklists & hours"],updates:["Updates","Crew activity — newest first"],cal:["Calendar","Scheduled jobs by day"],fleet:["Fleet","Director view — whole operation"],maint:["Maintenance","Care schedule — directors control"],induct:["Vessel induction","Particulars & specialised gear"],check:["Checklists","Tick & sign off"],hours:["Time clock","Clock in · EOD · hours"],sop:["SOP & guides","Marine HQ standards"]};
+  var titles={jobs:["Marine HQ Crew","Your jobs, checklists & hours"],mine:["My Tasks","Just what's assigned or offered to you"],updates:["Updates","Crew activity — newest first"],cal:["Calendar","Scheduled jobs by day"],fleet:["Fleet","Director view — whole operation"],maint:["Maintenance","Care schedule — directors control"],induct:["Vessel induction","Particulars & specialised gear"],check:["Checklists","Tick & sign off"],hours:["Time clock","Clock in · EOD · hours"],sop:["SOP & guides","Marine HQ standards"]};
   $("hdrTitle").textContent=titles[tab][0]; $("hdrSub").textContent=titles[tab][1];
   if(tab==="jobs") loadJobs();
+  if(tab==="mine"){ renderMine(); loadJobs(); }   // instant from cache, then refresh (loadJobs re-renders mine)
   if(tab==="updates") renderUpdates();
   if(tab==="cal") loadCal();
   if(tab==="maint") loadMaint();
@@ -1205,7 +1214,7 @@ function loadJobs(){
   }
   startActivityWatch();   // fire the activity fetch in PARALLEL with jobs (not after)
   apiGet(url)
-    .then(function(j){ CREWJOBS=(j&&j.jobs)||[]; if(!isMgrRole() || allBoats) CREWOPEN=(j&&j.openJobs)||[]; if(j&&j.listMeta)LISTMETA=j.listMeta; JOBSVESSEL=allBoats?"all yachts":((j&&j.vessel)||v); _cSet(_ck("jobs",vk), CREWJOBS); renderJobs(); updateJobsBadge(); renderVesselBar(); checkPendingAccepts(); }).catch(function(){});
+    .then(function(j){ CREWJOBS=(j&&j.jobs)||[]; if(!isMgrRole() || allBoats) CREWOPEN=(j&&j.openJobs)||[]; if(j&&j.listMeta)LISTMETA=j.listMeta; JOBSVESSEL=allBoats?"all yachts":((j&&j.vessel)||v); _cSet(_ck("jobs",vk), CREWJOBS); renderJobs(); updateJobsBadge(); renderVesselBar(); renderMine(); checkPendingAccepts(); }).catch(function(){});
   loadFleetVessels();
   // On All Yachts the main fetch already returns fleet-wide unassigned — only fetch
   // separately when a director has drilled into ONE boat (so the section stays fleet-wide).
@@ -1387,6 +1396,38 @@ function isForeignTag_(e){ return !!(e&&e.mention) && !isTagForMe_(e); }   // a 
 function updPoppedKey(){ return "mhq_upd_popped_"+((ME&&ME.code)||""); }
 function updLastPopped(){ try{ return parseInt(localStorage.getItem(updPoppedKey())||"0",10)||0; }catch(e){ return 0; } }
 function setLastPopped(v){ try{ localStorage.setItem(updPoppedKey(), String(v||0)); }catch(e){} }
+/* "My Tasks" tab — a director's OWN assigned/offered jobs, so their tasks don't get
+   lost in the fleet-wide overview. Same name-match as the approve pop-up. */
+function renderMine(){
+  var host=$("mineBody"); if(!host) return;
+  var hello=$("mineHello"); if(hello) hello.innerHTML='Hi <b>'+esc(firstName(ME.name)||"there")+'</b> — just the jobs that are yours.';
+  var me=(ME.name||"").toLowerCase().replace(/\s*\(test\)/,"").trim();
+  if(!me){ host.innerHTML='<div class="empty">Sign in to see your tasks.</div>'; return; }
+  var mgr=isMgrRole();
+  var assigned=(CREWJOBS||[]).filter(function(j){ return j.allocatedTo && j.allocatedTo.toLowerCase().indexOf(me)>=0 && hubBucket(j.status)!=="Done"; });
+  var offered=(CREWOPEN||[]).filter(function(j){
+    if(hubBucket(j.status)==="Done") return false;
+    if(!mgr) return true;                                  // crew: server already scopes to them
+    return j.offer && j.offer!=="*" && j.offer.toLowerCase().indexOf(me)>=0;   // directors: offers naming me
+  });
+  function card(j, mode){
+    var kJs=(j.key||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
+    var due=j.dueTs?('<span class="duechip'+dueCls(j.dueTs,false)+'">📅 '+esc(dayLabel(j.dueTs))+'</span>'):'';
+    var acc=(j.accepted&&j.accepted.by);
+    var stat = mode==="offer" ? '<span class="acptchip urgent">🚨 Approve to take it on</span>'
+             : (acc ? '<span class="acptchip ok">✓ accepted</span>' : '<span class="acptchip urgent">🚨 Please approve</span>');
+    return '<div class="offercard" onclick="openWLJob(\''+esc(kJs)+'\')">'+
+      '<div class="top"><div style="flex:1"><h3>'+esc(j.task||j.desc||"(job)")+(j.code?(' <span class="jcode">'+esc(j.code)+'</span>'):'')+' '+due+'</h3>'+
+      '<div style="font-size:12px;color:var(--muted);margin-top:2px">'+esc(j.vessel||"")+(j.list?(" · "+esc(j.list)):"")+'</div></div></div>'+
+      '<div style="margin-top:7px">'+stat+'</div></div>';
+  }
+  function hd(t,n){ return '<div style="font-weight:800;color:var(--navy);margin:16px 4px 9px;font-size:14px">'+t+' <span style="color:var(--muted);font-weight:700">'+n+'</span></div>'; }
+  if(!assigned.length && !offered.length){ host.innerHTML='<div class="empty">Nothing assigned or offered to you right now. 🎉</div>'; return; }
+  var html='';
+  if(assigned.length) html+=hd("📋 Assigned to you",assigned.length)+assigned.map(function(j){return card(j,"assign");}).join('');
+  if(offered.length) html+=hd("🗂 Offered to you — approve to take on",offered.length)+offered.map(function(j){return card(j,"offer");}).join('');
+  host.innerHTML=html;
+}
 // Urgent on-open prompt: crew have task(s) assigned to them but not yet accepted.
 // Takes priority over the general tag/updates pop-up, and re-shows each app open until accepted.
 var _acceptPromptShown=false;
