@@ -299,6 +299,9 @@
   .offerbtn:active{opacity:.9}
   .offerask{background:#eef4fb;color:var(--navy);border:none;border-radius:9px;padding:10px 12px;font-size:13px;font-weight:700;cursor:pointer}
   .qcundo{background:none;border:none;color:#0f766e;font-size:11px;font-weight:700;text-decoration:underline;cursor:pointer;margin-left:6px}
+  .logbtns{display:flex;gap:8px}
+  .logbtns .logbtn{flex:1;font-size:14px;padding:11px 6px;line-height:1.2}
+  .logbtns .logbtn small{font-weight:600;opacity:.8;font-size:11px}
   #buildStamp{text-align:center;font-size:11px;color:#9aa7b4;padding:16px 0 24px}
   #buildStamp a{color:var(--navy);font-weight:700;cursor:pointer;text-decoration:underline}
   .mslink{background:linear-gradient(135deg,var(--navy),#16386b);color:#fff;border-radius:12px;padding:13px 15px;margin-bottom:12px;cursor:pointer;font-weight:700;font-size:14px}
@@ -790,7 +793,7 @@
       <div id="sopList"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-12·i</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-12·j</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2135,14 +2138,18 @@ function wlApproveBlock(j,key){
       '<div class="apprOn" style="margin-top:8px">📤 Logged &amp; pushed to owner’s app'+(j.approvedBy?(' · '+esc(firstName(j.approvedBy))):'')+(j.approvedAt?(' · '+esc(j.approvedAt)):'')+'</div>'+
       '<button class="jobbtn" style="background:#64748b" onclick="wlApprove(\''+kk+'\',false)">Pull back from owner</button></div>';
   }
-  var recorded=(so.disp==="internal");
-  var recRow = recorded
-    ? '<div class="apprOn" style="background:#eef4fb;color:var(--navy);border-color:#d3e2f2">📁 Logged (internal — the owner does <b>not</b> see this)</div>'
-    : '<button class="jobbtn complete" style="background:var(--navy)" onclick="wlRecord(\''+kk+'\')">📁 Log only</button>';
+  if(so.disp==="internal"){
+    // already logged internally — still offer to push to owner later
+    return '<div class="sec"><h4>Sign-off &amp; log</h4>'+qcRow+
+      '<div class="apprOn" style="background:#eef4fb;color:var(--navy);border-color:#d3e2f2;margin-top:8px">📁 Logged (internal — the owner does <b>not</b> see this)</div>'+
+      '<button class="jobbtn complete" style="margin-top:8px" onclick="wlApprove(\''+kk+'\',true)">📤 Push to owner</button></div>';
+  }
   return '<div class="sec"><h4>Sign-off &amp; log</h4>'+qcRow+
-    '<p class="body" style="font-size:12.5px;color:var(--muted);margin:10px 0 8px">Sign off (QC) if it needs it, then log it: <b>Log only</b> = filed to the maintenance record, internal. <b>Log &amp; push to owner</b> = filed <i>and</i> shown in the owner’s app.</p>'+
-    recRow+
-    '<button class="jobbtn complete" style="margin-top:8px" onclick="wlApprove(\''+kk+'\',true)">📤 Log &amp; push to owner</button></div>';
+    '<p class="body" style="font-size:12.5px;color:var(--muted);margin:10px 0 8px">Sign off (QC) if it needs it, then log it. Both file it to the maintenance record — <b>Push to owner</b> also shows it in the owner’s app.</p>'+
+    '<div class="logbtns">'+
+      '<button class="jobbtn complete logbtn" style="background:var(--navy)" onclick="wlRecord(\''+kk+'\')">📁 Log only<br><small>internal</small></button>'+
+      '<button class="jobbtn complete logbtn" onclick="wlApprove(\''+kk+'\',true)">📤 Push to owner</button>'+
+    '</div></div>';
 }
 function wlSignoff(key,on){
   apiPost({action:"crewJobSignoff", email:ME.email, code:ME.code, jobKey:key, on:on}).then(function(r){
