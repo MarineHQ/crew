@@ -778,7 +778,7 @@
       <div id="sopList"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-12·e</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-12·f</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1155,6 +1155,7 @@ var CREWJOBS = [], JOBSVESSEL = "";
 var CURVESSEL="", FLEETVESSELS=[];
 function loadJobs(){
   if(!ME) return;
+  if(isMgrRole() && !CURVESSEL) CURVESSEL="__all__";   // directors open on All Yachts, not their first boat
   var allBoats = (CURVESSEL==="__all__" && isMgrRole());
   var v = allBoats ? "" : (CURVESSEL || ME.vessels[0] || "Everywhen");
   // Directors/Managers review the whole vessel (to approve crew work); crew see only their own.
