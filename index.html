@@ -299,6 +299,9 @@
   .offerbtn:active{opacity:.9}
   .offerask{background:#eef4fb;color:var(--navy);border:none;border-radius:9px;padding:10px 12px;font-size:13px;font-weight:700;cursor:pointer}
   .qcundo{background:none;border:none;color:#0f766e;font-size:11px;font-weight:700;text-decoration:underline;cursor:pointer;margin-left:6px}
+  .offbadge{display:inline-block;font-size:11px;font-weight:800;border-radius:8px;padding:2px 9px}
+  .offbadge.pending{background:#eef2f6;color:#64748b} .offbadge.offered{background:#e6f4f0;color:#0f766e}
+  .offstate{font-size:13px;color:var(--ink);background:#f6f9fc;border:1px solid var(--line);border-radius:9px;padding:9px 11px;margin-bottom:9px}
   .logbtns{display:flex;gap:8px}
   .logbtns .logbtn{flex:1;font-size:14px;padding:11px 6px;line-height:1.2}
   .logbtns .logbtn small{font-weight:600;opacity:.8;font-size:11px}
@@ -793,7 +796,7 @@
       <div id="sopList"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-12·k</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-12·l</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1682,12 +1685,16 @@ function renderOffer(){
     var due=j.dueTs?('<span class="duechip'+dueCls(j.dueTs,false)+'">📅 '+esc(dayLabel(j.dueTs))+(j.dueTime?(' '+esc(fmtTime12(j.dueTime))):'')+'</span>'):'';
     var kJs=(j.key||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
     var acts = mgr
-      ? '<button class="offerbtn" onclick="openWLJob(\''+esc(kJs)+'\')">Assign / offer ›</button>'
+      ? '<button class="offerbtn" onclick="openWLJob(\''+esc(kJs)+'\')">Set up — assign or offer ›</button>'
       : ('<button class="offerbtn" onclick="crewClaim(\''+esc(kJs)+'\')">🙋 I’ll take this</button>'+
          '<button class="offerask" onclick="openWLJob(\''+esc(kJs)+'\')">Ask / details ›</button>');
+    var badge = mgr ? (j.offer
+        ? '<span class="offbadge offered">🗂 Offered'+(j.offer==="*"?" · everyone":(" · "+esc(firstNames(j.offer))))+'</span>'
+        : '<span class="offbadge pending">⏳ Pending</span>') : '';
     return '<div class="offercard">'+
       '<div class="top"><div style="flex:1"><h3>'+esc(j.task||j.desc||"(job)")+(j.code?(' <span class="jcode">'+esc(j.code)+'</span>'):'')+catChip(j.category)+' '+due+'</h3>'+
         '<div style="font-size:12px;color:var(--muted);margin-top:2px">'+esc(j.vessel||"")+(j.list?(" · "+esc(j.list)):"")+'</div></div></div>'+
+      (badge?('<div style="margin-top:7px">'+badge+'</div>'):'')+
       (j.subNote?('<p class="subnote">📌 '+esc(j.subNote)+'</p>'):'')+
       '<div class="offeracts">'+acts+'</div></div>';
   }).join("");
@@ -2007,6 +2014,23 @@ function openWLJob(key){
       '<button class="aopt contractor" onclick="wlAssignContractor(\''+esc(key)+'\')">🏢 ＋ Contractor…</button>'+
       '<button class="aopt'+(!allocList.length?' on':'')+'" onclick="wlAssign(\''+esc(key)+'\',\'\')">None</button>'+
     '</div><p class="body" style="font-size:12px;color:var(--muted);margin-top:7px">Tap people to add or remove — you can assign more than one. Only you &amp; Jack see this; the owner never sees who it’s assigned to.</p></div>';
+  // Offer it (up for grabs) — only when NOT assigned. Pending → offer to everyone / specific crew → crew claim it.
+  var offerArr=(j.offer==="*")?[]:(j.offer||"").split(",").map(function(s){return s.trim();}).filter(String);
+  var offerLower=offerArr.map(function(s){return s.toLowerCase();});
+  var offerAll=(j.offer==="*");
+  var stateLbl = offerAll?'🗂 Offered to <b>everyone</b> — anyone can grab it'
+    : (j.offer?('🗂 Offered to <b>'+esc(firstNames(j.offer))+'</b> — they can grab it')
+             : '⏳ <b>Pending</b> — sitting in your backlog, crew can’t see it yet');
+  var offerHTML = (isMgrRole() && !allocList.length) ? (
+    '<div class="sec"><h4>Or offer it — up for grabs</h4>'+
+    '<div class="offstate">'+stateLbl+'</div>'+
+    '<div class="assignrow">'+
+      '<button class="aopt'+(offerAll?' on':'')+'" onclick="wlOffer(\''+esc(key)+'\',\'*\')">👥 Everyone</button>'+
+      (CREWNAMES||[]).map(function(c){ var on=!offerAll && offerLower.indexOf((c.name||"").toLowerCase())>=0;
+        return '<button class="aopt'+(on?' on':'')+'" onclick="wlOfferToggle(\''+esc(key)+'\',\''+esc((c.name||"").replace(/'/g,"\\'"))+'\')">'+esc(firstName(c.name))+(on?' ✓':'')+'</button>'; }).join('')+
+      '<button class="aopt'+(!j.offer?' on':'')+'" onclick="wlOffer(\''+esc(key)+'\',\'\')">⏳ Keep pending</button>'+
+    '</div><p class="body" style="font-size:12px;color:var(--muted);margin-top:7px">Pick <b>Everyone</b> or tap specific people — only they see it under “Unassigned tasks” and can grab it. Or <b>Assign</b> above to give it to someone directly.</p></div>'
+  ) : '';
   // Day / due (Directors & Managers) — shows on the crew's Schedule
   var dueHTML = !isMgrRole() ? '' :
     '<div class="sec"><h4>Day '+(j.due?('· <span style="color:var(--orange)">'+esc(dayLabel(j.dueTs))+(j.dueTime?(" "+esc(fmtTime12(j.dueTime))):"")+'</span>'):'')+'</h4>'+
@@ -2054,7 +2078,7 @@ function openWLJob(key){
     acceptHTML+
     crewAssignHTML+
     '<div class="sec"><h4>Status</h4><div class="pillrow">'+pills+'</div>'+(j.completed?'<div class="apprOn" style="margin-top:8px">✓ Completed '+esc(j.completed)+'</div>':'')+'</div>'+
-    assignHTML+
+    assignHTML+offerHTML+
     dueHTML+
     laneHTML+
     '<div class="sec"><h4>Photos</h4><div class="photos">'+phHTML+'</div>'+((j.photos&&j.photos.length)?bulkBar('photo',key):'')+'</div>'+
@@ -2295,19 +2319,36 @@ function uploadFilesSeq(key, input, action, field, maxDim, quality){
 function wlAssign(key, whoList){
   apiPost({action:"crewJobAssign", email:ME.email, code:ME.code, jobKey:key, allocatedTo:whoList}).then(function(r){
     if(r&&r.ok){ toast(whoList?("Assigned: "+whoList):"Cleared");
-      var j=CREWJOBS.filter(function(x){return x.key===key;})[0]; if(j)j.allocatedTo=whoList;
+      var j=wlFind(key); if(j)j.allocatedTo=whoList;
       openWLJob(key); loadJobs(); }
     else toast((r&&r.error)||"Couldn’t assign");
   }).catch(function(){ toast("Couldn’t connect"); });
 }
+/* Find a job in either the worklist OR the unassigned (open) pool */
+function wlFind(key){ return (CREWJOBS||[]).filter(function(x){return x.key===key;})[0] || (CREWOPEN||[]).filter(function(x){return x.key===key;})[0]; }
 /* Toggle one person on/off the assignment list */
 function wlToggleAssign(key, name){
-  var j=CREWJOBS.filter(function(x){return x.key===key;})[0]; if(!j) return;
+  var j=wlFind(key); if(!j) return;
   var list=(j.allocatedTo||"").split(",").map(function(s){return s.trim();}).filter(String);
   var low=list.map(function(s){return s.toLowerCase();});
   var i=low.indexOf(name.toLowerCase());
   if(i>=0) list.splice(i,1); else list.push(name);
   wlAssign(key, list.join(", "));
+}
+/* Offer an unassigned (pending) task — "*" everyone, a name list, or "" pending */
+function wlOffer(key, offer){
+  apiPost({action:"crewJobOffer", email:ME.email, code:ME.code, jobKey:key, offer:offer}).then(function(r){
+    if(r&&r.ok){ toast(offer?(offer==="*"?"🗂 Offered to everyone":"🗂 Offered — crew can grab it"):"⏳ Back to pending");
+      var j=wlFind(key); if(j)j.offer=r.offer; openWLJob(key); loadJobs(); }
+    else toast((r&&r.error)||"Couldn’t offer");
+  }).catch(function(){ toast("Couldn’t connect"); });
+}
+function wlOfferToggle(key, name){
+  var j=wlFind(key); if(!j) return;
+  var arr=(j.offer==="*")?[]:(j.offer||"").split(",").map(function(s){return s.trim();}).filter(String);
+  var i=arr.map(function(s){return s.toLowerCase();}).indexOf(name.toLowerCase());
+  if(i>=0) arr.splice(i,1); else arr.push(name);
+  wlOffer(key, arr.join(", "));
 }
 /* Add an outside contractor / company (free text) to the assignment list */
 function wlAssignContractor(key){
