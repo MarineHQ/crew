@@ -793,7 +793,7 @@
       <div id="sopList"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-12·j</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-12·k</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1674,21 +1674,25 @@ function renderJobs(){
 /* ---- Jobs on offer (crew): unassigned jobs anyone can claim ---- */
 var OFFERCLOSED=false;
 function renderOffer(){
-  if(isMgrRole() || SCHEDVIEW || !CREWOPEN || !CREWOPEN.length) return "";
+  if(SCHEDVIEW || !CREWOPEN || !CREWOPEN.length) return "";
   var open=CREWOPEN.filter(function(j){ return hubBucket(j.status)!=="Done"; });
   if(!open.length) return "";
-  var c=OFFERCLOSED?" closed":"";
+  var mgr=isMgrRole(), c=OFFERCLOSED?" closed":"";
   var cards=open.map(function(j){
     var due=j.dueTs?('<span class="duechip'+dueCls(j.dueTs,false)+'">📅 '+esc(dayLabel(j.dueTs))+(j.dueTime?(' '+esc(fmtTime12(j.dueTime))):'')+'</span>'):'';
     var kJs=(j.key||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
+    var acts = mgr
+      ? '<button class="offerbtn" onclick="openWLJob(\''+esc(kJs)+'\')">Assign / offer ›</button>'
+      : ('<button class="offerbtn" onclick="crewClaim(\''+esc(kJs)+'\')">🙋 I’ll take this</button>'+
+         '<button class="offerask" onclick="openWLJob(\''+esc(kJs)+'\')">Ask / details ›</button>');
     return '<div class="offercard">'+
       '<div class="top"><div style="flex:1"><h3>'+esc(j.task||j.desc||"(job)")+(j.code?(' <span class="jcode">'+esc(j.code)+'</span>'):'')+catChip(j.category)+' '+due+'</h3>'+
         '<div style="font-size:12px;color:var(--muted);margin-top:2px">'+esc(j.vessel||"")+(j.list?(" · "+esc(j.list)):"")+'</div></div></div>'+
       (j.subNote?('<p class="subnote">📌 '+esc(j.subNote)+'</p>'):'')+
-      '<div class="offeracts"><button class="offerbtn" onclick="crewClaim(\''+esc(kJs)+'\')">🙋 I’ll take this</button>'+
-        '<button class="offerask" onclick="openWLJob(\''+esc(kJs)+'\')">Ask / details ›</button></div></div>';
+      '<div class="offeracts">'+acts+'</div></div>';
   }).join("");
-  return '<div class="offacc'+c+'" onclick="OFFERCLOSED=!OFFERCLOSED;renderJobs()"><span class="car">▾</span><h3>🗂 Unassigned tasks</h3><span class="n newn">'+open.length+'</span></div>'+
+  var hd = mgr ? '🗂 Unassigned tasks — assign or offer' : '🗂 Unassigned tasks';
+  return '<div class="offacc'+c+'" onclick="OFFERCLOSED=!OFFERCLOSED;renderJobs()"><span class="car">▾</span><h3>'+hd+'</h3><span class="n newn">'+open.length+'</span></div>'+
     '<div class="offbody'+c+'">'+cards+'</div>';
 }
 function crewClaim(key){
