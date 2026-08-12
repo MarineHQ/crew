@@ -304,6 +304,9 @@
   .offstate{font-size:13px;color:var(--ink);background:#f6f9fc;border:1px solid var(--line);border-radius:9px;padding:9px 11px;margin-bottom:9px}
   .offvessel{font-size:12px;font-weight:800;color:var(--navy);letter-spacing:.3px;margin:12px 2px 8px;text-transform:uppercase}
   .offvessel span{background:#e6f4f0;color:#0f766e;border-radius:8px;padding:1px 7px;font-size:11px;margin-left:4px}
+  .offpills{display:flex;gap:6px;overflow-x:auto;padding:2px 0 10px;-webkit-overflow-scrolling:touch}
+  .offpills .opill{flex:0 0 auto;background:#fff;border:1px solid var(--line);color:var(--navy);font-size:12.5px;font-weight:700;border-radius:999px;padding:6px 12px;cursor:pointer;white-space:nowrap}
+  .offpills .opill.on{background:var(--navy);color:#fff;border-color:var(--navy)}
   .logbtns{display:flex;gap:8px}
   .logbtns .logbtn{flex:1;font-size:14px;padding:11px 6px;line-height:1.2}
   .logbtns .logbtn small{font-weight:600;opacity:.8;font-size:11px}
@@ -798,7 +801,7 @@
       <div id="sopList"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-12·n</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-12·o</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1171,7 +1174,15 @@ function myJobs(){ return JOBS.filter(function(j){ return (ME.vessels||[]).index
 function jobBucket(st){ return st==="done"?"Done":st==="todo"?"To do":"In progress"; }
 /* Real job list from the Works Register (the "centre"), for this crew member's
    vessel. Tick complete → written to our overlay only (never the owner). */
-var CREWJOBS = [], JOBSVESSEL = "", CREWOPEN = [];
+var CREWJOBS = [], JOBSVESSEL = "", CREWOPEN = [], OFFERVESSEL = "__all__";
+// Directors: the Unassigned section pulls its data FLEET-WIDE (independent of the
+// main worklist boat filter) so it has its own All-Yachts / per-yacht pills.
+function loadUnassigned(){
+  if(!isMgrRole()) return;
+  apiGet("fn=crewjobs&code="+encodeURIComponent(ME.code||"")+"&email="+encodeURIComponent(ME.email||"")+"&all=1&mine=0")
+    .then(function(j){ if(j&&j.openJobs){ CREWOPEN=j.openJobs; if(TAB==="jobs") renderJobs(); } }).catch(function(){});
+}
+function setOfferVessel(v){ OFFERVESSEL=v; renderJobs(); }
 var CURVESSEL="", FLEETVESSELS=[];
 function loadJobs(){
   if(!ME) return;
@@ -1194,8 +1205,9 @@ function loadJobs(){
   }
   startActivityWatch();   // fire the activity fetch in PARALLEL with jobs (not after)
   apiGet(url)
-    .then(function(j){ CREWJOBS=(j&&j.jobs)||[]; CREWOPEN=(j&&j.openJobs)||[]; if(j&&j.listMeta)LISTMETA=j.listMeta; JOBSVESSEL=allBoats?"all yachts":((j&&j.vessel)||v); _cSet(_ck("jobs",vk), CREWJOBS); renderJobs(); updateJobsBadge(); renderVesselBar(); checkPendingAccepts(); }).catch(function(){});
+    .then(function(j){ CREWJOBS=(j&&j.jobs)||[]; if(!isMgrRole()) CREWOPEN=(j&&j.openJobs)||[]; if(j&&j.listMeta)LISTMETA=j.listMeta; JOBSVESSEL=allBoats?"all yachts":((j&&j.vessel)||v); _cSet(_ck("jobs",vk), CREWJOBS); renderJobs(); updateJobsBadge(); renderVesselBar(); checkPendingAccepts(); }).catch(function(){});
   loadFleetVessels();
+  loadUnassigned();   // directors: fleet-wide unassigned for the section's own pills
 }
 // Director/Manager boat switcher — lists every vessel that has a worklist.
 function loadFleetVessels(){
@@ -1680,9 +1692,19 @@ function renderJobs(){
 var OFFERCLOSED=false;
 function renderOffer(){
   if(SCHEDVIEW || !CREWOPEN || !CREWOPEN.length) return "";
-  var open=CREWOPEN.filter(function(j){ return hubBucket(j.status)!=="Done"; });
-  if(!open.length) return "";
-  var mgr=isMgrRole(), c=OFFERCLOSED?" closed":"", allV=(CURVESSEL==="__all__");
+  var mgr=isMgrRole(), c=OFFERCLOSED?" closed":"";
+  var openAll=CREWOPEN.filter(function(j){ return hubBucket(j.status)!=="Done"; });
+  if(!openAll.length) return "";
+  // Directors get their own vessel pills inside the section (fleet-wide).
+  var pills="";
+  if(mgr){
+    if(OFFERVESSEL!=="__all__" && !openAll.some(function(j){return (j.vessel||"").toLowerCase()===OFFERVESSEL.toLowerCase();})) OFFERVESSEL="__all__";
+    var vs=[]; openAll.forEach(function(j){ if(vs.indexOf(j.vessel)<0) vs.push(j.vessel); }); vs.sort();
+    pills='<div class="offpills"><div class="opill'+(OFFERVESSEL==="__all__"?" on":"")+'" onclick="event.stopPropagation();setOfferVessel(\'__all__\')">🚢 All yachts '+openAll.length+'</div>'+
+      vs.map(function(v){ var n=openAll.filter(function(x){return x.vessel===v;}).length; return '<div class="opill'+(OFFERVESSEL===v?" on":"")+'" onclick="event.stopPropagation();setOfferVessel(\''+esc(v.replace(/'/g,"\\'"))+'\')">'+esc(v)+' '+n+'</div>'; }).join("")+'</div>';
+  }
+  var allV = !mgr || (OFFERVESSEL==="__all__");
+  var open = allV ? openAll : openAll.filter(function(j){ return (j.vessel||"").toLowerCase()===OFFERVESSEL.toLowerCase(); });
   function offCard(j){
     var due=j.dueTs?('<span class="duechip'+dueCls(j.dueTs,false)+'">📅 '+esc(dayLabel(j.dueTs))+(j.dueTime?(' '+esc(fmtTime12(j.dueTime))):'')+'</span>'):'';
     var kJs=(j.key||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
@@ -1708,9 +1730,8 @@ function renderOffer(){
     ord.sort();
     body=ord.map(function(v){ return '<div class="offvessel">🛥 '+esc(v)+' <span>'+byV[v].length+'</span></div>'+byV[v].map(offCard).join(""); }).join("");
   } else { body=open.map(offCard).join(""); }
-  var hd = mgr ? ('🗂 Unassigned tasks'+(allV?" · all yachts":(CURVESSEL?(" · "+esc(CURVESSEL)):""))) : '🗂 Unassigned tasks';
-  return '<div class="offacc'+c+'" onclick="OFFERCLOSED=!OFFERCLOSED;renderJobs()"><span class="car">▾</span><h3>'+hd+'</h3><span class="n newn">'+open.length+'</span></div>'+
-    '<div class="offbody'+c+'">'+body+'</div>';
+  return '<div class="offacc'+c+'" onclick="OFFERCLOSED=!OFFERCLOSED;renderJobs()"><span class="car">▾</span><h3>🗂 Unassigned tasks</h3><span class="n newn">'+openAll.length+'</span></div>'+
+    '<div class="offbody'+c+'">'+pills+body+'</div>';
 }
 function crewClaim(key){
   toast("Claiming…");
