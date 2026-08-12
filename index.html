@@ -287,16 +287,18 @@
   .fleetcard .fc-go{margin-left:auto;color:var(--orange);font-size:20px}
   .fleetcard .fc-c{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px;font-size:12px;color:var(--muted)}
   .fleetcard .fc-tot{color:var(--muted)} .fleetcard .fc-load{color:var(--muted)}
-  .offacc{background:linear-gradient(135deg,#0f766e,#0b5c56);color:#fff;border-radius:12px;padding:14px 15px;margin:4px 0 11px;cursor:pointer;display:flex;align-items:center;gap:10px;box-shadow:0 4px 12px rgba(15,118,110,.28)}
+  .offacc{background:linear-gradient(135deg,var(--navy),#16386b);color:#fff;border-radius:12px;padding:14px 15px;margin:4px 0 11px;cursor:pointer;display:flex;align-items:center;gap:10px;box-shadow:0 4px 12px rgba(11,42,74,.24)}
   .offacc h3{margin:0;font-size:15px;flex:1;line-height:1.25} .offacc .n{background:rgba(255,255,255,.2);border-radius:12px;font-size:12px;font-weight:bold;padding:2px 9px}
   .offacc .car{transition:transform .2s;font-size:15px} .offacc.closed .car{transform:rotate(-90deg)}
   .offbody.closed{display:none}
-  .offercard{background:#fff;border:1px solid #bfe6df;border-left:4px solid #0f766e;border-radius:12px;padding:12px 13px;margin-bottom:9px}
+  .offercard{background:#fff;border:1px solid #d3e2f2;border-left:4px solid var(--navy);border-radius:12px;padding:12px 13px;margin-bottom:9px}
   .offercard .top{display:flex} .offercard h3{margin:0;font-size:15px;color:var(--ink)}
+  .offneed{display:inline-block;font-size:10.5px;font-weight:800;background:#eef4fb;color:var(--navy);border-radius:8px;padding:1px 7px;vertical-align:middle}
   .offeracts{display:flex;gap:8px;margin-top:10px}
-  .offerbtn{flex:1;background:#0f766e;color:#fff;border:none;border-radius:9px;padding:10px;font-size:14px;font-weight:800;cursor:pointer}
+  .offerbtn{flex:1;background:var(--navy);color:#fff;border:none;border-radius:9px;padding:10px;font-size:14px;font-weight:800;cursor:pointer}
   .offerbtn:active{opacity:.9}
   .offerask{background:#eef4fb;color:var(--navy);border:none;border-radius:9px;padding:10px 12px;font-size:13px;font-weight:700;cursor:pointer}
+  .qcundo{background:none;border:none;color:#0f766e;font-size:11px;font-weight:700;text-decoration:underline;cursor:pointer;margin-left:6px}
   #buildStamp{text-align:center;font-size:11px;color:#9aa7b4;padding:16px 0 24px}
   #buildStamp a{color:var(--navy);font-weight:700;cursor:pointer;text-decoration:underline}
   .mslink{background:linear-gradient(135deg,var(--navy),#16386b);color:#fff;border-radius:12px;padding:13px 15px;margin-bottom:12px;cursor:pointer;font-weight:700;font-size:14px}
@@ -788,7 +790,7 @@
       <div id="sopList"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-12·g</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-12·h</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1683,7 +1685,7 @@ function renderOffer(){
       '<div class="offeracts"><button class="offerbtn" onclick="crewClaim(\''+esc(kJs)+'\')">🙋 I’ll take this</button>'+
         '<button class="offerask" onclick="openWLJob(\''+esc(kJs)+'\')">Ask / details ›</button></div></div>';
   }).join("");
-  return '<div class="offacc'+c+'" onclick="OFFERCLOSED=!OFFERCLOSED;renderJobs()"><span class="car">▾</span><h3>🙋 Jobs on offer — grab one</h3><span class="n newn">'+open.length+'</span></div>'+
+  return '<div class="offacc'+c+'" onclick="OFFERCLOSED=!OFFERCLOSED;renderJobs()"><span class="car">▾</span><h3>🗂 Unassigned tasks</h3><span class="n newn">'+open.length+'</span></div>'+
     '<div class="offbody'+c+'">'+cards+'</div>';
 }
 function crewClaim(key){
@@ -2117,15 +2119,42 @@ function saveInduct(){
 /* Manager-only: approve a completed job → push it to the owner's app. */
 function wlApproveBlock(j,key){
   if(!/director|manager/i.test(ME.role||"")) return "";
-  if(j.shared){
-    return '<div class="sec"><h4>Owner</h4>'+
-      '<div class="apprOn">✓ Sent to owner’s app'+(j.approvedBy?(' · approved by '+esc(j.approvedBy)):'')+(j.approvedAt?(' · '+esc(j.approvedAt)):'')+'</div>'+
-      '<button class="jobbtn" style="background:#64748b" onclick="wlApprove(\''+esc(key)+'\',false)">Pull back from owner</button></div>';
-  }
   var ready=wlBucketToStatus(j)==="Complete";
-  return '<div class="sec"><h4>Owner</h4>'+
-    '<p class="body" style="font-size:13px;color:var(--muted);margin-bottom:8px">'+(ready?'Approve to send this completed job — with its photos &amp; notes — to the owner’s app, marked done and dated.':'Mark it <b>Complete</b> first, then approve to send it to the owner.')+'</p>'+
-    '<button class="jobbtn complete" onclick="wlApprove(\''+esc(key)+'\',true)"'+(ready?'':' disabled style="opacity:.45"')+'>✓ Approve &amp; send to owner</button></div>';
+  if(!ready){
+    return '<div class="sec"><h4>Sign-off &amp; record</h4>'+
+      '<p class="body" style="font-size:13px;color:var(--muted)">Mark it <b>Complete</b> first — then you can sign it off (QC), record it, or send it to the owner.</p></div>';
+  }
+  var so=j.signoff||{}, qc=(so.qc&&so.qc.by);
+  var kk=esc(key);
+  // QC / sign-off (optional — not every job needs it)
+  var qcRow = qc
+    ? '<div class="apprOn">✅ Signed off (QC) by '+esc(firstName(so.qc.by))+' <button class="qcundo" onclick="wlSignoff(\''+kk+'\',false)">undo</button></div>'
+    : '<button class="jobbtn" style="background:#0f766e" onclick="wlSignoff(\''+kk+'\',true)">✅ Sign off (QC)</button>';
+  if(j.shared){
+    return '<div class="sec"><h4>Sign-off &amp; record</h4>'+qcRow+
+      '<div class="apprOn" style="margin-top:8px">📤 Sent to owner’s app'+(j.approvedBy?(' · '+esc(firstName(j.approvedBy))):'')+(j.approvedAt?(' · '+esc(j.approvedAt)):'')+'</div>'+
+      '<button class="jobbtn" style="background:#64748b" onclick="wlApprove(\''+kk+'\',false)">Pull back from owner</button></div>';
+  }
+  var recorded=(so.disp==="internal");
+  var recRow = recorded
+    ? '<div class="apprOn" style="background:#eef4fb;color:var(--navy);border-color:#d3e2f2">📁 Recorded (internal — the owner does <b>not</b> see this)</div>'
+    : '<button class="jobbtn complete" style="background:var(--navy)" onclick="wlRecord(\''+kk+'\')">📁 Record only (internal)</button>';
+  return '<div class="sec"><h4>Sign-off &amp; record</h4>'+qcRow+
+    '<p class="body" style="font-size:12.5px;color:var(--muted);margin:10px 0 8px">What happens with this completed job? <b>Record</b> = filed to the maintenance record, internal only. <b>Send to owner</b> = filed <i>and</i> shown in the owner’s app.</p>'+
+    recRow+
+    '<button class="jobbtn complete" style="margin-top:8px" onclick="wlApprove(\''+kk+'\',true)">📤 Send to owner</button></div>';
+}
+function wlSignoff(key,on){
+  apiPost({action:"crewJobSignoff", email:ME.email, code:ME.code, jobKey:key, on:on}).then(function(r){
+    if(r&&r.ok){ toast(on?"✅ Signed off":"Sign-off removed"); var j=CREWJOBS.filter(function(x){return x.key===key;})[0]; if(j)j.signoff=r.signoff||{}; openWLJob(key); loadJobs(); }
+    else toast((r&&r.error)||"Couldn’t sign off");
+  }).catch(function(){ toast("Couldn’t connect"); });
+}
+function wlRecord(key){
+  apiPost({action:"crewJobRecord", email:ME.email, code:ME.code, jobKey:key}).then(function(r){
+    if(r&&r.ok){ toast("📁 Recorded — internal only"); var j=CREWJOBS.filter(function(x){return x.key===key;})[0]; if(j)j.signoff=r.signoff||{}; openWLJob(key); loadJobs(); }
+    else toast((r&&r.error)||"Couldn’t record");
+  }).catch(function(){ toast("Couldn’t connect"); });
 }
 function wlApprove(key, share){
   apiPost({action:"crewJobApprove", email:ME.email, code:ME.code, jobKey:key, share:share}).then(function(r){
