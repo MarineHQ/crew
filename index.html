@@ -302,6 +302,8 @@
   .offbadge{display:inline-block;font-size:11px;font-weight:800;border-radius:8px;padding:2px 9px}
   .offbadge.pending{background:#eef2f6;color:#64748b} .offbadge.offered{background:#e6f4f0;color:#0f766e}
   .offstate{font-size:13px;color:var(--ink);background:#f6f9fc;border:1px solid var(--line);border-radius:9px;padding:9px 11px;margin-bottom:9px}
+  .offvessel{font-size:12px;font-weight:800;color:var(--navy);letter-spacing:.3px;margin:12px 2px 8px;text-transform:uppercase}
+  .offvessel span{background:#e6f4f0;color:#0f766e;border-radius:8px;padding:1px 7px;font-size:11px;margin-left:4px}
   .logbtns{display:flex;gap:8px}
   .logbtns .logbtn{flex:1;font-size:14px;padding:11px 6px;line-height:1.2}
   .logbtns .logbtn small{font-weight:600;opacity:.8;font-size:11px}
@@ -796,7 +798,7 @@
       <div id="sopList"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-12·m</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-12·n</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1680,8 +1682,8 @@ function renderOffer(){
   if(SCHEDVIEW || !CREWOPEN || !CREWOPEN.length) return "";
   var open=CREWOPEN.filter(function(j){ return hubBucket(j.status)!=="Done"; });
   if(!open.length) return "";
-  var mgr=isMgrRole(), c=OFFERCLOSED?" closed":"";
-  var cards=open.map(function(j){
+  var mgr=isMgrRole(), c=OFFERCLOSED?" closed":"", allV=(CURVESSEL==="__all__");
+  function offCard(j){
     var due=j.dueTs?('<span class="duechip'+dueCls(j.dueTs,false)+'">📅 '+esc(dayLabel(j.dueTs))+(j.dueTime?(' '+esc(fmtTime12(j.dueTime))):'')+'</span>'):'';
     var kJs=(j.key||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
     var acts = mgr
@@ -1690,17 +1692,25 @@ function renderOffer(){
          '<button class="offerask" onclick="openWLJob(\''+esc(kJs)+'\')">Ask / details ›</button>');
     var badge = mgr ? (j.offer
         ? '<span class="offbadge offered">🗂 Offered'+(j.offer==="*"?" · everyone":(" · "+esc(firstNames(j.offer))))+'</span>'
-        : '<span class="offbadge pending">⏳ Pending</span>') : '';
+        : '<span class="offbadge pending">⏳ To do · not offered</span>') : '';
     return '<div class="offercard">'+
       '<div class="top"><div style="flex:1"><h3>'+esc(j.task||j.desc||"(job)")+(j.code?(' <span class="jcode">'+esc(j.code)+'</span>'):'')+catChip(j.category)+' '+due+'</h3>'+
         '<div style="font-size:12px;color:var(--muted);margin-top:2px">'+esc(j.vessel||"")+(j.list?(" · "+esc(j.list)):"")+'</div></div></div>'+
       (badge?('<div style="margin-top:7px">'+badge+'</div>'):'')+
       (j.subNote?('<p class="subnote">📌 '+esc(j.subNote)+'</p>'):'')+
       '<div class="offeracts">'+acts+'</div></div>';
-  }).join("");
-  var hd = mgr ? '🗂 Unassigned tasks — assign or offer' : '🗂 Unassigned tasks';
+  }
+  var body;
+  if(allV){
+    // All Yachts → group by vessel so a big list stays navigable
+    var byV={}, ord=[];
+    open.forEach(function(j){ var v=j.vessel||"—"; if(!byV[v]){byV[v]=[];ord.push(v);} byV[v].push(j); });
+    ord.sort();
+    body=ord.map(function(v){ return '<div class="offvessel">🛥 '+esc(v)+' <span>'+byV[v].length+'</span></div>'+byV[v].map(offCard).join(""); }).join("");
+  } else { body=open.map(offCard).join(""); }
+  var hd = mgr ? ('🗂 Unassigned tasks'+(allV?" · all yachts":(CURVESSEL?(" · "+esc(CURVESSEL)):""))) : '🗂 Unassigned tasks';
   return '<div class="offacc'+c+'" onclick="OFFERCLOSED=!OFFERCLOSED;renderJobs()"><span class="car">▾</span><h3>'+hd+'</h3><span class="n newn">'+open.length+'</span></div>'+
-    '<div class="offbody'+c+'">'+cards+'</div>';
+    '<div class="offbody'+c+'">'+body+'</div>';
 }
 function crewClaim(key){
   toast("Claiming…");
