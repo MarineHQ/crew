@@ -287,6 +287,16 @@
   .fleetcard .fc-go{margin-left:auto;color:var(--orange);font-size:20px}
   .fleetcard .fc-c{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px;font-size:12px;color:var(--muted)}
   .fleetcard .fc-tot{color:var(--muted)} .fleetcard .fc-load{color:var(--muted)}
+  .offacc{background:linear-gradient(135deg,#0f766e,#0b5c56);color:#fff;border-radius:12px;padding:14px 15px;margin:4px 0 11px;cursor:pointer;display:flex;align-items:center;gap:10px;box-shadow:0 4px 12px rgba(15,118,110,.28)}
+  .offacc h3{margin:0;font-size:15px;flex:1;line-height:1.25} .offacc .n{background:rgba(255,255,255,.2);border-radius:12px;font-size:12px;font-weight:bold;padding:2px 9px}
+  .offacc .car{transition:transform .2s;font-size:15px} .offacc.closed .car{transform:rotate(-90deg)}
+  .offbody.closed{display:none}
+  .offercard{background:#fff;border:1px solid #bfe6df;border-left:4px solid #0f766e;border-radius:12px;padding:12px 13px;margin-bottom:9px}
+  .offercard .top{display:flex} .offercard h3{margin:0;font-size:15px;color:var(--ink)}
+  .offeracts{display:flex;gap:8px;margin-top:10px}
+  .offerbtn{flex:1;background:#0f766e;color:#fff;border:none;border-radius:9px;padding:10px;font-size:14px;font-weight:800;cursor:pointer}
+  .offerbtn:active{opacity:.9}
+  .offerask{background:#eef4fb;color:var(--navy);border:none;border-radius:9px;padding:10px 12px;font-size:13px;font-weight:700;cursor:pointer}
   #buildStamp{text-align:center;font-size:11px;color:#9aa7b4;padding:16px 0 24px}
   #buildStamp a{color:var(--navy);font-weight:700;cursor:pointer;text-decoration:underline}
   .mslink{background:linear-gradient(135deg,var(--navy),#16386b);color:#fff;border-radius:12px;padding:13px 15px;margin-bottom:12px;cursor:pointer;font-weight:700;font-size:14px}
@@ -778,7 +788,7 @@
       <div id="sopList"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-12·f</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-12·g</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1151,7 +1161,7 @@ function myJobs(){ return JOBS.filter(function(j){ return (ME.vessels||[]).index
 function jobBucket(st){ return st==="done"?"Done":st==="todo"?"To do":"In progress"; }
 /* Real job list from the Works Register (the "centre"), for this crew member's
    vessel. Tick complete → written to our overlay only (never the owner). */
-var CREWJOBS = [], JOBSVESSEL = "";
+var CREWJOBS = [], JOBSVESSEL = "", CREWOPEN = [];
 var CURVESSEL="", FLEETVESSELS=[];
 function loadJobs(){
   if(!ME) return;
@@ -1174,7 +1184,7 @@ function loadJobs(){
   }
   startActivityWatch();   // fire the activity fetch in PARALLEL with jobs (not after)
   apiGet(url)
-    .then(function(j){ CREWJOBS=(j&&j.jobs)||[]; if(j&&j.listMeta)LISTMETA=j.listMeta; JOBSVESSEL=allBoats?"all yachts":((j&&j.vessel)||v); _cSet(_ck("jobs",vk), CREWJOBS); renderJobs(); updateJobsBadge(); renderVesselBar(); checkPendingAccepts(); }).catch(function(){});
+    .then(function(j){ CREWJOBS=(j&&j.jobs)||[]; CREWOPEN=(j&&j.openJobs)||[]; if(j&&j.listMeta)LISTMETA=j.listMeta; JOBSVESSEL=allBoats?"all yachts":((j&&j.vessel)||v); _cSet(_ck("jobs",vk), CREWJOBS); renderJobs(); updateJobsBadge(); renderVesselBar(); checkPendingAccepts(); }).catch(function(){});
   loadFleetVessels();
 }
 // Director/Manager boat switcher — lists every vessel that has a worklist.
@@ -1615,7 +1625,7 @@ function renderJobs(){
   } else {
     list.forEach(function(j){ var g=allBoats?(j.list||((j.vessel||"Other")+" — Other jobs")):(j.list||"Other jobs"); if(!groups[g]){groups[g]=[];order.push(g); if(!(g in WLCLOSED)) WLCLOSED[g]=true;} groups[g].push(j); });
   }
-  el.innerHTML=order.map(function(g){
+  el.innerHTML=renderOffer()+order.map(function(g){
     var jobs=groups[g], openN=jobs.filter(function(j){return hubBucket(j.status)!=="Done";}).length;
     var newN=jobs.filter(jobRecent).length;
     var collapsed = WLCLOSED[g] ? " closed":"", bodyC = WLCLOSED[g] ? " closed":"";
@@ -1655,6 +1665,34 @@ function renderJobs(){
       noteRow+editMenu+
       '<div class="wlbody'+bodyC+'" data-g="'+esc(g)+'">'+cards+'</div>';
   }).join("");
+}
+/* ---- Jobs on offer (crew): unassigned jobs anyone can claim ---- */
+var OFFERCLOSED=false;
+function renderOffer(){
+  if(isMgrRole() || SCHEDVIEW || !CREWOPEN || !CREWOPEN.length) return "";
+  var open=CREWOPEN.filter(function(j){ return hubBucket(j.status)!=="Done"; });
+  if(!open.length) return "";
+  var c=OFFERCLOSED?" closed":"";
+  var cards=open.map(function(j){
+    var due=j.dueTs?('<span class="duechip'+dueCls(j.dueTs,false)+'">📅 '+esc(dayLabel(j.dueTs))+(j.dueTime?(' '+esc(fmtTime12(j.dueTime))):'')+'</span>'):'';
+    var kJs=(j.key||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
+    return '<div class="offercard">'+
+      '<div class="top"><div style="flex:1"><h3>'+esc(j.task||j.desc||"(job)")+(j.code?(' <span class="jcode">'+esc(j.code)+'</span>'):'')+catChip(j.category)+' '+due+'</h3>'+
+        '<div style="font-size:12px;color:var(--muted);margin-top:2px">'+esc(j.vessel||"")+(j.list?(" · "+esc(j.list)):"")+'</div></div></div>'+
+      (j.subNote?('<p class="subnote">📌 '+esc(j.subNote)+'</p>'):'')+
+      '<div class="offeracts"><button class="offerbtn" onclick="crewClaim(\''+esc(kJs)+'\')">🙋 I’ll take this</button>'+
+        '<button class="offerask" onclick="openWLJob(\''+esc(kJs)+'\')">Ask / details ›</button></div></div>';
+  }).join("");
+  return '<div class="offacc'+c+'" onclick="OFFERCLOSED=!OFFERCLOSED;renderJobs()"><span class="car">▾</span><h3>🙋 Jobs on offer — grab one</h3><span class="n newn">'+open.length+'</span></div>'+
+    '<div class="offbody'+c+'">'+cards+'</div>';
+}
+function crewClaim(key){
+  toast("Claiming…");
+  apiPost({action:"crewJobClaim", email:ME.email, code:ME.code, jobKey:key}).then(function(r){
+    if(r&&r.ok){ toast("✓ It’s yours — added to your worklist"); try{beep();}catch(e){} loadJobs(); }
+    else if(r&&r.taken){ toast("Too slow — "+(r.error||"already taken")); loadJobs(); }
+    else toast((r&&r.error)||"Couldn’t claim");
+  }).catch(function(){ toast("Couldn’t connect"); });
 }
 function isMgrRole(){ return /director|manager/i.test((ME&&ME.role)||""); }
 function jobRecent(j){ return isMgrRole() && j.source==="worklist" && j.updated && (Date.now()-j.updated < 2*864e5); }
@@ -1917,7 +1955,7 @@ function wlSetDue(key, clear){
 var WLSTATUS=["To do","In hand","Complete"];
 function wlBucketToStatus(j){ var b=hubBucket(j.status); return b==="Done"?"Complete":(b==="In progress"?"In hand":"To do"); }
 function openWLJob(key){
-  var j=CREWJOBS.filter(function(x){return x.key===key;})[0]; if(!j)return;
+  var j=CREWJOBS.filter(function(x){return x.key===key;})[0] || (CREWOPEN||[]).filter(function(x){return x.key===key;})[0]; if(!j)return;
   openJobId=key; WLMENTIONS=[]; WLLANE="";
   var inList=CREWJOBS.filter(function(x){return (x.list||"")===(j.list||"");}); var num=inList.indexOf(j)+1;
   var cur=wlBucketToStatus(j);
