@@ -801,7 +801,7 @@
       <div id="sopList"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-12·p</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-12·q</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1393,25 +1393,34 @@ var _acceptPromptShown=false;
 function checkPendingAccepts(){
   if(_acceptPromptShown || isMgrRole()) return;
   var me=(ME.name||"").toLowerCase().replace(/\s*\(test\)/,"").trim(); if(!me) return;
+  // (1) tasks assigned directly to me, not yet accepted
   var pend=(CREWJOBS||[]).filter(function(j){
     if(!j.allocatedTo || j.allocatedTo.toLowerCase().indexOf(me)<0) return false;
     if(j.accepted && j.accepted.by) return false;
     return hubBucket(j.status)!=="Done";
-  });
-  if(!pend.length) return;
+  }).map(function(j){ return {j:j, off:false}; });
+  // (2) tasks Marine HQ has offered to me (or everyone) that I can approve/accept
+  var offered=(CREWOPEN||[]).filter(function(j){ return hubBucket(j.status)!=="Done"; })
+    .map(function(j){ return {j:j, off:true}; });
+  var all=pend.concat(offered);
+  if(!all.length) return;
   _acceptPromptShown=true; window._wpopLock=true;
   var ic=$("wpopIc"), tt=$("wpopTitle"), ls=$("wpopList"); if(!ls) return;
   ic.textContent="🚨";
-  tt.textContent = pend.length>1 ? (pend.length+" tasks to accept") : "You have a task to accept";
-  ls.innerHTML='<div class="wpop-accept-lead">Marine HQ has assigned '+(pend.length>1?('you <b>'+pend.length+' tasks</b>'):'<b>you a task</b>')+' — please open and <b>accept</b> so we know you’ve got it. 🙌</div>'+
-    pend.map(function(j){
-      return '<div class="wpop-item accept" onclick="welcomeOpen(\''+esc(j.key)+'\',\''+esc(j.vessel)+'\')">'+
+  tt.textContent = all.length>1 ? (all.length+" tasks to approve") : "You have a task to approve";
+  ls.innerHTML='<div class="wpop-accept-lead">Marine HQ has sent '+(all.length>1?('you <b>'+all.length+' tasks</b>'):'<b>you a task</b>')+' — please open and <b>approve</b> so we know you’ve got it. 🙌</div>'+
+    all.map(function(it){ var j=it.j;
+      var oc = it.off ? 'welcomeGoOffers()' : ('welcomeOpen(\''+esc(j.key)+'\',\''+esc(j.vessel)+'\')');
+      return '<div class="wpop-item accept" onclick="'+oc+'">'+
         '<div class="wpop-item-ic">🚨</div>'+
         '<div class="wpop-item-main"><div class="wpop-item-t"><b>'+esc(j.task||j.desc||"Task")+'</b></div>'+
-        '<div class="wpop-item-sub">'+(j.code?'<span class="jcode">'+esc(j.code)+'</span> ':'')+esc(j.vessel||"")+' · tap to accept</div></div><div class="wpop-item-go">›</div></div>';
+        '<div class="wpop-item-sub">'+(j.code?'<span class="jcode">'+esc(j.code)+'</span> ':'')+esc(j.vessel||"")+' · tap to approve</div></div><div class="wpop-item-go">›</div></div>';
     }).join("");
   $("welcomePop").classList.add("show"); try{beep();}catch(e){}
 }
+// Tapping an OFFERED task in the approve pop-up: land on the Jobs tab where the
+// "Unassigned tasks" card carries the ✓ Accept button (crew accept from there).
+function welcomeGoOffers(){ closeWelcome(); OFFERCLOSED=false; go("jobs"); }
 function maybeWelcomePopup(evs){
   if(window._wpopLock) return;                                  // an urgent "please accept" prompt owns the pop-up
   if(!evs||!evs.length) return;
