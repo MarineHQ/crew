@@ -271,6 +271,22 @@
   .cardthumbs{display:flex;gap:5px;margin:9px 0 3px;flex-wrap:wrap}
   .cardthumbs img{width:48px;height:48px;object-fit:cover;border-radius:8px;border:1px solid var(--line);background:#eef2f6}
   .cardthumb-more{width:48px;height:48px;border-radius:8px;background:#eef2f6;color:var(--muted);font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center}
+  .caresum{display:flex;gap:8px;margin:0 0 12px;flex-wrap:wrap}
+  .caresum .cs{font-size:12px;font-weight:800;border-radius:8px;padding:4px 10px}
+  .caresum .cs.od{background:#fee2e2;color:#b91c1c} .caresum .cs.soon{background:#fff1e3;color:#8a5a12} .caresum .cs.nd{background:#eef2f6;color:#475569}
+  .careitem{background:#fff;border:1px solid var(--line);border-left:4px solid #94a3b8;border-radius:11px;padding:11px 13px;margin-bottom:9px}
+  .careitem.cs-od{border-left-color:#dc2626} .careitem.cs-soon{border-left-color:#e8823a} .careitem.cs-ok{border-left-color:#0f766e} .careitem.cs-nd{border-left-color:#94a3b8}
+  .ci-top{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+  .ci-task{font-weight:700;color:var(--ink);font-size:14px}
+  .ci-meta{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:6px;font-size:12px;color:var(--muted)}
+  .carepill{font-weight:800;font-size:11px;border-radius:8px;padding:2px 8px}
+  .carepill.od{background:#fee2e2;color:#b91c1c} .carepill.soon{background:#fff1e3;color:#8a5a12} .carepill.ok{background:#e6f4f0;color:#0f766e} .carepill.nd{background:#eef2f6;color:#475569}
+  .fleetcard{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:10px;cursor:pointer}
+  .fleetcard.hasod{border-left:4px solid #dc2626}
+  .fleetcard .fc-v{font-size:15px;font-weight:800;color:var(--navy);display:flex;align-items:center}
+  .fleetcard .fc-go{margin-left:auto;color:var(--orange);font-size:20px}
+  .fleetcard .fc-c{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px;font-size:12px;color:var(--muted)}
+  .fleetcard .fc-tot{color:var(--muted)} .fleetcard .fc-load{color:var(--muted)}
   #buildStamp{text-align:center;font-size:11px;color:#9aa7b4;padding:16px 0 24px}
   #buildStamp a{color:var(--navy);font-weight:700;cursor:pointer;text-decoration:underline}
   .mslink{background:linear-gradient(135deg,var(--navy),#16386b);color:#fff;border-radius:12px;padding:13px 15px;margin-bottom:12px;cursor:pointer;font-weight:700;font-size:14px}
@@ -762,7 +778,7 @@
       <div id="sopList"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-12·d</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-12·e</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1184,7 +1200,7 @@ function renderVesselBar(){
   }
   hosts.forEach(function(h){ if(h) h.innerHTML=html; });
 }
-function pickVessel(v){ CURVESSEL=v; WLCLOSED={}; renderVesselBar(); if(TAB==="maint") renderMaintLog(); else if(TAB==="induct") loadInduct(); else loadJobs(); }
+function pickVessel(v){ CURVESSEL=v; WLCLOSED={}; renderVesselBar(); if(TAB==="maint"){ if(v==="__all__") loadFleetCare(); else loadCare(v); } else if(TAB==="induct") loadInduct(); else loadJobs(); }
 // Open the Command Centre, passing the director's code so it unlocks (no 2nd passcode).
 function openCommand(){ try{ if(ME&&ME.code) localStorage.setItem("mhq_crew_key", ME.code); }catch(e){} location.href="overview.html"; }
 /* What's Due — scheduled maintenance from the maintenance schedule → add to a worklist */
@@ -1676,14 +1692,76 @@ var SCHEDVIEW=false;
 function toggleSched(){ SCHEDVIEW=!SCHEDVIEW; renderJobs(); }
 /* ---- Maintenance tab (directors only): the care schedule they control ---- */
 var MAINTLOG=null, MAINTDUE=[], _logLoaded=false, LOGTAB="due";
+var _maintFirst=true;
 function loadMaint(){
   if(!isMgrRole()){ go("jobs"); return; }
   loadFleetVessels();
-  // Default to a real yacht so the tab opens straight onto one (not stuck on "pick a yacht").
-  if(!CURVESSEL || CURVESSEL==="__all__"){ CURVESSEL=(FLEETVESSELS&&FLEETVESSELS[0]) || (ME.vessels&&ME.vessels[0]) || CURVESSEL; }
+  if(_maintFirst){ CURVESSEL="__all__"; _maintFirst=false; }   // open on the fleet overview first
   renderVesselBar();
-  renderMaintLog();                                  // paints (loading state if not loaded)
-  if(!_logLoaded) loadMaintLog();
+  if(CURVESSEL==="__all__") loadFleetCare();
+  else loadCare(CURVESSEL);
+}
+/* ---- Care schedule: the full per-boat maintenance schedule, push on every row ---- */
+var CAREITEMS=null, CAREV="", FLEETCARE=null, CARESEC={};
+function loadCare(v){
+  CAREV=v; CAREITEMS=null; renderCare();
+  apiGet("fn=careschedule&code="+encodeURIComponent(ME.code||"")+"&vessel="+encodeURIComponent(v)).then(function(j){
+    if(TAB!=="maint"||CURVESSEL!==v) return;
+    CAREITEMS=(j&&j.items)||[]; renderCare();
+  }).catch(function(){ if($("maintList")) $("maintList").innerHTML='<div class="empty">Couldn’t load — try again.</div>'; });
+}
+function loadFleetCare(){
+  var vs=(FLEETVESSELS&&FLEETVESSELS.length?FLEETVESSELS:(ME.vessels||[])).filter(function(v){return !/test boat/i.test(v);});
+  renderFleetCare(vs);
+  apiGet("fn=careschedule&code="+encodeURIComponent(ME.code||"")+"&fleet="+encodeURIComponent(vs.join(","))).then(function(j){
+    if(TAB!=="maint"||CURVESSEL!=="__all__") return;
+    FLEETCARE=(j&&j.fleet)||[]; renderFleetCare(vs);
+  }).catch(function(){});
+}
+function careStatus(x){
+  if(x.status==="overdue") return {c:"od",t:(x.inDays<0?(-x.inDays)+"d overdue":"Overdue")};
+  if(x.status==="soon")    return {c:"soon",t:(x.inDays===0?"Due today":"Due in "+x.inDays+"d")};
+  if(x.status==="notdone") return {c:"nd",t:"Not yet logged"};
+  return {c:"ok",t:"Up to date"};
+}
+function toggleCareSec(g){ CARESEC[g]=(CARESEC[g]===false); renderCare(); }
+function careRow(x){
+  var st=careStatus(x);
+  var vJs=(CAREV||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'"), coJs=(x.code||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
+  var taJs=(x.task||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'"), caJs=(x.category||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
+  return '<div class="careitem cs-'+st.c+'">'+
+    '<div class="ci-top"><span class="ci-task">'+esc(x.task)+'</span> <span class="jcode">'+esc(x.code)+'</span></div>'+
+    '<div class="ci-meta"><span class="carepill '+st.c+'">'+esc(st.t)+'</span>'+(x.freq?('<span>🔁 '+esc(x.freq)+'</span>'):'')+(x.lastDone?('<span>last '+esc(x.lastDone)+'</span>'):'<span>never logged</span>')+(x.nextDue?('<span>next '+esc(x.nextDue)+'</span>'):'')+'</div>'+
+    '<button class="m2w" onclick="maintToWorklist(\''+esc(vJs)+'\',\''+esc(coJs)+'\',\''+esc(taJs)+'\',\''+esc(caJs)+'\')">➕ Push to worklist</button></div>';
+}
+function renderCare(){
+  var el=$("maintList"); if(!el) return;
+  $("maintHello").innerHTML="🧰 <b>Care schedule</b> · <b>"+esc(CAREV)+"</b> — every task; push any of them to a worklist. The client sees the same record.";
+  if(!CAREITEMS){ el.innerHTML='<div class="loadingbox"><span class="spin"></span> Loading '+esc(CAREV)+'…</div>'; $("maintCount").textContent=""; return; }
+  var od=CAREITEMS.filter(function(x){return x.status==="overdue";}).length, soon=CAREITEMS.filter(function(x){return x.status==="soon";}).length, nd=CAREITEMS.filter(function(x){return x.status==="notdone";}).length;
+  $("maintCount").textContent=CAREITEMS.length+" tasks";
+  var msLink='<div class="mslink" onclick="openMaintSchedule(\''+esc((CAREV||"").replace(/'/g,"\\'"))+'\')">📋 Open '+esc(CAREV)+'’s full Care Schedule ↗<div class="mslink-sub">The client’s read-only copy in MyYacht.</div></div>';
+  var summary='<div class="caresum"><span class="cs od">'+od+' overdue</span><span class="cs soon">'+soon+' due soon</span><span class="cs nd">'+nd+' not logged</span></div>';
+  var groups={}, order=[], rank={overdue:0,soon:1,notdone:2,ok:3};
+  CAREITEMS.slice().sort(function(a,b){return (rank[a.status]-rank[b.status])||((a.num||0)-(b.num||0));}).forEach(function(x){ var g=x.section||"Other"; if(!groups[g]){groups[g]=[];order.push(g);} groups[g].push(x); });
+  var body=order.map(function(g){
+    var arr=groups[g], hasDue=arr.some(function(x){return x.status==="overdue"||x.status==="soon";});
+    var open = (g in CARESEC) ? CARESEC[g] : hasDue;   // sections with due items open by default
+    var head='<div class="wlacc'+(open?"":" closed")+'" onclick="toggleCareSec(\''+esc(g.replace(/'/g,"\\'"))+'\')"><span class="car">▾</span><h3>'+esc(g)+'</h3>'+(arr.filter(function(x){return x.status==="overdue"||x.status==="soon";}).length?('<span class="n newn">'+arr.filter(function(x){return x.status==="overdue"||x.status==="soon";}).length+' due</span>'):'')+'<span class="n">'+arr.length+'</span></div>';
+    return head+'<div class="wlbody'+(open?"":" closed")+'">'+arr.map(careRow).join("")+'</div>';
+  }).join("");
+  el.innerHTML=msLink+summary+body;
+}
+function renderFleetCare(vs){
+  var el=$("maintList"); if(!el) return;
+  $("maintHello").innerHTML="🧰 <b>Care schedule — fleet overview</b>. Tap a yacht to open its full schedule &amp; push tasks.";
+  $("maintCount").textContent=vs.length+" yachts";
+  var byV={}; (FLEETCARE||[]).forEach(function(f){byV[f.vessel]=f;});
+  el.innerHTML=vs.map(function(v){ var f=byV[v]; var vj=v.replace(/'/g,"\\'");
+    var counts = !f ? '<span class="fc-load">Loading…</span>' :
+      ((f.overdue?('<span class="carepill od">'+f.overdue+' overdue</span>'):'')+(f.soon?('<span class="carepill soon">'+f.soon+' soon</span>'):'')+'<span class="fc-tot">'+f.total+' tasks</span>');
+    return '<div class="fleetcard'+(f&&f.overdue?" hasod":"")+'" onclick="pickVessel(\''+esc(vj)+'\')"><div class="fc-v">'+esc(v)+'<span class="fc-go">›</span></div><div class="fc-c">'+counts+'</div></div>';
+  }).join("");
 }
 function setLogTab(t){ LOGTAB=t; renderMaintLog(); }
 function loadMaintLog(){
