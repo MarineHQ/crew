@@ -790,7 +790,7 @@
       <div id="sopList"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-12·h</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-12·i</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2121,8 +2121,8 @@ function wlApproveBlock(j,key){
   if(!/director|manager/i.test(ME.role||"")) return "";
   var ready=wlBucketToStatus(j)==="Complete";
   if(!ready){
-    return '<div class="sec"><h4>Sign-off &amp; record</h4>'+
-      '<p class="body" style="font-size:13px;color:var(--muted)">Mark it <b>Complete</b> first — then you can sign it off (QC), record it, or send it to the owner.</p></div>';
+    return '<div class="sec"><h4>Sign-off &amp; log</h4>'+
+      '<p class="body" style="font-size:13px;color:var(--muted)">Mark it <b>Complete</b> first — then you can sign it off (QC), log it, or log &amp; push it to the owner.</p></div>';
   }
   var so=j.signoff||{}, qc=(so.qc&&so.qc.by);
   var kk=esc(key);
@@ -2131,18 +2131,18 @@ function wlApproveBlock(j,key){
     ? '<div class="apprOn">✅ Signed off (QC) by '+esc(firstName(so.qc.by))+' <button class="qcundo" onclick="wlSignoff(\''+kk+'\',false)">undo</button></div>'
     : '<button class="jobbtn" style="background:#0f766e" onclick="wlSignoff(\''+kk+'\',true)">✅ Sign off (QC)</button>';
   if(j.shared){
-    return '<div class="sec"><h4>Sign-off &amp; record</h4>'+qcRow+
-      '<div class="apprOn" style="margin-top:8px">📤 Sent to owner’s app'+(j.approvedBy?(' · '+esc(firstName(j.approvedBy))):'')+(j.approvedAt?(' · '+esc(j.approvedAt)):'')+'</div>'+
+    return '<div class="sec"><h4>Sign-off &amp; log</h4>'+qcRow+
+      '<div class="apprOn" style="margin-top:8px">📤 Logged &amp; pushed to owner’s app'+(j.approvedBy?(' · '+esc(firstName(j.approvedBy))):'')+(j.approvedAt?(' · '+esc(j.approvedAt)):'')+'</div>'+
       '<button class="jobbtn" style="background:#64748b" onclick="wlApprove(\''+kk+'\',false)">Pull back from owner</button></div>';
   }
   var recorded=(so.disp==="internal");
   var recRow = recorded
-    ? '<div class="apprOn" style="background:#eef4fb;color:var(--navy);border-color:#d3e2f2">📁 Recorded (internal — the owner does <b>not</b> see this)</div>'
-    : '<button class="jobbtn complete" style="background:var(--navy)" onclick="wlRecord(\''+kk+'\')">📁 Record only (internal)</button>';
-  return '<div class="sec"><h4>Sign-off &amp; record</h4>'+qcRow+
-    '<p class="body" style="font-size:12.5px;color:var(--muted);margin:10px 0 8px">What happens with this completed job? <b>Record</b> = filed to the maintenance record, internal only. <b>Send to owner</b> = filed <i>and</i> shown in the owner’s app.</p>'+
+    ? '<div class="apprOn" style="background:#eef4fb;color:var(--navy);border-color:#d3e2f2">📁 Logged (internal — the owner does <b>not</b> see this)</div>'
+    : '<button class="jobbtn complete" style="background:var(--navy)" onclick="wlRecord(\''+kk+'\')">📁 Log only</button>';
+  return '<div class="sec"><h4>Sign-off &amp; log</h4>'+qcRow+
+    '<p class="body" style="font-size:12.5px;color:var(--muted);margin:10px 0 8px">Sign off (QC) if it needs it, then log it: <b>Log only</b> = filed to the maintenance record, internal. <b>Log &amp; push to owner</b> = filed <i>and</i> shown in the owner’s app.</p>'+
     recRow+
-    '<button class="jobbtn complete" style="margin-top:8px" onclick="wlApprove(\''+kk+'\',true)">📤 Send to owner</button></div>';
+    '<button class="jobbtn complete" style="margin-top:8px" onclick="wlApprove(\''+kk+'\',true)">📤 Log &amp; push to owner</button></div>';
 }
 function wlSignoff(key,on){
   apiPost({action:"crewJobSignoff", email:ME.email, code:ME.code, jobKey:key, on:on}).then(function(r){
@@ -2152,13 +2152,13 @@ function wlSignoff(key,on){
 }
 function wlRecord(key){
   apiPost({action:"crewJobRecord", email:ME.email, code:ME.code, jobKey:key}).then(function(r){
-    if(r&&r.ok){ toast("📁 Recorded — internal only"); var j=CREWJOBS.filter(function(x){return x.key===key;})[0]; if(j)j.signoff=r.signoff||{}; openWLJob(key); loadJobs(); }
+    if(r&&r.ok){ toast("📁 Logged — internal only"); var j=CREWJOBS.filter(function(x){return x.key===key;})[0]; if(j)j.signoff=r.signoff||{}; openWLJob(key); loadJobs(); }
     else toast((r&&r.error)||"Couldn’t record");
   }).catch(function(){ toast("Couldn’t connect"); });
 }
 function wlApprove(key, share){
   apiPost({action:"crewJobApprove", email:ME.email, code:ME.code, jobKey:key, share:share}).then(function(r){
-    if(r&&r.ok){ toast(share?"✓ Sent to the owner":"Pulled back from owner");
+    if(r&&r.ok){ toast(share?"✓ Logged & pushed to owner":"Pulled back from owner");
       var j=CREWJOBS.filter(function(x){return x.key===key;})[0];
       if(j){ j.shared=share; j.approvedBy=r.approvedBy||""; j.approvedAt=r.approvedAt||""; }
       openWLJob(key); loadJobs(); }
