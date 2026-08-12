@@ -801,7 +801,7 @@
       <div id="sopList"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-12·o</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-12·p</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1205,9 +1205,11 @@ function loadJobs(){
   }
   startActivityWatch();   // fire the activity fetch in PARALLEL with jobs (not after)
   apiGet(url)
-    .then(function(j){ CREWJOBS=(j&&j.jobs)||[]; if(!isMgrRole()) CREWOPEN=(j&&j.openJobs)||[]; if(j&&j.listMeta)LISTMETA=j.listMeta; JOBSVESSEL=allBoats?"all yachts":((j&&j.vessel)||v); _cSet(_ck("jobs",vk), CREWJOBS); renderJobs(); updateJobsBadge(); renderVesselBar(); checkPendingAccepts(); }).catch(function(){});
+    .then(function(j){ CREWJOBS=(j&&j.jobs)||[]; if(!isMgrRole() || allBoats) CREWOPEN=(j&&j.openJobs)||[]; if(j&&j.listMeta)LISTMETA=j.listMeta; JOBSVESSEL=allBoats?"all yachts":((j&&j.vessel)||v); _cSet(_ck("jobs",vk), CREWJOBS); renderJobs(); updateJobsBadge(); renderVesselBar(); checkPendingAccepts(); }).catch(function(){});
   loadFleetVessels();
-  loadUnassigned();   // directors: fleet-wide unassigned for the section's own pills
+  // On All Yachts the main fetch already returns fleet-wide unassigned — only fetch
+  // separately when a director has drilled into ONE boat (so the section stays fleet-wide).
+  if(isMgrRole() && !allBoats) loadUnassigned();
 }
 // Director/Manager boat switcher — lists every vessel that has a worklist.
 function loadFleetVessels(){
