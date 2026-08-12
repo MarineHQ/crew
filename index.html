@@ -796,7 +796,7 @@
       <div id="sopList"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-12·l</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-12·m</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1686,7 +1686,7 @@ function renderOffer(){
     var kJs=(j.key||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
     var acts = mgr
       ? '<button class="offerbtn" onclick="openWLJob(\''+esc(kJs)+'\')">Set up — assign or offer ›</button>'
-      : ('<button class="offerbtn" onclick="crewClaim(\''+esc(kJs)+'\')">🙋 I’ll take this</button>'+
+      : ('<button class="offerbtn" onclick="crewClaim(\''+esc(kJs)+'\')">✓ Accept</button>'+
          '<button class="offerask" onclick="openWLJob(\''+esc(kJs)+'\')">Ask / details ›</button>');
     var badge = mgr ? (j.offer
         ? '<span class="offbadge offered">🗂 Offered'+(j.offer==="*"?" · everyone":(" · "+esc(firstNames(j.offer))))+'</span>'
@@ -1707,7 +1707,7 @@ function crewClaim(key){
   apiPost({action:"crewJobClaim", email:ME.email, code:ME.code, jobKey:key}).then(function(r){
     if(r&&r.ok){ toast("✓ It’s yours — added to your worklist"); try{beep();}catch(e){} loadJobs(); }
     else if(r&&r.taken){ toast("Too slow — "+(r.error||"already taken")); loadJobs(); }
-    else toast((r&&r.error)||"Couldn’t claim");
+    else toast((r&&r.error)||"Couldn’t accept");
   }).catch(function(){ toast("Couldn’t connect"); });
 }
 function isMgrRole(){ return /director|manager/i.test((ME&&ME.role)||""); }
@@ -2018,18 +2018,18 @@ function openWLJob(key){
   var offerArr=(j.offer==="*")?[]:(j.offer||"").split(",").map(function(s){return s.trim();}).filter(String);
   var offerLower=offerArr.map(function(s){return s.toLowerCase();});
   var offerAll=(j.offer==="*");
-  var stateLbl = offerAll?'🗂 Offered to <b>everyone</b> — anyone can grab it'
-    : (j.offer?('🗂 Offered to <b>'+esc(firstNames(j.offer))+'</b> — they can grab it')
+  var stateLbl = offerAll?'🗂 Offered to <b>everyone</b> — anyone can accept it'
+    : (j.offer?('🗂 Offered to <b>'+esc(firstNames(j.offer))+'</b> — they can accept it')
              : '⏳ <b>Pending</b> — sitting in your backlog, crew can’t see it yet');
   var offerHTML = (isMgrRole() && !allocList.length) ? (
-    '<div class="sec"><h4>Or offer it — up for grabs</h4>'+
+    '<div class="sec"><h4>Or offer it</h4>'+
     '<div class="offstate">'+stateLbl+'</div>'+
     '<div class="assignrow">'+
       '<button class="aopt'+(offerAll?' on':'')+'" onclick="wlOffer(\''+esc(key)+'\',\'*\')">👥 Everyone</button>'+
       (CREWNAMES||[]).map(function(c){ var on=!offerAll && offerLower.indexOf((c.name||"").toLowerCase())>=0;
         return '<button class="aopt'+(on?' on':'')+'" onclick="wlOfferToggle(\''+esc(key)+'\',\''+esc((c.name||"").replace(/'/g,"\\'"))+'\')">'+esc(firstName(c.name))+(on?' ✓':'')+'</button>'; }).join('')+
       '<button class="aopt'+(!j.offer?' on':'')+'" onclick="wlOffer(\''+esc(key)+'\',\'\')">⏳ Keep pending</button>'+
-    '</div><p class="body" style="font-size:12px;color:var(--muted);margin-top:7px">Pick <b>Everyone</b> or tap specific people — only they see it under “Unassigned tasks” and can grab it. Or <b>Assign</b> above to give it to someone directly.</p></div>'
+    '</div><p class="body" style="font-size:12px;color:var(--muted);margin-top:7px">Pick <b>Everyone</b> or tap specific people — only they see it under “Unassigned tasks” and can accept it. Or <b>Assign</b> above to give it to someone directly.</p></div>'
   ) : '';
   // Day / due (Directors & Managers) — shows on the crew's Schedule
   var dueHTML = !isMgrRole() ? '' :
@@ -2338,7 +2338,7 @@ function wlToggleAssign(key, name){
 /* Offer an unassigned (pending) task — "*" everyone, a name list, or "" pending */
 function wlOffer(key, offer){
   apiPost({action:"crewJobOffer", email:ME.email, code:ME.code, jobKey:key, offer:offer}).then(function(r){
-    if(r&&r.ok){ toast(offer?(offer==="*"?"🗂 Offered to everyone":"🗂 Offered — crew can grab it"):"⏳ Back to pending");
+    if(r&&r.ok){ toast(offer?(offer==="*"?"🗂 Offered to everyone":"🗂 Offered — crew can accept it"):"⏳ Back to pending");
       var j=wlFind(key); if(j)j.offer=r.offer; openWLJob(key); loadJobs(); }
     else toast((r&&r.error)||"Couldn’t offer");
   }).catch(function(){ toast("Couldn’t connect"); });
