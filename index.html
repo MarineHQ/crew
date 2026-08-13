@@ -307,6 +307,11 @@
   .offpills{display:flex;gap:6px;overflow-x:auto;padding:2px 0 10px;-webkit-overflow-scrolling:touch}
   .offpills .opill{flex:0 0 auto;background:#fff;border:1px solid var(--line);color:var(--navy);font-size:12.5px;font-weight:700;border-radius:999px;padding:6px 12px;cursor:pointer;white-space:nowrap}
   .offpills .opill.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+  .bundlehd{font-size:12px;font-weight:800;color:var(--navy);letter-spacing:.3px;margin:2px 2px 8px;text-transform:uppercase}
+  .bundlebox{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 13px;margin:2px 0 14px}
+  .bundlebox .bb-list{max-height:220px;overflow-y:auto;margin-bottom:10px}
+  .bundlebox .bb-row{font-size:13px;padding:5px 2px;border-bottom:1px solid var(--line)}
+  .bundlebox .bb-row:last-child{border-bottom:none}
   .logbtns{display:flex;gap:8px}
   .logbtns .logbtn{flex:1;font-size:14px;padding:11px 6px;line-height:1.2}
   .logbtns .logbtn small{font-weight:600;opacity:.8;font-size:11px}
@@ -808,7 +813,7 @@
       <div id="sopList"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-13·t</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-13·u</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1848,8 +1853,35 @@ function loadMaint(){
 }
 /* ---- Care schedule: the full per-boat maintenance schedule, push on every row ---- */
 var CAREITEMS=null, CAREV="", FLEETCARE=null, CARESEC={};
+/* Worklist bundles (e.g. Annual Shipyard) — select the set, push it in one go */
+var BUNDLES=null, BUNDLESEL="";
+function loadBundles(){
+  apiGet("fn=bundles&code="+encodeURIComponent(ME.code||""))
+    .then(function(j){ if(j&&j.ok){ BUNDLES=j.bundles||[]; if(TAB==="maint"&&CURVESSEL!=="__all__") renderCare(); } }).catch(function(){});
+}
+function toggleBundle(name){ BUNDLESEL=(BUNDLESEL===name)?"":name; renderCare(); }
+function pushBundle(name){
+  var v=CAREV; if(!v){ toast("Pick a yacht first"); return; }
+  var b=(BUNDLES||[]).filter(function(x){return x.name===name;})[0]; if(!b) return;
+  if(!confirm("Push \""+name+"\" ("+b.tasks.length+" tasks) onto "+v+"’s worklist?\n\nTasks the boat already has active are skipped.")) return;
+  toast("Pushing bundle…");
+  apiPost({action:"crewPushBundle", email:ME.email, code:ME.code, vessel:v, bundle:name}).then(function(r){
+    if(r&&r.ok){ toast("✓ "+r.added+" tasks added to “"+r.list+"”"+(r.skipped&&r.skipped.length?(" · "+r.skipped.length+" skipped"):"")); BUNDLESEL=""; go("jobs"); pickVessel(v); }
+    else toast((r&&r.error)||"Couldn’t push bundle");
+  }).catch(function(){ toast("Couldn’t connect"); });
+}
+function bundleBlock(){
+  if(!BUNDLES||!BUNDLES.length) return "";
+  var pills=BUNDLES.map(function(b){ var on=(BUNDLESEL===b.name);
+    return '<div class="opill'+(on?" on":"")+'" onclick="toggleBundle(\''+esc(b.name.replace(/'/g,"\\'"))+'\')">📦 '+esc(b.name)+' · '+b.tasks.length+'</div>'; }).join("");
+  var sel=(BUNDLES||[]).filter(function(x){return x.name===BUNDLESEL;})[0];
+  var detail = sel ? ('<div class="bundlebox"><div class="bb-list">'+sel.tasks.map(function(t){return '<div class="bb-row"><span class="jcode">'+esc(String(t.no))+'</span> '+esc(t.job)+'</div>';}).join("")+'</div>'+
+    '<button class="jobbtn complete" onclick="pushBundle(\''+esc(sel.name.replace(/'/g,"\\'"))+'\')">📦 Push all '+sel.tasks.length+' to '+esc(CAREV)+'’s worklist</button></div>') : "";
+  return '<div class="bundlehd">Standard worklists — push the whole set</div><div class="offpills">'+pills+'</div>'+detail;
+}
 function loadCare(v){
   CAREV=v; CAREITEMS=null; renderCare();
+  if(!BUNDLES) loadBundles();
   apiGet("fn=careschedule&code="+encodeURIComponent(ME.code||"")+"&vessel="+encodeURIComponent(v)).then(function(j){
     if(TAB!=="maint"||CURVESSEL!==v) return;
     CAREITEMS=(j&&j.items)||[]; renderCare();
@@ -1895,7 +1927,7 @@ function renderCare(){
     var head='<div class="wlacc'+(open?"":" closed")+'" onclick="toggleCareSec(\''+esc(g.replace(/'/g,"\\'"))+'\')"><span class="car">▾</span><h3>'+esc(g)+'</h3>'+(arr.filter(function(x){return x.status==="overdue"||x.status==="soon";}).length?('<span class="n newn">'+arr.filter(function(x){return x.status==="overdue"||x.status==="soon";}).length+' due</span>'):'')+'<span class="n">'+arr.length+'</span></div>';
     return head+'<div class="wlbody'+(open?"":" closed")+'">'+arr.map(careRow).join("")+'</div>';
   }).join("");
-  el.innerHTML=msLink+summary+body;
+  el.innerHTML=msLink+bundleBlock()+summary+body;
 }
 function renderFleetCare(vs){
   var el=$("maintList"); if(!el) return;
