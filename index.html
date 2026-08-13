@@ -813,7 +813,7 @@
       <div id="sopList"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-13·u</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-13·v</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1951,7 +1951,7 @@ function dueLabel(n){ if(n<0) return {t:(-n)+(n===-1?" day overdue":" days overd
 // under its standard code, then jump to it so you can assign a crew member.
 function maintToWorklist(vessel, code, task, category){
   // Open the Add-task form pre-filled → director picks/creates the worklist + assigns.
-  var num=parseInt((code||"").replace(/^.*-/,""),10)||"";
+  var num=parseFloat((code||"").replace(/^.*-/,""))||"";   // parseFloat: sub-tasks are 0054.1 etc.
   openAddTask("", vessel, { title:task, matchNum:num, code:code, category:category });
 }
 function renderMaintLog(){
