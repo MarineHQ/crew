@@ -813,7 +813,7 @@
       <div id="sopList"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-13·v</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-15·w</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1692,7 +1692,16 @@ function renderJobs(){
   var list=CREWJOBS.filter(function(j){ return JOBFILTER==="All"||hubBucket(j.status)===JOBFILTER; });
   $("jobsCount").textContent=list.length+(list.length===1?" job":" jobs");
   var el=$("jobList");
-  if(!list.length){ el.innerHTML='<div class="empty">Nothing here right now.<br>Jobs Marine HQ assign to you'+(isMgrRole()?(' on '+esc(JOBSVESSEL||"your vessel")):' (on any boat)')+' show up here.</div>'; return; }
+  // Offered ("Unassigned tasks") is rendered FIRST and must survive the empty state —
+  // someone with tasks only OFFERED to them (nothing assigned yet) still needs to see
+  // them, otherwise the tab reads "Nothing here right now" and they can never Accept.
+  var offHTML=renderOffer();
+  if(!list.length){
+    el.innerHTML=offHTML+'<div class="empty">'+(offHTML
+      ? 'Nothing assigned to you yet.<br>Tap <b>✓ Accept</b> on a task above to add it to your list.'
+      : 'Nothing here right now.<br>Jobs Marine HQ assign to you'+(isMgrRole()?(' on '+esc(JOBSVESSEL||"your vessel")):' (on any boat)')+' show up here.')+'</div>';
+    return;
+  }
   // group into collapsible worklists (named lists) + one "Other jobs" group
   var groups={}, order=[];
   // Worklists start COLLAPSED — tap to expand. Only default on first sighting so
@@ -1711,7 +1720,7 @@ function renderJobs(){
   } else {
     list.forEach(function(j){ var g=allBoats?(j.list||((j.vessel||"Other")+" — Other jobs")):(j.list||"Other jobs"); if(!groups[g]){groups[g]=[];order.push(g); if(!(g in WLCLOSED)) WLCLOSED[g]=true;} groups[g].push(j); });
   }
-  el.innerHTML=renderOffer()+order.map(function(g){
+  el.innerHTML=offHTML+order.map(function(g){
     var jobs=groups[g], openN=jobs.filter(function(j){return hubBucket(j.status)!=="Done";}).length;
     var newN=jobs.filter(jobRecent).length;
     var collapsed = WLCLOSED[g] ? " closed":"", bodyC = WLCLOSED[g] ? " closed":"";
