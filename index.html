@@ -302,6 +302,8 @@
   .offbadge{display:inline-block;font-size:11px;font-weight:800;border-radius:8px;padding:2px 9px}
   .offbadge.pending{background:#eef2f6;color:#64748b} .offbadge.offered{background:#e6f4f0;color:#0f766e}
   .offstate{font-size:13px;color:var(--ink);background:#f6f9fc;border:1px solid var(--line);border-radius:9px;padding:9px 11px;margin-bottom:9px}
+  .srcref{font-size:13px;color:var(--navy);background:#eef4fb;border:1px solid #d3e2f2;border-radius:9px;padding:9px 11px}
+  .srcref .srcsub{font-size:11px;color:var(--muted);margin-top:3px;font-family:ui-monospace,Menlo,monospace}
   .offvessel{font-size:12px;font-weight:800;color:var(--navy);letter-spacing:.3px;margin:12px 2px 8px;text-transform:uppercase}
   .offvessel span{background:#e6f4f0;color:#0f766e;border-radius:8px;padding:1px 7px;font-size:11px;margin-left:4px}
   .offpills{display:flex;gap:6px;overflow-x:auto;padding:2px 0 10px;-webkit-overflow-scrolling:touch}
@@ -813,7 +815,7 @@
       <div id="sopList"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-15·x</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-15·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1692,16 +1694,7 @@ function renderJobs(){
   var list=CREWJOBS.filter(function(j){ return JOBFILTER==="All"||hubBucket(j.status)===JOBFILTER; });
   $("jobsCount").textContent=list.length+(list.length===1?" job":" jobs");
   var el=$("jobList");
-  // Offered ("Unassigned tasks") is rendered FIRST and must survive the empty state —
-  // someone with tasks only OFFERED to them (nothing assigned yet) still needs to see
-  // them, otherwise the tab reads "Nothing here right now" and they can never Accept.
-  var offHTML=renderOffer();
-  if(!list.length){
-    el.innerHTML=offHTML+'<div class="empty">'+(offHTML
-      ? 'Nothing assigned to you yet.<br>Tap <b>✓ Accept</b> on a task above to add it to your list.'
-      : 'Nothing here right now.<br>Jobs Marine HQ assign to you'+(isMgrRole()?(' on '+esc(JOBSVESSEL||"your vessel")):' (on any boat)')+' show up here.')+'</div>';
-    return;
-  }
+  if(!list.length){ el.innerHTML='<div class="empty">Nothing here right now.<br>Jobs Marine HQ assign to you'+(isMgrRole()?(' on '+esc(JOBSVESSEL||"your vessel")):' (on any boat)')+' show up here.</div>'; return; }
   // group into collapsible worklists (named lists) + one "Other jobs" group
   var groups={}, order=[];
   // Worklists start COLLAPSED — tap to expand. Only default on first sighting so
@@ -1720,7 +1713,7 @@ function renderJobs(){
   } else {
     list.forEach(function(j){ var g=allBoats?(j.list||((j.vessel||"Other")+" — Other jobs")):(j.list||"Other jobs"); if(!groups[g]){groups[g]=[];order.push(g); if(!(g in WLCLOSED)) WLCLOSED[g]=true;} groups[g].push(j); });
   }
-  el.innerHTML=offHTML+order.map(function(g){
+  el.innerHTML=renderOffer()+order.map(function(g){
     var jobs=groups[g], openN=jobs.filter(function(j){return hubBucket(j.status)!=="Done";}).length;
     var newN=jobs.filter(jobRecent).length;
     var collapsed = WLCLOSED[g] ? " closed":"", bodyC = WLCLOSED[g] ? " closed":"";
@@ -1731,11 +1724,8 @@ function renderJobs(){
       var codeChip = j.code ? ' <span class="jcode'+(j.standard==="Boat-specific"?" bs":"")+'">'+esc(j.code)+'</span>' : '';
       codeChip += catChip(j.category);
       if(j.dueTs){ codeChip += ' <span class="duechip'+dueCls(j.dueTs,done)+'">📅 '+esc(dayLabel(j.dueTs))+(j.dueTime?(' '+esc(fmtTime12(j.dueTime))):'')+'</span>'; }
-      // Accept chips: a finished task can't be accepted, so a DONE card never nags —
-      // it shows "✓ accepted" if it was, and nothing at all if it never needed to be
-      // (e.g. historic work back-filled onto someone's list).
-      if(isMgrRole() && j.allocatedTo){ codeChip += (j.accepted&&j.accepted.by) ? ' <span class="acptchip ok">✓ '+esc(firstName(j.accepted.by))+'</span>' : (done ? '' : ' <span class="acptchip wait">⏳ '+esc(firstNames(j.allocatedTo))+'</span>'); }
-      else if(!isMgrRole() && j.allocatedTo){ var _meLc=(ME.name||"").toLowerCase().replace(/\s*\(test\)/,"").trim(); if(_meLc && j.allocatedTo.toLowerCase().indexOf(_meLc)>=0){ codeChip += (j.accepted&&j.accepted.by) ? ' <span class="acptchip ok">✓ accepted</span>' : (done ? '' : ' <span class="acptchip urgent">🚨 Accept</span>'); } }
+      if(isMgrRole() && j.allocatedTo){ codeChip += (j.accepted&&j.accepted.by) ? ' <span class="acptchip ok">✓ '+esc(firstName(j.accepted.by))+'</span>' : ' <span class="acptchip wait">⏳ '+esc(firstNames(j.allocatedTo))+'</span>'; }
+      else if(!isMgrRole() && j.allocatedTo){ var _meLc=(ME.name||"").toLowerCase().replace(/\s*\(test\)/,"").trim(); if(_meLc && j.allocatedTo.toLowerCase().indexOf(_meLc)>=0){ codeChip += (j.accepted&&j.accepted.by) ? ' <span class="acptchip ok">✓ accepted</span>' : ' <span class="acptchip urgent">🚨 Accept</span>'; } }
       var upd = jobRecent(j) ? '<span class="upd">● updated '+relTime(j.updated)+'</span>' : '';
       return '<div class="job brd-'+cls+(done?" jobdone":"")+(jobRecent(j)?" jobnew":"")+'" onclick="openWLJob(\''+esc(j.key)+'\')">'+
         '<div class="top"><div style="flex:1"><h3><span class="jnum">'+(idx+1)+'.</span> '+esc(j.task||j.desc||"(job)")+codeChip+'</h3></div>'+
@@ -2235,6 +2225,8 @@ function openWLJob(key){
       var b=j.desc?('<p class="body" id="wlDescText">'+esc(j.desc)+'</p>'):'<p class="body" id="wlDescText" style="color:var(--muted)">No description yet.</p>';
       var ed=isMgrRole()?' <span class="wlnote-ed" style="cursor:pointer" onclick="wlEditDesc(\''+esc(key)+'\')">✎ Edit</span>':'';
       return '<div class="sec" id="wlDescSec"><h4>The job'+ed+'</h4>'+b+'</div>'; })()+
+    // where this job came from — the matched Zoho task, for traceability
+    ((isMgrRole() && j.zoho)?('<div class="sec"><h4>Source</h4><div class="srcref">🔗 Matched to <b>Zoho '+esc(String(j.zoho).slice(-7))+'</b>'+(j.project?(' · '+esc(j.project)):'')+'<div class="srcsub">Zoho task id '+esc(j.zoho)+'</div></div></div>'):'')+
     ((j.subNote||isMgrRole())?('<div class="sec"><h4>Sub note</h4><div class="subnote-box'+(j.subNote?"":" empty")+'"'+(isMgrRole()?(' onclick="wlSetSubNote(\''+esc(key)+'\')"'):'')+'>'+(j.subNote?('📌 '+esc(j.subNote)):'＋ add a quick note')+(isMgrRole()?' <span class="wlnote-ed">✎</span>':'')+'</div></div>'):'')+
     reqBlock+
     acceptHTML+
