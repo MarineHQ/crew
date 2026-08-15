@@ -302,6 +302,7 @@
   .offbadge{display:inline-block;font-size:11px;font-weight:800;border-radius:8px;padding:2px 9px}
   .offbadge.pending{background:#eef2f6;color:#64748b} .offbadge.offered{background:#e6f4f0;color:#0f766e}
   .offstate{font-size:13px;color:var(--ink);background:#f6f9fc;border:1px solid var(--line);border-radius:9px;padding:9px 11px;margin-bottom:9px}
+  .zchip{display:inline-block;font-size:10.5px;font-weight:800;background:#ede9fb;color:#5b3fb8;border-radius:6px;padding:1px 7px;vertical-align:middle}
   .srcref{font-size:13px;color:var(--navy);background:#eef4fb;border:1px solid #d3e2f2;border-radius:9px;padding:9px 11px}
   .srcref .srcsub{font-size:11px;color:var(--muted);margin-top:3px;font-family:ui-monospace,Menlo,monospace}
   .offvessel{font-size:12px;font-weight:800;color:var(--navy);letter-spacing:.3px;margin:12px 2px 8px;text-transform:uppercase}
@@ -815,7 +816,7 @@
       <div id="sopList"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-15·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-15·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1724,6 +1725,8 @@ function renderJobs(){
       var codeChip = j.code ? ' <span class="jcode'+(j.standard==="Boat-specific"?" bs":"")+'">'+esc(j.code)+'</span>' : '';
       codeChip += catChip(j.category);
       if(j.dueTs){ codeChip += ' <span class="duechip'+dueCls(j.dueTs,done)+'">📅 '+esc(dayLabel(j.dueTs))+(j.dueTime?(' '+esc(fmtTime12(j.dueTime))):'')+'</span>'; }
+      // came in from Zoho — directors see where it originated
+      if(isMgrRole() && j.zoho){ codeChip += ' <span class="zchip" title="Zoho task '+esc(j.zoho)+'">🔗 Zoho</span>'; }
       if(isMgrRole() && j.allocatedTo){ codeChip += (j.accepted&&j.accepted.by) ? ' <span class="acptchip ok">✓ '+esc(firstName(j.accepted.by))+'</span>' : ' <span class="acptchip wait">⏳ '+esc(firstNames(j.allocatedTo))+'</span>'; }
       else if(!isMgrRole() && j.allocatedTo){ var _meLc=(ME.name||"").toLowerCase().replace(/\s*\(test\)/,"").trim(); if(_meLc && j.allocatedTo.toLowerCase().indexOf(_meLc)>=0){ codeChip += (j.accepted&&j.accepted.by) ? ' <span class="acptchip ok">✓ accepted</span>' : ' <span class="acptchip urgent">🚨 Accept</span>'; } }
       var upd = jobRecent(j) ? '<span class="upd">● updated '+relTime(j.updated)+'</span>' : '';
