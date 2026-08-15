@@ -816,7 +816,7 @@
       <div id="sopList"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-15·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-16·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2230,6 +2230,7 @@ function openWLJob(key){
       return '<div class="sec" id="wlDescSec"><h4>The job'+ed+'</h4>'+b+'</div>'; })()+
     // where this job came from — the matched Zoho task, for traceability
     ((isMgrRole() && j.zoho)?('<div class="sec"><h4>Source</h4><div class="srcref">🔗 Matched to <b>Zoho '+esc(String(j.zoho).slice(-7))+'</b>'+(j.project?(' · '+esc(j.project)):'')+'<div class="srcsub">Zoho task id '+esc(j.zoho)+'</div></div></div>'):'')+
+    ((isMgrRole() && j.zoho)?('<div class="sec"><h4>Send to Michael’s Zoho</h4><button onclick="zohoSendJob(\''+esc(key)+'\')" style="width:100%;border:0;background:#1a2b5c;color:#fff;font-weight:800;font-size:13px;padding:12px;border-radius:10px;cursor:pointer">📷 Send this job’s photos + note to his Zoho</button><div class="srcsub" style="margin-top:6px">Posts the photos (as links) and a note onto the matched Zoho task.</div></div>'):'')+
     ((j.subNote||isMgrRole())?('<div class="sec"><h4>Sub note</h4><div class="subnote-box'+(j.subNote?"":" empty")+'"'+(isMgrRole()?(' onclick="wlSetSubNote(\''+esc(key)+'\')"'):'')+'>'+(j.subNote?('📌 '+esc(j.subNote)):'＋ add a quick note')+(isMgrRole()?' <span class="wlnote-ed">✎</span>':'')+'</div></div>'):'')+
     reqBlock+
     acceptHTML+
@@ -2566,6 +2567,15 @@ function trackerHTML(status){
     h+='<div class="tstep '+(isDone?"done":isNow?"now":"")+'"><div class="tdot">'+(isDone?"✓":(i+1))+'</div><small>'+labels[i]+'</small></div>';
     if(i<2) h+='<div class="tbar '+((done||i<stage)?"fill":"")+'"></div>';
   } return h+'</div>';
+}
+// Director pushes a job's photos + a note up to the client's matched Zoho task.
+// Auth via the director's own crew code (resolves to director on the backend).
+function zohoSendJob(key){
+  if(!confirm("Send this job’s photos + a note to the client’s Zoho task?")) return;
+  toast("Sending to the client’s Zoho…");
+  apiPost({action:"jobZohoComplete", key:ME.code, id:key, complete:false, note:"Update from Marine HQ."}).then(function(r){
+    if(r&&r.ok){ toast("✓ Sent to the client’s Zoho ("+(r.photosTotal||0)+" photo"+((r.photosTotal===1)?"":"s")+")"); }
+    else toast((r&&r.error)||"Send failed"); });
 }
 function openJob(id){
   openJobId=id; var j=JOBS.filter(function(x){return x.id===id;})[0]; if(!j)return;
