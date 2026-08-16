@@ -868,7 +868,7 @@
       <div id="sopList"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-16·c</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-16·d</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2436,6 +2436,7 @@ function openWLJob(key){
     // where this job came from — the matched Zoho task, for traceability
     ((isMgrRole() && j.zoho)?('<div class="sec"><h4>Source</h4><div class="srcref">🔗 Matched to <b>Zoho '+esc(String(j.zoho).slice(-7))+'</b>'+(j.project?(' · '+esc(j.project)):'')+'<div class="srcsub">Zoho task id '+esc(j.zoho)+'</div></div></div>'):'')+
     ((isMgrRole() && j.zoho)?('<div class="sec"><h4>Send to Michael’s Zoho</h4><button onclick="zohoSendJob(\''+esc(key)+'\')" style="width:100%;border:0;background:#1a2b5c;color:#fff;font-weight:800;font-size:13px;padding:12px;border-radius:10px;cursor:pointer">📷 Send this job’s photos + note to his Zoho</button><div class="srcsub" style="margin-top:6px">Posts the photos (as links) and a note onto the matched Zoho task.</div></div>'):'')+
+    ((isMgrRole() && j.zoho)?('<div class="sec"><h4>From Michael’s Zoho <span style="font-size:10px;color:#9aa7b4;font-weight:700">directors only</span></h4><div id="zinbox" style="font-size:12.5px;color:var(--muted)">Loading his Zoho comments…</div></div>'):'')+
     ((j.subNote||isMgrRole())?('<div class="sec"><h4>Sub note</h4><div class="subnote-box'+(j.subNote?"":" empty")+'"'+(isMgrRole()?(' onclick="wlSetSubNote(\''+esc(key)+'\')"'):'')+'>'+(j.subNote?('📌 '+esc(j.subNote)):'＋ add a quick note')+(isMgrRole()?' <span class="wlnote-ed">✎</span>':'')+'</div></div>'):'')+
     reqBlock+
     acceptHTML+
@@ -2457,7 +2458,24 @@ function openWLJob(key){
     '<button class="jobbtn donebtn" onclick="closeSheet()">✓ Done</button>'+
     '<div style="height:16px"></div>';
   showSheet();
+  if(isMgrRole() && j.zoho) loadZohoInbound(j.zoho);
 }
+// Pull Michael's Zoho comments (inbound, directors-only) for this job.
+function loadZohoInbound(task){
+  var box=$("zinbox"); if(!box||!task) return;
+  apiGet("fn=zohoinbound&key="+encodeURIComponent(ME.code||"")+"&task="+encodeURIComponent(task)).then(function(r){
+    if(!r||!r.ok){ box.innerHTML="Couldn’t load his Zoho comments."; return; }
+    var items=(r.items||[]);
+    if(!items.length){ box.innerHTML="Nothing from his Zoho yet."; return; }
+    box.innerHTML=items.map(function(m){
+      var mine=/marine\s*hq/i.test(m.by);
+      return '<div style="border-left:3px solid '+(mine?"#1a2b5c":"#E42527")+';padding:6px 10px;margin-bottom:7px;background:#fafbfc;border-radius:8px">'+
+        '<div style="font-weight:800;font-size:11.5px;color:#1a2b5c">'+esc(m.by)+' <span style="color:#9aa7b4;font-weight:600">· '+esc(zinWhen(m.when))+' · '+esc(m.via)+'</span></div>'+
+        '<div style="font-size:12.5px;color:#33415a;margin-top:2px">'+esc(m.content)+'</div></div>';
+    }).join("");
+  }).catch(function(){ box.innerHTML="Couldn’t load his Zoho comments."; });
+}
+function zinWhen(w){ try{ var d=new Date(w); if(!isNaN(d)) return d.toLocaleDateString(); }catch(e){} return (w||"").toString().slice(0,15); }
 /* ===== Vessel Induction (directors): particulars + specialised gear per boat ===== */
 var VI_SECTIONS=[
   {h:"Particulars", f:[["owner","Owner"],["make","Make / model"],["year","Year built"],["builder","Builder"],["loa","Length (LOA)"],["beam","Beam"],["draft","Draft"],["hull","Hull material"],["flag","Flag"],["mmsi","MMSI"],["callsign","Call sign"],["berth","Home berth / marina"]]},
