@@ -945,9 +945,11 @@
   <input class="fld-in" id="wl_title" placeholder="e.g. Replaced galley tap washer">
   <label class="fld">Detail <span class="fldhint">(optional — parts used, what you found)</span></label>
   <textarea class="fld-ta" id="wl_desc" placeholder="Anything worth knowing later…"></textarea>
+  <label class="fld">Where's it at?</label>
+  <div class="assignrow" id="wl_stat"></div>
   <div style="display:flex;gap:8px">
     <div style="flex:1">
-      <label class="fld">Day you did it</label>
+      <label class="fld" id="wl_dayLbl">Day you did it</label>
       <input type="date" class="fld-in" id="wl_done">
     </div>
     <div style="max-width:120px">
@@ -957,6 +959,8 @@
   </div>
   <label class="fld">Photos <span class="fldhint">(optional)</span></label>
   <input type="file" id="wl_photos" accept="image/*" multiple>
+  <label class="fld">Documents <span class="fldhint">(optional — receipts, reports, manuals)</span></label>
+  <input type="file" id="wl_docs" multiple>
   <button class="go" onclick="submitWorkLog()">✓ Log it</button>
   <button class="cancel" onclick="closeModal('workLogModal')">Cancel</button>
 </div></div>
@@ -3159,30 +3163,53 @@ function submitRaise(){
    step (Trish, 16 Aug 2026) — whoever does the work logs it and it's theirs.
    The backend files it as a finished, attributed job card so the hours and parts
    reach billing instead of being lost. Directors see it in the fleet view. */
-var workLogPhotos = [];
+var WLOGSTAT="Complete";   // most entries are "did it, done" — but not all
+function wlogRenderStat(){
+  var el=$("wl_stat"); if(!el) return;
+  el.innerHTML=[["Complete","✓ Done"],["In hand","◐ Still in hand"]].map(function(s){
+    return '<button type="button" class="aopt'+(s[0]===WLOGSTAT?' on':'')+'" onclick="wlogSetStat(\''+s[0]+'\')">'+s[1]+'</button>';
+  }).join("");
+  // A job you're still on hasn't got a completion date — it has a start date.
+  $("wl_dayLbl").textContent = (WLOGSTAT==="Complete") ? "Day you did it" : "Day you started";
+}
+function wlogSetStat(s){ WLOGSTAT=s; wlogRenderStat(); }
 function openWorkLog(){
   $("wl_vessel").innerHTML=vesselOpts(ME.vessels[0]); $("wl_other").style.display="none"; $("wl_other").value="";
-  $("wl_title").value=""; $("wl_desc").value=""; $("wl_hours").value=""; $("wl_photos").value=""; workLogPhotos=[];
+  $("wl_title").value=""; $("wl_desc").value=""; $("wl_hours").value="";
+  $("wl_photos").value=""; $("wl_docs").value="";
+  WLOGSTAT="Complete"; wlogRenderStat();
   var d=new Date(), p=function(n){return (n<10?"0":"")+n;};
   $("wl_done").value=d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate());   // defaults to today
   $("workLogModal").classList.add("show");
+}
+// The card won't exist in CREWJOBS until the next load comes back — wait for it,
+// then drop the crew member straight into it so they can add notes and more photos.
+function wlogOpenWhenReady(key, tries){
+  tries=tries||0;
+  if((CREWJOBS||[]).filter(function(x){return x.key===key;}).length){ openWLJob(key); return; }
+  if(tries>12) return;                                  // ~6s then give up quietly
+  setTimeout(function(){ wlogOpenWhenReady(key, tries+1); }, 500);
 }
 function submitWorkLog(){
   var t=($("wl_title").value||"").trim(); if(!t){ toast("What did you do? Give it a short title"); return; }
   var vsel=$("wl_vessel").value, vessel;
   if(vsel==="__other__"){ vessel=($("wl_other").value||"").trim(); if(!vessel){ toast("Type the yacht name"); return; } vessel="Other — "+vessel; }
   else { vessel=vsel; }
-  var files=Array.prototype.slice.call(($("wl_photos").files)||[]);
+  var photos=Array.prototype.slice.call(($("wl_photos").files)||[]);
+  var docs=Array.prototype.slice.call(($("wl_docs").files)||[]);
   toast("Logging…");
   apiPost({action:"crewWorkLog", email:ME.email, code:ME.code, vessel:vessel, title:t,
-           desc:($("wl_desc").value||"").trim(), doneOn:$("wl_done").value||"", hours:($("wl_hours").value||"")}).then(function(r){
+           desc:($("wl_desc").value||"").trim(), status:WLOGSTAT,
+           doneOn:$("wl_done").value||"", hours:($("wl_hours").value||"")}).then(function(r){
     if(!r||!r.ok){ toast((r&&r.error)||"Couldn’t log it"); return; }
     closeModal("workLogModal");
-    toast("✓ Logged"+(r.code?(" — "+r.code):""));
+    toast((r.status==="In hand"?"◐ Logged — still in hand":"✓ Logged")+(r.code?(" — "+r.code):""));
     if(isMgrRole() && r.vessel) CURVESSEL=r.vessel;
     go("jobs");
-    if(files.length) uploadFilesSeq(r.key, {files:files, value:""}, "crewJobPhotos", "photos", 1600, 0.7);
+    if(photos.length) uploadFilesSeq(r.key, {files:photos, value:""}, "crewJobPhotos", "photos", 1600, 0.7);
+    if(docs.length)   uploadFilesSeq(r.key, {files:docs,   value:""}, "crewJobDocs",   "docs",   2000, 0.8);
     loadJobs();
+    wlogOpenWhenReady(r.key);
   }).catch(function(){ toast("Couldn’t connect"); });
 }
 
