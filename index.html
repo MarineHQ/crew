@@ -756,6 +756,8 @@
     <!-- MY TASKS (directors) — just their own assigned/offered jobs -->
     <div id="tab-mine" class="hidden">
       <div class="hello" id="mineHello"></div>
+      <!-- Directors only: My tasks | Jobs to approve (the crew-raised queue) -->
+      <div class="assignrow" id="mineSeg" style="margin:0 4px 12px"></div>
       <div id="mineBody"></div>
     </div>
 
@@ -866,7 +868,7 @@
       <div id="sopList"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-16·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-16·c</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1333,12 +1335,23 @@ function jobBucket(st){ return st==="done"?"Done":st==="todo"?"To do":"In progre
 /* Real job list from the Works Register (the "centre"), for this crew member's
    vessel. Tick complete → written to our overlay only (never the owner). */
 var CREWJOBS = [], JOBSVESSEL = "", CREWOPEN = [], OFFERVESSEL = "__all__";
+/* Jobs a crew member has RAISED and a director hasn't approved yet. Kept FLEET-WIDE
+   and separate from CREWJOBS on purpose: a director who has drilled into one boat
+   must still see every request, or approvals quietly go missing. Populated from the
+   two fleet-wide fetches the app already makes — no extra network cost. */
+var REQJOBS = [];
+function isRequested(j){ return ((j&&j.status)||"").toString().toLowerCase()==="requested"; }
+function setRequests(list){
+  REQJOBS=(list||[]).filter(isRequested);
+  if(TAB==="mine") renderMine();
+  renderMineTabBadge();
+}
 // Directors: the Unassigned section pulls its data FLEET-WIDE (independent of the
 // main worklist boat filter) so it has its own All-Yachts / per-yacht pills.
 function loadUnassigned(){
   if(!isMgrRole()) return;
   apiGet("fn=crewjobs&code="+encodeURIComponent(ME.code||"")+"&email="+encodeURIComponent(ME.email||"")+"&all=1&mine=0")
-    .then(function(j){ if(j&&j.openJobs){ CREWOPEN=j.openJobs; if(TAB==="jobs") renderJobs(); } }).catch(function(){});
+    .then(function(j){ if(j&&j.openJobs){ CREWOPEN=j.openJobs; if(TAB==="jobs") renderJobs(); } if(j&&j.jobs) setRequests(j.jobs); }).catch(function(){});
 }
 function setOfferVessel(v){ OFFERVESSEL=v; renderJobs(); }
 var CURVESSEL="", FLEETVESSELS=[];
@@ -1363,7 +1376,7 @@ function loadJobs(){
   }
   startActivityWatch();   // fire the activity fetch in PARALLEL with jobs (not after)
   apiGet(url)
-    .then(function(j){ CREWJOBS=(j&&j.jobs)||[]; if(!isMgrRole() || allBoats) CREWOPEN=(j&&j.openJobs)||[]; if(j&&j.listMeta)LISTMETA=j.listMeta; JOBSVESSEL=allBoats?"all yachts":((j&&j.vessel)||v); _cSet(_ck("jobs",vk), CREWJOBS); renderJobs(); updateJobsBadge(); renderVesselBar(); renderMine(); checkPendingAccepts(); }).catch(function(){});
+    .then(function(j){ CREWJOBS=(j&&j.jobs)||[]; if(!isMgrRole() || allBoats) CREWOPEN=(j&&j.openJobs)||[]; if(j&&j.listMeta)LISTMETA=j.listMeta; JOBSVESSEL=allBoats?"all yachts":((j&&j.vessel)||v); _cSet(_ck("jobs",vk), CREWJOBS); if(allBoats) setRequests(CREWJOBS); renderJobs(); updateJobsBadge(); renderVesselBar(); renderMine(); checkPendingAccepts(); }).catch(function(){});
   loadFleetVessels();
   // On All Yachts the main fetch already returns fleet-wide unassigned — only fetch
   // separately when a director has drilled into ONE boat (so the section stays fleet-wide).
@@ -1547,12 +1560,63 @@ function updLastPopped(){ try{ return parseInt(localStorage.getItem(updPoppedKey
 function setLastPopped(v){ try{ localStorage.setItem(updPoppedKey(), String(v||0)); }catch(e){} }
 /* "My Tasks" tab — a director's OWN assigned/offered jobs, so their tasks don't get
    lost in the fleet-wide overview. Same name-match as the approve pop-up. */
+var MINESEG="mine";                      // "mine" | "approve"
+function mineSetSeg(s){ MINESEG=s; renderMine(); }
+// Count on the My Tasks tab button, so a director sees pending approvals without
+// opening the tab. Same .tabbadge treatment as the Worklist count.
+function renderMineTabBadge(){
+  var btn=document.querySelector('.ptab-btn[data-tab="mine"]'); if(!btn) return;
+  var n=isMgrRole() ? (REQJOBS||[]).length : 0;
+  var b=btn.querySelector('.tabbadge');
+  if(n>0){ if(!b){ b=document.createElement('span'); b.className='tabbadge'; btn.appendChild(b); } b.textContent=n>99?'99+':n; }
+  else if(b){ b.parentNode.removeChild(b); }
+}
+function reqTs(j){ var m=/(\d{10,})/.exec((j&&j.key)||""); return m?+m[1]:0; }   // key is "wl:<ms>"
+// The approval queue: everything a crew member (or owner) has raised that isn't on
+// a worklist yet. Approving flips it to "To do" and lands the director in the job
+// card, where the assign / offer controls already live.
+function renderApproveQueue(host){
+  var list=(REQJOBS||[]).slice().sort(function(a,b){ return reqTs(b)-reqTs(a); });
+  if(!list.length){
+    host.innerHTML='<div class="empty">Nothing waiting on you. 🎉<br><span style="font-size:12px;color:var(--muted)">Jobs raised by crew land here to be approved, then offered or assigned.</span></div>';
+    return;
+  }
+  host.innerHTML=list.map(function(j){
+    var kJs=(j.key||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
+    var who=((j.allocatedTo||"").split(",")[0]||"").trim();
+    return '<div class="offercard">'+
+      '<div class="top" style="cursor:pointer" onclick="openWLJob(\''+esc(kJs)+'\')"><div style="flex:1">'+
+        '<h3>'+esc(j.task||j.desc||"(job)")+(j.code?(' <span class="jcode">'+esc(j.code)+'</span>'):'')+'</h3>'+
+        '<div style="font-size:12px;color:var(--muted);margin-top:2px">'+esc(j.vessel||"")+(who?(' · raised by '+esc(who)):'')+'</div>'+
+      '</div></div>'+
+      (j.desc?('<div style="font-size:12.5px;color:var(--ink);margin-top:7px">'+esc(j.desc)+'</div>'):'')+
+      '<div class="offeracts">'+
+        '<button class="offerbtn" onclick="event.stopPropagation();wlSetStatus(\''+esc(kJs)+'\',\'To do\')">✓ Approve &amp; assign</button>'+
+        '<button class="offerask" onclick="event.stopPropagation();openWLJob(\''+esc(kJs)+'\')">Open</button>'+
+      '</div></div>';
+  }).join("");
+}
 function renderMine(){
   var host=$("mineBody"); if(!host) return;
-  var hello=$("mineHello"); if(hello) hello.innerHTML='Hi <b>'+esc(firstName(ME.name)||"there")+'</b> — just the jobs that are yours.';
+  var mgr=isMgrRole();
+  var seg=$("mineSeg");
+  if(seg){
+    if(!mgr){ seg.innerHTML=""; MINESEG="mine"; }                 // crew have nothing to approve
+    else {
+      var nq=(REQJOBS||[]).length;
+      seg.innerHTML=[["mine","📋 My tasks"],["approve","🔔 Jobs to approve"+(nq?(" ("+nq+")"):"")]].map(function(s){
+        return '<button type="button" class="aopt'+(s[0]===MINESEG?' on':'')+'" onclick="mineSetSeg(\''+s[0]+'\')">'+s[1]+'</button>';
+      }).join("");
+    }
+  }
+  var hello=$("mineHello");
+  if(hello) hello.innerHTML = (mgr && MINESEG==="approve")
+    ? 'Raised by crew and waiting on you — <b>approve</b> to put it on a worklist, then offer or assign it.'
+    : 'Hi <b>'+esc(firstName(ME.name)||"there")+'</b> — just the jobs that are yours.';
+  renderMineTabBadge();
+  if(mgr && MINESEG==="approve"){ renderApproveQueue(host); return; }
   var me=(ME.name||"").toLowerCase().replace(/\s*\(test\)/,"").trim();
   if(!me){ host.innerHTML='<div class="empty">Sign in to see your tasks.</div>'; return; }
-  var mgr=isMgrRole();
   var assigned=(CREWJOBS||[]).filter(function(j){ return j.allocatedTo && j.allocatedTo.toLowerCase().indexOf(me)>=0 && hubBucket(j.status)!=="Done"; });
   var offered=(CREWOPEN||[]).filter(function(j){
     if(hubBucket(j.status)==="Done") return false;
