@@ -748,7 +748,10 @@
     <div id="tab-jobs">
       <div class="hello" id="jobsHello"></div>
       <div id="vesselBar" class="vesselbar"></div>
-      <div class="subbar"><h2>My worklist</h2><span class="count" id="jobsCount"></span><button id="addTaskBtn" class="addtaskbtn" style="display:none" onclick="openAddTask()">＋ Add task</button></div>
+      <!-- Sub-tabs. Directors: All work | Raised by crew. Crew: My worklist |
+           Offered to me | To approve | My raised jobs. -->
+      <div class="assignrow" id="jobSeg" style="margin:0 4px 12px"></div>
+      <div class="subbar"><h2 id="jobsSubTitle">My worklist</h2><span class="count" id="jobsCount"></span><button id="addTaskBtn" class="addtaskbtn" style="display:none" onclick="openAddTask()">＋ Add task</button></div>
       <div class="chips" id="jobChips"></div>
       <div id="jobList"></div>
     </div>
@@ -1284,6 +1287,9 @@ function doLogin(email, silent){
 }
 function signOut(){ try{localStorage.removeItem("mhq_crew_email");localStorage.removeItem("mhq_crew_code");}catch(_){} location.reload(); }
 function enterReal(crew, shift){
+  // Wipe the previous session's lists. REQJOBS is director-only data — never let it
+  // survive into a crew session — and the sub-tab choice shouldn't carry over either.
+  REQJOBS=[]; CREWRAISED=[]; JOBSEG="all"; MINESEG="mine";
   ME = { id:crew.id, name:crew.name, role:crew.role, email:crew.email, code:crew.code||"", vessels:crew.vessels||[], eod:crew.eod||"",
          signedAt:crew.signedAt||"", signature:crew.signature||"",
          clock:{in:false, at:0, vessel:null, loc:null, shifts:[]} };
@@ -1376,7 +1382,7 @@ function loadJobs(){
   }
   startActivityWatch();   // fire the activity fetch in PARALLEL with jobs (not after)
   apiGet(url)
-    .then(function(j){ CREWJOBS=(j&&j.jobs)||[]; if(!isMgrRole() || allBoats) CREWOPEN=(j&&j.openJobs)||[]; if(j&&j.listMeta)LISTMETA=j.listMeta; JOBSVESSEL=allBoats?"all yachts":((j&&j.vessel)||v); _cSet(_ck("jobs",vk), CREWJOBS); if(allBoats) setRequests(CREWJOBS); renderJobs(); updateJobsBadge(); renderVesselBar(); renderMine(); checkPendingAccepts(); }).catch(function(){});
+    .then(function(j){ CREWJOBS=(j&&j.jobs)||[]; if(!isMgrRole() || allBoats) CREWOPEN=(j&&j.openJobs)||[]; if(j&&j.listMeta)LISTMETA=j.listMeta; JOBSVESSEL=allBoats?"all yachts":((j&&j.vessel)||v); if(j&&j.raisedJobs) CREWRAISED=j.raisedJobs; _cSet(_ck("jobs",vk), CREWJOBS); if(allBoats) setRequests(CREWJOBS); renderJobs(); updateJobsBadge(); renderVesselBar(); renderMine(); checkPendingAccepts(); }).catch(function(){});
   loadFleetVessels();
   // On All Yachts the main fetch already returns fleet-wide unassigned — only fetch
   // separately when a director has drilled into ONE boat (so the section stays fleet-wide).
@@ -1888,7 +1894,79 @@ function catChip(cat){
   var c=String(cat).toLowerCase(), cls=c.indexOf("unsched")>=0?"unsched":(c.indexOf("sched")>=0?"sched":(c.indexOf("upg")>=0?"upg":(c.indexOf("ops")>=0?"ops":"")));
   return cls ? ' <span class="jcat '+cls+'">'+esc(cat)+'</span>' : '';
 }
+/* ===== Worklist sub-tabs =====
+   Directors: All work | Raised by crew (approve → offer/assign → crew accept).
+   Crew: My worklist | Offered to me | To approve | My raised jobs.
+   "Offered" and "To approve" are genuinely different: offered = not yours yet, tap
+   Accept to take it on; to approve = already assigned to you, waiting on your nod. */
+var JOBSEG="all", CREWRAISED=[];
+function jobSetSeg(s){ JOBSEG=s; renderJobs(); }
+function segOffered(){ return (CREWOPEN||[]).filter(function(j){ return hubBucket(j.status)!=="Done"; }); }
+function segToApprove(){
+  var me=(ME.name||"").toLowerCase().replace(/\s*\(test\)/,"").trim(); if(!me) return [];
+  return (CREWJOBS||[]).filter(function(j){
+    return j.allocatedTo && j.allocatedTo.toLowerCase().indexOf(me)>=0
+        && hubBucket(j.status)!=="Done" && !(j.accepted && j.accepted.by);
+  });
+}
+function jobSegs(){
+  if(isMgrRole()) return [["all","📋 All work"],["raised","🔔 Raised by crew",(REQJOBS||[]).length]];
+  return [["all","📋 My worklist"],["offered","🗂 Offered to me",segOffered().length],
+          ["approve","🚨 To approve",segToApprove().length],["raised","📤 My raised jobs",(CREWRAISED||[]).length]];
+}
+function renderJobSeg(){
+  var el=$("jobSeg"); if(!el) return;
+  el.innerHTML=jobSegs().map(function(s){
+    return '<button type="button" class="aopt'+(s[0]===JOBSEG?' on':'')+'" onclick="jobSetSeg(\''+s[0]+'\')">'+s[1]+(s[2]?(" ("+s[2]+")"):"")+'</button>';
+  }).join("");
+}
+// A plain card used by every sub-tab list. `note` is the one line of context that
+// makes each list make sense on its own (who it's for, what state it's in).
+function segCard(j, note){
+  var kJs=(j.key||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
+  return '<div class="offercard" onclick="openWLJob(\''+esc(kJs)+'\')" style="cursor:pointer">'+
+    '<div class="top"><div style="flex:1"><h3>'+esc(j.task||j.desc||"(job)")+(j.code?(' <span class="jcode">'+esc(j.code)+'</span>'):'')+'</h3>'+
+    '<div style="font-size:12px;color:var(--muted);margin-top:2px">'+esc(j.vessel||"")+(j.list?(" · "+esc(j.list)):"")+'</div></div></div>'+
+    (note?('<div style="margin-top:7px">'+note+'</div>'):'')+'</div>';
+}
+function renderSegBody(){
+  var el=$("jobList"), sub=$("jobsSubTitle"), cnt=$("jobsCount");
+  if($("jobChips")) $("jobChips").innerHTML="";
+  var list, empty, title;
+  if(JOBSEG==="raised" && isMgrRole()){
+    title="Raised by crew";
+    if(cnt) cnt.textContent=(REQJOBS||[]).length+" waiting";
+    if(sub) sub.textContent=title;
+    renderApproveQueue(el);                       // same queue as My Tasks — one list, two ways in
+    return;
+  }
+  if(JOBSEG==="offered"){
+    title="Offered to me"; list=segOffered();
+    empty="Nothing on offer right now. 🎉<br><span style=\"font-size:12px\">Jobs Marine HQ offer you land here — tap ✓ Accept to take one on.</span>";
+    list=list.map(function(j){ return segCard(j,'<span class="acptchip urgent">🚨 Tap to accept</span>'); });
+  } else if(JOBSEG==="approve"){
+    title="To approve"; list=segToApprove();
+    empty="Nothing waiting on you. 🎉<br><span style=\"font-size:12px\">Jobs assigned to you show here until you approve them.</span>";
+    list=list.map(function(j){ return segCard(j,'<span class="acptchip urgent">🚨 Please approve</span>'); });
+  } else {
+    title="My raised jobs"; list=(CREWRAISED||[]).slice().sort(function(a,b){ return reqTs(b)-reqTs(a); });
+    empty="You haven't raised anything yet.<br><span style=\"font-size:12px\">Everything you raise or log stays here as your record.</span>";
+    list=list.map(function(j){
+      var st=(j.status||"").toLowerCase(), who=(j.allocatedTo||"").split(",")[0].trim();
+      var chip = st==="requested" ? '<span class="acptchip urgent">⏳ Waiting on Marine HQ</span>'
+        : (st.indexOf("complete")>=0 ? '<span class="acptchip ok">✓ Done</span>'
+        : '<span class="acptchip ok">✓ Approved'+(who?(' · '+esc(who)):'')+'</span>');
+      return segCard(j, chip);
+    });
+  }
+  if(sub) sub.textContent=title;
+  if(cnt) cnt.textContent=list.length+(list.length===1?" job":" jobs");
+  el.innerHTML = list.length ? list.join("") : ('<div class="empty">'+empty+'</div>');
+}
 function renderJobs(){
+  renderJobSeg();
+  if(JOBSEG!=="all"){ renderSegBody(); return; }
+  if($("jobsSubTitle")) $("jobsSubTitle").textContent = isMgrRole() ? "All work" : "My worklist";
   var first=(ME.name||"").split(" ")[0].replace(/\(test\)/,"").trim();
   var openN=CREWJOBS.filter(function(j){return hubBucket(j.status)!=="Done";}).length;
   $("jobsHello").innerHTML="Hi <b>"+esc(first)+"</b> — <b>"+openN+"</b> open "+(openN===1?"job":"jobs")+(isMgrRole()?(" on <b>"+esc(JOBSVESSEL||"your vessel")+"</b>"):" assigned to you")+"."+
