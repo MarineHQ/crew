@@ -99,6 +99,34 @@
   .sheet-hd .jcode{color:#fff;background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.28)}
   .jcat{display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;border-radius:9px;padding:1px 7px;vertical-align:middle;margin-left:4px}
   .jcat.sched{color:#0f6b52;background:#dcf3ea} .jcat.unsched{color:#9a3412;background:#fde4d3}
+
+  /* ---------- engine hours & spares ---------- */
+  .hcard{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--navy);border-radius:12px;padding:12px 14px;margin-bottom:10px}
+  .hcard .hu{font-size:11px;font-weight:bold;color:var(--orange);text-transform:uppercase;letter-spacing:.4px}
+  .hcard .hbig{font-size:26px;font-weight:900;color:var(--navy);line-height:1.1;margin-top:3px}
+  .hcard .hbig span{font-size:13px;font-weight:700;color:var(--muted);margin-left:4px}
+  .hcard .hmeta{font-size:11.5px;color:var(--muted);margin-top:6px;line-height:1.5}
+  .hcard .hmeta b{color:var(--ink)}
+  .hcard .hstale{color:var(--amber);font-weight:700}
+  .hhist{font-size:11.5px;color:var(--muted);margin-top:8px;cursor:pointer;font-weight:700}
+  .hhist-box{margin-top:7px;border-top:1px dashed var(--line);padding-top:7px;font-size:11.5px;color:var(--muted);line-height:1.7}
+  .hdue{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--amber);border-radius:12px;padding:11px 13px;margin-bottom:9px}
+  .hdue.od{border-left-color:var(--red)}
+  .hdue h4{margin:3px 0 0;font-size:14px;line-height:1.3}
+  .hdue .hd-meta{font-size:11.5px;color:var(--muted);margin-top:6px;line-height:1.5}
+  .sq{width:100%;border:1.5px solid var(--line);border-radius:10px;padding:11px 12px;font-size:13.5px;font-family:inherit;color:var(--ink);margin-bottom:10px}
+  .spgrp{font-size:12px;font-weight:bold;letter-spacing:.5px;text-transform:uppercase;color:var(--orange);margin:12px 2px 8px}
+  .spitem{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--ok);border-radius:11px;padding:11px 13px;margin-bottom:9px;cursor:pointer}
+  .spitem.low{border-left-color:var(--amber)} .spitem.order{border-left-color:var(--red)}
+  .spitem .sp-top{display:flex;align-items:flex-start;gap:8px}
+  .spitem h4{margin:0;font-size:14px;line-height:1.3;flex:1}
+  .spitem .sp-meta{font-size:11.5px;color:var(--muted);margin-top:5px;line-height:1.5}
+  .spitem .sp-qty{font-size:12.5px;font-weight:800;color:var(--navy);margin-top:6px}
+  .b-onboard{background:var(--ok)} .b-low{background:var(--amber)} .b-order{background:var(--red)}
+  .hsrow{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+  .hsrow button{flex:1 1 auto;min-width:96px;border:1.5px solid var(--line);background:#fff;border-radius:10px;padding:10px 8px;font-size:13px;font-weight:700;color:var(--navy);cursor:pointer;font-family:inherit}
+  .hsrow button.pri{background:var(--navy);color:#fff;border-color:var(--navy)}
+  .hswarn{background:#fdf3e3;border:1px solid #f0dcb8;color:#8a5a12;border-radius:9px;padding:9px 11px;font-size:12.5px;margin-top:10px;line-height:1.45}
   .jcat.upg{color:#5b3ea8;background:#ece4fb} .jcat.ops{color:#334155;background:#e5eaf1}
   .apprOn{background:#dcf3ea;color:#0f6b52;border:1px solid #bfe6d6;border-radius:8px;padding:9px 11px;font-size:13px;font-weight:600;margin-bottom:9px}
   /* crew-activity "new / updated" markers (managers only) */
@@ -597,6 +625,9 @@
   /* misc */
   .empty{text-align:center;color:var(--muted);font-size:13px;padding:44px 20px;line-height:1.5}
   .fab{position:fixed;right:16px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:35;border:0;background:var(--orange);color:#fff;font-weight:bold;font-size:14px;padding:13px 18px;border-radius:30px;box-shadow:0 6px 18px rgba(232,119,34,.4);cursor:pointer}
+  /* Work Log — sits ABOVE "Raise a job". Navy vs orange is the whole point: orange
+     = something NEEDS doing, navy = something's already DONE. Two taps, two meanings. */
+  .fab-log{position:fixed;right:16px;bottom:calc(136px + env(safe-area-inset-bottom));z-index:35;border:0;background:var(--navy);color:#fff;font-weight:bold;font-size:14px;padding:13px 18px;border-radius:30px;box-shadow:0 6px 18px rgba(26,43,92,.38);cursor:pointer}
   .toast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);background:var(--navy);color:#fff;padding:12px 18px;border-radius:24px;font-size:13px;font-weight:bold;box-shadow:0 6px 20px rgba(0,0,0,.25);opacity:0;transition:.25s;z-index:80;max-width:90%;text-align:center;pointer-events:none}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
@@ -708,6 +739,7 @@
     <div class="ptab-btn mgrtab" data-tab="induct" onclick="go('induct')" style="display:none">Induction</div>
     <div class="ptab-btn"        data-tab="check" onclick="go('check')">Checklists</div>
     <div class="ptab-btn"        data-tab="hours" onclick="go('hours')">Time</div>
+    <div class="ptab-btn"        data-tab="vessel" onclick="go('vessel')">Engine &amp; Parts</div>
     <div class="ptab-btn"        data-tab="sop"   onclick="go('sop')">SOP</div>
   </div></div>
 
@@ -809,6 +841,24 @@
       <p class="eodsub" id="eodSub"></p>
     </div>
 
+    <!-- ENGINE HOURS & SPARES -->
+    <div id="tab-vessel" class="hidden">
+      <div id="vesselBarH"></div>
+
+      <div class="subbar"><h2>Engine hours</h2><span class="count" id="hoursCount"></span></div>
+      <p class="hello" style="padding-top:0">Read the hour meter, tap it in. Services that fall due on hours run — engine oils, filters, genset services — come off these readings.</p>
+      <button class="eodbtn" onclick="openHoursForm()">⏱️ Log a reading →</button>
+      <div id="hoursWrap"></div>
+
+      <div id="hoursDueWrap"></div>
+
+      <div class="subbar" style="padding-top:20px"><h2>Spares on board</h2><span class="count" id="sparesCount"></span></div>
+      <div class="chips" id="sparesChips"></div>
+      <input id="sparesQ" class="sq" placeholder="Search part number, description or system…" oninput="renderSpares()">
+      <div id="sparesWrap"></div>
+      <div class="adddoc" style="margin-top:12px" onclick="openSpareForm()">＋ Add a part to the register</div>
+    </div>
+
     <!-- SOP -->
     <div id="tab-sop" class="hidden">
       <div class="subbar"><h2>SOP &amp; guides</h2></div>
@@ -822,6 +872,7 @@
 
   <div class="footer-banner"><img src="footer-banner.jpg" alt="Marine HQ — 0439 748 387 · yachtsupport@marinehq.com.au"></div>
 
+  <button class="fab-log hidden" id="fabLog" onclick="openWorkLog()">✓ Log work done</button>
   <button class="fab hidden" id="fab" onclick="openRaise()">+ Raise a job</button>
   <div class="a2p a2p-app" id="a2pApp" onclick="addToPhone()"><span>⚓ Add to phone</span><span class="x" onclick="event.stopPropagation();document.getElementById('a2pApp').style.display='none'">✕</span></div>
 
@@ -883,6 +934,33 @@
   <button class="cancel" onclick="closeModal('raiseModal')">Cancel</button>
 </div></div>
 
+<!-- Work Log — work already DONE that was never on a worklist. No approval step. -->
+<div class="modal" id="workLogModal"><div class="card2">
+  <h3>✓ Log work done</h3>
+  <p class="mhint">Did something that wasn't on your worklist? Log it here so it's on the record and on the job card. No approval needed — it's yours.</p>
+  <label class="fld">Vessel</label>
+  <select class="fld-in" id="wl_vessel" onchange="onVesselPick('wl_vessel','wl_other')"></select>
+  <input class="fld-in" id="wl_other" placeholder="Type the yacht name" style="display:none;margin-top:8px">
+  <label class="fld">What did you do?</label>
+  <input class="fld-in" id="wl_title" placeholder="e.g. Replaced galley tap washer">
+  <label class="fld">Detail <span class="fldhint">(optional — parts used, what you found)</span></label>
+  <textarea class="fld-ta" id="wl_desc" placeholder="Anything worth knowing later…"></textarea>
+  <div style="display:flex;gap:8px">
+    <div style="flex:1">
+      <label class="fld">Day you did it</label>
+      <input type="date" class="fld-in" id="wl_done">
+    </div>
+    <div style="max-width:120px">
+      <label class="fld">Hours <span class="fldhint">(opt)</span></label>
+      <input type="number" step="0.25" min="0" class="fld-in" id="wl_hours" placeholder="e.g. 1.5">
+    </div>
+  </div>
+  <label class="fld">Photos <span class="fldhint">(optional)</span></label>
+  <input type="file" id="wl_photos" accept="image/*" multiple>
+  <button class="go" onclick="submitWorkLog()">✓ Log it</button>
+  <button class="cancel" onclick="closeModal('workLogModal')">Cancel</button>
+</div></div>
+
 <!-- Directors: add a new task / new worklist -->
 <div class="modal" id="addTaskModal"><div class="card2">
   <h3 id="atTitle">＋ Add task</h3>
@@ -940,6 +1018,63 @@
   <input class="fld-in" id="l_prod" placeholder="e.g. 2x winch grease, rags">
   <button class="go" onclick="submitLog()">Send to Marine HQ</button>
   <button class="cancel" onclick="closeModal('logModal')">Cancel</button>
+</div></div>
+
+<!-- Engine hour reading -->
+<div class="modal" id="hoursModal"><div class="card2">
+  <h3>Log an hour reading</h3>
+  <p class="mhint">Straight off the gauge — whatever it says.</p>
+  <label class="fld">Yacht</label>
+  <select class="fld-in" id="h_vessel"></select>
+  <label class="fld">Which meter</label>
+  <select class="fld-in" id="h_unit"></select>
+  <label class="fld">Reading (hours)</label>
+  <input class="fld-in" id="h_reading" inputmode="decimal" placeholder="e.g. 2018">
+  <label class="fld">Date read</label>
+  <input class="fld-in" id="h_date" type="date">
+  <label class="fld">Note (optional)</label>
+  <input class="fld-in" id="h_note" placeholder="e.g. taken at the annual service">
+  <div id="h_warn"></div>
+  <button class="go" id="h_save" onclick="saveHours()">Save reading</button>
+  <button class="cancel" onclick="closeModal('hoursModal')">Cancel</button>
+</div></div>
+
+<!-- Add / edit a spare -->
+<div class="modal" id="spareModal"><div class="card2">
+  <h3 id="sp_title">Add a part</h3>
+  <p class="mhint">The part number is the bit that saves the phone call.</p>
+  <label class="fld">Yacht</label>
+  <select class="fld-in" id="sp_vessel"></select>
+  <label class="fld">Part number</label>
+  <input class="fld-in" id="sp_part" placeholder="e.g. 3581/00-030">
+  <label class="fld">What it is</label>
+  <input class="fld-in" id="sp_desc" placeholder="e.g. Raw-water impeller">
+  <label class="fld">What it fits</label>
+  <input class="fld-in" id="sp_fits" placeholder="e.g. Port genset — Kohler 20EFOZD">
+  <label class="fld">Where it's stowed</label>
+  <input class="fld-in" id="sp_loc" placeholder="e.g. Engine room, forward parts locker">
+  <label class="fld">How many on board <span style="font-weight:400;text-transform:none">(leave blank if you're not counting)</span></label>
+  <input class="fld-in" id="sp_qty" inputmode="decimal" placeholder="e.g. 2">
+  <label class="fld">Reorder when it drops to</label>
+  <input class="fld-in" id="sp_min" inputmode="decimal" placeholder="e.g. 1">
+  <label class="fld">Supplier (optional)</label>
+  <input class="fld-in" id="sp_sup" placeholder="e.g. Marine Solutions Australia">
+  <label class="fld">Task numbers it's used on (optional)</label>
+  <input class="fld-in" id="sp_tasks" placeholder="e.g. 42, 43.1">
+  <button class="go" id="sp_save" onclick="saveSpare()">Save part</button>
+  <button class="cancel" onclick="closeModal('spareModal')">Cancel</button>
+</div></div>
+
+<!-- Used / restocked -->
+<div class="modal" id="spMoveModal"><div class="card2">
+  <h3 id="spm_title">Used one</h3>
+  <p class="mhint" id="spm_hdr"></p>
+  <label class="fld">How many</label>
+  <input class="fld-in" id="spm_qty" inputmode="decimal" value="1">
+  <label class="fld">What for (optional)</label>
+  <input class="fld-in" id="spm_reason" placeholder="e.g. genset service">
+  <button class="go" id="spm_save" onclick="saveSpareMove()">Save</button>
+  <button class="cancel" onclick="closeModal('spMoveModal')">Cancel</button>
 </div></div>
 
 <!-- Checklist form viewer (opens Marine HQ's real forms in-app) -->
@@ -1165,10 +1300,11 @@ function go(tab){
   var mb=document.querySelector('.ptab-btn[data-tab="maint"]'); if(mb) mb.style.display=mgr?"":"none";
   var ib=document.querySelector('.ptab-btn[data-tab="induct"]'); if(ib) ib.style.display=mgr?"":"none";
   var nb=document.querySelector('.ptab-btn[data-tab="mine"]'); if(nb) nb.style.display=mgr?"":"none";
-  ["jobs","mine","updates","cal","fleet","maint","induct","check","hours","sop"].forEach(function(t){ $("tab-"+t).classList.toggle("hidden", t!==tab); });
+  ["jobs","mine","updates","cal","fleet","maint","induct","check","hours","vessel","sop"].forEach(function(t){ $("tab-"+t).classList.toggle("hidden", t!==tab); });
   document.querySelectorAll(".ptab-btn").forEach(function(b){ b.classList.toggle("active", b.dataset.tab===tab); });
   $("fab").classList.toggle("hidden", tab!=="jobs");
-  var titles={jobs:["Marine HQ Crew","Your jobs, checklists & hours"],mine:["My Tasks","Just what's assigned or offered to you"],updates:["Updates","Crew activity — newest first"],cal:["Calendar","Scheduled jobs by day"],fleet:["Fleet","Director view — whole operation"],maint:["Maintenance","Care schedule — directors control"],induct:["Vessel induction","Particulars & specialised gear"],check:["Checklists","Tick & sign off"],hours:["Time clock","Clock in · EOD · hours"],sop:["SOP & guides","Marine HQ standards"]};
+  $("fabLog").classList.toggle("hidden", tab!=="jobs");
+  var titles={jobs:["Marine HQ Crew","Your jobs, checklists & hours"],mine:["My Tasks","Just what's assigned or offered to you"],updates:["Updates","Crew activity — newest first"],cal:["Calendar","Scheduled jobs by day"],fleet:["Fleet","Director view — whole operation"],maint:["Maintenance","Care schedule — directors control"],induct:["Vessel induction","Particulars & specialised gear"],check:["Checklists","Tick & sign off"],hours:["Time clock","Clock in · EOD · hours"],vessel:["Engine & parts","Hour meters & spares on board"],sop:["SOP & guides","Marine HQ standards"]};
   $("hdrTitle").textContent=titles[tab][0]; $("hdrSub").textContent=titles[tab][1];
   if(tab==="jobs") loadJobs();
   if(tab==="mine"){ renderMine(); loadJobs(); }   // instant from cache, then refresh (loadJobs re-renders mine)
@@ -1178,6 +1314,7 @@ function go(tab){
   if(tab==="induct") loadInduct();
   if(tab==="hours"){ renderClock(); loadShifts(); }
   if(tab==="check") loadChecklists();
+  if(tab==="vessel") loadVessel();
   updateStrip();
   window.scrollTo(0,0);
 }
@@ -2947,9 +3084,28 @@ function saveShiftNote(){
 }
 function sendMyDay(){
   apiPost({action:"crewSubmitDay", email:ME.email, code:ME.code}).then(function(j){
-    if(j&&j.ok){ toast(j.sent?("🔔 Sent "+j.sent+" job"+(j.sent>1?"s":"")+" to Marine HQ"):"Nothing to send yet"); loadShifts(); }
+    if(j&&j.ok){ toast(j.sent?("🔔 Sent "+j.sent+" job"+(j.sent>1?"s":"")+" to Marine HQ"):"Nothing to send yet"); loadShifts(); askForMeterReading(j.vessel||""); }
     else toast((j&&j.error)||"Couldn’t send");
   }).catch(function(){ toast("Couldn’t connect"); });
+}
+// End of day is the one moment we know someone is aboard. If a meter on that boat
+// hasn't been read in a month, ask — once, skippable, and only after the day has
+// already gone through, so it can never hold up sending.
+function askForMeterReading(vessel){
+  var v=vessel || (ME&&ME.clock&&ME.clock.vessel) || (myVessels()[0]||"");
+  if(!v) return;
+  apiGet("fn=hours&vessel="+encodeURIComponent(v)).then(function(j){
+    if(!j||!j.ok||!j.units||!j.units.length) return;          // nothing tracked on this boat yet
+    var stale=j.units.filter(function(u){ return u.ageDays>30; });
+    if(!stale.length) return;
+    setTimeout(function(){
+      if(!confirm("While you're aboard "+v+" — the "+stale[0].unit.toLowerCase()+" hasn't been read in "+stale[0].ageDays+" days.\n\nTake a reading now?")) return;
+      HOURS=j; CURVESSEL=v;
+      openHoursForm();
+      var sel=$("h_unit"); for(var i=0;i<sel.options.length;i++){ if(sel.options[i].text===stale[0].unit) sel.selectedIndex=i; }
+      $("h_note").value="end of day";
+    }, 900);
+  }).catch(function(){});
 }
 
 /* ================= SOP ================= */
@@ -2995,6 +3151,38 @@ function submitRaise(){
     if(isMgrRole() && r.vessel) CURVESSEL=r.vessel;   // jump to that boat so it's visible
     go("jobs");
     if(files.length) uploadFilesSeq(r.key, {files:files, value:""}, "crewJobPhotos", "photos", 1600, 0.7);
+  }).catch(function(){ toast("Couldn’t connect"); });
+}
+
+/* ================= work log =================
+   Work that got DONE but was never on a worklist. Deliberately has NO approval
+   step (Trish, 16 Aug 2026) — whoever does the work logs it and it's theirs.
+   The backend files it as a finished, attributed job card so the hours and parts
+   reach billing instead of being lost. Directors see it in the fleet view. */
+var workLogPhotos = [];
+function openWorkLog(){
+  $("wl_vessel").innerHTML=vesselOpts(ME.vessels[0]); $("wl_other").style.display="none"; $("wl_other").value="";
+  $("wl_title").value=""; $("wl_desc").value=""; $("wl_hours").value=""; $("wl_photos").value=""; workLogPhotos=[];
+  var d=new Date(), p=function(n){return (n<10?"0":"")+n;};
+  $("wl_done").value=d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate());   // defaults to today
+  $("workLogModal").classList.add("show");
+}
+function submitWorkLog(){
+  var t=($("wl_title").value||"").trim(); if(!t){ toast("What did you do? Give it a short title"); return; }
+  var vsel=$("wl_vessel").value, vessel;
+  if(vsel==="__other__"){ vessel=($("wl_other").value||"").trim(); if(!vessel){ toast("Type the yacht name"); return; } vessel="Other — "+vessel; }
+  else { vessel=vsel; }
+  var files=Array.prototype.slice.call(($("wl_photos").files)||[]);
+  toast("Logging…");
+  apiPost({action:"crewWorkLog", email:ME.email, code:ME.code, vessel:vessel, title:t,
+           desc:($("wl_desc").value||"").trim(), doneOn:$("wl_done").value||"", hours:($("wl_hours").value||"")}).then(function(r){
+    if(!r||!r.ok){ toast((r&&r.error)||"Couldn’t log it"); return; }
+    closeModal("workLogModal");
+    toast("✓ Logged"+(r.code?(" — "+r.code):""));
+    if(isMgrRole() && r.vessel) CURVESSEL=r.vessel;
+    go("jobs");
+    if(files.length) uploadFilesSeq(r.key, {files:files, value:""}, "crewJobPhotos", "photos", 1600, 0.7);
+    loadJobs();
   }).catch(function(){ toast("Couldn’t connect"); });
 }
 
@@ -3135,6 +3323,234 @@ function showSheet(){
 }
 function closeSheet(){ $("sheet").classList.remove("show"); $("overlay").classList.remove("show"); openJobId=null; openClId=null; }
 function closeModal(id){ $(id).classList.remove("show"); }
+
+/* ================= engine hours & spares =================
+   Two things the boats never had a home for: what the meters read, and what
+   parts are aboard. Both are per-vessel, so this tab follows the same vessel
+   chip bar the rest of the app uses — a director sees the fleet, crew see
+   their own boats. */
+var HOURS=null, HOURSDUE=null, SPARES=null, SPFILTER="All", SPOPEN="", HRSOPEN={};
+
+function myVessels(){
+  if(isMgrRole() && FLEETVESSELS && FLEETVESSELS.length) return FLEETVESSELS.slice();
+  return ((ME&&ME.vessels)||[]).slice();
+}
+function curVesselH(){
+  var mine=myVessels();
+  if(CURVESSEL && CURVESSEL!=="__all__" && mine.indexOf(CURVESSEL)>=0) return CURVESSEL;
+  return (CURVESSEL==="__all__" && isMgrRole()) ? "" : (mine[0]||"");
+}
+function loadVessel(){
+  if(isMgrRole()) loadFleetVessels();
+  renderVesselBarH();
+  var v=curVesselH();
+  $("hoursWrap").innerHTML='<p class="hello">Loading…</p>';
+  apiGet("fn=hours&vessel="+encodeURIComponent(v))
+    .then(function(j){ if(j&&j.ok){ HOURS=j; renderMeters(); } else $("hoursWrap").innerHTML='<p class="hello">Couldn\u2019t load readings.</p>'; })
+    .catch(function(){ $("hoursWrap").innerHTML='<p class="hello">Couldn\u2019t connect.</p>'; });
+  apiGet("fn=hoursdue&vessel="+encodeURIComponent(v))
+    .then(function(j){ if(j&&j.ok){ HOURSDUE=j; renderHoursDue(); } }).catch(function(){});
+  apiGet("fn=spares&vessel="+encodeURIComponent(v))
+    .then(function(j){ if(j&&j.ok){ SPARES=j; renderSpares(); } }).catch(function(){});
+}
+// Its own chip bar — pickVessel() drives the other tabs, so this one reloads here.
+function renderVesselBarH(){
+  var host=$("vesselBarH"); if(!host) return;
+  var mine=myVessels();
+  if(mine.length<2){ host.innerHTML=""; return; }
+  var cur=curVesselH();
+  host.innerHTML='<div class="chips boatchips">'+mine.map(function(v){
+    return '<div class="chip '+(v===cur?"on":"")+'" onclick="pickVesselH(\''+v.replace(/'/g,"\\'")+'\')">'+esc(v)+'</div>';
+  }).join("")+'</div>';
+}
+function pickVesselH(v){ CURVESSEL=v; renderVesselBarH(); loadVessel(); }
+
+// renderMeters, not renderHours — "hours" already means the crew's own time clock.
+function renderMeters(){
+  var u=(HOURS&&HOURS.units)||[];
+  $("hoursCount").textContent=u.length?(u.length+(u.length===1?" meter":" meters")):"";
+  if(!u.length){ $("hoursWrap").innerHTML='<p class="hello">No readings logged yet. Tap <b>Log a reading</b> and put the first one in — the schedule starts working off hours from there.</p>'; return; }
+  $("hoursWrap").innerHTML=u.map(function(x,i){
+    var stale=x.ageDays>60;
+    var meta='Read <b>'+esc(x.readingFmt)+'</b>'+(x.by?(' by '+esc(x.by)):"")+
+      (stale?(' <span class="hstale">· '+x.ageDays+' days ago</span>'):(' · '+x.ageDays+(x.ageDays===1?" day":" days")+' ago'))+'<br>';
+    meta += x.perMonth!==null
+      ? ('Running about <b>'+x.perMonth+' hrs a month</b> · reads about <b>'+x.estimatedNow.toLocaleString()+' hrs</b> today')
+      : 'One reading so far — log another and the app works out the run rate.';
+    var hist=(x.history||[]).length>1 ? '<div class="hhist" onclick="toggleHrsHist('+i+')">'+(HRSOPEN[i]?"▾":"▸")+' '+x.history.length+' readings</div>'+
+      (HRSOPEN[i]?('<div class="hhist-box">'+x.history.map(function(h){ return esc(h.dateFmt)+' — <b>'+h.reading+' hrs</b>'+(h.by?(' · '+esc(h.by)):"")+(h.note?(' · '+esc(h.note)):""); }).join("<br>")+'</div>'):"") : "";
+    return '<div class="hcard"><div class="hu">'+esc(x.unit)+(HOURS.vessel?"":' · '+esc(x.vessel))+'</div>'+
+      '<div class="hbig">'+x.reading.toLocaleString()+'<span>hrs</span></div>'+
+      '<div class="hmeta">'+meta+'</div>'+hist+'</div>';
+  }).join("");
+}
+function toggleHrsHist(i){ HRSOPEN[i]=!HRSOPEN[i]; renderMeters(); }
+
+function renderHoursDue(){
+  var d=(HOURSDUE&&HOURSDUE.due)||[];
+  var live=d.filter(function(x){ return x.status!=="OK"; });
+  if(!live.length){ $("hoursDueWrap").innerHTML=""; return; }
+  $("hoursDueWrap").innerHTML='<div class="subbar" style="padding-top:18px"><h2>Due on hours run</h2><span class="count">'+live.length+'</span></div>'+
+    live.map(function(x){
+      var od=x.status==="OVERDUE";
+      var when=od ? ('<b>'+Math.abs(x.hoursRemaining)+' hrs overdue</b>')
+                  : ('<b>'+x.hoursRemaining+' hrs to go</b>'+(x.projectedFmt?(' — about '+esc(x.projectedFmt)):""));
+      return '<div class="hdue'+(od?" od":"")+'"><span class="jcode">'+esc(x.code)+'</span>'+
+        '<h4>'+esc(x.job)+'</h4>'+
+        '<div class="hd-meta">'+esc(x.unit)+' · every '+x.hoursInterval+' hrs · last done at '+x.lastDoneHours.toLocaleString()+' hrs'+
+        (x.lastDoneEstimated?' (estimated)':'')+'<br>'+when+'</div></div>';
+    }).join("");
+}
+
+function renderSpares(){
+  var items=(SPARES&&SPARES.items)||[];
+  var c=(SPARES&&SPARES.counts)||{total:0,short:0};
+  $("sparesCount").textContent=c.total?(c.total+" parts"+(c.short?(" · "+c.short+" to sort"):"")):"";
+  $("sparesChips").innerHTML=["All","Running low","Need to order"].map(function(f){
+    var n=f==="All"?c.total:(f==="Running low"?(c.low||0):(c.order||0));
+    return '<div class="chip '+(SPFILTER===f?"on":"")+'" onclick="setSpFilter(\''+f+'\')">'+f+(n?(" · "+n):"")+'</div>';
+  }).join("");
+  var q=($("sparesQ")&&$("sparesQ").value||"").trim().toLowerCase();
+  var list=items.filter(function(s){
+    if(SPFILTER!=="All" && s.status!==SPFILTER) return false;
+    if(!q) return true;
+    return (s.part+" "+s.desc+" "+s.fits+" "+s.location+" "+s.supplier).toLowerCase().indexOf(q)>=0;
+  });
+  if(!list.length){
+    $("sparesWrap").innerHTML='<p class="hello">'+(items.length?"Nothing matches that.":"No parts on the register yet. Add the ones you reach for most \u2014 impellers, filters, belts, anodes.")+'</p>';
+    return;
+  }
+  var html="", grp="";
+  list.forEach(function(s){
+    var g=s.fits||"Other";
+    if(g!==grp){ grp=g; html+='<div class="spgrp">'+esc(g)+'</div>'; }
+    var cls=s.status==="Need to order"?"order":(s.status==="Running low"?"low":"");
+    var bcls=s.status==="Need to order"?"b-order":(s.status==="Running low"?"b-low":"b-onboard");
+    var qty=s.qty===null ? "Not counted" : (s.qty+" "+esc(s.uom)+" on board"+(s.min!==null?(" · reorder at "+s.min):""));
+    html+='<div class="spitem '+cls+'" onclick="openSpare(\''+s.key+'\')">'+
+      '<div class="sp-top"><h4>'+esc(s.desc||s.part)+'</h4><span class="badge '+bcls+'">'+esc(s.status)+'</span></div>'+
+      (s.part?('<div class="sp-meta"><span class="jcode">'+esc(s.part)+'</span></div>'):"")+
+      '<div class="sp-qty">'+qty+'</div>'+
+      (s.location?('<div class="sp-meta">📍 '+esc(s.location)+'</div>'):"")+
+      (SPOPEN===s.key ? spareActions(s) : "")+
+      '</div>';
+  });
+  $("sparesWrap").innerHTML=html;
+}
+function setSpFilter(f){ SPFILTER=f; renderSpares(); }
+function openSpare(k){ SPOPEN=(SPOPEN===k)?"":k; renderSpares(); }
+function spareActions(s){
+  return '<div class="hsrow" onclick="event.stopPropagation()">'+
+    '<button class="pri" onclick="openSpMove(\''+s.key+'\',-1)">Used one</button>'+
+    '<button onclick="openSpMove(\''+s.key+'\',1)">Restocked</button>'+
+    '<button onclick="flagSpare(\''+s.key+'\',\'Running low\')">Flag low</button>'+
+    '<button onclick="editSpare(\''+s.key+'\')">Edit</button></div>'+
+    (s.supplier?('<div class="sp-meta" style="margin-top:8px">Supplier: '+esc(s.supplier)+'</div>'):"")+
+    (s.tasks&&s.tasks.length?('<div class="sp-meta">Used on task '+esc(s.tasks.join(", "))+'</div>'):"")+
+    (s.note?('<div class="sp-meta">'+esc(s.note)+'</div>'):"");
+}
+function findSpare(k){ return ((SPARES&&SPARES.items)||[]).filter(function(s){return s.key===k;})[0]; }
+
+/* ---- logging a reading ---- */
+function openHoursForm(){
+  var mine=myVessels(), cur=curVesselH()||mine[0]||"";
+  $("h_vessel").innerHTML=mine.map(function(v){return '<option'+(v===cur?" selected":"")+'>'+esc(v)+'</option>';}).join("");
+  var units=(HOURS&&HOURS.unitOptions)||["Port engine","Stbd engine","Port genset","Stbd genset"];
+  // Meters this boat already has readings for come first — that's what gets logged most.
+  var known=((HOURS&&HOURS.units)||[]).map(function(u){return u.unit;});
+  var all=known.concat(units.filter(function(u){return known.indexOf(u)<0;}));
+  $("h_unit").innerHTML=all.map(function(u){return '<option>'+esc(u)+'</option>';}).join("");
+  $("h_reading").value=""; $("h_note").value=""; $("h_warn").innerHTML="";
+  $("h_date").value=new Date().toISOString().slice(0,10);
+  $("hoursModal").classList.add("show");
+}
+function saveHours(){
+  var reading=($("h_reading").value||"").trim();
+  if(!reading){ toast("Put the reading in"); return; }
+  var btn=$("h_save"); btn.disabled=true; btn.textContent="Saving…";
+  apiPost({action:"hoursAdd", email:ME.email, code:ME.code, by:ME.name,
+           vessel:$("h_vessel").value, unit:$("h_unit").value, reading:reading,
+           date:$("h_date").value, note:$("h_note").value, source:"crew app"})
+    .then(function(r){
+      btn.disabled=false; btn.textContent="Save reading";
+      if(r&&r.ok){
+        // A reading that looks wrong isn't rejected — it's queried, while the person
+        // who took it is still standing at the gauge.
+        if(r.warning){ $("h_warn").innerHTML='<div class="hswarn">⚠️ '+esc(r.warning)+' It\u2019s saved either way.</div>'; setTimeout(function(){ closeModal("hoursModal"); loadVessel(); }, 2600); }
+        else { closeModal("hoursModal"); toast("✓ "+r.reading+" hrs logged"); loadVessel(); }
+      } else toast((r&&r.error)||"Couldn\u2019t save");
+    }).catch(function(){ btn.disabled=false; btn.textContent="Save reading"; toast("Couldn\u2019t connect"); });
+}
+
+/* ---- the parts register ---- */
+var SPEDIT="";
+function openSpareForm(){
+  SPEDIT="";
+  var mine=myVessels(), cur=curVesselH()||mine[0]||"";
+  $("sp_title").textContent="Add a part";
+  $("sp_vessel").innerHTML=mine.map(function(v){return '<option'+(v===cur?" selected":"")+'>'+esc(v)+'</option>';}).join("");
+  ["sp_part","sp_desc","sp_fits","sp_loc","sp_qty","sp_min","sp_sup","sp_tasks"].forEach(function(id){ $(id).value=""; });
+  $("spareModal").classList.add("show");
+}
+function editSpare(k){
+  var s=findSpare(k); if(!s) return;
+  SPEDIT=k;
+  $("sp_title").textContent="Edit part";
+  var mine=myVessels();
+  $("sp_vessel").innerHTML=mine.map(function(v){return '<option'+(v===s.vessel?" selected":"")+'>'+esc(v)+'</option>';}).join("");
+  $("sp_part").value=s.part; $("sp_desc").value=s.desc; $("sp_fits").value=s.fits;
+  $("sp_loc").value=s.location; $("sp_qty").value=(s.qty===null?"":s.qty); $("sp_min").value=(s.min===null?"":s.min);
+  $("sp_sup").value=s.supplier; $("sp_tasks").value=(s.tasks||[]).join(", ");
+  $("spareModal").classList.add("show");
+}
+function saveSpare(){
+  var part=($("sp_part").value||"").trim(), desc=($("sp_desc").value||"").trim();
+  if(!part && !desc){ toast("A part number or a description, at least"); return; }
+  var btn=$("sp_save"); btn.disabled=true; btn.textContent="Saving…";
+  var body={ email:ME.email, code:ME.code, by:ME.name, vessel:$("sp_vessel").value,
+             part:part, desc:desc, fits:($("sp_fits").value||"").trim(), location:($("sp_loc").value||"").trim(),
+             qty:($("sp_qty").value||"").trim(), min:($("sp_min").value||"").trim(),
+             supplier:($("sp_sup").value||"").trim(), tasks:($("sp_tasks").value||"").trim() };
+  body.action = SPEDIT ? "spareUpdate" : "spareAdd";
+  if(SPEDIT) body.key=SPEDIT;
+  apiPost(body).then(function(r){
+    btn.disabled=false; btn.textContent="Save part";
+    if(r&&r.ok){ closeModal("spareModal"); toast(SPEDIT?"✓ Updated":"✓ Added to the register"); SPEDIT=""; loadVessel(); }
+    else toast((r&&r.error)||"Couldn\u2019t save");
+  }).catch(function(){ btn.disabled=false; btn.textContent="Save part"; toast("Couldn\u2019t connect"); });
+}
+var SPMOVE={key:"",sign:-1};
+function openSpMove(k,sign){
+  var s=findSpare(k); if(!s) return;
+  SPMOVE={key:k,sign:sign};
+  $("spm_title").textContent = sign<0 ? "Used one" : "Restocked";
+  $("spm_hdr").textContent = (s.desc||s.part) + (s.qty===null ? " — nothing counted yet" : " — "+s.qty+" on board");
+  $("spm_qty").value="1"; $("spm_reason").value="";
+  $("spMoveModal").classList.add("show");
+}
+function saveSpareMove(){
+  var s=findSpare(SPMOVE.key); if(!s) return;
+  var btn=$("spm_save"); btn.disabled=true; btn.textContent="Saving…";
+  apiPost({ action: SPMOVE.sign<0 ? "spareUse" : "spareRestock", email:ME.email, code:ME.code, by:ME.name,
+            key:SPMOVE.key, vessel:s.vessel, part:s.part,
+            qty:($("spm_qty").value||"1").trim(), reason:($("spm_reason").value||"").trim() })
+    .then(function(r){
+      btn.disabled=false; btn.textContent="Save";
+      if(r&&r.ok){
+        closeModal("spMoveModal");
+        toast(r.status==="Need to order" ? ("⚠️ "+r.part+" — none left, needs ordering")
+            : r.status==="Running low" ? ("⚠️ "+r.part+" down to "+r.after+" — running low")
+            : ("✓ "+r.after+" on board"));
+        loadVessel();
+      } else toast((r&&r.error)||"Couldn\u2019t save");
+    }).catch(function(){ btn.disabled=false; btn.textContent="Save"; toast("Couldn\u2019t connect"); });
+}
+function flagSpare(k,status){
+  var s=findSpare(k); if(!s) return;
+  apiPost({action:"spareUpdate", email:ME.email, code:ME.code, by:ME.name, key:k, status:status})
+    .then(function(r){ if(r&&r.ok){ toast("✓ Flagged "+status.toLowerCase()); loadVessel(); } else toast((r&&r.error)||"Couldn\u2019t save"); })
+    .catch(function(){ toast("Couldn\u2019t connect"); });
+}
 
 // live tick for the running shift timer
 setInterval(tickClock, 1000);
