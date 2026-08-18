@@ -684,10 +684,10 @@
         <div class="eyebrow">WELCOME ABOARD</div>
         <h2>Marine HQ Crew</h2>
         <p class="tagline">Your jobs. Your hours. Anytime.</p>
-        <div class="sub">Enter your access code</div>
-        <input id="emailIn" type="text" inputmode="text" placeholder="Access code" autocomplete="off">
+        <div class="sub">Access code or email</div>
+        <input id="emailIn" type="text" inputmode="text" placeholder="Access code or your email" autocomplete="off" autocapitalize="off" spellcheck="false">
         <button class="go" onclick="sendLink()">Sign in</button>
-        <p class="ownemail">Enter the <b>access code</b> Marine HQ gave you. No code yet? Give us a call.</p>
+        <p class="ownemail">Enter the <b>access code</b> Marine HQ gave you &mdash; or your <b>own email</b> and we'll send you a one&#8209;tap link. Either way you stay signed in on this phone for 90 days.</p>
         <p class="contact">Need a hand? We're always here.<br><b>0439 748 387</b> · <b>yachtsupport@marinehq.com.au</b></p>
         <div class="demo hidden" id="demoBox">
           <small>Marine HQ only</small>
@@ -698,8 +698,9 @@
       <div id="sentStep" class="sent hidden">
         <div class="tick">✓</div>
         <h2 style="font-size:23px">Check your email</h2>
-        <p class="tagline" style="font-style:normal">We've sent a one‑tap sign‑in link to<br><b id="sentEmail"></b>.<br>You'll stay signed in on this phone for 90 days.</p>
-        <button class="linkbtn" onclick="openMagicLink()">Open sign‑in link (demo)</button>
+        <p class="tagline" style="font-style:normal">If <b id="sentEmail"></b> is on file we've just sent you a one‑tap sign‑in link.<br>Open it on this phone &mdash; it works for 15 minutes, and then you'll stay signed in for 90 days.</p>
+        <p class="tagline" style="font-style:normal;font-size:12.5px">Not there? Check your junk folder, or call us on <b>0439 748 387</b>.</p>
+        <button class="linkbtn" id="resendBtn" onclick="resendLink()">Send it again</button>
         <button class="back" onclick="backToLogin()">← Use a different email</button>
       </div>
     </div>
@@ -1254,8 +1255,15 @@ function _cSet(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){
 function _ck(kind,extra){ return "mhqc_"+kind+"_"+((ME&&ME.code)||"")+(extra?("_"+extra):""); }
 function fmtDate(d){ var p=(d||"").split("-"); return p.length===3? (p[2]+"/"+p[1]+"/"+p[0].slice(2)) : d; }
 
-/* ================= login (real — email → crewlogin API) ================= */
+/* ================= login (access code, or email → real magic link) =================
+   Email sign-in posts a one-tap link (backend: PortalAuth.gs, kind=crew). Tapping it
+   mints a 90-day session token stored on this device, so crew sign in once a quarter
+   at most. Access codes still work exactly as before. */
 var pendingEmail="";
+var CREW_SESSION_KEY="mhq_crew_session";
+function crewSess(){ try{ return localStorage.getItem(CREW_SESSION_KEY)||""; }catch(e){ return ""; } }
+function setCrewSess(v){ try{ if(v) localStorage.setItem(CREW_SESSION_KEY,v); else localStorage.removeItem(CREW_SESSION_KEY); }catch(e){} }
+
 function sendLink(){
   var v=($("emailIn").value||"").trim();
   if(/^\d{4,6}$/.test(v)){ doLoginCode(v); return; }          // 4–6 digit access code → straight in
@@ -1263,6 +1271,20 @@ function sendLink(){
   if(!e || e.indexOf("@")<0){ toast("Enter your access code or email"); return; }
   pendingEmail=e; $("sentEmail").textContent=e;
   $("loginStep").classList.add("hidden"); $("sentStep").classList.remove("hidden");
+  postLink(e);
+}
+function postLink(email){
+  return apiGet("fn=requestlink&kind=crew&email=" + encodeURIComponent(email))
+    .then(function(j){ if(!j || !j.ok) toast("Couldn't send that link — give Marine HQ a call."); })
+    .catch(function(){ toast("Couldn't connect — check your signal and try again."); });
+}
+function resendLink(){
+  if(!pendingEmail) return backToLogin();
+  var b=$("resendBtn"); if(b){ b.disabled=true; b.textContent="Sending…"; }
+  postLink(pendingEmail).then(function(){
+    if(b){ b.disabled=false; b.textContent="Send it again"; }
+    toast("Sent — check your email.");
+  });
 }
 function doLoginCode(code, silent){
   apiGet("fn=crewlogin&code=" + encodeURIComponent(code)).then(function(j){
@@ -1277,7 +1299,6 @@ function addToPhone(){
     ? "Add Marine HQ Crew to your phone:\n\n1.  Tap the Share button  (the box with an ↑)\n2.  Scroll down and tap “Add to Home Screen”\n3.  Tap Add — the anchor icon appears on your home screen"
     : "Add Marine HQ Crew to your phone:\n\nTap the browser menu (⋮) → “Add to Home screen” / “Install app”.");
 }
-function openMagicLink(){ doLogin(pendingEmail); }
 function testAccount(){ doLogin(TEST_EMAIL); }
 function doLogin(email, silent){
   apiGet("fn=crewlogin&email=" + encodeURIComponent(email)).then(function(j){
@@ -1285,7 +1306,12 @@ function doLogin(email, silent){
     else if(!silent){ toast("We don’t recognise that email — ask Marine HQ to add you in Crew Setup."); backToLogin(); }
   }).catch(function(){ if(!silent) toast("Couldn’t connect — check your signal and try again."); });
 }
-function signOut(){ try{localStorage.removeItem("mhq_crew_email");localStorage.removeItem("mhq_crew_code");}catch(_){} location.reload(); }
+function signOut(){
+  var s=crewSess();
+  if(s){ setCrewSess(""); try{ fetch(API + "?fn=signout&session=" + encodeURIComponent(s) + "&_=" + Date.now()); }catch(e){} }
+  try{localStorage.removeItem("mhq_crew_email");localStorage.removeItem("mhq_crew_code");}catch(_){}
+  location.reload();
+}
 function enterReal(crew, shift){
   // Wipe the previous session's lists. REQJOBS is director-only data — never let it
   // survive into a crew session — and the sub-tab choice shouldn't carry over either.
@@ -1301,7 +1327,38 @@ function enterReal(crew, shift){
 // Stay signed in on this device (90-day style) — auto sign-in if remembered.
 // Marine HQ controls (test account + onboarding) only on the admin URL — crew get a clean login.
 (function initAdmin(){ try{ if(/[?&#]admin/i.test(location.href)){ var d=document.getElementById("demoBox"); if(d) d.classList.remove("hidden"); } }catch(_){} })();
-(function initSession(){ try{ var c=localStorage.getItem("mhq_crew_code"); if(c){ doLoginCode(c, true); return; } var e=localStorage.getItem("mhq_crew_email"); if(e) doLogin(e, true); }catch(_){} })();
+(function initSession(){
+  try{
+    // 1. A tapped magic link — verify it, keep the 90-day session, tidy the URL.
+    var token=""; try{ token=new URLSearchParams(location.search).get("token")||""; }catch(_){}
+    if(token){
+      apiGet("fn=verifylink&token=" + encodeURIComponent(token)).then(function(j){
+        try{ history.replaceState({}, "", location.pathname); }catch(_){}
+        if(j && j.ok && j.crew){ setCrewSess(j.session||""); enterReal(j.crew, j.shift); }
+        else if(j && j.reason==="used") toast("That link has already been used — enter your email for a fresh one.");
+        else toast("That link has expired — enter your email for a fresh one.");
+      }).catch(function(){ toast("Couldn't connect — check your signal and try again."); });
+      return;
+    }
+    // 2. Already signed in on this device (90-day session).
+    var s=crewSess();
+    if(s){
+      apiGet("fn=session&session=" + encodeURIComponent(s)).then(function(j){
+        if(j && j.ok && j.crew){ enterReal(j.crew, j.shift); }
+        else { setCrewSess(""); legacySession(); }
+      }).catch(function(){ legacySession(); });
+      return;
+    }
+    legacySession();
+  }catch(_){}
+})();
+// Crew already signed in the old way (access code / remembered email) stay signed in.
+function legacySession(){
+  try{
+    var c=localStorage.getItem("mhq_crew_code"); if(c){ doLoginCode(c, true); return; }
+    var e=localStorage.getItem("mhq_crew_email"); if(e) doLogin(e, true);
+  }catch(_){}
+}
 
 /* ================= tabs ================= */
 function go(tab){
