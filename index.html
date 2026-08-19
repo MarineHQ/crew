@@ -635,10 +635,17 @@
 
   /* misc */
   .empty{text-align:center;color:var(--muted);font-size:13px;padding:44px 20px;line-height:1.5}
-  .fab{position:fixed;right:16px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:35;border:0;background:var(--orange);color:#fff;font-weight:bold;font-size:14px;padding:13px 18px;border-radius:30px;box-shadow:0 6px 18px rgba(232,119,34,.4);cursor:pointer}
-  /* Work Log — sits ABOVE "Raise a job". Navy vs orange is the whole point: orange
-     = something NEEDS doing, navy = something's already DONE. Two taps, two meanings. */
-  .fab-log{position:fixed;right:16px;bottom:calc(136px + env(safe-area-inset-bottom));z-index:35;border:0;background:var(--navy);color:#fff;font-weight:bold;font-size:14px;padding:13px 18px;border-radius:30px;box-shadow:0 6px 18px rgba(26,43,92,.38);cursor:pointer}
+  /* Bottom action bar. Orange = something NEEDS doing, navy = something's already
+     DONE — same colour language as before, just no longer floating over content. */
+  .actbar{position:fixed;left:0;right:0;bottom:0;z-index:35;display:flex;gap:9px;
+    padding:9px 12px calc(9px + env(safe-area-inset-bottom));
+    background:rgba(255,255,255,.97);border-top:1px solid var(--line);
+    box-shadow:0 -4px 16px rgba(26,43,92,.10)}
+  .actbtn{flex:1;border:0;border-radius:12px;padding:13px 10px;font-size:14px;font-weight:800;color:#fff;cursor:pointer;font-family:inherit}
+  .actbtn.raise{background:var(--orange)}
+  .actbtn.log{background:var(--navy)}
+  .actbtn:active{opacity:.9}
+  body.has-actbar{padding-bottom:74px}
   .toast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);background:var(--navy);color:#fff;padding:12px 18px;border-radius:24px;font-size:13px;font-weight:bold;box-shadow:0 6px 20px rgba(0,0,0,.25);opacity:0;transition:.25s;z-index:80;max-width:90%;text-align:center;pointer-events:none}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
@@ -717,7 +724,6 @@
     </div>
   </div>
   <div class="footer-banner" style="margin-top:0"><img src="footer-banner.jpg" alt="Marine HQ — 0439 748 387 · yachtsupport@marinehq.com.au"></div>
-  <div class="a2p" id="a2p" onclick="addToPhone()"><span>⚓ Add to phone</span><span class="x" onclick="event.stopPropagation();document.getElementById('a2p').style.display='none'">✕</span></div>
 </div>
 
 <!-- ===================== APP ===================== -->
@@ -884,15 +890,19 @@
       <div id="sopList"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-19·d</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-19·e</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
   <div class="footer-banner"><img src="footer-banner.jpg" alt="Marine HQ — 0439 748 387 · yachtsupport@marinehq.com.au"></div>
 
-  <button class="fab-log hidden" id="fabLog" onclick="openWorkLog()">✓ Log work done</button>
-  <button class="fab hidden" id="fab" onclick="openRaise()">+ Raise a job</button>
-  <div class="a2p a2p-app" id="a2pApp" onclick="addToPhone()"><span>⚓ Add to phone</span><span class="x" onclick="event.stopPropagation();document.getElementById('a2pApp').style.display='none'">✕</span></div>
+  <!-- Job actions live in one bar pinned to the bottom (the tab bar is at the top,
+       so this space is free). The page gets padding underneath so it never covers
+       content — unlike the floating buttons it replaces. -->
+  <div class="actbar hidden" id="actBar">
+    <button class="actbtn log" id="fabLog" onclick="openWorkLog()">✓ Log work done</button>
+    <button class="actbtn raise" id="fab" onclick="openRaise()">＋ Raise a job</button>
+  </div>
 
 </div>
 
@@ -1305,11 +1315,14 @@ function doLoginCode(code, silent){
   }).catch(function(){ if(!silent) toast("Couldn’t connect — check your signal and try again."); });
 }
 function backToLogin(){ $("sentStep").classList.add("hidden"); $("loginStep").classList.remove("hidden"); }
+// The floating "Add to phone" pills are gone, but this stays: iOS only allows push
+// alerts once the app is on the Home Screen, so the notification panel's "Show me
+// how" button still needs the instructions.
 function addToPhone(){
   var ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
   alert(ios
-    ? "Add Marine HQ Crew to your phone:\n\n1.  Tap the Share button  (the box with an ↑)\n2.  Scroll down and tap “Add to Home Screen”\n3.  Tap Add — the anchor icon appears on your home screen"
-    : "Add Marine HQ Crew to your phone:\n\nTap the browser menu (⋮) → “Add to Home screen” / “Install app”.");
+    ? "Add Marine HQ Crew to your phone:\n\n1.  Tap the Share button  (the box with an \u2191)\n2.  Scroll down and tap \u201cAdd to Home Screen\u201d\n3.  Tap Add \u2014 the anchor icon appears on your home screen"
+    : "Add Marine HQ Crew to your phone:\n\nTap the browser menu (\u22ee) \u2192 \u201cAdd to Home screen\u201d / \u201cInstall app\u201d.");
 }
 function testAccount(){ doLogin(TEST_EMAIL); }
 function doLogin(email, silent){
@@ -1385,8 +1398,8 @@ function go(tab){
   var nb=document.querySelector('.ptab-btn[data-tab="mine"]'); if(nb) nb.style.display=mgr?"":"none";
   ["jobs","mine","updates","cal","fleet","maint","induct","check","hours","vessel","sop"].forEach(function(t){ $("tab-"+t).classList.toggle("hidden", t!==tab); });
   document.querySelectorAll(".ptab-btn").forEach(function(b){ b.classList.toggle("active", b.dataset.tab===tab); });
-  $("fab").classList.toggle("hidden", tab!=="jobs");
-  $("fabLog").classList.toggle("hidden", tab!=="jobs");
+  $("actBar").classList.toggle("hidden", tab!=="jobs");
+  document.body.classList.toggle("has-actbar", tab==="jobs");
   if(tab==="updates"){ try{ MHQPush.render(); }catch(e){} }
   var titles={jobs:["Marine HQ Crew","Your jobs, checklists & hours"],mine:["My Tasks","Just what's assigned or offered to you"],updates:["Updates","Crew activity — newest first"],cal:["Calendar","Scheduled jobs by day"],fleet:["Fleet","Director view — whole operation"],maint:["Maintenance","Care schedule — directors control"],induct:["Vessel induction","Particulars & specialised gear"],check:["Checklists","Tick & sign off"],hours:["Time clock","Clock in · EOD · hours"],vessel:["Engine & parts","Hour meters & spares on board"],sop:["SOP & guides","Marine HQ standards"]};
   $("hdrTitle").textContent=titles[tab][0]; $("hdrSub").textContent=titles[tab][1];
