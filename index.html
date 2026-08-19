@@ -271,6 +271,17 @@
   .wlnote-ed{opacity:.55;margin-left:3px}
   .wledit{flex:0 0 auto;width:28px;height:28px;line-height:28px;text-align:center;border-radius:8px;background:rgba(255,255,255,.2);font-size:14px;cursor:pointer}
   .wledit.on{background:#fff;color:var(--orange)}
+  /* Alerts card — the push-notification switch at the top of Updates */
+  .pushcard{display:flex;gap:11px;align-items:flex-start;margin:0 0 14px;padding:12px 13px;border-radius:12px;border:1px solid #d3e2f2;background:#f6f9fc}
+  .pushcard.on{border-color:#bfe3d6;background:#f1faf6}
+  .pushcard.warn{border-color:#f0dcae;background:#fdf8ec}
+  .pc-ic{font-size:19px;line-height:1.15;flex:0 0 auto}
+  .pc-main{flex:1;min-width:0}
+  .pc-t{font-size:13.5px;font-weight:800;color:var(--navy);margin-bottom:2px}
+  .pc-s{font-size:12px;color:#5b6b80;line-height:1.45}
+  .pc-btn{margin-top:9px;background:var(--navy);color:#fff;border:0;border-radius:9px;padding:9px 14px;font-size:12.5px;font-weight:800;cursor:pointer}
+  .pc-btn:active{opacity:.85}
+  .pc-off{display:inline-block;margin-top:8px;font-size:11.5px;font-weight:700;color:#8194ab;text-decoration:underline;cursor:pointer}
   .wlmenu{display:flex;flex-direction:column;gap:6px;margin:-4px 0 12px;padding:9px;background:#f6f9fc;border:1px solid var(--line);border-radius:11px}
   .wlmenu button{width:100%;text-align:left;background:#fff;border:1px solid #d3e2f2;color:var(--navy);font-size:13px;font-weight:700;border-radius:9px;padding:10px 12px;cursor:pointer}
   .wlmenu button:active{background:#eef4fb}
@@ -768,6 +779,7 @@
     <!-- UPDATES / notifications feed -->
     <div id="tab-updates" class="hidden">
       <div class="subbar"><h2>Updates</h2><span class="count" id="updCount"></span></div>
+      <div id="pushCard" class="pushcard hidden"></div>
       <p class="hello">Everything the crew &amp; Marine HQ have done, newest first. Tap any one to jump straight to that job.</p>
       <div id="updList"></div>
     </div>
@@ -872,7 +884,7 @@
       <div id="sopList"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-16·d</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-19·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1307,6 +1319,7 @@ function doLogin(email, silent){
   }).catch(function(){ if(!silent) toast("Couldn’t connect — check your signal and try again."); });
 }
 function signOut(){
+  try{ MHQPush.signOut(); }catch(e){}            // stop this phone getting the last person's alerts
   var s=crewSess();
   if(s){ setCrewSess(""); try{ fetch(API + "?fn=signout&session=" + encodeURIComponent(s) + "&_=" + Date.now()); }catch(e){} }
   try{localStorage.removeItem("mhq_crew_email");localStorage.removeItem("mhq_crew_code");}catch(_){}
@@ -1321,6 +1334,7 @@ function enterReal(crew, shift){
          clock:{in:false, at:0, vessel:null, loc:null, shifts:[]} };
   if(shift && shift.open){ ME.clock.in=true; ME.clock.at=shift.inAt; ME.clock.vessel=shift.vessel; ME.clock.loc=shift.loc||""; }
   $("signedInAs").textContent = "Signed in as " + ME.name;
+  try{ MHQPush.signIn(ME.code); }catch(e){}      // tie push on this phone to this person
   $("login").classList.add("hidden"); $("app").classList.remove("hidden");
   go("jobs"); refreshAll();
 }
@@ -1373,6 +1387,7 @@ function go(tab){
   document.querySelectorAll(".ptab-btn").forEach(function(b){ b.classList.toggle("active", b.dataset.tab===tab); });
   $("fab").classList.toggle("hidden", tab!=="jobs");
   $("fabLog").classList.toggle("hidden", tab!=="jobs");
+  if(tab==="updates"){ try{ MHQPush.render(); }catch(e){} }
   var titles={jobs:["Marine HQ Crew","Your jobs, checklists & hours"],mine:["My Tasks","Just what's assigned or offered to you"],updates:["Updates","Crew activity — newest first"],cal:["Calendar","Scheduled jobs by day"],fleet:["Fleet","Director view — whole operation"],maint:["Maintenance","Care schedule — directors control"],induct:["Vessel induction","Particulars & specialised gear"],check:["Checklists","Tick & sign off"],hours:["Time clock","Clock in · EOD · hours"],vessel:["Engine & parts","Hour meters & spares on board"],sop:["SOP & guides","Marine HQ standards"]};
   $("hdrTitle").textContent=titles[tab][0]; $("hdrSub").textContent=titles[tab][1];
   if(tab==="jobs") loadJobs();
@@ -1586,9 +1601,131 @@ function loadCrewNames(){
     .then(function(j){ if(j&&j.ok&&j.crew){ CREWNAMES=j.crew; _cSet(_ck("names"), CREWNAMES); } })
     .catch(function(){});
 }
+/* ── Real push notifications ───────────────────────────────────────────────
+   The 30-second poll above only fires while the app is open, and the email
+   only lands if an address is on file. This is the channel that reaches a
+   phone that's been shut in a pocket for two days.
+
+   TO SWITCH IT ON: paste the OneSignal App ID below. Until then nothing
+   loads, the Alerts card stays hidden, and the app behaves exactly as it
+   does today. The App ID is public and belongs here. The REST KEY does NOT —
+   this repo is public, and the key lives only in Apps Script → Project
+   Settings → Script Properties (ONESIGNAL_REST_KEY).
+
+   iPhone note: Apple only allows push once the app is on the Home Screen.
+   In a Safari tab it is impossible, no matter what we do — so the card asks
+   for the install first rather than offering a button that can't work. */
+var ONESIGNAL_APP_ID = "7f30430e-996b-4fae-8136-a5544e218f79";
+
+var MHQPush = (function(){
+  var booted=false, ready=false, pendingId="";
+
+  function configured(){ return !!ONESIGNAL_APP_ID; }
+  function isIOS(){ return /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+                           (navigator.platform==="MacIntel" && navigator.maxTouchPoints>1); }
+  function installed(){ try{ return window.navigator.standalone===true ||
+                           (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches); }catch(e){ return false; } }
+  function canPush(){ return !!(window.PushManager && navigator.serviceWorker && window.Notification); }
+  function os(fn){ window.OneSignalDeferred=window.OneSignalDeferred||[]; window.OneSignalDeferred.push(fn); }
+
+  // Load the SDK once, on first sign-in, and only when there's an App ID.
+  function boot(){
+    if(booted || !configured()) return;
+    if(isIOS() && !installed()) return;                 // no point: Apple won't allow it in a tab
+    if(!canPush()) return;
+    booted=true;
+    var base=location.pathname.replace(/[^/]*$/, "");   // "/crew/" — works wherever it's hosted
+    var sc=document.createElement("script");
+    sc.src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js"; sc.defer=true;
+    document.head.appendChild(sc);
+    os(function(OneSignal){
+      OneSignal.init({
+        appId: ONESIGNAL_APP_ID,
+        serviceWorkerPath: base.replace(/^\//,"")+"OneSignalSDKWorker.js",
+        serviceWorkerParam: { scope: base },
+        autoResubscribe: true
+      }).then(function(){
+        ready=true;
+        // Re-draw whenever the subscription flips, so the card never lies.
+        try{ OneSignal.User.PushSubscription.addEventListener("change", render); }catch(e){}
+        if(pendingId){ try{ OneSignal.login(pendingId); }catch(e){} pendingId=""; }
+        render();
+      }).catch(function(e){ ready=false; });
+    });
+  }
+
+  /* Tie this device to one person, so Marine HQ can push to Jack rather than
+     to the whole crew. Must match pushCrewId_() in Push.gs exactly. */
+  function signIn(code){
+    if(!configured()) return;
+    var id="crew:"+((code||"").toString().trim().toUpperCase());
+    if(id==="crew:") return;
+    pendingId=id; boot();
+    if(ready) os(function(OneSignal){ try{ OneSignal.login(id); pendingId=""; }catch(e){} });
+  }
+  function signOut(){ if(booted) os(function(OneSignal){ try{ OneSignal.logout(); }catch(e){} }); }
+
+  function state(){
+    if(!configured())              return "unconfigured";  // card hidden entirely
+    if(isIOS() && !installed())    return "needs-install";
+    if(!canPush())                 return "unsupported";
+    if(!ready)                     return "loading";
+    var perm="default", on=false;
+    try{ perm=window.OneSignal.Notifications.permissionNative; }catch(e){}
+    try{ on=!!window.OneSignal.User.PushSubscription.optedIn; }catch(e){}
+    if(perm==="denied")            return "blocked";
+    return on ? "on" : "off";
+  }
+
+  function turnOn(){
+    os(function(OneSignal){
+      OneSignal.Notifications.requestPermission().then(function(){
+        try{ OneSignal.User.PushSubscription.optIn(); }catch(e){}
+        setTimeout(render, 700);
+        if(state()==="on") toast("Alerts are on.");
+      }).catch(function(){ render(); });
+    });
+  }
+  function turnOff(){
+    os(function(OneSignal){ try{ OneSignal.User.PushSubscription.optOut(); }catch(e){} setTimeout(render, 400); });
+    toast("Alerts off — you'll still see updates in the app.");
+  }
+
+  function render(){
+    var el=document.getElementById("pushCard"); if(!el) return;
+    var st=state();
+    if(st==="unconfigured" || st==="loading"){ el.className="pushcard hidden"; return; }
+    var cls="pushcard", ic="🔔", t="", sub="", act="";
+    if(st==="on"){
+      cls+=" on"; ic="✅"; t="Alerts are on";
+      sub="You'll get a buzz when you're tagged, offered a job or assigned one — even with the app closed.";
+      act='<span class="pc-off" onclick="MHQPush.turnOff()">Turn alerts off</span>';
+    } else if(st==="off"){
+      t="Turn on alerts"; sub="Right now you only see updates while the app is open. Turn alerts on and your phone buzzes even when it's closed.";
+      act='<button class="pc-btn" onclick="MHQPush.turnOn()">🔔 Turn on alerts</button>';
+    } else if(st==="needs-install"){
+      cls+=" warn"; ic="📲"; t="Add the app to your Home Screen first";
+      sub="Apple only allows alerts once Marine HQ Crew is on your Home Screen — they can't work in a Safari tab.";
+      act='<button class="pc-btn" onclick="addToPhone()">Show me how</button>';
+    } else if(st==="blocked"){
+      cls+=" warn"; ic="🔕"; t="Alerts are blocked on this phone";
+      sub="You (or someone) tapped Don't Allow. Turn them back on in Settings → Notifications → Marine HQ Crew.";
+    } else {
+      cls+=" warn"; ic="🔕"; t="Alerts aren't available in this browser";
+      sub="Open Marine HQ Crew in Safari (iPhone) or Chrome (Android) and add it to your Home Screen.";
+    }
+    el.className=cls;
+    el.innerHTML='<div class="pc-ic">'+ic+'</div><div class="pc-main"><div class="pc-t">'+t+'</div><div class="pc-s">'+sub+'</div>'+act+'</div>';
+  }
+
+  return { signIn:signIn, signOut:signOut, render:render, turnOn:turnOn, turnOff:turnOff, state:state };
+})();
+
 function startActivityWatch(){
   if(!ME){ if(_actTimer){clearInterval(_actTimer);_actTimer=null;} return; }
-  try{ if(window.Notification && Notification.permission==="default") Notification.requestPermission(); }catch(e){}
+  // (Permission is NOT grabbed here any more. Asking on load is ignored outright by
+  //  iOS and trains everyone else to hit Block. It's now a deliberate tap on the
+  //  Alerts card in Updates — see MHQPush below.)
   loadCrewNames();
   if(_actTimer) return;
   // instant: show cached updates + badge on open, before the first network poll
