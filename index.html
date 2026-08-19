@@ -194,7 +194,7 @@
   .donebtn{width:100%;margin-top:10px;border:0;background:var(--ok);color:#fff;font-weight:bold;font-size:13.5px;padding:11px;border-radius:10px;cursor:pointer}
 
   /* photos */
-  .photos{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;flex-wrap:wrap}
+  .photos{display:flex;gap:8px;overflow-x:auto;padding:9px 9px 2px 0;flex-wrap:wrap}
   .ph{flex:0 0 auto;width:92px;position:relative}
   .attdel{position:absolute;top:-7px;right:-7px;width:22px;height:22px;border-radius:50%;border:1.5px solid #fff;background:#c0392b;color:#fff;font-size:12px;font-weight:bold;line-height:1;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;padding:0}
   .docrowitem{display:flex;align-items:center;gap:8px}
@@ -884,7 +884,7 @@
       <div id="sopList"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-19·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-19·d</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2727,6 +2727,7 @@ function openWLJob(key){
       '<button class="jobbtn complete" style="background:var(--navy)" onclick="wlAddComment(\''+esc(key)+'\')">Add note</button>'+
       '<p class="body" style="font-size:11.5px;color:var(--muted);text-align:center;margin:8px 0 0">A note is optional — everything else (status, photos, day) saves as you go.</p></div>'+
     wlApproveBlock(j,key)+
+    wlFixBlock(j,key)+
     '<button class="jobbtn donebtn" onclick="closeSheet()">✓ Done</button>'+
     '<div style="height:16px"></div>';
   showSheet();
@@ -2800,24 +2801,44 @@ function saveInduct(){
     else toast((r&&r.error)||"Couldn’t save");
   }).catch(function(){ toast("Couldn’t connect"); });
 }
-/* Manager-only: approve a completed job → push it to the owner's app. */
+/* Manager-only: approve a completed job → push it to the owner's app.
+   The owner-share state is shown WHATEVER the status — a task can be shared
+   without ever going through Complete (a whole work list shared at onboarding),
+   and a director needs to see that and be able to pull it back. */
 function wlApproveBlock(j,key){
   if(!/director|manager/i.test(ME.role||"")) return "";
+  var so=j.signoff||{}, qc=(so.qc&&so.qc.by);
+  var kk=esc(key);
+  var who=(j.approvedBy?(' · '+esc(firstName(j.approvedBy))):'')+(j.approvedAt?(' · '+esc(j.approvedAt)):'');
+  var pullBtn='<button class="jobbtn" style="background:#64748b;margin-top:8px" onclick="wlApprove(\''+kk+'\',false)">Pull back from owner</button>';
   var ready=wlBucketToStatus(j)==="Complete";
   if(!ready){
+    // Not finished — nothing to push. But if the owner can already see it, say so.
+    if(j.shared){
+      return '<div class="sec"><h4>Sign-off &amp; log</h4>'+
+        '<div class="apprOn" style="background:#fdf3e3;color:#8a5a12;border-color:#f0dcb8">👁 The owner can see this task now'+who+' — it was shared before it was finished.</div>'+
+        '<p class="body" style="font-size:12.5px;color:var(--muted);margin:10px 0 0">Mark it <b>Complete</b> to sign it off and file it to the maintenance record — or pull it back until it’s done.</p>'+
+        pullBtn+'</div>';
+    }
     return '<div class="sec"><h4>Sign-off &amp; log</h4>'+
       '<p class="body" style="font-size:13px;color:var(--muted)">Mark it <b>Complete</b> first — then you can sign it off (QC), log it, or log &amp; push it to the owner.</p></div>';
   }
-  var so=j.signoff||{}, qc=(so.qc&&so.qc.by);
-  var kk=esc(key);
   // QC / sign-off (optional — not every job needs it)
   var qcRow = qc
     ? '<div class="apprOn">✅ Signed off (QC) by '+esc(firstName(so.qc.by))+' <button class="qcundo" onclick="wlSignoff(\''+kk+'\',false)">undo</button></div>'
     : '<button class="jobbtn" style="background:#0f766e" onclick="wlSignoff(\''+kk+'\',true)">✅ Sign off (QC)</button>';
   if(j.shared){
+    // Shared, but it never went through the finish flow — so it was never filed to
+    // the maintenance record. Offer the real approval rather than hiding it.
+    if(so.disp!=="owner"){
+      return '<div class="sec"><h4>Sign-off &amp; log</h4>'+qcRow+
+        '<div class="apprOn" style="background:#fdf3e3;color:#8a5a12;border-color:#f0dcb8;margin-top:8px">👁 Visible to the owner'+who+', but <b>not approved</b> — not yet filed to the maintenance record.</div>'+
+        '<button class="jobbtn complete" style="margin-top:8px" onclick="wlApprove(\''+kk+'\',true)">✓ Approve &amp; log now</button>'+
+        pullBtn+'</div>';
+    }
     return '<div class="sec"><h4>Sign-off &amp; log</h4>'+qcRow+
-      '<div class="apprOn" style="margin-top:8px">📤 Logged &amp; pushed to owner’s app'+(j.approvedBy?(' · '+esc(firstName(j.approvedBy))):'')+(j.approvedAt?(' · '+esc(j.approvedAt)):'')+'</div>'+
-      '<button class="jobbtn" style="background:#64748b" onclick="wlApprove(\''+kk+'\',false)">Pull back from owner</button></div>';
+      '<div class="apprOn" style="margin-top:8px">📤 Logged &amp; pushed to owner’s app'+who+'</div>'+
+      pullBtn+'</div>';
   }
   if(so.disp==="internal"){
     // already logged internally — still offer to push to owner later
@@ -2933,9 +2954,23 @@ function fileToUpload(file, maxDim, quality){
         var cw=Math.max(1,Math.round(w*s)), ch=Math.max(1,Math.round(h*s));
         var c=document.createElement("canvas"); c.width=cw; c.height=ch;
         c.getContext("2d").drawImage(img,0,0,cw,ch);
+        var nm=(file.name||"photo").replace(/\.[a-z0-9]+$/i,"")+".jpg";
+        // toBlob encodes off the main thread — toDataURL froze the UI while several
+        // photos were being prepared at once. Same output, just not blocking.
+        if(c.toBlob){
+          c.toBlob(function(b){
+            URL.revokeObjectURL(url);
+            if(!b){ rawRead(); return; }
+            var fr=new FileReader();
+            fr.onload=function(){ resolve({name:nm, dataUrl:fr.result}); };
+            fr.onerror=function(){ resolve(null); };
+            fr.readAsDataURL(b);
+          }, "image/jpeg", quality);
+          return;
+        }
         var out=c.toDataURL("image/jpeg", quality);
         URL.revokeObjectURL(url);
-        resolve({name:(file.name||"photo").replace(/\.[a-z0-9]+$/i,"")+".jpg", dataUrl:out});
+        resolve({name:nm, dataUrl:out});
       }catch(e){ URL.revokeObjectURL(url); rawRead(); }
     };
     img.onerror=function(){ URL.revokeObjectURL(url); rawRead(); };
@@ -2943,30 +2978,68 @@ function fileToUpload(file, maxDim, quality){
     img.src=url;
   });
 }
-/* Upload files ONE AT A TIME (a small request each) so a big or flaky one can't
-   sink the whole batch — the real cause of "clicked upload, nothing saved". */
+/* Upload files as SEPARATE small requests (one big batch is what used to fail on
+   a flaky marina connection), but several IN FLIGHT AT ONCE rather than strictly
+   one after another — a phone-full of photos took as long as the sum of every
+   upload. Each still stands alone, so one bad file can't sink the rest.
+   The thumbnails appear the instant the photo is picked; the upload finishes
+   behind them, so it feels immediate even on a slow connection. */
+var UPLOAD_LANES = 3;             // parallel requests — enough to saturate 4G, not enough to swamp it
 function uploadFilesSeq(key, input, action, field, maxDim, quality){
   var files=Array.prototype.slice.call(input.files||[]); if(!files.length)return;
   input.value="";                       // let them re-pick the same file later
-  var total=files.length, i=0, okc=0, first=true, label=(field==="docs"?"document":"photo");
-  toast("Uploading "+label+"…");
-  (function next(){
-    if(i>=total){
-      toast(okc?("✓ "+okc+" "+label+(okc>1?"s":"")+" added"):"Couldn’t upload — check signal & try again");
-      if(okc){ openWLJob(key); loadJobs(); }
-      return;
-    }
-    var f=files[i++]; if(total>1) toast("Uploading "+i+" of "+total+"…");
+  var total=files.length, next=0, done=0, okc=0, first=true,
+      label=(field==="docs"?"document":"photo");
+  var job=CREWJOBS.filter(function(x){return x.key===key;})[0];
+
+  // Optimistic previews — show them straight away, mark them as still going up.
+  // `pending` is the ONLY home for the previews. What the job shows is always
+  // rebuilt as (what the server holds) + (previews still in flight) — never
+  // appended to, or a preview and its uploaded copy both end up on the card.
+  var pending=[], srvPhotos=(job&&job.photos)?job.photos.slice():[];
+  function paint(){
+    if(!job) return;
+    job.photos = srvPhotos.concat(pending);
+  }
+  if(job && field==="photos"){
+    files.forEach(function(f){
+      if(!/^image\//i.test(f.type||"")) return;
+      pending.push({ name:f.name||"photo", url:URL.createObjectURL(f), by:(ME.name||""),
+                     at:Date.now(), aud:WLLANE||"crew", _uploading:true });
+    });
+    if(pending.length){ paint(); openWLJob(key); }
+  }
+
+  toast(total>1 ? ("Uploading "+total+" "+label+"s…") : ("Uploading "+label+"…"));
+  function pump(){
+    if(next>=total) return;
+    var f=files[next++];
     fileToUpload(f, maxDim, quality).then(function(p){
-      if(!p){ next(); return; }
+      if(!p){ finish(false); return; }
       var body={action:action, email:ME.email, code:ME.code, jobKey:key, aud:WLLANE}; body[field]=[p];
       if(first){ body.batch=total; first=false; }   // tag first sent file → one ping per upload session
       apiPost(body).then(function(r){
-        if(r&&r.ok){ okc++; var j=CREWJOBS.filter(function(x){return x.key===key;})[0]; if(j){ if(r.photos)j.photos=r.photos; if(r.docs)j.docs=r.docs; } }
-        next();
-      }).catch(function(){ next(); });   // skip the failed one, keep going
+        var good = !!(r&&r.ok);
+        if(good && job){
+          if(r.photos) srvPhotos=r.photos;          // server list wins
+          if(r.docs)   job.docs=r.docs;
+        }
+        finish(good);
+      }).catch(function(){ finish(false); });
     });
-  })();
+  }
+  function finish(good){
+    if(good) okc++;
+    // retire one preview — it is now in the server's list
+    var ph=pending.shift(); if(ph){ try{ URL.revokeObjectURL(ph.url); }catch(e){} }
+    paint();
+    if(++done < total){ if(total>1) toast("Uploaded "+done+" of "+total+"…"); pump(); return; }
+    pending.forEach(function(x){ try{ URL.revokeObjectURL(x.url); }catch(e){} });
+    pending=[]; paint();
+    toast(okc?("✓ "+okc+" "+label+(okc>1?"s":"")+" added"):"Couldn’t upload — check signal & try again");
+    openWLJob(key); loadJobs();
+  }
+  for(var lane=0; lane<Math.min(UPLOAD_LANES,total); lane++) pump();
 }
 /* Assign — supports MULTIPLE people. wlAssign sets the full list (or clears). */
 function wlAssign(key, whoList){
@@ -3053,6 +3126,49 @@ function wlDelAtt(key, url, kind){
       if(j){ if(kind==="doc")j.docs=r.docs||[]; else j.photos=r.photos||[]; }
       openWLJob(key); loadJobs(); }
     else toast((r&&r.error)||"Couldn’t remove");
+  }).catch(function(){ toast("Couldn’t connect"); });
+}
+/* ---- Fix a mistake: rename the task, or remove it ----
+   Directors/Managers on any task; anyone else only on a task they raised that
+   hasn't gone to the owner yet. The backend enforces the same rule. */
+function wlCanFix(j){
+  if(isMgrRole()) return true;
+  if(j.shared) return false;
+  var me=(ME.name||"").toLowerCase().replace(/\s*\(test\)/,"").trim();
+  var raiser=((j.raisedBy||"")||((j.comments&&j.comments.length)?(j.comments[0].by||""):"")).toLowerCase().trim();
+  return !!me && me===raiser;
+}
+function wlFixBlock(j,key){
+  if(!wlCanFix(j)) return "";
+  var kk=esc(key);
+  return '<div class="sec"><h4>Fix a mistake</h4>'+
+    '<p class="body" style="font-size:12.5px;color:var(--muted);margin:0 0 9px">Wrong wording, wrong boat, or raised by accident.'+
+      (j.shared?' <b>The owner can see this task</b> — a change shows on their app too.':'')+'</p>'+
+    '<div class="logbtns">'+
+      '<button class="jobbtn complete logbtn" style="background:var(--navy)" onclick="wlRenameJob(\''+kk+'\')">✎ Rename<br><small>change the task name</small></button>'+
+      '<button class="jobbtn complete logbtn" style="background:#c0392b" onclick="wlDeleteJob(\''+kk+'\')">🗑 Delete<br><small>remove the task</small></button>'+
+    '</div></div>';
+}
+function wlRenameJob(key){
+  var j=CREWJOBS.filter(function(x){return x.key===key;})[0]; if(!j) return;
+  var t=prompt("Task name:", j.task||j.desc||""); if(t===null) return;
+  t=t.trim(); if(!t){ toast("A task needs a name"); return; }
+  if(t===(j.task||"")) return;
+  apiPost({action:"crewJobTitle", email:ME.email, code:ME.code, jobKey:key, title:t}).then(function(r){
+    if(r&&r.ok){ toast("✎ Renamed"); j.task=r.title; openWLJob(key); loadJobs(); }
+    else toast((r&&r.error)||"Couldn’t rename");
+  }).catch(function(){ toast("Couldn’t connect"); });
+}
+function wlDeleteJob(key){
+  var j=CREWJOBS.filter(function(x){return x.key===key;})[0]; if(!j) return;
+  var warn='Delete "'+(j.task||"this task")+'"?\n\nThis removes it from the worklist for good.';
+  if(j.shared) warn+='\n\nIt has been sent to the owner — it will disappear from their app too.';
+  if(!confirm(warn)) return;
+  apiPost({action:"crewJobDelete", email:ME.email, code:ME.code, jobKey:key}).then(function(r){
+    if(r&&r.ok){ toast("🗑 Task deleted");
+      CREWJOBS=CREWJOBS.filter(function(x){return x.key!==key;});
+      closeSheet(); loadJobs(); }
+    else toast((r&&r.error)||"Couldn’t delete");
   }).catch(function(){ toast("Couldn’t connect"); });
 }
 
