@@ -890,7 +890,7 @@
       <div id="sopList"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-19·e</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-19·f</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1020,6 +1020,18 @@
   </div>
   <button class="go" onclick="submitAddTask()">✓ Add task</button>
   <button class="cancel" onclick="closeModal('addTaskModal')">Cancel</button>
+</div></div>
+
+<!-- Move a task to another worklist on the SAME vessel -->
+<div class="modal" id="moveListModal"><div class="card2">
+  <h3>Move to a worklist</h3>
+  <p class="mhint" id="ml_hint"></p>
+  <label class="fld">Worklist <span class="fldhint">— pick one, or type a new name to start a new list</span></label>
+  <input class="fld-in" id="ml_list" list="ml_listOpts" placeholder="e.g. Next Shipyard Period" autocomplete="off">
+  <datalist id="ml_listOpts"></datalist>
+  <div class="assignrow" id="ml_quick" style="margin-top:10px"></div>
+  <button class="go" onclick="wlDoMove()">✓ Move it</button>
+  <button class="cancel" onclick="closeModal('moveListModal')">Cancel</button>
 </div></div>
 
 <!-- Shift description modal (add what you did on a boat) -->
@@ -2722,6 +2734,7 @@ function openWLJob(key){
     ((isMgrRole() && j.zoho)?('<div class="sec"><h4>Source</h4><div class="srcref">🔗 Matched to <b>Zoho '+esc(String(j.zoho).slice(-7))+'</b>'+(j.project?(' · '+esc(j.project)):'')+'<div class="srcsub">Zoho task id '+esc(j.zoho)+'</div></div></div>'):'')+
     ((isMgrRole() && j.zoho)?('<div class="sec"><h4>Send to Michael’s Zoho</h4><button onclick="zohoSendJob(\''+esc(key)+'\')" style="width:100%;border:0;background:#1a2b5c;color:#fff;font-weight:800;font-size:13px;padding:12px;border-radius:10px;cursor:pointer">📷 Send this job’s photos + note to his Zoho</button><div class="srcsub" style="margin-top:6px">Posts the photos (as links) and a note onto the matched Zoho task.</div></div>'):'')+
     ((isMgrRole() && j.zoho)?('<div class="sec"><h4>From Michael’s Zoho <span style="font-size:10px;color:#9aa7b4;font-weight:700">directors only</span></h4><div id="zinbox" style="font-size:12.5px;color:var(--muted)">Loading his Zoho comments…</div></div>'):'')+
+    (isMgrRole()?('<div class="sec"><h4>Worklist</h4><div class="subnote-box" onclick="wlMoveList(\''+esc(key)+'\')">\ud83d\udccb '+esc(j.list||"\u2014 not on a worklist \u2014")+' <span class="wlnote-ed">\u270e</span></div></div>'):'')+
     ((j.subNote||isMgrRole())?('<div class="sec"><h4>Sub note</h4><div class="subnote-box'+(j.subNote?"":" empty")+'"'+(isMgrRole()?(' onclick="wlSetSubNote(\''+esc(key)+'\')"'):'')+'>'+(j.subNote?('📌 '+esc(j.subNote)):'＋ add a quick note')+(isMgrRole()?' <span class="wlnote-ed">✎</span>':'')+'</div></div>'):'')+
     reqBlock+
     acceptHTML+
@@ -3639,6 +3652,47 @@ function submitRaise(){
     go("jobs");
     if(files.length) uploadFilesSeq(r.key, {files:files, value:""}, "crewJobPhotos", "photos", 1600, 0.7);
   }).catch(function(){ toast("Couldn’t connect"); });
+}
+
+/* ===== Move a task between worklists (same vessel) =====
+   Trish, 19 Aug 2026: a job that's been patched up for now but needs proper
+   attention at the yard gets moved onto a shipyard list. The vessel never
+   changes — only which worklist it sits on. */
+var MLKEY="", MLVESSEL="";
+function mlStandard(){ return MLVESSEL ? [MLVESSEL+" \u2014 Next Shipyard Period"] : []; }
+function mlPick(i){ var n=mlStandard()[i]; if(n) $("ml_list").value=n; }
+function mlFill(){
+  var seen={}, opts=[];
+  mlStandard().concat(ATVLISTS[MLVESSEL]||[]).forEach(function(n){ if(n && !seen[n]){ seen[n]=1; opts.push(n); } });
+  $("ml_listOpts").innerHTML=opts.map(function(n){ return '<option value="'+esc(n)+'">'; }).join("");
+  $("ml_quick").innerHTML=mlStandard().map(function(n,i){
+    return '<button type="button" class="aopt" onclick="mlPick('+i+')">\ud83d\udee0 Next Shipyard Period</button>';
+  }).join("");
+}
+function wlMoveList(key){
+  if(!isMgrRole()){ toast("Directors only"); return; }
+  var j=(CREWJOBS||[]).concat(CREWOPEN||[]).filter(function(x){ return x.key===key; })[0]; if(!j) return;
+  MLKEY=key; MLVESSEL=j.vessel||"";
+  $("ml_hint").innerHTML='<b>'+esc(j.task||"This job")+'</b> stays on <b>'+esc(MLVESSEL||"this yacht")+'</b> \u2014 you\'re only changing which worklist it sits on.';
+  $("ml_list").value=j.list||"";
+  mlFill();
+  atLoadVesselLists(MLVESSEL);          // warms ATVLISTS with this vessel's real lists
+  // ...which is a network call, so re-fill as it lands rather than guessing a delay.
+  (function poll(n){ if(n>10) return;
+    if((ATVLISTS[MLVESSEL]||[]).length){ mlFill(); return; }
+    setTimeout(function(){ poll(n+1); }, 600);
+  })(0);
+  $("moveListModal").classList.add("show");
+}
+function wlDoMove(){
+  var v=($("ml_list").value||"").trim(); if(!v){ toast("Pick or type a worklist"); return; }
+  toast("Moving\u2026");
+  apiPost({action:"crewJobList", email:ME.email, code:ME.code, jobKey:MLKEY, list:v}).then(function(r){
+    if(!r||!r.ok){ toast((r&&r.error)||"Couldn\u2019t move it"); return; }
+    closeModal("moveListModal");
+    toast(r.moved ? ("\u2713 Moved to "+v) : "Already on that worklist");
+    loadJobs(); openWLJob(MLKEY);
+  }).catch(function(){ toast("Couldn\u2019t connect"); });
 }
 
 /* ================= work log =================
