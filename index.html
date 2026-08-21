@@ -79,8 +79,9 @@
   .job .vessel{font-size:11px;font-weight:bold;color:var(--orange);text-transform:uppercase;letter-spacing:.4px}
   .job .top{display:flex;align-items:flex-start;gap:8px}
   .job h3{font-size:15px;margin:3px 0 0;line-height:1.3}
-  .job .desc{font-size:12.5px;color:var(--muted);margin:5px 0 0;line-height:1.4}
-  .job .meta{display:flex;align-items:center;gap:12px;margin-top:10px;font-size:11.5px;color:var(--muted);flex-wrap:wrap}
+  /* cardBody() renders into all three card shells — keep them styled the same. */
+  .job .desc,.offercard .desc,.ofcard .desc{font-size:12.5px;color:var(--muted);margin:5px 0 0;line-height:1.4}
+  .job .meta,.offercard .meta,.ofcard .meta{display:flex;align-items:center;gap:12px;margin-top:10px;font-size:11.5px;color:var(--muted);flex-wrap:wrap}
   .badge{font-size:10.5px;font-weight:bold;padding:4px 9px;border-radius:20px;white-space:nowrap;color:#fff}
   .s-todo{background:var(--grey)} .brd-todo{border-left-color:var(--grey)}
   .s-inprog{background:var(--amber)} .brd-inprog{border-left-color:var(--amber)}
@@ -208,6 +209,14 @@
   .cmt-hd b{font-size:13px;color:var(--navy)}
   .cmt-del{border:none;background:#f1f5f9;color:#94a3b8;width:20px;height:20px;border-radius:50%;font-size:11px;line-height:1;cursor:pointer;margin-left:4px}
   .cmt-del:hover{background:#fde2e1;color:#b3261e}
+  /* ✎ shows on YOUR OWN comments only — nobody rewrites someone else’s words */
+  .cmt-ed{border:none;background:#f1f5f9;color:#94a3b8;width:20px;height:20px;border-radius:50%;font-size:10px;line-height:1;cursor:pointer;margin-left:4px}
+  .cmt-ed:hover{background:#e6eefc;color:var(--navy)}
+  .cmt-edited{font-size:10.5px;color:var(--muted);font-style:italic;margin-left:5px}
+  .cmt-edit{width:100%;min-height:64px;border:1px solid var(--navy);border-radius:8px;padding:7px 9px;font:inherit;font-size:13.5px;resize:vertical}
+  .cmt-edit-row{display:flex;gap:7px;margin-top:6px}
+  .cmt-save{border:none;background:var(--navy);color:#fff;border-radius:8px;padding:6px 14px;font-size:12.5px;font-weight:700;cursor:pointer}
+  .cmt-cancel{border:1px solid var(--line);background:#fff;color:var(--muted);border-radius:8px;padding:6px 12px;font-size:12.5px;cursor:pointer}
   .cmt-role{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.3px;color:#fff;background:var(--navy);border-radius:8px;padding:1px 6px}
   .cmt.mgr .cmt-role{background:var(--orange)}
   .cmt-at{margin-left:auto;font-size:11px;color:var(--muted)}
@@ -969,7 +978,7 @@
       <div id="sopList"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-21·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-21·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1958,7 +1967,7 @@ function renderApproveQueue(host){
         '<h3>'+esc(j.task||j.desc||"(job)")+(j.code?(' <span class="jcode">'+esc(j.code)+'</span>'):'')+'</h3>'+
         '<div style="font-size:12px;color:var(--muted);margin-top:2px">'+esc(j.vessel||"")+(who?(' · raised by '+esc(who)):'')+'</div>'+
       '</div></div>'+
-      (j.desc?('<div style="font-size:12.5px;color:var(--ink);margin-top:7px">'+esc(j.desc)+'</div>'):'')+
+      cardBody(j, {open:false})+
       '<div class="offeracts">'+
         '<button class="offerbtn" onclick="event.stopPropagation();wlSetStatus(\''+esc(kJs)+'\',\'To do\')">✓ Approve &amp; assign</button>'+
         '<button class="offerask" onclick="event.stopPropagation();openWLJob(\''+esc(kJs)+'\')">Open</button>'+
@@ -2001,7 +2010,8 @@ function renderMine(){
     return '<div class="offercard" onclick="openWLJob(\''+esc(kJs)+'\')">'+
       '<div class="top"><div style="flex:1"><h3>'+esc(j.task||j.desc||"(job)")+(j.code?(' <span class="jcode">'+esc(j.code)+'</span>'):'')+' '+due+'</h3>'+
       '<div style="font-size:12px;color:var(--muted);margin-top:2px">'+esc(j.vessel||"")+(j.list?(" · "+esc(j.list)):"")+'</div></div></div>'+
-      '<div style="margin-top:7px">'+stat+'</div></div>';
+      '<div style="margin-top:7px">'+stat+'</div>'+
+      cardBody(j)+'</div>';
   }
   function hd(t,n){ return '<div style="font-weight:800;color:var(--navy);margin:16px 4px 9px;font-size:14px">'+t+' <span style="color:var(--muted);font-weight:700">'+n+'</span></div>'; }
   if(!assigned.length && !offered.length){ host.innerHTML='<div class="empty">Nothing assigned or offered to you right now. 🎉</div>'; return; }
@@ -2287,6 +2297,36 @@ function renderJobSeg(){
     return '<button type="button" class="aopt'+(s[0]===JOBSEG?' on':'')+'" onclick="jobSetSeg(\''+s[0]+'\')">'+s[1]+(s[2]?(" ("+s[2]+")"):"")+'</button>';
   }).join("");
 }
+/* THE standard body of a task card — the description, the sub-note, the photo
+   thumbnails and the counts. Every list that shows a task uses this: the
+   worklist, Raised by crew, Offered to me, To approve, My raised jobs,
+   Unassigned tasks and off-fleet items. Before this there were five layouts
+   showing five different subsets, so whether you could see a photo depended on
+   which list you happened to be looking at. A photo IS the job on most of these
+   — it should never depend on the route in.
+   Headers and buttons stay each list's own; only the body is shared. */
+function cardBody(j, opts){
+  opts = opts || {};
+  var ph = (j.photos||[]), np = ph.length;
+  var nd = (j.docs&&j.docs.length)||0;
+  var hasNote = !!(j.notes && j.notes.toString().trim());
+  var thumbs = np
+    ? '<div class="cardthumbs">'+ph.slice(0,4).map(function(p){
+        return '<img src="'+esc(driveImg(p.url))+'" loading="lazy" onerror="this.style.display=\'none\'">';
+      }).join("")+(np>4?('<span class="cardthumb-more">+'+(np-4)+'</span>'):'')+'</div>'
+    : '';
+  var upd = (opts.updated!==false && jobRecent(j)) ? '<span class="upd">● updated '+relTime(j.updated)+'</span>' : '';
+  var meta = '<div class="meta">'
+    + (np?('<span>📷 '+np+'</span>'):'<span>Add photos</span>')
+    + (hasNote?'<span>📝 note</span>':'')
+    + (nd?('<span>📄 '+nd+'</span>'):'')
+    + upd
+    + (opts.open===false ? '' : '<span style="margin-left:auto;color:var(--navy);font-weight:bold">Open ›</span>')
+    + '</div>';
+  return ((j.task&&j.desc)?('<p class="desc">'+esc(j.desc)+'</p>'):'')
+       + (j.subNote?('<p class="subnote">📌 '+esc(j.subNote)+'</p>'):'')
+       + thumbs + meta;
+}
 // A plain card used by every sub-tab list. `note` is the one line of context that
 // makes each list make sense on its own (who it's for, what state it's in).
 function segCard(j, note){
@@ -2294,7 +2334,8 @@ function segCard(j, note){
   return '<div class="offercard" onclick="openWLJob(\''+esc(kJs)+'\')" style="cursor:pointer">'+
     '<div class="top"><div style="flex:1"><h3>'+esc(j.task||j.desc||"(job)")+(j.code?(' <span class="jcode">'+esc(j.code)+'</span>'):'')+'</h3>'+
     '<div style="font-size:12px;color:var(--muted);margin-top:2px">'+esc(j.vessel||"")+(j.list?(" · "+esc(j.list)):"")+'</div></div></div>'+
-    (note?('<div style="margin-top:7px">'+note+'</div>'):'')+'</div>';
+    (note?('<div style="margin-top:7px">'+note+'</div>'):'')+
+    cardBody(j)+'</div>';
 }
 function renderSegBody(){
   var el=$("jobList"), sub=$("jobsSubTitle"), cnt=$("jobsCount");
@@ -2385,11 +2426,7 @@ function renderJobs(){
       return '<div class="job brd-'+cls+(done?" jobdone":"")+(jobRecent(j)?" jobnew":"")+'" onclick="openWLJob(\''+esc(j.key)+'\')">'+
         '<div class="top"><div style="flex:1"><h3><span class="jnum">'+(idx+1)+'.</span> '+esc(j.task||j.desc||"(job)")+codeChip+'</h3></div>'+
         '<span class="badge s-'+cls+'">'+esc(b)+'</span></div>'+
-        ((j.task&&j.desc)?('<p class="desc">'+esc(j.desc)+'</p>'):'')+
-        (j.subNote?('<p class="subnote">📌 '+esc(j.subNote)+'</p>'):'')+
-        ((j.photos&&j.photos.length)?('<div class="cardthumbs">'+j.photos.slice(0,4).map(function(p){return '<img src="'+esc(driveImg(p.url))+'" loading="lazy" onerror="this.style.display=\'none\'">';}).join("")+(j.photos.length>4?('<span class="cardthumb-more">+'+(j.photos.length-4)+'</span>'):'')+'</div>'):'')+
-        '<div class="meta">'+(np?('<span>📷 '+np+'</span>'):'<span>Add photos</span>')+(hasNote?'<span>📝 note</span>':'')+(nd?('<span>📄 '+nd+'</span>'):'')+upd+
-          '<span style="margin-left:auto;color:var(--navy);font-weight:bold">Open ›</span></div></div>';
+        cardBody(j)+'</div>';
     }).join("");
     var note=(LISTMETA&&LISTMETA[g])||"";
     var gJs=g.replace(/\\/g,"\\\\").replace(/'/g,"\\'"), gVessel=((jobs[0]&&jobs[0].vessel)||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
@@ -2440,7 +2477,7 @@ function renderOffer(){
       '<div class="top"><div style="flex:1"><h3>'+esc(j.task||j.desc||"(job)")+(j.code?(' <span class="jcode">'+esc(j.code)+'</span>'):'')+catChip(j.category)+' '+due+'</h3>'+
         '<div style="font-size:12px;color:var(--muted);margin-top:2px">'+esc(j.vessel||"")+(j.list?(" · "+esc(j.list)):"")+'</div></div></div>'+
       (badge?('<div style="margin-top:7px">'+badge+'</div>'):'')+
-      (j.subNote?('<p class="subnote">📌 '+esc(j.subNote)+'</p>'):'')+
+      cardBody(j, {open:false})+
       '<div class="offeracts">'+acts+'</div></div>';
   }
   var body;
@@ -2719,7 +2756,42 @@ function calShowDay(ts){
   }).join("");
   $("calDay").innerHTML=html;
 }
-/* Delete a note from the timeline (Directors/Managers) — even after it's shared */
+/* ---- You own what you added (Trish's standard, 21 Aug 2026) --------------
+   One rule on every task: anyone may edit or delete THEIR OWN comment, photo
+   or document, and nobody else's. Directors keep a delete override so a wrong
+   note on an owner-visible job can always be pulled — but the ✎ appears on
+   your own comments only, directors included. The backend enforces all of
+   this; these helpers just decide which buttons to draw.
+   ------------------------------------------------------------------------ */
+function wlMine(entry){
+  var a=((entry&&entry.by)||"").toString().trim().toLowerCase();
+  var b=((ME&&ME.name)||"").toString().replace(/\s*\(test\)/,"").trim().toLowerCase();
+  if(!a||!b) return false;
+  if(a===b) return true;
+  return a.split(/[\s(]/)[0]===b.split(/[\s(]/)[0];   // "Eric" vs "Eric Perez"
+}
+function wlMayDel(entry){ return wlMine(entry) || isMgrRole(); }
+
+/* Edit your own comment — swaps the bubble for a textarea in place. */
+function wlEditNote(key, at){
+  var box=document.getElementById("cmtx-"+at); if(!box) return;
+  var cur=box.getAttribute("data-raw")||"";
+  box.innerHTML='<textarea class="cmt-edit" id="cmted-'+at+'"></textarea>'+
+    '<div class="cmt-edit-row"><button class="cmt-save" onclick="wlSaveNote(\''+esc(key)+'\','+at+')">Save</button>'+
+    '<button class="cmt-cancel" onclick="openWLJob(\''+esc(key)+'\')">Cancel</button></div>';
+  var ta=document.getElementById("cmted-"+at);
+  ta.value=cur; ta.focus(); try{ ta.setSelectionRange(cur.length,cur.length); }catch(e){}
+}
+function wlSaveNote(key, at){
+  var ta=document.getElementById("cmted-"+at); if(!ta) return;
+  var text=(ta.value||"").trim();
+  if(!text){ toast("Nothing to save — use ✕ to delete it"); return; }
+  apiPost({action:"crewJobCommentEdit", email:ME.email, code:ME.code, jobKey:key, at:at, text:text}).then(function(r){
+    if(r&&r.ok){ toast("Comment updated"); var j=wlFind(key); if(j)j.comments=r.comments||[]; openWLJob(key); loadJobs(); }
+    else toast((r&&r.error)||"Couldn’t save");
+  }).catch(function(){ toast("Couldn’t connect"); });
+}
+/* Delete a note — your own, or anyone's if you're a director */
 function wlDeleteNote(key, at){
   if(!confirm("Delete this note?")) return;
   apiPost({action:"crewJobCommentDelete", email:ME.email, code:ME.code, jobKey:key, at:at}).then(function(r){
@@ -2785,16 +2857,18 @@ function openWLJob(key){
   var reqBlock = !isReq ? '' : (isMgrRole()
     ? '<div class="sec"><h4>New request</h4><p class="body" style="font-size:13px;color:var(--muted);margin-bottom:8px">Raised by crew — approve to make it an active job on the worklist.</p><button class="jobbtn complete" onclick="wlSetStatus(\''+esc(key)+'\',\'To do\')">✓ Approve — activate this job</button></div>'
     : '<div class="sec"><div class="apprOn" style="background:#fdf3e3;color:#8a5a12;border-color:#f0dcb8">⏳ Requested — waiting for Marine HQ to approve.</div></div>');
-  var canDel = !j.shared || isMgrRole();   // crew can remove their own until it's approved to the owner
-  var phHTML=(j.photos&&j.photos.length ? j.photos.map(function(p,idx){return '<div class="ph"><img src="'+esc(driveImg(p.url))+'" alt="" loading="lazy" onerror="this.classList.add(\'imgerr\')" onclick="event.stopPropagation();openPhoto(\''+esc(key)+'\','+idx+')" style="cursor:pointer">'+(p.caption?'<span class="phcap" title="'+esc(p.caption)+'">💬</span>':'')+'<small>'+esc(p.by?firstName(p.by):(p.name||"photo"))+(p.at?(' · '+relTime(p.at)):'')+'</small>'+(canDel?'<button class="attdel" title="Remove" onclick="event.stopPropagation();wlDelAtt(\''+esc(key)+'\',\''+esc(p.url)+'\',\'photo\')">✕</button>':'')+(isMgrRole()?lanePill(p.aud):'')+'</div>';}).join("") : '<div style="font-size:13px;color:var(--muted)">No photos yet.</div>')
+  // Per ITEM, not per job: your own upload is yours to remove even after the
+  // job has been shared with the owner, and someone else's never is (unless
+  // you're a director). See wlMayDel above.
+  var phHTML=(j.photos&&j.photos.length ? j.photos.map(function(p,idx){return '<div class="ph"><img src="'+esc(driveImg(p.url))+'" alt="" loading="lazy" onerror="this.classList.add(\'imgerr\')" onclick="event.stopPropagation();openPhoto(\''+esc(key)+'\','+idx+')" style="cursor:pointer">'+(p.caption?'<span class="phcap" title="'+esc(p.caption)+'">💬</span>':'')+'<small>'+esc(p.by?firstName(p.by):(p.name||"photo"))+(p.at?(' · '+relTime(p.at)):'')+'</small>'+(wlMayDel(p)?'<button class="attdel" title="Remove" onclick="event.stopPropagation();wlDelAtt(\''+esc(key)+'\',\''+esc(p.url)+'\',\'photo\')">✕</button>':'')+(isMgrRole()?lanePill(p.aud):'')+'</div>';}).join("") : '<div style="font-size:13px;color:var(--muted)">No photos yet.</div>')
     +'<label class="addph" for="wlPhotoInput" onclick="if(!laneReady())return event.preventDefault();">📷<span>Add</span></label><input id="wlPhotoInput" type="file" accept="image/*" multiple style="display:none" onchange="wlAddPhotos(\''+esc(key)+'\',this)">';
   // Images (even ones added via the 📎 button) show as thumbnails; real files (PDF/xls…) show as rows.
   var _docs=j.docs||[];
   var _imgDocs=_docs.filter(function(d){return isImgFile(d.name,d.url);});
   var _fileDocs=_docs.filter(function(d){return !isImgFile(d.name,d.url);});
   var docHTML=
-    (_imgDocs.length?('<div class="photos">'+_imgDocs.map(function(dd){return '<div class="ph"><img src="'+esc(driveImg(dd.url))+'" alt="" loading="lazy" onerror="this.classList.add(\'imgerr\')" onclick="window.open(\''+esc(driveView(dd.url))+'\',\'_blank\')" style="cursor:pointer"><small>'+esc(dd.by?firstName(dd.by):(dd.name||"photo"))+(dd.at?(' · '+relTime(dd.at)):'')+'</small>'+(canDel?'<button class="attdel" title="Remove" onclick="event.stopPropagation();wlDelAtt(\''+esc(key)+'\',\''+esc(dd.url)+'\',\'doc\')">✕</button>':'')+(isMgrRole()?lanePill(dd.aud):'')+'</div>';}).join("")+'</div>'):'')
-    +(_fileDocs.length?_fileDocs.map(function(dd){return '<div class="docrowitem"><a class="docitem" href="'+esc(driveView(dd.url))+'" target="_blank" rel="noopener"><span class="ic">📄</span><span class="docmain">'+esc(dd.name||"document")+(dd.by?('<span class="docby">'+esc(firstName(dd.by))+(dd.at?(' · '+fmtDateTime(dd.at)):'')+'</span>'):'')+'</span></a>'+(canDel?'<button class="attdel doc" title="Remove" onclick="wlDelAtt(\''+esc(key)+'\',\''+esc(dd.url)+'\',\'doc\')">✕</button>':'')+(isMgrRole()?lanePill(dd.aud):'')+'</div>';}).join(""):'')
+    (_imgDocs.length?('<div class="photos">'+_imgDocs.map(function(dd){return '<div class="ph"><img src="'+esc(driveImg(dd.url))+'" alt="" loading="lazy" onerror="this.classList.add(\'imgerr\')" onclick="window.open(\''+esc(driveView(dd.url))+'\',\'_blank\')" style="cursor:pointer"><small>'+esc(dd.by?firstName(dd.by):(dd.name||"photo"))+(dd.at?(' · '+relTime(dd.at)):'')+'</small>'+(wlMayDel(dd)?'<button class="attdel" title="Remove" onclick="event.stopPropagation();wlDelAtt(\''+esc(key)+'\',\''+esc(dd.url)+'\',\'doc\')">✕</button>':'')+(isMgrRole()?lanePill(dd.aud):'')+'</div>';}).join("")+'</div>'):'')
+    +(_fileDocs.length?_fileDocs.map(function(dd){return '<div class="docrowitem"><a class="docitem" href="'+esc(driveView(dd.url))+'" target="_blank" rel="noopener"><span class="ic">📄</span><span class="docmain">'+esc(dd.name||"document")+(dd.by?('<span class="docby">'+esc(firstName(dd.by))+(dd.at?(' · '+fmtDateTime(dd.at)):'')+'</span>'):'')+'</span></a>'+(wlMayDel(dd)?'<button class="attdel doc" title="Remove" onclick="wlDelAtt(\''+esc(key)+'\',\''+esc(dd.url)+'\',\'doc\')">✕</button>':'')+(isMgrRole()?lanePill(dd.aud):'')+'</div>';}).join(""):'')
     +'<label class="addph" for="wlDocInput" onclick="if(!laneReady())return event.preventDefault();">📎<span>Add</span></label><input id="wlDocInput" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,image/*" multiple style="display:none" onchange="wlAddDocs(\''+esc(key)+'\',this)">';
   var cmtHTML=(j.comments&&j.comments.length ? j.comments.map(function(cm){
     var mgr=/director|manager/i.test(cm.role||"");
@@ -2802,8 +2876,11 @@ function openWLJob(key){
     var aud=(cm.aud==="owner"||cm.aud==="dir")?cm.aud:"crew";
     var laneRow = isMgrRole() ? ('<div class="cmt-lane">'+lanePill(aud)+'<span class="movelbl">move:</span>'+
       LANE_ORDER.filter(function(l){return l!==aud;}).map(function(l){ return '<button class="movebtn" onclick="wlNoteAud(\''+esc(key)+'\','+(parseInt(cm.at,10)||0)+',\''+l+'\')">'+LANE_META[l].ic+' '+LANE_META[l].lbl+'</button>'; }).join('')+'</div>') : '';
-    var delBtn = isMgrRole() ? '<button class="cmt-del" title="Delete note" onclick="wlDeleteNote(\''+esc(key)+'\','+(parseInt(cm.at,10)||0)+')">✕</button>' : '';
-    return '<div class="cmt'+(mgr?" mgr":"")+" lane-"+aud+'"><div class="cmt-hd"><b>'+esc(cm.by||"—")+'</b>'+((cm.role&&isMgrRole())?'<span class="cmt-role">'+esc(cm.role)+'</span>':'')+'<span class="cmt-at">'+fmtDateTime(cm.at)+'</span>'+delBtn+'</div><div class="cmt-tx">'+hlMentions(cm.text||"")+'</div>'+tag+laneRow+'</div>';
+    var _at=(parseInt(cm.at,10)||0);
+    var delBtn = wlMayDel(cm) ? '<button class="cmt-del" title="Delete note" onclick="wlDeleteNote(\''+esc(key)+'\','+_at+')">✕</button>' : '';
+    var edBtn  = wlMine(cm)   ? '<button class="cmt-ed" title="Edit your note" onclick="wlEditNote(\''+esc(key)+'\','+_at+')">✎</button>' : '';
+    var edMark = cm.editedAt  ? '<span class="cmt-edited">(edited)</span>' : '';
+    return '<div class="cmt'+(mgr?" mgr":"")+" lane-"+aud+'"><div class="cmt-hd"><b>'+esc(cm.by||"—")+'</b>'+((cm.role&&isMgrRole())?'<span class="cmt-role">'+esc(cm.role)+'</span>':'')+'<span class="cmt-at">'+fmtDateTime(cm.at)+edMark+'</span>'+edBtn+delBtn+'</div><div class="cmt-tx" id="cmtx-'+_at+'" data-raw="'+esc(cm.text||"")+'">'+hlMentions(cm.text||"")+'</div>'+tag+laneRow+'</div>';
   }).join("") : '<div style="font-size:13px;color:var(--muted)">No notes yet.</div>');
   // Assign-to (Directors/Managers only) — MULTI-select; tap people to add/remove.
   var allocList=(j.allocatedTo||"").split(",").map(function(s){return s.trim();}).filter(String);
@@ -3714,15 +3791,13 @@ function ofRenderItems(){
       return '<div class="ofgrouphdr">'+esc(grp.g.name)+' <span>'+grp.items.length+'</span></div>'+
         grp.items.map(function(it){
           var kJs=(it.key||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
-          var np=(it.photos||[]).length;
           var kind=it.kind||"Defect";
           return '<div class="ofcard item" onclick="openWLJob(\''+esc(kJs)+'\')">'+
             '<div class="oftop"><div style="flex:1"><h3>'+esc(it.task||"(item)")+'</h3>'+
-            '<div class="ofcode">'+esc(it.code||"")+'</div></div>'+
+            '<div class="ofcode">'+esc(it.code||"")+
+              (it.raisedBy?(" · "+esc(firstName(it.raisedBy))):"")+" · "+esc(it.status||"To do")+'</div></div>'+
             '<span class="ofkind k'+esc(kind.replace(/[^a-z]/gi,"").toLowerCase())+'">'+esc(kind)+'</span></div>'+
-            (it.desc?'<div class="ofmeta">'+esc(it.desc.split("\n")[0])+'</div>':'')+
-            '<div class="ofsub">'+(np?(np+" photo"+(np>1?"s":"")):'<b style="color:var(--amber)">No photos yet</b>')+
-            (it.raisedBy?(" · "+esc(firstName(it.raisedBy))):"")+' · '+esc(it.status||"To do")+'</div>'+
+            cardBody(it)+
           '</div>';
         }).join("");
     }).join("");
