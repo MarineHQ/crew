@@ -35,6 +35,8 @@
   .ptab-btn{flex:0 1 auto;text-align:center;padding:11px 12px;color:rgba(255,255,255,0.62);font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;transition:color .2s,border-color .2s}
   .ptab-btn:hover{color:#fff}
   .ptab-btn.active{color:var(--orange);border-bottom-color:var(--orange)}
+  /* keep the 4 group buttons on ONE row on a phone — the whole point of grouping */
+  @media(max-width:430px){ .ptab-btn{padding:11px 7px;font-size:10.5px;letter-spacing:.2px} }
   .ptab-btn{position:relative}
   .tabbadge{position:absolute;top:4px;right:0;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:#e0271b;color:#fff;font-size:10.5px;font-weight:800;line-height:17px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.35)}
   /* sub-row under the group row — the client portal pattern on the navy bar */
@@ -200,7 +202,11 @@
   .adddoc{display:flex;align-items:center;justify-content:center;gap:8px;border:1.5px dashed #cbd5e1;border-radius:9px;padding:11px;font-size:13px;font-weight:700;color:var(--navy);cursor:pointer}
   /* Profile + certificates */
   .profcard{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;margin:12px 0;display:flex;align-items:center;gap:14px}
-  .profcard .pav{width:52px;height:52px;border-radius:50%;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;flex-shrink:0}
+  .profcard .pav{width:64px;height:64px;border-radius:50%;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px;flex-shrink:0;overflow:hidden;cursor:pointer}
+  .profcard .pav img{width:100%;height:100%;object-fit:cover}
+  .profphoto-links{font-size:12px;margin-top:5px}
+  .profphoto-links a{color:var(--orange);font-weight:700;cursor:pointer;margin-right:12px}
+  .avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%;display:block}
   .profcard .pn{font-weight:800;font-size:16px}
   .profcard .pm{font-size:12.5px;color:var(--muted);margin-top:2px}
   .certcard{background:#fff;border:1px solid var(--line);border-radius:12px;padding:13px 14px;margin-bottom:10px;display:flex;gap:12px;align-items:flex-start;cursor:pointer}
@@ -1004,7 +1010,7 @@
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-22·c</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-22·d</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1575,7 +1581,7 @@ function enterReal(crew, shift){
   // survive into a crew session — and the sub-tab choice shouldn't carry over either.
   REQJOBS=[]; CREWRAISED=[]; JOBSEG="all"; MINESEG="mine";
   ME = { id:crew.id, name:crew.name, role:crew.role, email:crew.email, code:crew.code||"", vessels:crew.vessels||[], eod:crew.eod||"",
-         signedAt:crew.signedAt||"", signature:crew.signature||"",
+         signedAt:crew.signedAt||"", signature:crew.signature||"", photo:crew.photo||"",
          clock:{in:false, at:0, vessel:null, loc:null, shifts:[]} };
   if(shift && shift.open){ ME.clock.in=true; ME.clock.at=shift.inAt; ME.clock.vessel=shift.vessel; ME.clock.loc=shift.loc||""; }
   $("signedInAs").textContent = "Signed in as " + ME.name;
@@ -1688,7 +1694,7 @@ function go(tab){
   window.scrollTo(0,0);
 }
 function refreshAll(){
-  $("hdrAv").textContent=initials(ME.name);
+  setHdrAv();
   loadJobs(); renderChecklists(); loadChecklists(); renderHours(); renderClock(); renderSOP(); updateStrip();
 }
 
@@ -5112,16 +5118,46 @@ function flagSpare(k,status){
    expired / expiring-soon flags, and can file one on a crew member's behalf. */
 var CERTS=[], TEAMCERTS=null, CERTROSTER=[], certEditId="";
 
+// The header avatar shows the profile photo when there is one, initials when not.
+function setHdrAv(){
+  var av=$("hdrAv"); if(!av||!ME) return;
+  if(ME.photo) av.innerHTML='<img src="'+esc(ME.photo)+'" alt="">';
+  else av.textContent=initials(ME.name);
+}
 function renderProfile(){
   if(!ME) return;
+  var pav = ME.photo ? ('<img src="'+esc(ME.photo)+'" alt="">') : esc(initials(ME.name));
   $("profCard").innerHTML =
-    '<div class="profcard"><div class="pav">'+esc(initials(ME.name))+'</div>'+
+    '<div class="profcard"><div class="pav" onclick="pickProfilePhoto()" title="Change photo">'+pav+'</div>'+
     '<div><div class="pn">'+esc(ME.name)+'</div>'+
     '<div class="pm">'+esc(ME.role||"Crew")+(ME.email?(' · '+esc(ME.email)):'')+'</div>'+
     ((ME.vessels||[]).length?('<div class="pm">⚓ '+esc((ME.vessels||[]).join(", "))+'</div>'):'')+
     (ME.signedAt?('<div class="pm">✓ Onboarding guide signed '+esc(ME.signedAt)+'</div>'):'')+
-    '</div></div>';
+    '<div class="profphoto-links"><a onclick="pickProfilePhoto()">📷 '+(ME.photo?"Change photo":"Add a photo")+'</a>'+
+    (ME.photo?'<a onclick="removeProfilePhoto()">Remove</a>':'')+'</div>'+
+    '</div></div>'+
+    '<input type="file" id="profPhotoInput" accept="image/*" style="display:none" onchange="uploadProfilePhoto(this)">';
   renderCerts();
+}
+function pickProfilePhoto(){ var i=$("profPhotoInput"); if(i) i.click(); }
+function uploadProfilePhoto(input){
+  var f=(input.files||[])[0]; if(!f) return;
+  input.value="";
+  if(!/^image\//i.test(f.type||"")){ toast("Pick a photo (JPG or PNG)"); return; }
+  toast("Uploading photo…");
+  fileToUpload(f, 800, 0.85).then(function(p){
+    if(!p){ toast("Couldn’t read that photo — try another"); return; }
+    apiPost({action:"crewPhoto", email:ME.email, code:ME.code, photo:p}).then(function(r){
+      if(r&&r.ok){ ME.photo=r.photo||""; setHdrAv(); renderProfile(); toast("✓ Photo updated"); }
+      else toast((r&&r.error)||"Couldn’t save the photo");
+    }).catch(function(){ toast("Couldn’t connect — check your signal and try again"); });
+  });
+}
+function removeProfilePhoto(){
+  if(!confirm("Remove your profile photo?")) return;
+  apiPost({action:"crewPhoto", email:ME.email, code:ME.code, remove:true})
+    .then(function(r){ if(r&&r.ok){ ME.photo=""; setHdrAv(); renderProfile(); toast("✓ Photo removed"); } else toast((r&&r.error)||"Couldn’t remove"); })
+    .catch(function(){ toast("Couldn’t connect"); });
 }
 // Same person? First-name tolerant, matching the roster convention ("Eric"
 // on the roster vs "Eric Perez" elsewhere) — mirrors the backend check.
