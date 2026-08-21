@@ -226,6 +226,66 @@
   .tagempty{font-size:12.5px;color:var(--muted);padding:4px 2px}
   /* Assign-to picker */
   .assignrow{display:flex;flex-wrap:wrap;gap:7px}
+  /* ---- OFF-FLEET: deliveries, polishes, callouts on boats we don't manage ---- */
+  .ofcard{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:10px;cursor:pointer}
+  .ofcard.item{cursor:pointer}
+  .ofcard .oftop,.ofhcard .oftop{display:flex;align-items:flex-start;gap:10px}
+  .ofcard h3,.ofhcard h3{margin:0;font-size:16px;color:var(--navy)}
+  .ofcode{font-size:11.5px;color:var(--muted);margin-top:2px;font-weight:bold;letter-spacing:.3px}
+  .ofmeta{font-size:12.5px;color:var(--muted);margin-top:7px}
+  .ofroute{font-size:13px;color:var(--ink);margin-top:3px;font-weight:bold}
+  .ofbar{height:6px;background:var(--line);border-radius:4px;overflow:hidden;margin-top:11px}
+  .ofbar.big{height:9px;border-radius:5px}
+  .ofbar i{display:block;height:100%;background:var(--ok);border-radius:4px;transition:width .2s}
+  .ofsub{font-size:12px;color:var(--muted);margin-top:7px}
+  .ofempty{background:#fff;border:1px dashed var(--line);border-radius:12px;padding:20px 16px;font-size:13.5px;color:var(--muted);line-height:1.6}
+  .ofback{background:none;border:0;color:var(--muted);font-size:13px;padding:8px 0;cursor:pointer}
+  .ofhcard{background:#fff;border:1px solid var(--line);border-radius:12px;padding:15px}
+  .ofdl{margin-top:11px;border-top:1px solid var(--line);padding-top:10px}
+  .ofdl>div{display:flex;gap:10px;font-size:13px;padding:4px 0}
+  .ofdl>div>span{flex:0 0 84px;color:var(--muted);font-size:12px}
+  .ofnotes{margin-top:10px;font-size:13px;color:var(--ink);background:var(--bg);border-radius:8px;padding:10px;white-space:pre-wrap}
+  .ofprog{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+  .ofblurb{font-size:12.5px;color:var(--muted);margin-top:8px;line-height:1.5}
+  .ofgroup{background:#fff;border:1px solid var(--line);border-radius:12px;margin-bottom:9px;overflow:hidden}
+  .ofghdr{display:flex;align-items:center;gap:10px;padding:13px 14px;cursor:pointer}
+  .ofgname{flex:1;font-size:13.5px;font-weight:bold;color:var(--navy)}
+  .ofgcount{font-size:11.5px;color:var(--muted);background:var(--bg);border-radius:10px;padding:3px 9px;white-space:nowrap}
+  .ofgcount.full{background:#e8f4ee;color:var(--ok)}
+  .ofcaret{color:var(--muted);font-size:12px}
+  .ofgbody{border-top:1px solid var(--line)}
+  .ofstep{padding:13px 14px;border-bottom:1px solid var(--line)}
+  .ofstep:last-child{border-bottom:0}
+  .ofstep.bad{background:#fdf4f2}
+  .ofs-t{font-size:13.5px;line-height:1.45}
+  .ofs-t b{color:var(--muted);font-size:12px;margin-right:5px}
+  .ofs-g{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.45}
+  .ofs-btns{display:flex;gap:6px;margin-top:10px}
+  .ofb{flex:1;border:1.5px solid var(--line);background:#fff;color:var(--muted);font-size:12.5px;font-weight:bold;padding:9px 4px;border-radius:20px;cursor:pointer;font-family:inherit}
+  .ofb.pass.on{background:var(--ok);border-color:var(--ok);color:#fff}
+  .ofb.issue.on{background:var(--red);border-color:var(--red);color:#fff}
+  .ofb.na.on{background:var(--grey);border-color:var(--grey);color:#fff}
+  .ofs-rem{margin-top:9px;font-size:12.5px;color:var(--red);font-style:italic;line-height:1.45}
+  .ofs-rem span{color:var(--muted);font-style:normal}
+  .ofs-act{display:flex;gap:14px;margin-top:9px;flex-wrap:wrap}
+  .oflink{background:none;border:0;color:var(--blue);font-size:12.5px;padding:0;cursor:pointer;font-family:inherit}
+  .oflink.raise{color:var(--orange);font-weight:bold}
+  .oflink.save{color:var(--ok);font-weight:bold}
+  .ofs-edit{margin-top:9px}
+  .ofs-edit .fld-ta{min-height:62px;font-size:13.5px}
+  .ofadd{width:100%;border:1.5px dashed var(--orange);background:#fff;color:var(--orange);font-weight:bold;font-size:14px;padding:13px;border-radius:11px;cursor:pointer;margin-bottom:12px;font-family:inherit}
+  .ofkind{font-size:10.5px;font-weight:bold;padding:3px 9px;border-radius:10px;background:var(--bg);color:var(--muted);white-space:nowrap}
+  .ofkind.kdefect,.ofkind.kdamage{background:#fbeae6;color:var(--red)}
+  .ofkind.kworkdone{background:#e8f4ee;color:var(--ok)}
+  .ofkind.kmissingnotsupplied{background:#fdf3e3;color:var(--amber)}
+  .ofwarn{background:#fdf3e3;color:#8a5a12;border:1px solid #f0dcb8;border-radius:9px;padding:11px;font-size:12.5px;margin-top:12px;line-height:1.5}
+  .ofok{background:#e8f4ee;color:var(--ok);border:1px solid #c9e5d7;border-radius:9px;padding:11px;font-size:12.5px;margin-top:12px}
+  .ofcheckline{display:block;font-size:13px;margin:14px 0 4px;line-height:1.5;cursor:pointer}
+  .ofcheckline input{margin-right:7px}
+  .ofcheckline span{display:block;font-size:11.5px;color:var(--muted);margin-left:22px;margin-top:2px}
+  .ofhint{font-size:11.5px;color:var(--muted);margin:9px 0 0;line-height:1.5}
+  .ofnewbtn{width:100%;border:0;background:var(--orange);color:#fff;font-weight:bold;font-size:14px;padding:13px;border-radius:11px;cursor:pointer;margin-bottom:14px;font-family:inherit}
+
   .aopt{border:1px solid var(--line);background:#fff;border-radius:20px;padding:8px 13px;font-size:13px;font-weight:700;color:var(--navy);cursor:pointer}
   .aopt.on{border-color:var(--navy);background:var(--navy);color:#fff}
   .aopt.contractor{border-style:dashed}
@@ -756,6 +816,7 @@
     <div class="ptab-btn mgrtab" data-tab="maint" onclick="go('maint')" style="display:none">Maintenance</div>
     <div class="ptab-btn mgrtab" data-tab="induct" onclick="go('induct')" style="display:none">Induction</div>
     <div class="ptab-btn"        data-tab="check" onclick="go('check')">Checklists</div>
+    <div class="ptab-btn"        data-tab="off"   onclick="go('off')">Off-Fleet</div>
     <div class="ptab-btn"        data-tab="hours" onclick="go('hours')">Time</div>
     <div class="ptab-btn"        data-tab="vessel" onclick="go('vessel')">Engine &amp; Parts</div>
     <div class="ptab-btn"        data-tab="sop"   onclick="go('sop')">SOP</div>
@@ -854,6 +915,22 @@
       <div id="clList"></div>
     </div>
 
+
+    <!-- OFF-FLEET: a delivery, a polish, a callout — a boat we don't manage -->
+    <div id="tab-off" class="hidden">
+      <div id="ofListWrap">
+        <div class="subbar"><h2>Off-Fleet</h2><span class="count" id="ofCount"></span></div>
+        <p class="hello">Work on a boat that isn&rsquo;t one of ours &mdash; a delivery, a polish, a callout. Tick the checklist, record what you find, and it becomes the client&rsquo;s report.</p>
+        <div style="height:14px"></div>
+        <button class="ofnewbtn" id="ofNewBtn" onclick="ofNew()" style="display:none">&#65291; New off-fleet job</button>
+        <div id="ofList"></div>
+      </div>
+      <div id="ofDetail" class="hidden">
+        <div id="ofHead"></div>
+        <div id="ofBody"></div>
+      </div>
+    </div>
+
     <!-- TIME CLOCK + TODAY'S SHIFTS -->
     <div id="tab-hours" class="hidden">
       <div class="subbar"><h2>Time clock</h2><span class="count" id="clockStatus"></span></div>
@@ -890,7 +967,7 @@
       <div id="sopList"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-19·g</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-21·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1020,6 +1097,65 @@
   </div>
   <button class="go" onclick="submitAddTask()">✓ Add task</button>
   <button class="cancel" onclick="closeModal('addTaskModal')">Cancel</button>
+</div></div>
+
+
+<!-- Off-fleet: create or edit a job -->
+<div class="modal" id="offJobModal"><div class="card2">
+  <h3 id="ofFormTitle">&#65291; New off-fleet job</h3>
+  <p class="mhint">A boat we don&rsquo;t manage. Just enough to run the job and produce a report &mdash; no vessel profile.</p>
+  <label class="fld">Boat name</label>
+  <input class="fld-in" id="of_vessel" placeholder="e.g. Riviera 54 &mdash; hull 118" autocomplete="off">
+  <label class="fld">Make / model <span class="fldhint">(optional)</span></label>
+  <input class="fld-in" id="of_model" placeholder="e.g. Riviera 54 Flybridge" autocomplete="off">
+  <label class="fld">Type of job</label>
+  <div class="assignrow" id="of_types"></div>
+  <p class="ofhint" id="of_tplNote"></p>
+  <label class="fld">Client</label>
+  <input class="fld-in" id="of_client" placeholder="Who we invoice" autocomplete="off">
+  <div style="display:flex;gap:8px;margin-top:8px">
+    <input class="fld-in" id="of_email" placeholder="Email" style="flex:1" autocomplete="off">
+    <input class="fld-in" id="of_phone" placeholder="Phone" style="flex:0 0 132px" autocomplete="off">
+  </div>
+  <label class="fld">From &rarr; To <span class="fldhint">(a delivery or movement)</span></label>
+  <div style="display:flex;gap:8px">
+    <input class="fld-in" id="of_from" placeholder="From" style="flex:1" autocomplete="off">
+    <input class="fld-in" id="of_to" placeholder="To" style="flex:1" autocomplete="off">
+  </div>
+  <label class="fld">Dates</label>
+  <div style="display:flex;gap:8px">
+    <input type="date" class="fld-in" id="of_start" style="flex:1">
+    <input type="date" class="fld-in" id="of_end" style="flex:1">
+  </div>
+  <label class="fld">Crew on this job <span class="fldhint">&mdash; they see it in their app</span></label>
+  <div class="assignrow" id="of_crew"></div>
+  <label class="fld">Notes <span class="fldhint">(optional)</span></label>
+  <textarea class="fld-ta" id="of_notes" placeholder="Anything the crew need to know before they start&hellip;"></textarea>
+  <button class="go" id="of_go" onclick="submitOfJob()">&#10003; Save job</button>
+  <button class="cancel" onclick="closeModal('offJobModal')">Cancel</button>
+</div></div>
+
+<!-- Off-fleet: move a job along -->
+<div class="modal" id="offStatusModal"><div class="card2">
+  <h3>Job status</h3>
+  <p class="mhint" id="ofStatusHint"></p>
+  <div class="assignrow" id="ofStatusOpts"></div>
+  <p class="ofhint">Set it to <b>Reported</b> once the report has gone, and <b>Invoiced</b> when the invoice is out.</p>
+  <button class="cancel" onclick="closeModal('offStatusModal')">Cancel</button>
+</div></div>
+
+<!-- Off-fleet: record something found on the job -->
+<div class="modal" id="offItemModal"><div class="card2">
+  <h3>&#65291; Record what you found</h3>
+  <p class="mhint" id="oi_hint"></p>
+  <label class="fld">What is it</label>
+  <input class="fld-in" id="oi_title" placeholder="e.g. Scratch to port topside, forward of the boarding gate" autocomplete="off">
+  <label class="fld">Detail <span class="fldhint">(optional)</span></label>
+  <textarea class="fld-ta" id="oi_desc" placeholder="Where exactly, how big, anything you did about it&hellip;"></textarea>
+  <label class="fld">Type</label>
+  <div class="assignrow" id="oi_kinds"></div>
+  <button class="go" id="oi_go" onclick="submitOfItem()">&#10003; Record it</button>
+  <button class="cancel" onclick="closeModal('offItemModal');OFRAISESTEP=null;OFRAISESTEPTITLE='';">Cancel</button>
 </div></div>
 
 <!-- Move a task to another worklist on the SAME vessel -->
@@ -1408,12 +1544,12 @@ function go(tab){
   var mb=document.querySelector('.ptab-btn[data-tab="maint"]'); if(mb) mb.style.display=mgr?"":"none";
   var ib=document.querySelector('.ptab-btn[data-tab="induct"]'); if(ib) ib.style.display=mgr?"":"none";
   var nb=document.querySelector('.ptab-btn[data-tab="mine"]'); if(nb) nb.style.display=mgr?"":"none";
-  ["jobs","mine","updates","cal","fleet","maint","induct","check","hours","vessel","sop"].forEach(function(t){ $("tab-"+t).classList.toggle("hidden", t!==tab); });
+  ["jobs","mine","updates","cal","fleet","maint","induct","check","off","hours","vessel","sop"].forEach(function(t){ $("tab-"+t).classList.toggle("hidden", t!==tab); });
   document.querySelectorAll(".ptab-btn").forEach(function(b){ b.classList.toggle("active", b.dataset.tab===tab); });
   $("actBar").classList.toggle("hidden", tab!=="jobs");
   document.body.classList.toggle("has-actbar", tab==="jobs");
   if(tab==="updates"){ try{ MHQPush.render(); }catch(e){} }
-  var titles={jobs:["Marine HQ Crew","Your jobs, checklists & hours"],mine:["My Tasks","Just what's assigned or offered to you"],updates:["Updates","Crew activity — newest first"],cal:["Calendar","Scheduled jobs by day"],fleet:["Fleet","Director view — whole operation"],maint:["Maintenance","Care schedule — directors control"],induct:["Vessel induction","Particulars & specialised gear"],check:["Checklists","Tick & sign off"],hours:["Time clock","Clock in · EOD · hours"],vessel:["Engine & parts","Hour meters & spares on board"],sop:["SOP & guides","Marine HQ standards"]};
+  var titles={jobs:["Marine HQ Crew","Your jobs, checklists & hours"],mine:["My Tasks","Just what's assigned or offered to you"],updates:["Updates","Crew activity — newest first"],cal:["Calendar","Scheduled jobs by day"],fleet:["Fleet","Director view — whole operation"],maint:["Maintenance","Care schedule — directors control"],induct:["Vessel induction","Particulars & specialised gear"],check:["Checklists","Tick & sign off"],off:["Off-Fleet","Deliveries, polishes & callouts"],hours:["Time clock","Clock in · EOD · hours"],vessel:["Engine & parts","Hour meters & spares on board"],sop:["SOP & guides","Marine HQ standards"]};
   $("hdrTitle").textContent=titles[tab][0]; $("hdrSub").textContent=titles[tab][1];
   if(tab==="jobs") loadJobs();
   if(tab==="mine"){ renderMine(); loadJobs(); }   // instant from cache, then refresh (loadJobs re-renders mine)
@@ -1423,6 +1559,7 @@ function go(tab){
   if(tab==="induct") loadInduct();
   if(tab==="hours"){ renderClock(); loadShifts(); }
   if(tab==="check") loadChecklists();
+  if(tab==="off") loadOffFleet();
   if(tab==="vessel") loadVessel();
   updateStrip();
   window.scrollTo(0,0);
@@ -1458,8 +1595,13 @@ function loadUnassigned(){
 }
 function setOfferVessel(v){ OFFERVESSEL=v; renderJobs(); }
 var CURVESSEL="", FLEETVESSELS=[];
+/* An off-fleet row carries .oj (the job it belongs to). Those boats are NOT ours,
+   so they must never reach the Fleet bar, the worklist or the approve queues —
+   they live only in the Off-Fleet tab. */
+function notOffFleet(x){ return !(x && x.oj); }
 function loadJobs(){
   if(!ME) return;
+  ofSync();          // an action on an off-fleet item refreshes that screen too
   if(isMgrRole() && !CURVESSEL) CURVESSEL="__all__";   // directors open on All Yachts, not their first boat
   var allBoats = (CURVESSEL==="__all__" && isMgrRole());
   var v = allBoats ? "" : (CURVESSEL || ME.vessels[0] || "Everywhen");
@@ -1479,7 +1621,7 @@ function loadJobs(){
   }
   startActivityWatch();   // fire the activity fetch in PARALLEL with jobs (not after)
   apiGet(url)
-    .then(function(j){ CREWJOBS=(j&&j.jobs)||[]; if(!isMgrRole() || allBoats) CREWOPEN=(j&&j.openJobs)||[]; if(j&&j.listMeta)LISTMETA=j.listMeta; JOBSVESSEL=allBoats?"all yachts":((j&&j.vessel)||v); if(j&&j.raisedJobs) CREWRAISED=j.raisedJobs; _cSet(_ck("jobs",vk), CREWJOBS); if(allBoats) setRequests(CREWJOBS); renderJobs(); updateJobsBadge(); renderVesselBar(); renderMine(); checkPendingAccepts(); }).catch(function(){});
+    .then(function(j){ CREWJOBS=((j&&j.jobs)||[]).filter(notOffFleet); if(!isMgrRole() || allBoats) CREWOPEN=((j&&j.openJobs)||[]).filter(notOffFleet); if(j&&j.listMeta)LISTMETA=j.listMeta; JOBSVESSEL=allBoats?"all yachts":((j&&j.vessel)||v); if(j&&j.raisedJobs) CREWRAISED=j.raisedJobs.filter(notOffFleet); _cSet(_ck("jobs",vk), CREWJOBS); if(allBoats) setRequests(CREWJOBS); renderJobs(); updateJobsBadge(); renderVesselBar(); renderMine(); checkPendingAccepts(); }).catch(function(){});
   loadFleetVessels();
   // On All Yachts the main fetch already returns fleet-wide unassigned — only fetch
   // separately when a director has drilled into ONE boat (so the section stays fleet-wide).
@@ -1491,7 +1633,7 @@ function loadFleetVessels(){
   var cachedFV=_cGet(_ck("fleetv")); if(cachedFV&&cachedFV.length){ FLEETVESSELS=cachedFV; renderVesselBar(); }
   apiGet("fn=crewjobs&code="+encodeURIComponent(ME.code||"")+"&email="+encodeURIComponent(ME.email||"")+"&all=1&mine=0")
     .then(function(j){
-      var set={}; ((j&&j.jobs)||[]).forEach(function(x){ if(x.vessel) set[x.vessel]=1; });
+      var set={}; ((j&&j.jobs)||[]).filter(notOffFleet).forEach(function(x){ if(x.vessel) set[x.vessel]=1; });
       (ME.vessels||[]).forEach(function(v){ if(v) set[v]=1; });
       FLEETVESSELS=Object.keys(set).sort(); _cSet(_ck("fleetv"), FLEETVESSELS);
       renderVesselBar();
@@ -1620,11 +1762,11 @@ function loadOwnerPreview(vessel){
 var UPDATES=[], _lastEventAt=null, _actTimer=null;
 // Crew roster for the @tag picker (names + roles only — no codes/emails)
 var CREWNAMES=[];
-function loadCrewNames(){
+function loadCrewNames(cb){
   var c=_cGet(_ck("names")); if(c&&c.length) CREWNAMES=c;                // instant from cache
   apiGet("fn=crewnames&code="+encodeURIComponent(ME.code||"")+"&email="+encodeURIComponent(ME.email||""))
-    .then(function(j){ if(j&&j.ok&&j.crew){ CREWNAMES=j.crew; _cSet(_ck("names"), CREWNAMES); } })
-    .catch(function(){});
+    .then(function(j){ if(j&&j.ok&&j.crew){ CREWNAMES=j.crew; _cSet(_ck("names"), CREWNAMES); } if(cb) cb(); })
+    .catch(function(){ if(cb) cb(); });
 }
 /* ── Real push notifications ───────────────────────────────────────────────
    The 30-second poll above only fires while the app is open, and the email
@@ -1999,7 +2141,11 @@ function openFromUpdate(jobKey, vessel){
   if(isMgrRole() && vessel) CURVESSEL=vessel;
   var v=CURVESSEL||ME.vessels[0]||"Everywhen";
   apiGet("fn=crewjobs&code="+encodeURIComponent(ME.code||"")+"&email="+encodeURIComponent(ME.email||"")+"&vessel="+encodeURIComponent(v)+"&mine="+(isMgrRole()?"0":"1"))
-    .then(function(j){ CREWJOBS=(j&&j.jobs)||[]; JOBSVESSEL=(j&&j.vessel)||v;
+    .then(function(j){ var all=(j&&j.jobs)||[];
+      // An off-fleet item lives in its own tab, not on a vessel worklist.
+      var ofHit=all.filter(function(x){return x.key===jobKey && x.oj;})[0];
+      if(ofHit){ go("off"); ofOpen(ofHit.oj); setTimeout(function(){ OFSEG="items"; ofRenderDetail(); openWLJob(jobKey); }, 500); return; }
+      CREWJOBS=all.filter(notOffFleet); JOBSVESSEL=(j&&j.vessel)||v;
       var job=CREWJOBS.filter(function(x){return x.key===jobKey;})[0];
       if(job) WLCLOSED[job.list||"Other jobs"]=false;
       renderJobs(); updateJobsBadge(); renderVesselBar();
@@ -2039,7 +2185,7 @@ var LB_KEY="", LB_PHOTOS=[], LB_I=0;
 function firstName(n){ return (n||"").toString().split(" ")[0].replace(/\(test\)/i,"").trim()||(n||""); }
 function firstNames(s){ return (s||"").toString().split(",").map(function(x){return firstName(x.trim());}).filter(String).join(", "); }
 function openPhoto(key, idx){
-  var j=CREWJOBS.filter(function(x){return x.key===key;})[0];
+  var j=wlFind(key);
   if(!j||!j.photos||!j.photos.length) return;
   LB_KEY=key; LB_PHOTOS=j.photos; LB_I=Math.max(0, Math.min(idx||0, LB_PHOTOS.length-1));
   renderLightbox(); $("lightbox").classList.add("show");
@@ -2091,7 +2237,7 @@ function lbSetLane(lane){
 function bulkLane(key, kind, lane){
   apiPost({action:"crewJobAttAudAll", email:ME.email, code:ME.code, jobKey:key, kind:kind, aud:lane}).then(function(r){
     if(r&&r.ok){ toast("All "+(kind==="doc"?"documents":"photos")+" → "+LANE_META[lane].ic+" "+LANE_META[lane].lbl);
-      var j=CREWJOBS.filter(function(x){return x.key===key;})[0]; if(j){ if(kind==="doc"&&r.docs)j.docs=r.docs; if(kind!=="doc"&&r.photos)j.photos=r.photos; } openWLJob(key); loadJobs(); }
+      var j=wlFind(key); if(j){ if(kind==="doc"&&r.docs)j.docs=r.docs; if(kind!=="doc"&&r.photos)j.photos=r.photos; } openWLJob(key); loadJobs(); }
     else toast((r&&r.error)||"Couldn’t move");
   }).catch(function(){ toast("Couldn’t connect"); });
 }
@@ -2325,7 +2471,7 @@ function toggleWlEdit(g){ WLEDIT[g]=!WLEDIT[g]; renderJobs(); }
 /* Per-task quick "sub note" (Directors/Managers) */
 function wlSetSubNote(key){
   if(!isMgrRole()) return;
-  var j=CREWJOBS.filter(function(x){return x.key===key;})[0];
+  var j=wlFind(key);
   var cur=(j&&j.subNote)||"";
   var n=prompt("Sub note for this task (a quick line shown under the title):", cur);
   if(n===null) return;
@@ -2575,14 +2721,14 @@ function calShowDay(ts){
 function wlDeleteNote(key, at){
   if(!confirm("Delete this note?")) return;
   apiPost({action:"crewJobCommentDelete", email:ME.email, code:ME.code, jobKey:key, at:at}).then(function(r){
-    if(r&&r.ok){ toast("Note deleted"); var j=CREWJOBS.filter(function(x){return x.key===key;})[0]; if(j)j.comments=r.comments||[]; openWLJob(key); loadJobs(); }
+    if(r&&r.ok){ toast("Note deleted"); var j=wlFind(key); if(j)j.comments=r.comments||[]; openWLJob(key); loadJobs(); }
     else toast((r&&r.error)||"Couldn’t delete");
   }).catch(function(){ toast("Couldn’t connect"); });
 }
 /* Crew accepts a task assigned to them — directors then see it's been taken on */
 function wlAccept(key){
   apiPost({action:"crewJobAccept", email:ME.email, code:ME.code, jobKey:key}).then(function(r){
-    if(r&&r.ok){ toast("✓ Task accepted"); var j=CREWJOBS.filter(function(x){return x.key===key;})[0]; if(j)j.accepted=r.accepted; openWLJob(key); loadJobs(); }
+    if(r&&r.ok){ toast("✓ Task accepted"); var j=wlFind(key); if(j)j.accepted=r.accepted; openWLJob(key); loadJobs(); }
     else toast((r&&r.error)||"Couldn’t accept");
   }).catch(function(){ toast("Couldn’t connect"); });
 }
@@ -2593,7 +2739,7 @@ function wlSetDue(key, clear){
   var tm = clear ? "" : (($("wlDueTime")&&$("wlDueTime").value)||"");
   apiPost({action:"crewJobDue", email:ME.email, code:ME.code, jobKey:key, due:d, time:tm}).then(function(r){
     if(r&&r.ok){ toast(d?("📅 Scheduled "+dayLabel(r.dueTs)+(r.dueTime?(" "+fmtTime12(r.dueTime)):"")):"Day cleared");
-      var j=CREWJOBS.filter(function(x){return x.key===key;})[0]; if(j){ j.due=r.due||""; j.dueTs=r.dueTs||0; j.dueTime=r.dueTime||""; } loadJobs(); }
+      var j=wlFind(key); if(j){ j.due=r.due||""; j.dueTs=r.dueTs||0; j.dueTime=r.dueTime||""; } loadJobs(); }
     else toast((r&&r.error)||"Couldn’t set day");
   }).catch(function(){ toast("Couldn’t connect"); });
 }
@@ -2626,9 +2772,10 @@ function wlSaveDesc(key){
 var WLSTATUS=["To do","In hand","Complete"];
 function wlBucketToStatus(j){ var b=hubBucket(j.status); return b==="Done"?"Complete":(b==="In progress"?"In hand":"To do"); }
 function openWLJob(key){
-  var j=CREWJOBS.filter(function(x){return x.key===key;})[0] || (CREWOPEN||[]).filter(function(x){return x.key===key;})[0]; if(!j)return;
+  var j=wlFind(key); if(!j)return;
   openJobId=key; WLMENTIONS=[]; WLLANE="";
-  var inList=CREWJOBS.filter(function(x){return (x.list||"")===(j.list||"");}); var num=inList.indexOf(j)+1;
+  var pool=(j.oj && typeof OFITEMS!=="undefined" && OFITEMS.length) ? OFITEMS : CREWJOBS;
+  var inList=pool.filter(function(x){return (x.list||"")===(j.list||"");}); var num=inList.indexOf(j)+1;
   var cur=wlBucketToStatus(j);
   var dcls={"To do":"d-todo","In hand":"d-inhand","Complete":"d-done"};
   var pills=WLSTATUS.map(function(s){var oc = (s==="Complete") ? ('openCompleteModal(\''+esc(key)+'\')') : ('wlSetStatus(\''+esc(key)+'\',\''+s+'\')'); return '<button class="spill '+dcls[s]+(s===cur?" on":"")+'" onclick="'+oc+'"><span class="dot"></span>'+s+'</button>';}).join("");
@@ -2884,20 +3031,20 @@ function wlApproveBlock(j,key){
 }
 function wlSignoff(key,on){
   apiPost({action:"crewJobSignoff", email:ME.email, code:ME.code, jobKey:key, on:on}).then(function(r){
-    if(r&&r.ok){ toast(on?"✅ Signed off":"Sign-off removed"); var j=CREWJOBS.filter(function(x){return x.key===key;})[0]; if(j)j.signoff=r.signoff||{}; openWLJob(key); loadJobs(); }
+    if(r&&r.ok){ toast(on?"✅ Signed off":"Sign-off removed"); var j=wlFind(key); if(j)j.signoff=r.signoff||{}; openWLJob(key); loadJobs(); }
     else toast((r&&r.error)||"Couldn’t sign off");
   }).catch(function(){ toast("Couldn’t connect"); });
 }
 function wlRecord(key){
   apiPost({action:"crewJobRecord", email:ME.email, code:ME.code, jobKey:key}).then(function(r){
-    if(r&&r.ok){ toast("📁 Logged — internal only"); var j=CREWJOBS.filter(function(x){return x.key===key;})[0]; if(j)j.signoff=r.signoff||{}; openWLJob(key); loadJobs(); }
+    if(r&&r.ok){ toast("📁 Logged — internal only"); var j=wlFind(key); if(j)j.signoff=r.signoff||{}; openWLJob(key); loadJobs(); }
     else toast((r&&r.error)||"Couldn’t record");
   }).catch(function(){ toast("Couldn’t connect"); });
 }
 function wlApprove(key, share){
   apiPost({action:"crewJobApprove", email:ME.email, code:ME.code, jobKey:key, share:share}).then(function(r){
     if(r&&r.ok){ toast(share?"✓ Logged & pushed to owner":"Pulled back from owner");
-      var j=CREWJOBS.filter(function(x){return x.key===key;})[0];
+      var j=wlFind(key);
       if(j){ j.shared=share; j.approvedBy=r.approvedBy||""; j.approvedAt=r.approvedAt||""; }
       openWLJob(key); loadJobs(); }
     else toast((r&&r.error)||"Couldn’t approve");
@@ -2905,7 +3052,7 @@ function wlApprove(key, share){
 }
 function wlSetStatus(key,st,completedDate){
   apiPost({action:"crewJobStatus", email:ME.email, code:ME.code, jobKey:key, status:st, completedDate:completedDate||""}).then(function(r){
-    if(r&&r.ok){ toast(st==="Complete"?("✓ Complete"+(r.completed?(" · dated "+r.completed):"")):("Set to "+st)); var j=CREWJOBS.filter(function(x){return x.key===key;})[0]; if(j){ j.status=(st==="In hand"?"In Progress":st); if(st==="Complete")j.completed=r.completed||""; else j.completed=""; } openWLJob(key); loadJobs(); }
+    if(r&&r.ok){ toast(st==="Complete"?("✓ Complete"+(r.completed?(" · dated "+r.completed):"")):("Set to "+st)); var j=wlFind(key); if(j){ j.status=(st==="In hand"?"In Progress":st); if(st==="Complete")j.completed=r.completed||""; else j.completed=""; } openWLJob(key); loadJobs(); }
     else toast((r&&r.error)||"Couldn’t update");
   }).catch(function(){ toast("Couldn’t connect"); });
 }
@@ -2915,7 +3062,7 @@ function openCompleteModal(key){
   _completeKey=key;
   var d=new Date(), today=d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2);
   var el=$("completeDate"); if(el) el.value=today;
-  var j=CREWJOBS.filter(function(x){return x.key===key;})[0];
+  var j=wlFind(key);
   var msg=$("completeMsg"); if(msg) msg.innerHTML="You’re marking <b>"+esc((j&&(j.task||j.title))||"this task")+"</b> as complete — dated below. Change it only if it was finished on a different day.";
   $("completeModal").classList.add("show");
 }
@@ -2963,7 +3110,7 @@ function wlAddComment(key){
   if(el) el.disabled=true;
   var mentions=WLMENTIONS.slice();
   apiPost({action:"crewJobComment", email:ME.email, code:ME.code, jobKey:key, text:text, mentions:mentions, aud:WLLANE}).then(function(r){
-    if(r&&r.ok){ var laneMsg=isMgrRole()&&WLLANE?(" · "+LANE_META[WLLANE].ic+" "+LANE_META[WLLANE].lbl):""; toast((mentions.length?("Note added · tagged "+mentions.map(firstName).join(", ")):"Note added")+laneMsg); WLMENTIONS=[]; var j=CREWJOBS.filter(function(x){return x.key===key;})[0]; if(j)j.comments=r.comments||[]; openWLJob(key); loadJobs(); }
+    if(r&&r.ok){ var laneMsg=isMgrRole()&&WLLANE?(" · "+LANE_META[WLLANE].ic+" "+LANE_META[WLLANE].lbl):""; toast((mentions.length?("Note added · tagged "+mentions.map(firstName).join(", ")):"Note added")+laneMsg); WLMENTIONS=[]; var j=wlFind(key); if(j)j.comments=r.comments||[]; openWLJob(key); loadJobs(); }
     else { toast((r&&r.error)||"Couldn’t add"); if(el) el.disabled=false; }
   }).catch(function(){ toast("Couldn’t connect"); if(el) el.disabled=false; });
 }
@@ -3019,7 +3166,7 @@ function uploadFilesSeq(key, input, action, field, maxDim, quality){
   input.value="";                       // let them re-pick the same file later
   var total=files.length, next=0, done=0, okc=0, first=true,
       label=(field==="docs"?"document":"photo");
-  var job=CREWJOBS.filter(function(x){return x.key===key;})[0];
+  var job=wlFind(key);
 
   // Optimistic previews — show them straight away, mark them as still going up.
   // `pending` is the ONLY home for the previews. What the job shows is always
@@ -3079,8 +3226,16 @@ function wlAssign(key, whoList){
     else toast((r&&r.error)||"Couldn’t assign");
   }).catch(function(){ toast("Couldn’t connect"); });
 }
-/* Find a job in either the worklist OR the unassigned (open) pool */
-function wlFind(key){ return (CREWJOBS||[]).filter(function(x){return x.key===key;})[0] || (CREWOPEN||[]).filter(function(x){return x.key===key;})[0]; }
+/* Find a job in the worklist, the unassigned (open) pool, or the off-fleet job
+   that is open — so an off-fleet item gets the ordinary job card, photos and all.
+   ONE definition only: a second one further up the file would be shadowed by
+   this one and the off-fleet cards would silently open blank. */
+function wlFind(key){
+  return (CREWJOBS||[]).filter(function(x){return x.key===key;})[0]
+      || (CREWOPEN||[]).filter(function(x){return x.key===key;})[0]
+      || (typeof OFITEMS!=="undefined" ? (OFITEMS||[]).filter(function(x){return x.key===key;})[0] : null)
+      || null;
+}
 /* Toggle one person on/off the assignment list */
 function wlToggleAssign(key, name){
   var j=wlFind(key); if(!j) return;
@@ -3131,7 +3286,7 @@ function attMoveRow(key, kind, url, aud){
 function attMove(key, kind, url, lane){
   apiPost({action:"crewJobAttAud", email:ME.email, code:ME.code, jobKey:key, kind:kind, url:url, aud:lane}).then(function(r){
     if(r&&r.ok){ toast("Moved to "+LANE_META[lane].ic+" "+LANE_META[lane].lbl);
-      var j=CREWJOBS.filter(function(x){return x.key===key;})[0];
+      var j=wlFind(key);
       if(j){ var arr=(kind==="doc"?j.docs:j.photos)||[]; for(var i=0;i<arr.length;i++){ if((arr[i].url||"")===url){ arr[i].aud=lane; break; } } }
       openWLJob(key); loadJobs(); }
     else toast((r&&r.error)||"Couldn’t move");
@@ -3141,7 +3296,7 @@ function attMove(key, kind, url, lane){
 function wlNoteAud(key, at, lane){
   apiPost({action:"crewJobNoteAud", email:ME.email, code:ME.code, jobKey:key, at:at, aud:lane}).then(function(r){
     if(r&&r.ok){ var m=LANE_META[lane]||LANE_META.crew; toast("Moved to "+m.ic+" "+m.lbl);
-      var j=CREWJOBS.filter(function(x){return x.key===key;})[0]; if(j)j.comments=r.comments||[]; openWLJob(key); }
+      var j=wlFind(key); if(j)j.comments=r.comments||[]; openWLJob(key); }
     else toast((r&&r.error)||"Couldn’t move");
   }).catch(function(){ toast("Couldn’t connect"); });
 }
@@ -3151,7 +3306,7 @@ function wlDelAtt(key, url, kind){
   if(!confirm("Remove this "+(kind==="doc"?"document":"photo")+"?")) return;
   apiPost({action:"crewJobDeleteAttachment", email:ME.email, code:ME.code, jobKey:key, kind:kind, url:url}).then(function(r){
     if(r&&r.ok){ toast((kind==="doc"?"Document":"Photo")+" removed");
-      var j=CREWJOBS.filter(function(x){return x.key===key;})[0];
+      var j=wlFind(key);
       if(j){ if(kind==="doc")j.docs=r.docs||[]; else j.photos=r.photos||[]; }
       openWLJob(key); loadJobs(); }
     else toast((r&&r.error)||"Couldn’t remove");
@@ -3179,7 +3334,7 @@ function wlFixBlock(j,key){
     '</div></div>';
 }
 function wlRenameJob(key){
-  var j=CREWJOBS.filter(function(x){return x.key===key;})[0]; if(!j) return;
+  var j=wlFind(key); if(!j) return;
   var t=prompt("Task name:", j.task||j.desc||""); if(t===null) return;
   t=t.trim(); if(!t){ toast("A task needs a name"); return; }
   if(t===(j.task||"")) return;
@@ -3189,7 +3344,7 @@ function wlRenameJob(key){
   }).catch(function(){ toast("Couldn’t connect"); });
 }
 function wlDeleteJob(key){
-  var j=CREWJOBS.filter(function(x){return x.key===key;})[0]; if(!j) return;
+  var j=wlFind(key); if(!j) return;
   var warn='Delete "'+(j.task||"this task")+'"?\n\nThis removes it from the worklist for good.';
   if(j.shared) warn+='\n\nIt has been sent to the owner — it will disappear from their app too.';
   if(!confirm(warn)) return;
@@ -3263,6 +3418,623 @@ function addPhoto(id){
   j.photos.push({name:"photo-"+(j.photos.length+1)+".jpg",thumb:true});
   toast("📷 Photo added — Marine HQ can see it");
   renderJobs(); openJob(id);
+}
+
+/* ================= OFF-FLEET ==================================================
+   Work on a boat we don't manage — a delivery, a polish, a survey attendance, a
+   callout. Deliberately NOT a vessel profile: a client, a boat, a few dates, a
+   checklist, the items we found, and a report at the end.
+
+   An off-fleet ITEM is an ordinary worklist row underneath (tagged WL.OJKEY), so
+   openWLJob() gives it the full job card — photos, comments, status, sign-off —
+   with no second implementation. The tagging is also what keeps these boats out
+   of the Fleet bar: loadJobs() and loadFleetVessels() drop any row with .oj.
+   ============================================================================ */
+var OFJOBS=[], OFITEMS=[], OFJOB=null, OFTPL=null, OFTYPES=[], OFSEG="check", OFRAISESTEP=null;
+
+function ofTemplates(){ return OFTPL||{}; }
+function ofLoadTemplates(){
+  if(OFTPL) return Promise.resolve(OFTPL);
+  var c=_cGet(_ck("oftpl"));
+  if(c && c.templates){ OFTPL=c.templates; OFTYPES=c.types||[]; }
+  return apiGet("fn=onerofftemplates").then(function(j){
+    if(j&&j.ok){ OFTPL=j.templates||{}; OFTYPES=j.types||[]; _cSet(_ck("oftpl"), {templates:OFTPL,types:OFTYPES}); }
+    return OFTPL;
+  }).catch(function(){ return OFTPL; });
+}
+function loadOffFleet(){
+  if(!ME) return;
+  ofLoadTemplates();
+  var cached=_cGet(_ck("ofjobs"));
+  if(cached && cached.length){ OFJOBS=cached; renderOffFleet(); }
+  else if($("ofList")) $("ofList").innerHTML='<div class="loadingbox"><span class="spin"></span> Loading off-fleet jobs…</div>';
+  apiGet("fn=oneoffs&key="+encodeURIComponent(ME.code||"")).then(function(j){
+    if(j&&j.ok){ OFJOBS=j.jobs||[]; _cSet(_ck("ofjobs"), OFJOBS); }
+    renderOffFleet();
+  }).catch(function(){ renderOffFleet(); });
+}
+/* Pull one job WITH its items. `quiet` = a background refresh after an action,
+   so the screen doesn't flash a spinner while someone is reading it. */
+function ofLoadJob(key, quiet){
+  return apiGet("fn=oneoffs&key="+encodeURIComponent(ME.code||"")+"&job="+encodeURIComponent(key))
+    .then(function(j){
+      var got=(j&&j.ok&&j.jobs&&j.jobs[0]) ? j.jobs[0] : null;
+      if(got){ OFJOB=got; OFITEMS=got.items||[]; if(!quiet||OFJOB) ofRenderDetail(); }
+      return got;
+    }).catch(function(){ return null; });
+}
+/* Called from loadJobs() so an action taken on an off-fleet ITEM (photo, comment,
+   status) refreshes this screen too — loadJobs only ever refreshes fleet work. */
+function ofSync(){ if(OFJOB && TAB==="off") ofLoadJob(OFJOB.key, true); }
+
+/* ------------------------------------------------------------------- list -- */
+function ofStatusCls(s){
+  s=(s||"").toLowerCase();
+  if(s==="complete"||s==="reported") return "d-done";
+  if(s==="invoiced") return "d-done";
+  if(s==="cancelled") return "d-todo";
+  if(s==="in progress") return "d-inhand";
+  return "d-todo";
+}
+function ofDates(j){
+  if(!j.start && !j.end) return "";
+  if(j.start && j.end && j.start!==j.end) return fmtDay(j.start)+" – "+fmtDay(j.end);
+  return fmtDay(j.start||j.end);
+}
+function fmtDay(s){
+  if(!s) return "";
+  var m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(s.toString().trim());
+  if(!m) return s.toString();
+  var MO=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  return parseInt(m[3],10)+" "+MO[parseInt(m[2],10)-1];
+}
+function renderOffFleet(){
+  var el=$("ofList"); if(!el) return;
+  if(OFJOB){ ofRenderDetail(); return; }
+  $("ofDetail").classList.add("hidden");
+  $("ofListWrap").classList.remove("hidden");
+  var live=OFJOBS.filter(function(j){ return j.status!=="Cancelled"; });
+  $("ofCount").textContent = live.length ? (live.length+" job"+(live.length>1?"s":"")) : "";
+  $("ofNewBtn").style.display = isMgrRole() ? "" : "none";
+  if(!live.length){
+    el.innerHTML='<div class="ofempty">Nothing off-fleet right now.'+
+      (isMgrRole()?' Tap <b>＋ New off-fleet job</b> to start one — a delivery, a polish, a callout.':' A director will add you to one when there is work on.')+'</div>';
+    return;
+  }
+  el.innerHTML=live.map(function(j){
+    var pct = j.checkTotal ? Math.round((j.checkDone/j.checkTotal)*100) : 0;
+    var bits=[];
+    if(j.type) bits.push(esc(j.type));
+    if(j.client) bits.push(esc(j.client));
+    var dt=ofDates(j); if(dt) bits.push(esc(dt));
+    var route=(j.from||j.to) ? (esc(j.from||"?")+" → "+esc(j.to||"?")) : "";
+    var sub=[];
+    if(j.checkTotal) sub.push("Checklist "+j.checkDone+" of "+j.checkTotal);
+    if(j.checkIssues) sub.push('<b style="color:var(--red)">'+j.checkIssues+" issue"+(j.checkIssues>1?"s":"")+"</b>");
+    return '<div class="ofcard" onclick="ofOpen(\''+esc((j.key||"").replace(/'/g,"\\'"))+'\')">'+
+      '<div class="oftop"><div style="flex:1"><h3>'+esc(j.vessel||j.title||"(job)")+'</h3>'+
+      '<div class="ofcode">'+esc(j.code)+(j.model?(" · "+esc(j.model)):"")+'</div></div>'+
+      '<span class="spill '+ofStatusCls(j.status)+' on" style="flex:0 0 auto;padding:6px 12px;font-size:11px"><span class="dot"></span>'+esc(j.status)+'</span></div>'+
+      (bits.length?'<div class="ofmeta">'+bits.join(" · ")+'</div>':'')+
+      (route?'<div class="ofroute">'+route+'</div>':'')+
+      (j.checkTotal?'<div class="ofbar"><i style="width:'+pct+'%"></i></div>':'')+
+      (sub.length?'<div class="ofsub">'+sub.join(" · ")+'</div>':'')+
+    '</div>';
+  }).join("");
+}
+function ofOpen(key){
+  OFSEG="check";
+  var known=OFJOBS.filter(function(x){return x.key===key;})[0];
+  if(known){ OFJOB=known; OFITEMS=known.items||[]; ofRenderDetail(); }
+  ofLoadJob(key);
+  window.scrollTo(0,0);
+}
+function ofBack(){ OFJOB=null; OFITEMS=[]; renderOffFleet(); window.scrollTo(0,0); }
+
+/* ----------------------------------------------------------------- detail -- */
+function ofSegs(){
+  var n=(OFITEMS||[]).length;
+  var s=[["check","📋 Checklist"],["items","🔧 Items"+(n?(" ("+n+")"):"")]];
+  if(isMgrRole()) s.push(["report","📄 Report"]);
+  return s;
+}
+function ofRenderDetail(){
+  var j=OFJOB; if(!j) return;
+  $("ofListWrap").classList.add("hidden");
+  $("ofDetail").classList.remove("hidden");
+  var route=(j.from||j.to) ? (esc(j.from||"?")+" → "+esc(j.to||"?")) : "";
+  var dt=ofDates(j);
+  var rows=[];
+  if(j.client) rows.push(["Client", esc(j.client)+(j.phone?(' · <a href="tel:'+esc(j.phone)+'">'+esc(j.phone)+'</a>'):"")]);
+  if(j.type)   rows.push(["Job", esc(j.type)]);
+  if(route)    rows.push(["Route", route]);
+  if(dt)       rows.push(["Dates", esc(dt)]);
+  if(j.crew)   rows.push(["Crew", esc(j.crew)]);
+  if(j.model)  rows.push(["Boat", esc(j.model)]);
+  $("ofHead").innerHTML=
+    '<button class="ofback" onclick="ofBack()">‹ All off-fleet jobs</button>'+
+    '<div class="ofhcard">'+
+      '<div class="oftop"><div style="flex:1"><h3 style="font-size:19px">'+esc(j.vessel||j.title)+'</h3>'+
+      '<div class="ofcode">'+esc(j.code)+'</div></div>'+
+      '<span class="spill '+ofStatusCls(j.status)+' on" style="flex:0 0 auto;padding:6px 12px;font-size:11px"><span class="dot"></span>'+esc(j.status)+'</span></div>'+
+      (rows.length?'<div class="ofdl">'+rows.map(function(r){return '<div><span>'+r[0]+'</span>'+r[1]+'</div>';}).join("")+'</div>':'')+
+      (j.notes?'<div class="ofnotes">'+esc(j.notes)+'</div>':'')+
+      (isMgrRole()?'<div class="assignrow" style="margin-top:12px">'+
+        '<button type="button" class="aopt" onclick="ofEdit()">✎ Edit job</button>'+
+        '<button type="button" class="aopt" onclick="ofStatusMenu()">⇄ Status</button>'+
+      '</div>':'')+
+    '</div>'+
+    '<div class="assignrow" id="ofSeg" style="margin:12px 4px"></div>';
+  $("ofSeg").innerHTML=ofSegs().map(function(s){
+    return '<button type="button" class="aopt'+(s[0]===OFSEG?' on':'')+'" onclick="ofSetSeg(\''+s[0]+'\')">'+s[1]+'</button>';
+  }).join("");
+  if(OFSEG==="check")  ofRenderChecklist();
+  else if(OFSEG==="items") ofRenderItems();
+  else ofRenderReport();
+}
+function ofSetSeg(s){ OFSEG=s; ofRenderDetail(); }
+
+/* -------------------------------------------------------------- checklist -- */
+var OFOPEN={};
+function ofToggleGroup(i){ OFOPEN[i]=!OFOPEN[i]; ofRenderChecklist(); }
+function ofRenderChecklist(){
+  var j=OFJOB, body=$("ofBody"); if(!j||!body) return;
+  var tpl=ofTemplates()[j.tpl];
+  if(!tpl){
+    body.innerHTML='<div class="ofempty">No checklist on this job — it is just items and photos.'+
+      (isMgrRole()?' Tap <b>✎ Edit job</b> to add one.':'')+'</div>';
+    return;
+  }
+  var done=0,total=0,issues=0;
+  tpl.groups.forEach(function(g){ g.items.forEach(function(it){ total++; var a=j.checks[it[0]]||{}; if(a.s)done++; if(a.s==="issue")issues++; }); });
+  var pct= total?Math.round(done/total*100):0;
+  var html='<div class="ofprog"><div class="ofbar big"><i style="width:'+pct+'%"></i></div>'+
+    '<div class="ofsub" style="margin-top:8px">'+esc(tpl.name)+' — <b>'+done+' of '+total+'</b> answered'+
+    (issues?(' · <b style="color:var(--red)">'+issues+' issue'+(issues>1?"s":"")+'</b>'):'')+'</div>'+
+    (tpl.blurb?'<div class="ofblurb">'+esc(tpl.blurb)+'</div>':'')+'</div>';
+
+  tpl.groups.forEach(function(g,gi){
+    var gd=0,gi_=0;
+    g.items.forEach(function(it){ var a=j.checks[it[0]]||{}; if(a.s)gd++; if(a.s==="issue")gi_++; });
+    // A section opens by itself while it still has unanswered steps.
+    var open = (OFOPEN[gi]!==undefined) ? OFOPEN[gi] : (gd < g.items.length);
+    html+='<div class="ofgroup">'+
+      '<div class="ofghdr" onclick="ofToggleGroup('+gi+')">'+
+        '<span class="ofgname">'+esc(g.g)+'</span>'+
+        '<span class="ofgcount'+(gd===g.items.length?' full':'')+'">'+gd+'/'+g.items.length+(gi_?(' · <b>'+gi_+'⚠</b>'):'')+'</span>'+
+        '<span class="ofcaret">'+(open?"▾":"▸")+'</span>'+
+      '</div>';
+    if(open){
+      html+='<div class="ofgbody">'+g.items.map(function(it){
+        var a=j.checks[it[0]]||{};
+        var num=it[0], t=it[1], guide=it[2]||"";
+        var esc_n=esc(num).replace(/'/g,"\\'");
+        function b(state,label,cls){
+          return '<button type="button" class="ofb '+cls+(a.s===state?' on':'')+'" onclick="ofSetCheck(\''+esc_n+'\',\''+state+'\')">'+label+'</button>';
+        }
+        return '<div class="ofstep'+(a.s==="issue"?" bad":"")+'">'+
+          '<div class="ofs-t"><b>'+esc(num)+'</b> '+esc(t)+'</div>'+
+          (guide?'<div class="ofs-g">'+esc(guide)+'</div>':'')+
+          '<div class="ofs-btns">'+b("pass","✓ Pass","pass")+b("issue","⚠ Issue","issue")+b("na","– N/A","na")+'</div>'+
+          (a.r && OFREMARK!==num ?'<div class="ofs-rem">“'+esc(a.r)+'”'+(a.by?(' <span>— '+esc(firstName(a.by))+'</span>'):'')+'</div>':'')+
+          (OFREMARK===num
+            ? '<div class="ofs-edit"><textarea id="ofRemarkBox" class="fld-ta" placeholder="What did you see? This wording goes to the client.">'+esc(a.r||"")+'</textarea>'+
+              '<div class="ofs-act"><button type="button" class="oflink save" onclick="ofRemarkSave(\''+esc_n+'\')">✓ Save remark</button>'+
+              '<button type="button" class="oflink" onclick="ofRemarkCancel()">Cancel</button></div></div>'
+            : '<div class="ofs-act">'+
+              '<button type="button" class="oflink" onclick="ofRemark(\''+esc_n+'\')">'+(a.r?"✎ Edit remark":"＋ Add remark")+'</button>'+
+              (a.s==="issue"?'<button type="button" class="oflink raise" onclick="ofRaiseFromStep(\''+esc_n+'\')">＋ Raise as an item</button>':'')+
+              '</div>')+
+        '</div>';
+      }).join("")+'</div>';
+    }
+    html+='</div>';
+  });
+  body.innerHTML=html;
+}
+function ofSetCheck(item, state){
+  var j=OFJOB; if(!j) return;
+  var cur=(j.checks[item]||{}).s||"";
+  var next = (cur===state) ? "" : state;      // tapping the same answer clears it
+  // Paint it straight away — crew are standing on a moving boat, not waiting on us.
+  if(next) j.checks[item]=Object.assign({}, j.checks[item]||{}, {s:next, by:(ME&&ME.name)||""});
+  else { var r=(j.checks[item]||{}).r; if(r) j.checks[item]={s:"",r:r}; else delete j.checks[item]; }
+  ofRenderChecklist();
+  apiPost({action:"oneOffCheck", key:ME.code, code:ME.code, job:j.key, item:item, state:next})
+    .then(function(res){ if(res&&res.ok&&res.job){ OFJOB=Object.assign(OFJOB,res.job); ofSyncListCard(); } else toast((res&&res.error)||"Couldn’t save"); })
+    .catch(function(){ toast("Couldn’t connect — it will need re-tapping"); });
+}
+/* Remarks are typed INTO the step, not into a native prompt() — a prompt on a
+   phone hides the step you are describing, and Trish has asked for in-app
+   editors over prompts before. OFREMARK holds the step being edited so the
+   textarea survives a re-render. */
+var OFREMARK="";
+function ofRemark(item){ OFREMARK=(OFREMARK===item)?"":item; ofRenderChecklist();
+  setTimeout(function(){ var t=$("ofRemarkBox"); if(t){ t.focus(); t.setSelectionRange(t.value.length,t.value.length); } },30); }
+function ofRemarkCancel(){ OFREMARK=""; ofRenderChecklist(); }
+function ofRemarkSave(item){
+  var box=$("ofRemarkBox"); if(!box) return;
+  var txt=(box.value||"").trim();
+  var j=OFJOB; if(!j) return;
+  OFREMARK="";
+  // Paint it immediately, then confirm with the server.
+  var cur=j.checks[item]||{};
+  if(txt||cur.s) j.checks[item]=Object.assign({},cur,{r:txt,by:(ME&&ME.name)||cur.by||""});
+  else delete j.checks[item];
+  ofRenderChecklist();
+  apiPost({action:"oneOffCheck", key:ME.code, code:ME.code, job:j.key, item:item,
+           state:cur.s||"", remark:txt})
+    .then(function(res){ if(res&&res.ok&&res.job){ OFJOB=Object.assign(OFJOB,res.job); ofRenderChecklist(); ofSyncListCard(); toast(txt?"Remark saved":"Remark cleared"); }
+                         else toast((res&&res.error)||"Couldn’t save"); })
+    .catch(function(){ toast("Couldn’t connect"); });
+}
+/* Keep the card in the list in step with the job we're looking at. */
+function ofSyncListCard(){
+  for(var i=0;i<OFJOBS.length;i++) if(OFJOBS[i].key===OFJOB.key){ OFJOBS[i]=Object.assign({},OFJOBS[i],OFJOB); break; }
+  _cSet(_ck("ofjobs"), OFJOBS);
+}
+
+/* ------------------------------------------------------------------ items -- */
+function ofRenderItems(){
+  var body=$("ofBody"); if(!body) return;
+  var list=OFITEMS||[];
+  var html='<button class="ofadd" onclick="ofAddItem()">＋ Record something we found</button>';
+  if(!list.length){
+    html+='<div class="ofempty">Nothing recorded yet. Anything you notice — a mark, a fault, something missing, or work you did — record it here with a photo and it goes in the client\u2019s report.</div>';
+  }else{
+    html+=list.map(function(it){
+      var kJs=(it.key||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
+      var np=(it.photos||[]).length;
+      var kind=it.kind||"Defect";
+      return '<div class="ofcard item" onclick="openWLJob(\''+esc(kJs)+'\')">'+
+        '<div class="oftop"><div style="flex:1"><h3>'+esc(it.task||"(item)")+'</h3>'+
+        '<div class="ofcode">'+esc(it.code||"")+'</div></div>'+
+        '<span class="ofkind k'+esc(kind.replace(/[^a-z]/gi,"").toLowerCase())+'">'+esc(kind)+'</span></div>'+
+        (it.desc?'<div class="ofmeta">'+esc(it.desc.split("\n")[0])+'</div>':'')+
+        '<div class="ofsub">'+(np?(np+" photo"+(np>1?"s":"")):"No photos yet")+
+        (it.raisedBy?(" · "+esc(firstName(it.raisedBy))):"")+' · '+esc(it.status||"To do")+'</div>'+
+      '</div>';
+    }).join("");
+  }
+  body.innerHTML=html;
+}
+/* Raising from a failed step deliberately does NOT pre-fill the title with the
+   step's wording. "External structures, gelcoat and paint" is a checklist
+   heading, not a defect — and left unedited it would read that way in the
+   client's report. The step goes in the hint as context instead, so what gets
+   typed is what was actually found. */
+function ofRaiseFromStep(item){
+  var tpl=ofTemplates()[OFJOB.tpl], step="";
+  if(tpl) tpl.groups.forEach(function(g){ g.items.forEach(function(it){ if(it[0]===item) step=it[1]; }); });
+  OFRAISESTEP=item; OFRAISESTEPTITLE=step;
+  ofAddItem();
+}
+var OFRAISESTEPTITLE="";
+function ofAddItem(prefill){
+  if(!OFJOB) return;
+  $("oi_title").value = prefill || "";
+  $("oi_desc").value = "";
+  OFKIND = "Defect";
+  $("oi_hint").innerHTML = OFRAISESTEP
+    ? ("Step <b>"+esc(OFRAISESTEP)+" &mdash; "+esc(OFRAISESTEPTITLE)+"</b> on "+esc(OFJOB.vessel||OFJOB.code)+
+       ".<br>Describe what you actually found &mdash; this wording goes to the client. Photos go on next.")
+    : (esc(OFJOB.vessel||OFJOB.code)+" &middot; "+esc(OFJOB.code)+
+       ".<br>Describe what you found &mdash; this wording goes to the client. Photos go on next.");
+  ofRenderKinds();
+  $("offItemModal").classList.add("show");
+}
+var OFKIND="Defect";
+var OF_KINDS=["Defect","Damage","Missing / not supplied","Work done","Observation"];
+function ofRenderKinds(){
+  $("oi_kinds").innerHTML=OF_KINDS.map(function(k){
+    return '<button type="button" class="aopt'+(k===OFKIND?' on':'')+'" onclick="OFKIND=\''+k+'\';ofRenderKinds()">'+esc(k)+'</button>';
+  }).join("");
+}
+function submitOfItem(){
+  var title=($("oi_title").value||"").trim();
+  if(!title){ toast("Give it a title"); return; }
+  var btn=$("oi_go"); btn.disabled=true; btn.textContent="Saving…";
+  apiPost({action:"oneOffAddItem", key:ME.code, code:ME.code, job:OFJOB.key,
+           title:title, desc:($("oi_desc").value||"").trim(), kind:OFKIND, item:OFRAISESTEP||""})
+    .then(function(r){
+      btn.disabled=false; btn.textContent="✓ Record it";
+      if(r&&r.ok){
+        closeModal("offItemModal"); OFRAISESTEP=null; OFRAISESTEPTITLE="";
+        OFITEMS=r.items||OFITEMS;
+        toast("Recorded — "+r.code);
+        OFSEG="items"; ofRenderDetail();
+        // Straight into the card so a photo can go on right now, while they're stood in front of it.
+        setTimeout(function(){ openWLJob(r.jobKey); }, 320);
+      } else toast((r&&r.error)||"Couldn’t save");
+    }).catch(function(){ btn.disabled=false; btn.textContent="✓ Record it"; toast("Couldn’t connect"); });
+}
+
+/* ----------------------------------------------------- new / edit the job -- */
+var OFEDITKEY="";
+function ofNew(){ ofOpenForm(null); }
+function ofEdit(){ ofOpenForm(OFJOB); }
+function ofOpenForm(j){
+  OFEDITKEY = j ? j.key : "";
+  $("ofFormTitle").textContent = j ? "✎ Edit off-fleet job" : "＋ New off-fleet job";
+  $("of_vessel").value = j? (j.vessel||"") : "";
+  $("of_model").value  = j? (j.model||"")  : "";
+  $("of_client").value = j? (j.client||"") : "";
+  $("of_email").value  = j? (j.email||"")  : "";
+  $("of_phone").value  = j? (j.phone||"")  : "";
+  $("of_from").value   = j? (j.from||"")   : "";
+  $("of_to").value     = j? (j.to||"")     : "";
+  $("of_start").value  = j? (j.start||"")  : "";
+  $("of_end").value    = j? (j.end||"")    : "";
+  $("of_notes").value  = j? (j.notes||"")  : "";
+  OFTYPE = j ? ofTypeIdFor(j.type) : "delivery";
+  OFCREW = j && j.crew ? j.crew.split(",").map(function(s){return s.trim();}).filter(String) : [];
+  ofRenderTypes(); ofRenderCrew();
+  loadCrewNames(ofRenderCrew);     // roster lands after the modal opens — repaint then
+  $("offJobModal").classList.add("show");
+}
+var OFTYPE="delivery", OFCREW=[];
+function ofTypeIdFor(name){
+  for(var i=0;i<OFTYPES.length;i++) if(OFTYPES[i].name===name) return OFTYPES[i].id;
+  return "delivery";
+}
+function ofRenderTypes(){
+  var el=$("of_types"); if(!el) return;
+  el.innerHTML=(OFTYPES||[]).map(function(t){
+    return '<button type="button" class="aopt'+(t.id===OFTYPE?' on':'')+'" onclick="OFTYPE=\''+t.id+'\';ofRenderTypes();ofShowTpl()">'+esc(t.name)+'</button>';
+  }).join("");
+  ofShowTpl();
+}
+function ofShowTpl(){
+  var t=(OFTYPES||[]).filter(function(x){return x.id===OFTYPE;})[0];
+  var tpl=t && t.tpl!=="none" ? ofTemplates()[t.tpl] : null;
+  var n=0; if(tpl) tpl.groups.forEach(function(g){ n+=g.items.length; });
+  $("of_tplNote").innerHTML = tpl
+    ? ('Opens with the <b>'+esc(tpl.name)+'</b> checklist — '+n+' steps. Crew tick it off on the boat and it becomes the report.')
+    : 'No checklist — this job just collects items and photos.';
+}
+function ofRenderCrew(){
+  var el=$("of_crew"); if(!el) return;
+  var names=(CREWNAMES||[]).map(function(c){return c.name||c;}).filter(String);
+  el.innerHTML=names.map(function(n){
+    var on=OFCREW.indexOf(n)>=0;
+    return '<button type="button" class="aopt'+(on?' on':'')+'" onclick="ofToggleCrew(\''+esc(n).replace(/'/g,"\\'")+'\')">'+esc(n)+'</button>';
+  }).join("") || '<span style="font-size:12px;color:var(--muted)">Loading crew…</span>';
+}
+function ofToggleCrew(n){
+  var i=OFCREW.indexOf(n);
+  if(i>=0) OFCREW.splice(i,1); else OFCREW.push(n);
+  ofRenderCrew();
+}
+function submitOfJob(){
+  var vessel=($("of_vessel").value||"").trim();
+  if(!vessel){ toast("Which boat?"); return; }
+  var btn=$("of_go"); btn.disabled=true; btn.textContent="Saving…";
+  var body={ action:"oneOffSave", key:ME.code, code:ME.code,
+    vessel:vessel, model:($("of_model").value||"").trim(), type:OFTYPE,
+    client:($("of_client").value||"").trim(), email:($("of_email").value||"").trim(),
+    phone:($("of_phone").value||"").trim(), from:($("of_from").value||"").trim(),
+    to:($("of_to").value||"").trim(), start:$("of_start").value, end:$("of_end").value,
+    crew:OFCREW.join(", "), notes:($("of_notes").value||"").trim() };
+  // `key` is the access code; `job` is the job being edited (absent = create).
+  if(OFEDITKEY) body.job=OFEDITKEY;
+  apiPost(body)
+    .then(function(r){
+      btn.disabled=false; btn.textContent="✓ Save job";
+      if(r&&r.ok){ closeModal("offJobModal"); toast(r.created?("Created "+r.job.code):"Saved");
+        if(r.job){ if(OFJOB && OFJOB.key===r.job.key){ OFJOB=Object.assign(OFJOB,r.job); } }
+        loadOffFleet(); if(OFJOB) ofLoadJob(OFJOB.key,true); }
+      else toast((r&&r.error)||"Couldn’t save");
+    }).catch(function(){ btn.disabled=false; btn.textContent="✓ Save job"; toast("Couldn’t connect"); });
+}
+/* Tapping a status, not typing one. */
+var OFSTATUSES=["Open","In progress","Complete","Reported","Invoiced","Cancelled"];
+function ofStatusMenu(){
+  if(!OFJOB) return;
+  $("ofStatusHint").textContent=OFJOB.code+" · currently "+(OFJOB.status||"Open");
+  $("ofStatusOpts").innerHTML=OFSTATUSES.map(function(s){
+    return '<button type="button" class="aopt'+(s===OFJOB.status?' on':'')+'" onclick="ofSetStatus(\''+s+'\')">'+s+'</button>';
+  }).join("");
+  $("offStatusModal").classList.add("show");
+}
+function ofSetStatus(pick){
+  if(!OFJOB) return;
+  if(pick==="Cancelled" && !confirm("Cancel "+OFJOB.code+"? The record and its items are kept.")) return;
+  closeModal("offStatusModal");
+  apiPost({action:"oneOffStatus", key:ME.code, code:ME.code, job:OFJOB.key, status:pick})
+    .then(function(r){ if(r&&r.ok&&r.job){ OFJOB=Object.assign(OFJOB,r.job); ofSyncListCard(); ofRenderDetail(); toast("Set to "+pick); }
+                       else toast((r&&r.error)||"Couldn’t update"); })
+    .catch(function(){ toast("Couldn’t connect"); });
+}
+
+/* ----------------------------------------------------------------- report -- */
+/* The whole point of the section: the checklist and the items become one branded
+   document the client gets with their invoice. Built in the browser and opened
+   ready to print, so Trish can produce it from her phone on the dock — no laptop,
+   no export step, nothing to install. */
+var OFREPFULL=true;
+function ofRenderReport(){
+  var j=OFJOB, body=$("ofBody"); if(!j||!body) return;
+  var tpl=ofTemplates()[j.tpl];
+  var total=0, done=0, issues=0, na=0;
+  if(tpl) tpl.groups.forEach(function(g){ g.items.forEach(function(it){
+    total++; var a=j.checks[it[0]]||{};
+    if(a.s) done++; if(a.s==="issue") issues++; if(a.s==="na") na++;
+  }); });
+  var items=OFITEMS||[];
+  var photos=items.reduce(function(n,it){ return n+((it.photos||[]).length); },0);
+  var unanswered=total-done;
+  var warn = unanswered
+    ? '<div class="ofwarn">⚠ '+unanswered+' checklist step'+(unanswered>1?"s are":" is")+' still unanswered. They will show as <b>not checked</b> in the report.</div>'
+    : (total?'<div class="ofok">✓ Every checklist step answered.</div>':'');
+  body.innerHTML=
+    '<div class="sec"><h4>What goes in the report</h4>'+
+      '<div class="ofdl">'+
+        (tpl?'<div><span>Checklist</span>'+esc(tpl.name)+' — '+done+' of '+total+' answered</div>':'')+
+        (issues?'<div><span>Issues</span><b style="color:var(--red)">'+issues+'</b></div>':'')+
+        (na?'<div><span>Not applicable</span>'+na+'</div>':'')+
+        '<div><span>Items recorded</span>'+items.length+'</div>'+
+        '<div><span>Photographs</span>'+photos+'</div>'+
+      '</div>'+warn+
+      '<label class="ofcheckline"><input type="checkbox" id="ofRepFull" '+(OFREPFULL?"checked":"")+
+        ' onchange="OFREPFULL=this.checked"> Include every checklist step<span>Off = only the steps with an issue or a remark. A delivery client usually wants the full signed checklist.</span></label>'+
+      '<button class="jobbtn complete" style="background:var(--orange)" onclick="ofBuildReport()">📄 Build the report</button>'+
+      '<p class="ofhint">Opens ready to print. On a phone: <b>Share → Print → Save to Files</b> gives you the PDF to attach to the invoice.</p>'+
+    '</div>'+
+    '<div class="sec"><h4>After you send it</h4>'+
+      '<p class="body" style="color:var(--muted)">Set the job to <b>Reported</b> once it has gone, and <b>Invoiced</b> when the invoice is out — so you can see at a glance what is still owing you paperwork.</p>'+
+    '</div>';
+}
+function ofRepBadge(s){
+  if(s==="pass")  return '<span class="rb pass">Pass</span>';
+  if(s==="issue") return '<span class="rb issue">Issue</span>';
+  if(s==="na")    return '<span class="rb na">N/A</span>';
+  return '<span class="rb none">Not checked</span>';
+}
+function ofBuildReport(){
+  var j=OFJOB; if(!j) return;
+  var tpl=ofTemplates()[j.tpl];
+  var items=OFITEMS||[];
+  var base=location.href.replace(/[^/]*$/,"");        // banners sit beside the app
+  var today=new Date();
+  var MO=["January","February","March","April","May","June","July","August","September","October","November","December"];
+  var dstr=today.getDate()+" "+MO[today.getMonth()]+" "+today.getFullYear();
+  var isDelivery=/deliver/i.test(j.type||"");
+  var docTitle=isDelivery?"Delivery Report":( /polish|wash|detail/i.test(j.type||"") ? "Works Report" : "Job Report");
+
+  var rows=[];
+  function row(l,v){ if(v) rows.push('<tr><th>'+l+'</th><td>'+esc(v)+'</td></tr>'); }
+  row("Vessel", j.vessel); row("Make / model", j.model);
+  row("Job", j.type); row("Reference", j.code);
+  row("Client", j.client);
+  if(j.from||j.to) row("Passage", (j.from||"—")+" to "+(j.to||"—"));
+  if(j.start||j.end) row("Dates", ofDates(j));
+  row("Crew", j.crew);
+
+  /* --- checklist --- */
+  var clHTML="", total=0, done=0, issues=0;
+  if(tpl){
+    tpl.groups.forEach(function(g){
+      var steps=g.items.filter(function(it){
+        total++; var a=j.checks[it[0]]||{};
+        if(a.s) done++; if(a.s==="issue") issues++;
+        if(OFREPFULL) return true;
+        return a.s==="issue" || !!a.r;
+      });
+      if(!steps.length) return;
+      clHTML+='<h3 class="grp">'+esc(g.g)+'</h3><table class="cl">'+
+        steps.map(function(it){
+          var a=j.checks[it[0]]||{};
+          return '<tr class="'+(a.s==="issue"?"bad":"")+'">'+
+            '<td class="n">'+esc(it[0])+'</td>'+
+            '<td class="t">'+esc(it[1])+
+              (a.r?'<div class="rem">'+esc(a.r)+'</div>':'')+
+              (a.by?'<div class="by">Checked by '+esc(a.by)+'</div>':'')+
+            '</td><td class="s">'+ofRepBadge(a.s||"")+'</td></tr>';
+        }).join("")+'</table>';
+    });
+  }
+
+  /* --- items --- */
+  var itHTML = items.length ? items.map(function(it){
+    var ph=(it.photos||[]).slice(0,8).map(function(p){
+      return '<figure><img src="'+esc(driveImg(p.url))+'" alt="">'+(p.caption?'<figcaption>'+esc(p.caption)+'</figcaption>':'')+'</figure>';
+    }).join("");
+    var d=(it.desc||"").split("\n").filter(String).map(function(l){return '<p>'+esc(l)+'</p>';}).join("");
+    return '<div class="item">'+
+      '<div class="ihdr"><span class="icode">'+esc(it.code||"")+'</span>'+
+      '<span class="ikind">'+esc(it.kind||"Defect")+'</span>'+
+      '<h3>'+esc(it.task||"")+'</h3></div>'+
+      (d?'<div class="idesc">'+d+'</div>':'')+
+      (ph?'<div class="iph">'+ph+'</div>':'')+
+    '</div>';
+  }).join("") : '<p class="none">No items were recorded on this job.</p>';
+
+  var summary = isDelivery
+    ? ('Marine HQ delivered <b>'+esc(j.vessel||"the vessel")+'</b>'+
+       ((j.from&&j.to)?(' from '+esc(j.from)+' to '+esc(j.to)):'')+
+       (ofDates(j)?(', '+esc(ofDates(j))):'')+'. '+
+       'The pre-departure checklist was worked through and signed off before departure, and everything found on the vessel was photographed and recorded. '+
+       (issues?('<b>'+issues+' item'+(issues>1?"s":"")+' required attention</b> and '+(issues>1?"are":"is")+' set out below.'):'No issues were found on the checklist.'))
+    : ('Marine HQ attended <b>'+esc(j.vessel||"the vessel")+'</b>'+(ofDates(j)?(' on '+esc(ofDates(j))):'')+
+       '. The works below were completed and everything found on the vessel was photographed and recorded.');
+
+  var html='<!doctype html><html><head><meta charset="utf-8">'+
+  '<meta name="viewport" content="width=device-width,initial-scale=1">'+
+  '<title>'+esc(j.code+" "+docTitle+" — "+(j.vessel||""))+'</title><style>'+
+  '*{box-sizing:border-box}'+
+  'body{font-family:Arial,Helvetica,sans-serif;color:#22303f;margin:0;background:#fff;font-size:13px;line-height:1.5}'+
+  '.page{max-width:820px;margin:0 auto;padding:0 26px 40px}'+
+  '.bnr{width:100%;display:block}'+
+  'h1{font-size:26px;color:#1A2B5C;margin:22px 0 2px;letter-spacing:.3px}'+
+  '.sub{color:#6b7a8d;font-size:13px;margin:0 0 18px}'+
+  'h2{font-size:14px;text-transform:uppercase;letter-spacing:1px;color:#E87722;margin:26px 0 10px;padding-bottom:6px;border-bottom:2px solid #E87722}'+
+  'h3.grp{font-size:13px;color:#1A2B5C;margin:16px 0 6px}'+
+  'table{width:100%;border-collapse:collapse}'+
+  'table.meta th{text-align:left;width:150px;color:#6b7a8d;font-weight:normal;padding:5px 10px 5px 0;vertical-align:top;font-size:12.5px}'+
+  'table.meta td{padding:5px 0;font-weight:bold}'+
+  'table.cl{margin-bottom:6px}'+
+  'table.cl td{border-bottom:1px solid #e9edf3;padding:7px 6px;vertical-align:top}'+
+  'table.cl td.n{width:44px;color:#6b7a8d;font-size:12px}'+
+  'table.cl td.s{width:88px;text-align:right}'+
+  'table.cl tr.bad td{background:#fdf4f2}'+
+  '.rem{margin-top:3px;color:#C0472A;font-size:12.5px;font-style:italic}'+
+  '.by{margin-top:2px;color:#8b98a8;font-size:11px}'+
+  '.rb{display:inline-block;font-size:11px;font-weight:bold;padding:3px 9px;border-radius:11px;white-space:nowrap}'+
+  '.rb.pass{background:#e8f4ee;color:#1F7A54}.rb.issue{background:#fbeae6;color:#C0472A}'+
+  '.rb.na{background:#eef1f5;color:#6b7a8d}.rb.none{background:#fff;color:#a9b4c2;border:1px solid #e3e8ef}'+
+  '.summary{background:#f4f6f9;border-left:4px solid #1A2B5C;padding:14px 16px;margin:6px 0 4px;font-size:13.5px}'+
+  '.stats{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 0}'+
+  '.stat{flex:1;min-width:120px;background:#fff;border:1px solid #e3e8ef;border-radius:10px;padding:11px 13px}'+
+  '.stat b{display:block;font-size:21px;color:#1A2B5C;line-height:1.2}'+
+  '.stat span{font-size:11px;color:#6b7a8d;text-transform:uppercase;letter-spacing:.5px}'+
+  '.item{border:1px solid #e3e8ef;border-radius:10px;padding:14px;margin-bottom:12px;page-break-inside:avoid}'+
+  '.ihdr{display:flex;align-items:center;gap:9px;flex-wrap:wrap}'+
+  '.ihdr h3{font-size:14.5px;margin:0;flex-basis:100%;color:#1A2B5C}'+
+  '.icode{font-size:11px;font-weight:bold;color:#6b7a8d}'+
+  '.ikind{font-size:11px;font-weight:bold;background:#fbeae6;color:#C0472A;padding:2px 9px;border-radius:10px}'+
+  '.idesc p{margin:7px 0 0}'+
+  '.iph{display:flex;flex-wrap:wrap;gap:8px;margin-top:11px}'+
+  '.iph figure{margin:0;width:172px}'+
+  '.iph img{width:100%;height:130px;object-fit:cover;border-radius:7px;border:1px solid #e3e8ef;display:block}'+
+  '.iph figcaption{font-size:11px;color:#6b7a8d;margin-top:3px}'+
+  '.none{color:#6b7a8d}'+
+  '.sign{margin-top:26px;border-top:1px solid #e3e8ef;padding-top:16px;display:flex;gap:30px;flex-wrap:wrap}'+
+  '.sign div{flex:1;min-width:210px}'+
+  '.sign .line{border-bottom:1px solid #22303f;height:38px;margin-bottom:5px}'+
+  '.sign small{color:#6b7a8d;font-size:11.5px}'+
+  '.foot{margin-top:26px;color:#8b98a8;font-size:11px;text-align:center}'+
+  '.noprint{position:fixed;top:0;left:0;right:0;background:#1A2B5C;color:#fff;padding:11px;text-align:center;font-size:13px;z-index:9}'+
+  '.noprint button{background:#E87722;color:#fff;border:0;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:bold;margin-left:10px;cursor:pointer}'+
+  '@media print{.noprint{display:none}.page{padding:0 6px}h2{page-break-after:avoid}}'+
+  '</style></head><body>'+
+  '<div class="noprint">Print or save this as a PDF to send with the invoice.<button onclick="window.print()">Print / Save as PDF</button></div>'+
+  '<div style="height:44px"></div>'+
+  '<img class="bnr" src="'+base+'banner.jpg" alt="Marine HQ">'+
+  '<div class="page">'+
+    '<h1>'+docTitle+'</h1>'+
+    '<p class="sub">'+esc(j.vessel||"")+' · '+esc(j.code)+' · Issued '+esc(dstr)+'</p>'+
+    '<div class="summary">'+summary+'</div>'+
+    '<div class="stats">'+
+      (total?'<div class="stat"><b>'+done+'/'+total+'</b><span>Checklist steps</span></div>':'')+
+      '<div class="stat"><b>'+issues+'</b><span>Issues found</span></div>'+
+      '<div class="stat"><b>'+items.length+'</b><span>Items recorded</span></div>'+
+    '</div>'+
+    '<h2>Job details</h2><table class="meta">'+rows.join("")+'</table>'+
+    (j.notes?('<h2>Notes</h2><p>'+esc(j.notes)+'</p>'):'')+
+    (clHTML?('<h2>'+esc(tpl.name)+'</h2>'+(OFREPFULL?'':'<p class="none">Only the steps with an issue or a remark are shown.</p>')+clHTML):'')+
+    '<h2>What we found</h2>'+itHTML+
+    '<div class="sign">'+
+      '<div><div class="line"></div><small>Marine HQ — signed &amp; dated</small></div>'+
+      '<div><div class="line"></div><small>Received by — signed &amp; dated</small></div>'+
+    '</div>'+
+    '<p class="foot">Marine HQ · yachtsupport@marinehq.com.au · 0439 748 387<br>Report generated '+esc(dstr)+' from the Marine HQ crew app.</p>'+
+  '</div>'+
+  '<img class="bnr" src="'+base+'footer-banner.jpg" alt="">'+
+  '</body></html>';
+
+  var w=window.open("","_blank");
+  if(!w){ toast("Allow pop-ups to open the report"); return; }
+  w.document.open(); w.document.write(html); w.document.close();
 }
 
 /* ================= CHECKLISTS ================= */
