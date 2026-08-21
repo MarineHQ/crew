@@ -828,13 +828,14 @@
       <img class="brandmark" src="logo-mark.png" alt="Marine HQ">
       <div><h1 id="hdrTitle">Crew Portal</h1><p id="hdrSub">Your jobs, checklists & hours</p></div>
       <div class="whoami">
-        <div class="avatar" id="hdrAv">JT</div>
+        <div class="avatar" id="hdrAv" onclick="go('profile')" title="My profile" style="cursor:pointer">JT</div>
       </div>
     </div>
   </header>
   <div class="previewbar" id="previewBar">
     <span id="signedInAs">Signed in</span>
-    <button onclick="signOut()" style="margin-left:auto;background:#1d3160;color:#fff;border:1px solid #2b4372;border-radius:7px;padding:4px 10px;font-size:11px;font-family:inherit;cursor:pointer">Sign out</button>
+    <button onclick="go('profile')" style="margin-left:auto;background:#1d3160;color:#fff;border:1px solid #2b4372;border-radius:7px;padding:4px 10px;font-size:11px;font-family:inherit;cursor:pointer">👤 Profile</button>
+    <button onclick="signOut()" style="margin-left:8px;background:#1d3160;color:#fff;border:1px solid #2b4372;border-radius:7px;padding:4px 10px;font-size:11px;font-family:inherit;cursor:pointer">Sign out</button>
   </div>
   <div class="clockstrip" id="clockStrip">
     <span class="dot"></span> On the clock · <span id="stripTimer">00:00:00</span> · <span id="stripVessel"></span>
@@ -1003,7 +1004,7 @@
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-22·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-22·c</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1623,11 +1624,13 @@ function legacySession(){
    Sub-tabs marked mgr:true only exist for Directors/Managers; a group whose
    only visible sub-tab is one tab shows that tab's label and no sub-row. */
 var NAVGROUPS = [
-  ["work",  "Work",   [["jobs","Worklist"],["mine","My Tasks",true],["off","Off-Fleet"],["cal","Calendar"]]],
-  ["fleet", "Fleet",  [["fleet","Fleet",true],["maint","Maintenance",true],["vessel","Engine & Parts"],["induct","Induction",true]]],
-  ["day",   "My Day", [["hours","Time"],["updates","Updates"]]],
-  ["me",    "Me",     [["profile","Profile"],["check","Checklists"],["sop","SOP"]]]
+  ["work",  "Activity", [["jobs","Worklist"],["mine","My Tasks",true],["off","Off-Fleet"],["cal","Calendar"]]],
+  ["fleet", "Fleet",    [["fleet","Fleet",true],["maint","Maintenance",true],["vessel","Engine & Parts"],["induct","Induction",true]]],
+  ["day",   "My Day",   [["hours","Time"],["updates","Updates"]]],
+  ["guides","Guides",   [["check","Checklists"],["sop","SOP"]]]
 ];
+// Profile lives OFF the tab bar — the 👤 button next to Sign out and the avatar
+// both open it, so navGroupOf() returning null just means "no group lit up".
 var NAVBADGES = {};                       // tab id -> count, painted by renderNav
 function navKids(g){ return g[2].filter(function(k){ return !k[2] || isMgrRole(); }); }
 function navGroupOf(tab){
@@ -1635,7 +1638,7 @@ function navGroupOf(tab){
     var kids=NAVGROUPS[i][2];
     for(var k=0;k<kids.length;k++) if(kids[k][0]===tab) return NAVGROUPS[i][0];
   }
-  return "work";
+  return null;                                   // e.g. Profile — opened from the header, no group
 }
 function navBadgeHtml(n){ return n>0 ? '<span class="tabbadge">'+(n>99?"99+":n)+'</span>' : ""; }
 function setNavBadge(tab, n){ NAVBADGES[tab]=n||0; renderNav(); }
