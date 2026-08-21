@@ -192,6 +192,23 @@
   .docitem{display:flex;align-items:center;gap:9px;border:1px solid var(--line);border-radius:9px;padding:9px 11px;font-size:13px;color:var(--navy);font-weight:600;text-decoration:none}
   .docitem .ic{font-size:17px}
   .adddoc{display:flex;align-items:center;justify-content:center;gap:8px;border:1.5px dashed #cbd5e1;border-radius:9px;padding:11px;font-size:13px;font-weight:700;color:var(--navy);cursor:pointer}
+  /* Profile + certificates */
+  .profcard{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;margin:12px 0;display:flex;align-items:center;gap:14px}
+  .profcard .pav{width:52px;height:52px;border-radius:50%;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;flex-shrink:0}
+  .profcard .pn{font-weight:800;font-size:16px}
+  .profcard .pm{font-size:12.5px;color:var(--muted);margin-top:2px}
+  .certcard{background:#fff;border:1px solid var(--line);border-radius:12px;padding:13px 14px;margin-bottom:10px;display:flex;gap:12px;align-items:flex-start;cursor:pointer}
+  .certcard .cic{width:40px;height:40px;border-radius:10px;background:#eef2f8;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;overflow:hidden}
+  .certcard .cic img{width:100%;height:100%;object-fit:cover;border-radius:10px}
+  .certcard .cbody{flex:1;min-width:0}
+  .certcard h3{margin:0;font-size:14.5px}
+  .certcard .csub{font-size:12px;color:var(--muted);margin-top:3px}
+  .certpill{display:inline-block;font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:20px;margin-top:6px;letter-spacing:.3px}
+  .certpill.ok{background:#e8f5ee;color:#1e7d46}
+  .certpill.soon{background:#fdf1de;color:#b06000}
+  .certpill.exp{background:#fdeaea;color:#c0392b}
+  .certpill.none{background:#eef2f8;color:#5a6b85}
+  .certdel{border:0;background:none;color:#b9c3d3;font-size:16px;cursor:pointer;padding:2px 4px;flex-shrink:0}
   .donebtn{width:100%;margin-top:10px;border:0;background:var(--ok);color:#fff;font-weight:bold;font-size:13.5px;padding:11px;border-radius:10px;cursor:pointer}
 
   /* photos */
@@ -831,6 +848,7 @@
     <div class="ptab-btn"        data-tab="hours" onclick="go('hours')">Time</div>
     <div class="ptab-btn"        data-tab="vessel" onclick="go('vessel')">Engine &amp; Parts</div>
     <div class="ptab-btn"        data-tab="sop"   onclick="go('sop')">SOP</div>
+    <div class="ptab-btn"        data-tab="profile" onclick="go('profile')">Profile</div>
   </div></div>
 
   <div class="wrap">
@@ -978,7 +996,17 @@
       <div id="sopList"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-21·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <!-- PROFILE — who you are + your certificates & tickets -->
+    <div id="tab-profile" class="hidden">
+      <div id="profCard"></div>
+      <div class="subbar"><h2>My certificates &amp; tickets</h2><span class="count" id="certCount"></span></div>
+      <p class="hello">Load your tickets and qualifications — coxswain, first aid, radio, anything — with the expiry date and a photo of the certificate, so Marine HQ always holds a current copy.</p>
+      <div id="certList"></div>
+      <div class="adddoc" onclick="openCertModal()">＋ Add a certificate</div>
+      <div id="teamCerts"></div>
+    </div>
+
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-22·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1079,6 +1107,53 @@
   <input type="file" id="wl_docs" multiple>
   <button class="go" onclick="submitWorkLog()">✓ Log it</button>
   <button class="cancel" onclick="closeModal('workLogModal')">Cancel</button>
+</div></div>
+
+<!-- Crew profile: add / edit a certificate or ticket -->
+<div class="modal" id="certModal"><div class="card2">
+  <h3 id="certMTitle">🎓 Add a certificate</h3>
+  <p class="mhint">Your ticket or qualification — with the expiry date and a photo or PDF of the certificate itself, so Marine HQ always holds a current copy.</p>
+  <div id="certForRow" style="display:none">
+    <label class="fld">Who's it for?</label>
+    <select class="fld-in" id="cert_for"></select>
+  </div>
+  <label class="fld">Certificate</label>
+  <input class="fld-in" id="cert_title" list="certSuggest" placeholder="e.g. Coxswain Grade 1 NC">
+  <datalist id="certSuggest">
+    <option value="Coxswain Grade 1 NC"></option>
+    <option value="Coxswain Grade 2 NC"></option>
+    <option value="Master <24m NC"></option>
+    <option value="Marine Engine Driver Grade 1"></option>
+    <option value="Marine Engine Driver Grade 2"></option>
+    <option value="Marine Engine Driver Grade 3"></option>
+    <option value="First Aid & CPR (HLTAID011)"></option>
+    <option value="Shipboard Safety Skill Set"></option>
+    <option value="Marine Radio — SROCP"></option>
+    <option value="Marine Radio — LROCP"></option>
+    <option value="Recreational Marine Driver Licence"></option>
+    <option value="Working at Heights"></option>
+    <option value="White Card (Construction Induction)"></option>
+    <option value="Forklift Licence"></option>
+    <option value="Trade Qualification"></option>
+  </datalist>
+  <label class="fld">Certificate / licence number <span class="fldhint">(optional)</span></label>
+  <input class="fld-in" id="cert_number" placeholder="As printed on the ticket">
+  <div style="display:flex;gap:8px">
+    <div style="flex:1">
+      <label class="fld">Issued <span class="fldhint">(opt)</span></label>
+      <input type="date" class="fld-in" id="cert_issued">
+    </div>
+    <div style="flex:1">
+      <label class="fld">Expires <span class="fldhint">(opt)</span></label>
+      <input type="date" class="fld-in" id="cert_expires">
+    </div>
+  </div>
+  <label class="fld">Photo or PDF of the certificate <span class="fldhint" id="cert_fileHint">(optional but worth doing)</span></label>
+  <input type="file" id="cert_file" accept="image/*,application/pdf">
+  <label class="fld">Notes <span class="fldhint">(optional)</span></label>
+  <input class="fld-in" id="cert_notes" placeholder="e.g. renewal booked for March">
+  <button class="go" id="certSaveBtn" onclick="submitCert()">✓ Save certificate</button>
+  <button class="cancel" onclick="closeModal('certModal')">Cancel</button>
 </div></div>
 
 <!-- Directors: add a new task / new worklist -->
@@ -1555,12 +1630,12 @@ function go(tab){
   var mb=document.querySelector('.ptab-btn[data-tab="maint"]'); if(mb) mb.style.display=mgr?"":"none";
   var ib=document.querySelector('.ptab-btn[data-tab="induct"]'); if(ib) ib.style.display=mgr?"":"none";
   var nb=document.querySelector('.ptab-btn[data-tab="mine"]'); if(nb) nb.style.display=mgr?"":"none";
-  ["jobs","mine","updates","cal","fleet","maint","induct","check","off","hours","vessel","sop"].forEach(function(t){ $("tab-"+t).classList.toggle("hidden", t!==tab); });
+  ["jobs","mine","updates","cal","fleet","maint","induct","check","off","hours","vessel","sop","profile"].forEach(function(t){ $("tab-"+t).classList.toggle("hidden", t!==tab); });
   document.querySelectorAll(".ptab-btn").forEach(function(b){ b.classList.toggle("active", b.dataset.tab===tab); });
   $("actBar").classList.toggle("hidden", tab!=="jobs");
   document.body.classList.toggle("has-actbar", tab==="jobs");
   if(tab==="updates"){ try{ MHQPush.render(); }catch(e){} }
-  var titles={jobs:["Marine HQ Crew","Your jobs, checklists & hours"],mine:["My Tasks","Just what's assigned or offered to you"],updates:["Updates","Crew activity — newest first"],cal:["Calendar","Scheduled jobs by day"],fleet:["Fleet","Director view — whole operation"],maint:["Maintenance","Care schedule — directors control"],induct:["Vessel induction","Particulars & specialised gear"],check:["Checklists","Tick & sign off"],off:["Off-Fleet","Deliveries, polishes & callouts"],hours:["Time clock","Clock in · EOD · hours"],vessel:["Engine & parts","Hour meters & spares on board"],sop:["SOP & guides","Marine HQ standards"]};
+  var titles={jobs:["Marine HQ Crew","Your jobs, checklists & hours"],mine:["My Tasks","Just what's assigned or offered to you"],updates:["Updates","Crew activity — newest first"],cal:["Calendar","Scheduled jobs by day"],fleet:["Fleet","Director view — whole operation"],maint:["Maintenance","Care schedule — directors control"],induct:["Vessel induction","Particulars & specialised gear"],check:["Checklists","Tick & sign off"],off:["Off-Fleet","Deliveries, polishes & callouts"],hours:["Time clock","Clock in · EOD · hours"],vessel:["Engine & parts","Hour meters & spares on board"],sop:["SOP & guides","Marine HQ standards"],profile:["My profile","You & your certificates"]};
   $("hdrTitle").textContent=titles[tab][0]; $("hdrSub").textContent=titles[tab][1];
   if(tab==="jobs") loadJobs();
   if(tab==="mine"){ renderMine(); loadJobs(); }   // instant from cache, then refresh (loadJobs re-renders mine)
@@ -1572,6 +1647,7 @@ function go(tab){
   if(tab==="check") loadChecklists();
   if(tab==="off") loadOffFleet();
   if(tab==="vessel") loadVessel();
+  if(tab==="profile"){ renderProfile(); loadCerts(); }
   updateStrip();
   window.scrollTo(0,0);
 }
@@ -5001,6 +5077,148 @@ function flagSpare(k,status){
   apiPost({action:"spareUpdate", email:ME.email, code:ME.code, by:ME.name, key:k, status:status})
     .then(function(r){ if(r&&r.ok){ toast("✓ Flagged "+status.toLowerCase()); loadVessel(); } else toast((r&&r.error)||"Couldn\u2019t save"); })
     .catch(function(){ toast("Couldn\u2019t connect"); });
+}
+
+/* ================= PROFILE + CERTIFICATES =================
+   Crew keep their own tickets & quals on file (name, number, expiry, a photo
+   or PDF of the certificate). Directors also see the whole team's, with
+   expired / expiring-soon flags, and can file one on a crew member's behalf. */
+var CERTS=[], TEAMCERTS=null, CERTROSTER=[], certEditId="";
+
+function renderProfile(){
+  if(!ME) return;
+  $("profCard").innerHTML =
+    '<div class="profcard"><div class="pav">'+esc(initials(ME.name))+'</div>'+
+    '<div><div class="pn">'+esc(ME.name)+'</div>'+
+    '<div class="pm">'+esc(ME.role||"Crew")+(ME.email?(' · '+esc(ME.email)):'')+'</div>'+
+    ((ME.vessels||[]).length?('<div class="pm">⚓ '+esc((ME.vessels||[]).join(", "))+'</div>'):'')+
+    (ME.signedAt?('<div class="pm">✓ Onboarding guide signed '+esc(ME.signedAt)+'</div>'):'')+
+    '</div></div>';
+  renderCerts();
+}
+// Same person? First-name tolerant, matching the roster convention ("Eric"
+// on the roster vs "Eric Perez" elsewhere) — mirrors the backend check.
+function certMine(c){
+  if(ME && ME.id && c.crewId && c.crewId===ME.id) return true;
+  var a=((c.crew||"")+"").toLowerCase().split(/[\s(]/)[0], b=((ME&&ME.name)||"").toLowerCase().split(/[\s(]/)[0];
+  return !!a && a===b;
+}
+function certStatus(c){
+  if(!c.expires) return {cls:"none", label:"no expiry recorded"};
+  var d=new Date(c.expires+"T00:00:00"); if(isNaN(d)) return {cls:"none", label:"no expiry recorded"};
+  var today=new Date(); today.setHours(0,0,0,0);
+  var days=Math.round((d-today)/86400000);
+  if(days<0) return {cls:"exp", label:"⚠ EXPIRED "+fmtDate(c.expires)};
+  if(days<=90) return {cls:"soon", label:"expires "+fmtDate(c.expires)+" · "+days+" day"+(days===1?"":"s")+" left"};
+  return {cls:"ok", label:"current · expires "+fmtDate(c.expires)};
+}
+// Expired first, then soonest expiry; no-expiry entries last.
+function certSort(a,b){
+  function k(c){ if(!c.expires) return 9e15; var d=new Date(c.expires+"T00:00:00").getTime(); return isNaN(d)?9e15:d; }
+  return k(a)-k(b) || ((a.title||"")>(b.title||"")?1:-1);
+}
+function certCard(c){
+  var st=certStatus(c);
+  var ic=(c.file&&c.file.img)?('<img src="'+esc(c.file.img)+'" alt="">'):'🎓';
+  var sub=[];
+  if(c.number) sub.push("No. "+esc(c.number));
+  if(c.issued) sub.push("issued "+fmtDate(c.issued));
+  return '<div class="certcard" onclick="openCertModal(\''+esc(c.id)+'\')">'+
+    '<div class="cic">'+ic+'</div>'+
+    '<div class="cbody"><h3>'+esc(c.title)+'</h3>'+
+    (sub.length?('<div class="csub">'+sub.join(" · ")+'</div>'):'')+
+    (c.notes?('<div class="csub">'+esc(c.notes)+'</div>'):'')+
+    (c.file?('<div class="csub"><a href="'+esc(c.file.url)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">📄 View the certificate ↗</a></div>'):'')+
+    '<div><span class="certpill '+st.cls+'">'+st.label+'</span></div></div>'+
+    ((certMine(c)||isMgrRole())?('<button class="certdel" title="Remove" onclick="event.stopPropagation();certDelete(\''+esc(c.id)+'\')">✕</button>'):'')+
+    '</div>';
+}
+function loadCerts(){
+  var q="fn=crewcerts&code="+encodeURIComponent(ME.code||"")+"&email="+encodeURIComponent(ME.email||"");
+  if(isMgrRole()) q+="&all=1";
+  apiGet(q).then(function(j){ if(j&&j.ok) applyCerts(j.certs, j.roster); }).catch(function(){});
+}
+function applyCerts(certs, roster){
+  if(!certs){ loadCerts(); return; }
+  if(roster) CERTROSTER=roster;
+  if(isMgrRole()){ TEAMCERTS=certs; CERTS=certs.filter(certMine); }
+  else CERTS=certs;
+  renderCerts();
+}
+function renderCerts(){
+  var el=$("certList"); if(!el) return;
+  var mine=CERTS.slice().sort(certSort);
+  $("certCount").textContent=mine.length?String(mine.length):"";
+  el.innerHTML = mine.length ? mine.map(certCard).join("")
+    : '<p class="hello" style="padding-top:0">Nothing on file yet — tap <b>＋ Add a certificate</b> below to load your first ticket.</p>';
+  renderTeamCerts();
+}
+function renderTeamCerts(){
+  var el=$("teamCerts"); if(!el) return;
+  if(!isMgrRole()||TEAMCERTS===null){ el.innerHTML=""; return; }
+  var others=TEAMCERTS.filter(function(c){ return !certMine(c); });
+  var byCrew={}; others.forEach(function(c){ (byCrew[c.crew]=byCrew[c.crew]||[]).push(c); });
+  var flagged=others.filter(function(c){ var s=certStatus(c); return s.cls==="exp"||s.cls==="soon"; });
+  var html='<div class="subbar" style="padding-top:24px"><h2>Team certificates</h2><span class="count">'+others.length+'</span></div>';
+  html+= flagged.length
+    ? '<p class="hello" style="padding-top:0">⚠️ '+flagged.length+' certificate'+(flagged.length>1?'s':'')+' expired or due within 90 days.</p>'
+    : '<p class="hello" style="padding-top:0">Everything the team has loaded, grouped by person.</p>';
+  Object.keys(byCrew).sort().forEach(function(n){
+    html+='<div class="subbar" style="padding-top:6px"><h2 style="font-size:14px">'+esc(n)+'</h2><span class="count">'+byCrew[n].length+'</span></div>'
+        + byCrew[n].sort(certSort).map(certCard).join("");
+  });
+  var have={}; TEAMCERTS.forEach(function(c){ have[((c.crew||"")+"").toLowerCase().split(/[\s(]/)[0]]=1; });
+  var missing=(CERTROSTER||[]).filter(function(n){ return !have[((n||"")+"").toLowerCase().split(/[\s(]/)[0]]; });
+  if(missing.length) html+='<p class="hello">Nothing on file yet for: <b>'+missing.map(esc).join(", ")+'</b>.</p>';
+  el.innerHTML=html;
+}
+function openCertModal(id){
+  var c=null;
+  if(id) c=CERTS.concat(TEAMCERTS||[]).filter(function(x){ return x.id===id; })[0]||null;
+  if(c && !certMine(c) && !isMgrRole()) return;
+  certEditId=c?c.id:"";
+  $("certMTitle").textContent=c?"🎓 Edit certificate":"🎓 Add a certificate";
+  $("cert_title").value=c?(c.title||""):"";
+  $("cert_number").value=c?(c.number||""):"";
+  $("cert_issued").value=c?(c.issued||""):"";
+  $("cert_expires").value=c?(c.expires||""):"";
+  $("cert_notes").value=c?(c.notes||""):"";
+  $("cert_file").value="";
+  $("cert_fileHint").textContent=(c&&c.file)?"(picking a new file replaces the current one)":"(optional but worth doing)";
+  // Directors adding a fresh one can file it for anyone; an edit stays with its owner.
+  var row=$("certForRow");
+  if(isMgrRole() && !c){
+    var names=[ME.name].concat((CERTROSTER||[]).filter(function(n){ return n!==ME.name; }));
+    $("cert_for").innerHTML=names.map(function(n){ return '<option>'+esc(n)+'</option>'; }).join("");
+    row.style.display="";
+  } else row.style.display="none";
+  $("certModal").classList.add("show");
+}
+function submitCert(){
+  var title=$("cert_title").value.trim();
+  if(!title){ toast("Give the certificate a name"); return; }
+  var btn=$("certSaveBtn"); btn.disabled=true; btn.textContent="Saving…";
+  function done(){ btn.disabled=false; btn.textContent="✓ Save certificate"; }
+  var body={ action:"crewCertSave", email:ME.email, code:ME.code, all:isMgrRole()?"1":"",
+    cert:{ title:title, number:$("cert_number").value.trim(), issued:$("cert_issued").value,
+           expires:$("cert_expires").value, notes:$("cert_notes").value.trim() } };
+  if(certEditId) body.id=certEditId;
+  else if(isMgrRole() && $("certForRow").style.display!=="none") body.forName=$("cert_for").value;
+  var f=($("cert_file").files||[])[0];
+  (f?fileToUpload(f,1600,0.8):Promise.resolve(null)).then(function(p){
+    if(p) body.file=p;
+    apiPost(body).then(function(r){
+      done();
+      if(r&&r.ok){ closeModal("certModal"); toast("✓ Certificate saved"); applyCerts(r.certs); }
+      else toast((r&&r.error)||"Couldn’t save");
+    }).catch(function(){ done(); toast("Couldn’t connect — check your signal and try again"); });
+  });
+}
+function certDelete(id){
+  if(!confirm("Remove this certificate? The saved copy of the ticket goes with it.")) return;
+  apiPost({action:"crewCertDelete", email:ME.email, code:ME.code, all:isMgrRole()?"1":"", id:id})
+    .then(function(r){ if(r&&r.ok){ toast("✓ Removed"); applyCerts(r.certs); } else toast((r&&r.error)||"Couldn’t remove"); })
+    .catch(function(){ toast("Couldn’t connect"); });
 }
 
 // live tick for the running shift timer
