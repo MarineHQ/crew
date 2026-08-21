@@ -274,6 +274,8 @@
   .ofs-edit{margin-top:9px}
   .ofs-edit .fld-ta{min-height:62px;font-size:13.5px}
   .ofadd{width:100%;border:1.5px dashed var(--orange);background:#fff;color:var(--orange);font-weight:bold;font-size:14px;padding:13px;border-radius:11px;cursor:pointer;margin-bottom:12px;font-family:inherit}
+  .ofgrouphdr{font-size:11.5px;font-weight:bold;text-transform:uppercase;letter-spacing:.6px;color:var(--orange);padding:14px 2px 8px}
+  .ofgrouphdr span{color:var(--muted);font-weight:normal;letter-spacing:0}
   .ofkind{font-size:10.5px;font-weight:bold;padding:3px 9px;border-radius:10px;background:var(--bg);color:var(--muted);white-space:nowrap}
   .ofkind.kdefect,.ofkind.kdamage{background:#fbeae6;color:var(--red)}
   .ofkind.kworkdone{background:#e8f4ee;color:var(--ok)}
@@ -3431,14 +3433,38 @@ function addPhoto(id){
    of the Fleet bar: loadJobs() and loadFleetVessels() drop any row with .oj.
    ============================================================================ */
 var OFJOBS=[], OFITEMS=[], OFJOB=null, OFTPL=null, OFTYPES=[], OFSEG="check", OFRAISESTEP=null;
+/* How the things we found are grouped. Comes from the backend so the tick
+   screen and the report can't drift; this is the fallback if it hasn't landed. */
+var OFGROUPS=[{id:"defect",name:"Defects & damage",report:"Defects and findings",kinds:["Defect","Damage","Missing / not supplied"]},
+              {id:"work",name:"Work carried out",report:"Work carried out",kinds:["Work done"]},
+              {id:"note",name:"Observations",report:"Observations",kinds:["Observation"]}];
+/* This app scrolls on <body> (html,body are height:100%), so window.scrollTo is
+   a no-op here. Open a job from halfway down the list and you'd land halfway
+   down the detail without this. */
+function ofScrollTop(){
+  try{ document.body.scrollTop=0; document.documentElement.scrollTop=0; window.scrollTo(0,0); }catch(e){}
+}
+function ofGroupItems(list){
+  var out=[], used={};
+  OFGROUPS.forEach(function(g){
+    var inG=(list||[]).filter(function(it){ return g.kinds.indexOf(it.kind||"Defect")>=0; });
+    inG.forEach(function(it){ used[it.key]=1; });
+    if(inG.length) out.push({ g:g, items:inG });
+  });
+  // Anything with an unknown kind still has to appear — never silently dropped.
+  var rest=(list||[]).filter(function(it){ return !used[it.key]; });
+  if(rest.length) out.push({ g:{id:"other",name:"Other",report:"Other"}, items:rest });
+  return out;
+}
 
 function ofTemplates(){ return OFTPL||{}; }
 function ofLoadTemplates(){
   if(OFTPL) return Promise.resolve(OFTPL);
   var c=_cGet(_ck("oftpl"));
-  if(c && c.templates){ OFTPL=c.templates; OFTYPES=c.types||[]; }
+  if(c && c.templates){ OFTPL=c.templates; OFTYPES=c.types||[]; if(c.groups&&c.groups.length) OFGROUPS=c.groups; }
   return apiGet("fn=onerofftemplates").then(function(j){
-    if(j&&j.ok){ OFTPL=j.templates||{}; OFTYPES=j.types||[]; _cSet(_ck("oftpl"), {templates:OFTPL,types:OFTYPES}); }
+    if(j&&j.ok){ OFTPL=j.templates||{}; OFTYPES=j.types||[]; if(j.groups&&j.groups.length) OFGROUPS=j.groups;
+                 _cSet(_ck("oftpl"), {templates:OFTPL,types:OFTYPES,groups:OFGROUPS}); }
     return OFTPL;
   }).catch(function(){ return OFTPL; });
 }
@@ -3527,9 +3553,9 @@ function ofOpen(key){
   var known=OFJOBS.filter(function(x){return x.key===key;})[0];
   if(known){ OFJOB=known; OFITEMS=known.items||[]; ofRenderDetail(); }
   ofLoadJob(key);
-  window.scrollTo(0,0);
+  ofScrollTop();
 }
-function ofBack(){ OFJOB=null; OFITEMS=[]; renderOffFleet(); window.scrollTo(0,0); }
+function ofBack(){ OFJOB=null; OFITEMS=[]; renderOffFleet(); ofScrollTop(); }
 
 /* ----------------------------------------------------------------- detail -- */
 function ofSegs(){
@@ -3682,18 +3708,23 @@ function ofRenderItems(){
   if(!list.length){
     html+='<div class="ofempty">Nothing recorded yet. Anything you notice — a mark, a fault, something missing, or work you did — record it here with a photo and it goes in the client\u2019s report.</div>';
   }else{
-    html+=list.map(function(it){
-      var kJs=(it.key||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
-      var np=(it.photos||[]).length;
-      var kind=it.kind||"Defect";
-      return '<div class="ofcard item" onclick="openWLJob(\''+esc(kJs)+'\')">'+
-        '<div class="oftop"><div style="flex:1"><h3>'+esc(it.task||"(item)")+'</h3>'+
-        '<div class="ofcode">'+esc(it.code||"")+'</div></div>'+
-        '<span class="ofkind k'+esc(kind.replace(/[^a-z]/gi,"").toLowerCase())+'">'+esc(kind)+'</span></div>'+
-        (it.desc?'<div class="ofmeta">'+esc(it.desc.split("\n")[0])+'</div>':'')+
-        '<div class="ofsub">'+(np?(np+" photo"+(np>1?"s":"")):"No photos yet")+
-        (it.raisedBy?(" · "+esc(firstName(it.raisedBy))):"")+' · '+esc(it.status||"To do")+'</div>'+
-      '</div>';
+    // One list, grouped — so it reads as a defects list on a delivery and as
+    // work carried out on a polish, without asking crew to choose a bucket.
+    html+=ofGroupItems(list).map(function(grp){
+      return '<div class="ofgrouphdr">'+esc(grp.g.name)+' <span>'+grp.items.length+'</span></div>'+
+        grp.items.map(function(it){
+          var kJs=(it.key||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
+          var np=(it.photos||[]).length;
+          var kind=it.kind||"Defect";
+          return '<div class="ofcard item" onclick="openWLJob(\''+esc(kJs)+'\')">'+
+            '<div class="oftop"><div style="flex:1"><h3>'+esc(it.task||"(item)")+'</h3>'+
+            '<div class="ofcode">'+esc(it.code||"")+'</div></div>'+
+            '<span class="ofkind k'+esc(kind.replace(/[^a-z]/gi,"").toLowerCase())+'">'+esc(kind)+'</span></div>'+
+            (it.desc?'<div class="ofmeta">'+esc(it.desc.split("\n")[0])+'</div>':'')+
+            '<div class="ofsub">'+(np?(np+" photo"+(np>1?"s":"")):'<b style="color:var(--amber)">No photos yet</b>')+
+            (it.raisedBy?(" · "+esc(firstName(it.raisedBy))):"")+' · '+esc(it.status||"To do")+'</div>'+
+          '</div>';
+        }).join("");
     }).join("");
   }
   body.innerHTML=html;
@@ -3934,8 +3965,8 @@ function ofBuildReport(){
     });
   }
 
-  /* --- items --- */
-  var itHTML = items.length ? items.map(function(it){
+  /* --- what we found, split the same way the app groups it --- */
+  function ofRepItem(it){
     var ph=(it.photos||[]).slice(0,8).map(function(p){
       return '<figure><img src="'+esc(driveImg(p.url))+'" alt="">'+(p.caption?'<figcaption>'+esc(p.caption)+'</figcaption>':'')+'</figure>';
     }).join("");
@@ -3947,7 +3978,13 @@ function ofBuildReport(){
       (d?'<div class="idesc">'+d+'</div>':'')+
       (ph?'<div class="iph">'+ph+'</div>':'')+
     '</div>';
-  }).join("") : '<p class="none">No items were recorded on this job.</p>';
+  }
+  var groups = items.length ? ofGroupItems(items) : [];
+  var itHTML = groups.length
+    ? groups.map(function(grp){
+        return '<h2>'+esc(grp.g.report||grp.g.name)+'</h2>'+grp.items.map(ofRepItem).join("");
+      }).join("")
+    : '<h2>What we found</h2><p class="none">No items were recorded on this job.</p>';
 
   var summary = isDelivery
     ? ('Marine HQ delivered <b>'+esc(j.vessel||"the vessel")+'</b>'+
@@ -4022,7 +4059,7 @@ function ofBuildReport(){
     '<h2>Job details</h2><table class="meta">'+rows.join("")+'</table>'+
     (j.notes?('<h2>Notes</h2><p>'+esc(j.notes)+'</p>'):'')+
     (clHTML?('<h2>'+esc(tpl.name)+'</h2>'+(OFREPFULL?'':'<p class="none">Only the steps with an issue or a remark are shown.</p>')+clHTML):'')+
-    '<h2>What we found</h2>'+itHTML+
+    itHTML+
     '<div class="sign">'+
       '<div><div class="line"></div><small>Marine HQ — signed &amp; dated</small></div>'+
       '<div><div class="line"></div><small>Received by — signed &amp; dated</small></div>'+
