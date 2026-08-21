@@ -37,6 +37,12 @@
   .ptab-btn.active{color:var(--orange);border-bottom-color:var(--orange)}
   .ptab-btn{position:relative}
   .tabbadge{position:absolute;top:4px;right:0;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:#e0271b;color:#fff;font-size:10.5px;font-weight:800;line-height:17px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.35)}
+  /* sub-row under the group row — the client portal pattern on the navy bar */
+  .ptabs-sub{background:rgba(255,255,255,.06);border-top:1px solid rgba(255,255,255,.14)}
+  .ptabs-subinner{display:flex;gap:7px;flex-wrap:wrap;justify-content:center;padding:9px 10px}
+  .psub-btn{position:relative;white-space:nowrap;border:1.5px solid rgba(255,255,255,.28);background:transparent;color:rgba(255,255,255,.78);border-radius:20px;padding:6px 13px;font-size:11px;font-weight:700;cursor:pointer;transition:background .2s,color .2s,border-color .2s}
+  .psub-btn.active{background:var(--orange);border-color:var(--orange);color:#fff}
+  .psub-btn .tabbadge{top:-7px;right:-6px}
   .vesselbar{display:flex;align-items:center;gap:9px;margin:8px 2px 2px;max-width:100%;min-width:0;overflow:hidden}
   .vesselbar:empty{display:none}
   .vesselbar label{font-size:12px;font-weight:bold;color:var(--muted)}
@@ -835,21 +841,12 @@
     <button onclick="go('hours')">View</button>
   </div>
 
-  <div class="ptabs-bar"><div class="ptabs-inner">
-    <div class="ptab-btn active" data-tab="jobs"  onclick="go('jobs')">Worklist</div>
-    <div class="ptab-btn mgrtab" data-tab="mine" onclick="go('mine')" style="display:none">My Tasks</div>
-    <div class="ptab-btn"        data-tab="updates" onclick="go('updates')">Updates</div>
-    <div class="ptab-btn"        data-tab="cal" onclick="go('cal')">Calendar</div>
-    <div class="ptab-btn mgrtab" data-tab="fleet" onclick="go('fleet')" style="display:none">Fleet</div>
-    <div class="ptab-btn mgrtab" data-tab="maint" onclick="go('maint')" style="display:none">Maintenance</div>
-    <div class="ptab-btn mgrtab" data-tab="induct" onclick="go('induct')" style="display:none">Induction</div>
-    <div class="ptab-btn"        data-tab="check" onclick="go('check')">Checklists</div>
-    <div class="ptab-btn"        data-tab="off"   onclick="go('off')">Off-Fleet</div>
-    <div class="ptab-btn"        data-tab="hours" onclick="go('hours')">Time</div>
-    <div class="ptab-btn"        data-tab="vessel" onclick="go('vessel')">Engine &amp; Parts</div>
-    <div class="ptab-btn"        data-tab="sop"   onclick="go('sop')">SOP</div>
-    <div class="ptab-btn"        data-tab="profile" onclick="go('profile')">Profile</div>
-  </div></div>
+  <!-- Grouped nav, same pattern as the client portal: a group row + a sub-row.
+       Both rows are rendered by renderNav() from NAVGROUPS — nothing static here. -->
+  <div class="ptabs-bar">
+    <div class="ptabs-inner" id="navGroups"></div>
+    <div class="ptabs-sub"><div class="ptabs-subinner" id="navSubs"></div></div>
+  </div>
 
   <div class="wrap">
     <!-- JOBS -->
@@ -1006,7 +1003,7 @@
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-22·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-22·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1621,17 +1618,53 @@ function legacySession(){
   }catch(_){}
 }
 
-/* ================= tabs ================= */
+/* ================= tabs =================
+   Grouped nav (the client portal pattern): a group row + a sub-row of pills.
+   Sub-tabs marked mgr:true only exist for Directors/Managers; a group whose
+   only visible sub-tab is one tab shows that tab's label and no sub-row. */
+var NAVGROUPS = [
+  ["work",  "Work",   [["jobs","Worklist"],["mine","My Tasks",true],["off","Off-Fleet"],["cal","Calendar"]]],
+  ["fleet", "Fleet",  [["fleet","Fleet",true],["maint","Maintenance",true],["vessel","Engine & Parts"],["induct","Induction",true]]],
+  ["day",   "My Day", [["hours","Time"],["updates","Updates"]]],
+  ["me",    "Me",     [["profile","Profile"],["check","Checklists"],["sop","SOP"]]]
+];
+var NAVBADGES = {};                       // tab id -> count, painted by renderNav
+function navKids(g){ return g[2].filter(function(k){ return !k[2] || isMgrRole(); }); }
+function navGroupOf(tab){
+  for(var i=0;i<NAVGROUPS.length;i++){
+    var kids=NAVGROUPS[i][2];
+    for(var k=0;k<kids.length;k++) if(kids[k][0]===tab) return NAVGROUPS[i][0];
+  }
+  return "work";
+}
+function navBadgeHtml(n){ return n>0 ? '<span class="tabbadge">'+(n>99?"99+":n)+'</span>' : ""; }
+function setNavBadge(tab, n){ NAVBADGES[tab]=n||0; renderNav(); }
+function renderNav(){
+  var gr=$("navGroups"), sb=$("navSubs"); if(!gr||!sb) return;
+  var curG=navGroupOf(TAB);
+  gr.innerHTML=NAVGROUPS.map(function(g){
+    var kids=navKids(g); if(!kids.length) return "";
+    var n=kids.reduce(function(s,k){ return s+(NAVBADGES[k[0]]||0); },0);
+    var label=(kids.length===1)?kids[0][1]:g[1];   // lone tab wears its own name
+    return '<div class="ptab-btn'+(g[0]===curG?" active":"")+'" onclick="navGroup(\''+g[0]+'\')">'+label+navBadgeHtml(n)+'</div>';
+  }).join("");
+  var grp=NAVGROUPS.filter(function(g){ return g[0]===curG; })[0];
+  var kids=grp?navKids(grp):[];
+  sb.innerHTML = kids.length>1 ? kids.map(function(k){
+    return '<div class="psub-btn'+(k[0]===TAB?" active":"")+'" data-tab="'+k[0]+'" onclick="go(\''+k[0]+'\')">'+k[1]+navBadgeHtml(NAVBADGES[k[0]]||0)+'</div>';
+  }).join("") : "";
+  document.querySelector(".ptabs-sub").style.display = kids.length>1 ? "" : "none";
+}
+// Tapping a group opens its first visible tab (the sub-row takes it from there).
+function navGroup(g){
+  var grp=NAVGROUPS.filter(function(x){ return x[0]===g; })[0];
+  var kids=grp?navKids(grp):[];
+  if(kids.length) go(kids[0][0]);
+}
 function go(tab){
   TAB=tab;
-  // Fleet tab is Directors/Managers only.
-  var mgr=isMgrRole();
-  var fb=document.querySelector('.ptab-btn[data-tab="fleet"]'); if(fb) fb.style.display=mgr?"":"none";
-  var mb=document.querySelector('.ptab-btn[data-tab="maint"]'); if(mb) mb.style.display=mgr?"":"none";
-  var ib=document.querySelector('.ptab-btn[data-tab="induct"]'); if(ib) ib.style.display=mgr?"":"none";
-  var nb=document.querySelector('.ptab-btn[data-tab="mine"]'); if(nb) nb.style.display=mgr?"":"none";
   ["jobs","mine","updates","cal","fleet","maint","induct","check","off","hours","vessel","sop","profile"].forEach(function(t){ $("tab-"+t).classList.toggle("hidden", t!==tab); });
-  document.querySelectorAll(".ptab-btn").forEach(function(b){ b.classList.toggle("active", b.dataset.tab===tab); });
+  renderNav();
   $("actBar").classList.toggle("hidden", tab!=="jobs");
   document.body.classList.toggle("has-actbar", tab==="jobs");
   if(tab==="updates"){ try{ MHQPush.render(); }catch(e){} }
@@ -2019,11 +2052,7 @@ function mineSetSeg(s){ MINESEG=s; renderMine(); }
 // Count on the My Tasks tab button, so a director sees pending approvals without
 // opening the tab. Same .tabbadge treatment as the Worklist count.
 function renderMineTabBadge(){
-  var btn=document.querySelector('.ptab-btn[data-tab="mine"]'); if(!btn) return;
-  var n=isMgrRole() ? (REQJOBS||[]).length : 0;
-  var b=btn.querySelector('.tabbadge');
-  if(n>0){ if(!b){ b=document.createElement('span'); b.className='tabbadge'; btn.appendChild(b); } b.textContent=n>99?'99+':n; }
-  else if(b){ b.parentNode.removeChild(b); }
+  setNavBadge("mine", isMgrRole() ? (REQJOBS||[]).length : 0);
 }
 function reqTs(j){ var m=/(\d{10,})/.exec((j&&j.key)||""); return m?+m[1]:0; }   // key is "wl:<ms>"
 // The approval queue: everything a crew member (or owner) has raised that isn't on
@@ -2197,8 +2226,8 @@ function updLastSeen(){ try{ return parseInt(localStorage.getItem(updSeenKey())|
 function markUpdatesRead(){ try{ var m=0; (UPDATES||[]).forEach(function(e){ if(e.at>m)m=e.at; }); if(m) localStorage.setItem(updSeenKey(), String(m)); }catch(e){} updateUpdBadge(); }
 function updUnread(){ var ls=updLastSeen(); return (UPDATES||[]).filter(function(e){ return e.at>ls; }).length; }
 function updateUpdBadge(){
-  var n=updUnread(), btn=document.querySelector('.ptab-btn[data-tab="updates"]');
-  if(btn){ var b=btn.querySelector('.tabbadge'); if(n>0){ if(!b){b=document.createElement('span');b.className='tabbadge';btn.appendChild(b);} b.textContent=n>99?'99+':n; } else if(b){ b.parentNode.removeChild(b); } }
+  var n=updUnread();
+  setNavBadge("updates", n);
   try{ if(navigator.setAppBadge){ n>0?navigator.setAppBadge(n):navigator.clearAppBadge(); } }catch(e){}
 }
 function updIcon(a){ a=(a||"").toLowerCase(); return /tagged/.test(a)?"🔔":(/photo/.test(a)?"📷":(/document/.test(a)?"📄":(/approv/.test(a)?"📤":(/marked/.test(a)?"✓":"📝")))); }
@@ -2252,12 +2281,7 @@ function beep(){
 // Red count badge on the Worklist tab = new crew activity (managers only).
 function updateJobsBadge(){
   var n = (typeof CREWJOBS!=="undefined" && CREWJOBS) ? CREWJOBS.filter(jobRecent).length : 0;
-  var btn = document.querySelector('.ptab-btn[data-tab="jobs"]');
-  if(btn){
-    var b = btn.querySelector('.tabbadge');
-    if(n>0){ if(!b){ b=document.createElement('span'); b.className='tabbadge'; btn.appendChild(b); } b.textContent = n>99?'99+':n; }
-    else if(b){ b.parentNode.removeChild(b); }
-  }
+  setNavBadge("jobs", n);
   // Bonus: real home-screen badge where the platform supports it (Android/desktop PWAs; iOS ignores it).
   try{ if(navigator.setAppBadge){ n>0 ? navigator.setAppBadge(n) : navigator.clearAppBadge(); } }catch(e){}
 }
