@@ -890,7 +890,7 @@
       <div id="sopList"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-19·f</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-19·g</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2172,9 +2172,11 @@ function renderSegBody(){
     empty="You haven't raised anything yet.<br><span style=\"font-size:12px\">Everything you raise or log stays here as your record.</span>";
     list=list.map(function(j){
       var st=(j.status||"").toLowerCase(), who=(j.allocatedTo||"").split(",")[0].trim();
+      var okBy=(j.reqOk&&j.reqOk.by)||"";           // who said yes, not who it landed with
+      var okTxt=okBy?(' by '+esc(okBy)):'';
       var chip = st==="requested" ? '<span class="acptchip urgent">⏳ Waiting on Marine HQ</span>'
-        : (st.indexOf("complete")>=0 ? '<span class="acptchip ok">✓ Done</span>'
-        : '<span class="acptchip ok">✓ Approved'+(who?(' · '+esc(who)):'')+'</span>');
+        : (st.indexOf("complete")>=0 ? ('<span class="acptchip ok">✓ Done</span>'+(okBy?(' <span class="acptchip ok">✓ Approved'+okTxt+'</span>'):''))
+        : '<span class="acptchip ok">✓ Approved'+okTxt+'</span>'+(who?(' <span class="acptchip">→ '+esc(who)+'</span>'):''));
       return segCard(j, chip);
     });
   }
@@ -2734,6 +2736,7 @@ function openWLJob(key){
     ((isMgrRole() && j.zoho)?('<div class="sec"><h4>Source</h4><div class="srcref">🔗 Matched to <b>Zoho '+esc(String(j.zoho).slice(-7))+'</b>'+(j.project?(' · '+esc(j.project)):'')+'<div class="srcsub">Zoho task id '+esc(j.zoho)+'</div></div></div>'):'')+
     ((isMgrRole() && j.zoho)?('<div class="sec"><h4>Send to Michael’s Zoho</h4><button onclick="zohoSendJob(\''+esc(key)+'\')" style="width:100%;border:0;background:#1a2b5c;color:#fff;font-weight:800;font-size:13px;padding:12px;border-radius:10px;cursor:pointer">📷 Send this job’s photos + note to his Zoho</button><div class="srcsub" style="margin-top:6px">Posts the photos (as links) and a note onto the matched Zoho task.</div></div>'):'')+
     ((isMgrRole() && j.zoho)?('<div class="sec"><h4>From Michael’s Zoho <span style="font-size:10px;color:#9aa7b4;font-weight:700">directors only</span></h4><div id="zinbox" style="font-size:12.5px;color:var(--muted)">Loading his Zoho comments…</div></div>'):'')+
+    ((j.reqOk&&j.reqOk.by)?('<div class="sec"><h4>Approved</h4><div class="body" style="font-size:13px">\u2713 Approved by <b>'+esc(j.reqOk.by)+'</b>'+(j.reqOk.at?(' \u00b7 '+esc(dayLabel(j.reqOk.at))):'')+(j.raisedBy?('<br><span style="color:var(--muted)">Raised by '+esc(j.raisedBy)+'</span>'):'')+'</div></div>'):'')+
     (isMgrRole()?('<div class="sec"><h4>Worklist</h4><div class="subnote-box" onclick="wlMoveList(\''+esc(key)+'\')">\ud83d\udccb '+esc(j.list||"\u2014 not on a worklist \u2014")+' <span class="wlnote-ed">\u270e</span></div></div>'):'')+
     ((j.subNote||isMgrRole())?('<div class="sec"><h4>Sub note</h4><div class="subnote-box'+(j.subNote?"":" empty")+'"'+(isMgrRole()?(' onclick="wlSetSubNote(\''+esc(key)+'\')"'):'')+'>'+(j.subNote?('📌 '+esc(j.subNote)):'＋ add a quick note')+(isMgrRole()?' <span class="wlnote-ed">✎</span>':'')+'</div></div>'):'')+
     reqBlock+
