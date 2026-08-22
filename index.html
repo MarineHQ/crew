@@ -993,6 +993,15 @@
       <div class="adddoc" style="margin-top:12px" onclick="openSpareForm()">＋ Add a part to the register</div>
     </div>
 
+    <!-- TRIP / PASSAGE LOG -->
+    <div id="tab-trip" class="hidden">
+      <div id="vesselBarT"></div>
+      <div class="subbar"><h2>Trip log</h2><span class="count" id="tripCount"></span></div>
+      <p class="hello" style="padding-top:0">Log the passage: tanks at departure, hour meters at arrival. The readings feed straight into the servicing schedule &mdash; anything falling due on hours shows up the moment you close the trip.</p>
+      <button class="eodbtn" onclick="openTripStart()">&#9973; Start a trip &rarr;</button>
+      <div id="tripsWrap"></div>
+    </div>
+
     <!-- SOP -->
     <div id="tab-sop" class="hidden">
       <div class="subbar"><h2>SOP &amp; guides</h2></div>
@@ -1010,7 +1019,7 @@
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-22·d</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-22·e</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1307,6 +1316,51 @@
   <div id="h_warn"></div>
   <button class="go" id="h_save" onclick="saveHours()">Save reading</button>
   <button class="cancel" onclick="closeModal('hoursModal')">Cancel</button>
+</div></div>
+
+<!-- Trip log — departure -->
+<div class="modal" id="tripStartModal"><div class="card2">
+  <h3>Start a trip</h3>
+  <p class="mhint">Before you let go — where from, and the state of the tanks.</p>
+  <label class="fld">Yacht</label>
+  <select class="fld-in" id="t_vessel"></select>
+  <label class="fld">Departure point</label>
+  <input class="fld-in" id="t_from" placeholder="e.g. Southport Yacht Club">
+  <label class="fld">Fuel level</label>
+  <select class="fld-in" id="t_fuel"><option>Full</option><option>3/4</option><option selected>1/2</option><option>1/4</option><option>Low</option></select>
+  <label class="fld">Fresh water</label>
+  <select class="fld-in" id="t_water"><option selected>Full</option><option>3/4</option><option>1/2</option><option>1/4</option><option>Low</option></select>
+  <label class="fld">Black water (holding tank)</label>
+  <select class="fld-in" id="t_black"><option selected>Empty</option><option>1/4</option><option>1/2</option><option>3/4</option><option>Full</option></select>
+  <label class="fld">People on board <span class="fldhint">(opt)</span></label>
+  <input class="fld-in" id="t_pob" inputmode="numeric" placeholder="e.g. 6">
+  <label class="fld">Notes <span class="fldhint">(opt)</span></label>
+  <input class="fld-in" id="t_notes" placeholder="e.g. weekend run to the Broadwater">
+  <button class="go" id="t_save" onclick="saveTripStart()">Start the trip</button>
+  <button class="cancel" onclick="closeModal('tripStartModal')">Cancel</button>
+</div></div>
+
+<!-- Trip log — arrival -->
+<div class="modal" id="tripArriveModal"><div class="card2">
+  <h3>Complete the trip</h3>
+  <p class="mhint" id="ta_hint">Arrival point, tanks, and every hour meter &mdash; read each gauge and tap it in.</p>
+  <div id="ta_form">
+    <label class="fld">Arrival point</label>
+    <input class="fld-in" id="ta_to" placeholder="e.g. Wave Break Island">
+    <label class="fld">Fuel level</label>
+    <select class="fld-in" id="ta_fuel"><option>Full</option><option>3/4</option><option>1/2</option><option selected>1/4</option><option>Low</option></select>
+    <label class="fld">Fresh water</label>
+    <select class="fld-in" id="ta_water"><option>Full</option><option>3/4</option><option selected>1/2</option><option>1/4</option><option>Low</option></select>
+    <label class="fld">Black water (holding tank)</label>
+    <select class="fld-in" id="ta_black"><option selected>Empty</option><option>1/4</option><option>1/2</option><option>3/4</option><option>Full</option></select>
+    <p class="mhint">Holding tank should come home <b>empty</b> &mdash; anything else gets flagged for a pump-out.</p>
+    <div id="ta_meters"></div>
+    <label class="fld">Notes <span class="fldhint">(opt)</span></label>
+    <input class="fld-in" id="ta_notes" placeholder="e.g. smooth run, 24 kn cruise">
+    <button class="go" id="ta_save" onclick="saveTripArrive()">Log arrival &amp; update servicing</button>
+  </div>
+  <div id="ta_result" style="display:none"></div>
+  <button class="cancel" id="ta_cancel" onclick="closeModal('tripArriveModal');loadTrips()">Close</button>
 </div></div>
 
 <!-- Add / edit a spare -->
@@ -1630,7 +1684,7 @@ function legacySession(){
    Sub-tabs marked mgr:true only exist for Directors/Managers; a group whose
    only visible sub-tab is one tab shows that tab's label and no sub-row. */
 var NAVGROUPS = [
-  ["work",  "Activity", [["jobs","Worklist"],["mine","My Tasks",true],["off","Off-Fleet"],["cal","Calendar"]]],
+  ["work",  "Activity", [["jobs","Worklist"],["mine","My Tasks",true],["off","Off-Fleet"],["trip","Trip Log"],["cal","Calendar"]]],
   ["fleet", "Fleet",    [["fleet","Fleet",true],["maint","Maintenance",true],["vessel","Engine & Parts"],["induct","Induction",true]]],
   ["day",   "My Day",   [["hours","Time"],["updates","Updates"]]],
   ["guides","Guides",   [["check","Checklists"],["sop","SOP"]]]
@@ -1672,12 +1726,12 @@ function navGroup(g){
 }
 function go(tab){
   TAB=tab;
-  ["jobs","mine","updates","cal","fleet","maint","induct","check","off","hours","vessel","sop","profile"].forEach(function(t){ $("tab-"+t).classList.toggle("hidden", t!==tab); });
+  ["jobs","mine","updates","cal","fleet","maint","induct","check","off","trip","hours","vessel","sop","profile"].forEach(function(t){ $("tab-"+t).classList.toggle("hidden", t!==tab); });
   renderNav();
   $("actBar").classList.toggle("hidden", tab!=="jobs");
   document.body.classList.toggle("has-actbar", tab==="jobs");
   if(tab==="updates"){ try{ MHQPush.render(); }catch(e){} }
-  var titles={jobs:["Marine HQ Crew","Your jobs, checklists & hours"],mine:["My Tasks","Just what's assigned or offered to you"],updates:["Updates","Crew activity — newest first"],cal:["Calendar","Scheduled jobs by day"],fleet:["Fleet","Director view — whole operation"],maint:["Maintenance","Care schedule — directors control"],induct:["Vessel induction","Particulars & specialised gear"],check:["Checklists","Tick & sign off"],off:["Off-Fleet","Deliveries, polishes & callouts"],hours:["Time clock","Clock in · EOD · hours"],vessel:["Engine & parts","Hour meters & spares on board"],sop:["SOP & guides","Marine HQ standards"],profile:["My profile","You & your certificates"]};
+  var titles={jobs:["Marine HQ Crew","Your jobs, checklists & hours"],mine:["My Tasks","Just what's assigned or offered to you"],updates:["Updates","Crew activity — newest first"],cal:["Calendar","Scheduled jobs by day"],fleet:["Fleet","Director view — whole operation"],maint:["Maintenance","Care schedule — directors control"],induct:["Vessel induction","Particulars & specialised gear"],check:["Checklists","Tick & sign off"],off:["Off-Fleet","Deliveries, polishes & callouts"],trip:["Trip Log","Passages — tanks out, hours in"],hours:["Time clock","Clock in · EOD · hours"],vessel:["Engine & parts","Hour meters & spares on board"],sop:["SOP & guides","Marine HQ standards"],profile:["My profile","You & your certificates"]};
   $("hdrTitle").textContent=titles[tab][0]; $("hdrSub").textContent=titles[tab][1];
   if(tab==="jobs") loadJobs();
   if(tab==="mine"){ renderMine(); loadJobs(); }   // instant from cache, then refresh (loadJobs re-renders mine)
@@ -1688,6 +1742,7 @@ function go(tab){
   if(tab==="hours"){ renderClock(); loadShifts(); }
   if(tab==="check") loadChecklists();
   if(tab==="off") loadOffFleet();
+  if(tab==="trip") loadTrips();
   if(tab==="vessel") loadVessel();
   if(tab==="profile"){ renderProfile(); loadCerts(); }
   updateStrip();
@@ -5040,6 +5095,132 @@ function saveHours(){
         else { closeModal("hoursModal"); toast("✓ "+r.reading+" hrs logged"); loadVessel(); }
       } else toast((r&&r.error)||"Couldn\u2019t save");
     }).catch(function(){ btn.disabled=false; btn.textContent="Save reading"; toast("Couldn\u2019t connect"); });
+}
+
+/* ================= trip / passage log =================
+   Tanks out, hours in. Departure logs the tank state; arrival logs the
+   hour meters, which land in the same Engine Hours store the servicing
+   schedule reads — so "due on hours run" updates the moment a trip closes. */
+var TRIPS=null, TRIPOPEN=null;
+
+function curVesselT(){ return curVesselH(); }
+function renderVesselBarT(){
+  var host=$("vesselBarT"); if(!host) return;
+  var mine=myVessels();
+  if(mine.length<2){ host.innerHTML=""; return; }
+  var cur=curVesselT();
+  host.innerHTML='<div class="chips boatchips">'+mine.map(function(v){
+    return '<div class="chip '+(v===cur?"on":"")+'" onclick="pickVesselT(\''+v.replace(/'/g,"\\'")+'\')">'+esc(v)+'</div>';
+  }).join("")+'</div>';
+}
+function pickVesselT(v){ CURVESSEL=v; renderVesselBarT(); loadTrips(); }
+
+function loadTrips(){
+  renderVesselBarT();
+  var v=curVesselT();
+  $("tripsWrap").innerHTML='<p class="hello">Loading…</p>';
+  apiGet("fn=trips&key="+encodeURIComponent(ME.code||"")+"&vessel="+encodeURIComponent(v))
+    .then(function(j){ if(j&&j.ok){ TRIPS=j; renderTrips(); } else $("tripsWrap").innerHTML='<p class="hello">Couldn\u2019t load the trip log.</p>'; })
+    .catch(function(){ $("tripsWrap").innerHTML='<p class="hello">Couldn\u2019t connect.</p>'; });
+  // meters come along for the arrival form
+  apiGet("fn=hours&vessel="+encodeURIComponent(v)+"&key="+encodeURIComponent(ME.code||""))
+    .then(function(j){ if(j&&j.ok) HOURS=j; }).catch(function(){});
+}
+function tripCard(t){
+  var open=t.status==="Underway";
+  var tanks=function(f,w,b){ var p=[]; if(f)p.push("Fuel "+esc(f)); if(w)p.push("Water "+esc(w)); if(b)p.push("Black "+esc(b)); return p.join(" · "); };
+  var h=(t.hours||[]).map(function(x){ return esc(x.unit)+" <b>"+x.reading+"</b>"; }).join(" · ");
+  return '<div class="hcard">'+
+    '<div class="hu">'+(open?"&#9973; UNDERWAY":"&#10003; "+esc(t.arrived||""))+' &mdash; '+esc(t.vessel)+'</div>'+
+    '<div style="font-weight:800;color:var(--navy);font-size:15px;margin:2px 0">'+esc(t.from)+' &rarr; '+(open?"&hellip;":esc(t.to))+'</div>'+
+    '<div class="hmeta">Out '+esc(t.departed)+(t.by?(' &middot; '+esc(t.by)):'')+'<br>'+
+      'Departure: '+tanks(t.fuelDepart,t.waterDepart,t.blackDepart)+
+      (open?'':'<br>Arrival: '+tanks(t.fuelArrive,t.waterArrive,t.blackArrive))+
+      (h?('<br>Meters: '+h):'')+
+      (t.blackFlag?'<br><span style="color:#C0392B;font-weight:700">&#9888; Black water not empty at arrival &mdash; pump-out needed</span>':'')+
+      (t.notes?('<br>'+esc(t.notes).replace(/\n/g,"<br>")):'')+'</div>'+
+    (open?'<button class="eodbtn" style="margin-top:8px" onclick="openTripArrive(\''+esc(t.key)+'\')">Complete the trip &rarr;</button>':'')+
+    '</div>';
+}
+function renderTrips(){
+  var open=(TRIPS&&TRIPS.open)||[], done=((TRIPS&&TRIPS.trips)||[]).filter(function(t){return t.status!=="Underway";});
+  $("tripCount").textContent=(open.length+done.length)?((open.length?open.length+" underway · ":"")+done.length+" logged"):"";
+  if(!open.length && !done.length){ $("tripsWrap").innerHTML='<p class="hello">No passages logged yet. Tap <b>Start a trip</b> when you let go.</p>'; return; }
+  $("tripsWrap").innerHTML=open.map(tripCard).join("")+done.map(tripCard).join("");
+}
+function openTripStart(){
+  var mine=myVessels(), cur=curVesselT()||mine[0]||"";
+  $("t_vessel").innerHTML=mine.map(function(v){return '<option'+(v===cur?" selected":"")+'>'+esc(v)+'</option>';}).join("");
+  ["t_from","t_pob","t_notes"].forEach(function(id){ $(id).value=""; });
+  $("tripStartModal").classList.add("show");
+}
+function saveTripStart(){
+  var from=($("t_from").value||"").trim();
+  if(!from){ toast("Where are you leaving from?"); return; }
+  var btn=$("t_save"); btn.disabled=true; btn.textContent="Starting…";
+  apiPost({action:"tripStart", email:ME.email, code:ME.code, key:ME.code, by:ME.name,
+           vessel:$("t_vessel").value, from:from, fuel:$("t_fuel").value,
+           water:$("t_water").value, black:$("t_black").value,
+           pob:$("t_pob").value, notes:$("t_notes").value})
+    .then(function(r){
+      btn.disabled=false; btn.textContent="Start the trip";
+      if(r&&r.ok){ closeModal("tripStartModal"); toast("&#9973; Trip started — safe passage"); loadTrips(); }
+      else toast((r&&r.error)||"Couldn\u2019t start the trip");
+    }).catch(function(){ btn.disabled=false; btn.textContent="Start the trip"; toast("Couldn\u2019t connect"); });
+}
+function openTripArrive(key){
+  TRIPOPEN=key;
+  var units=((HOURS&&HOURS.units)||[]).map(function(u){return u;});
+  var defaults=["Port engine","Stbd engine","Port genset","Stabilisers","Watermaker"];
+  var known=units.map(function(u){return u.unit;});
+  var all=units.concat(defaults.filter(function(d){return known.indexOf(d)<0;}).map(function(d){return {unit:d};}));
+  $("ta_meters").innerHTML='<label class="fld" style="margin-top:10px">Hour meters &mdash; read each gauge</label>'+
+    all.map(function(u,i){
+      return '<label class="fld" style="font-weight:400">'+esc(u.unit)+(u.reading?(' <span class="fldhint">(last '+u.reading+' hrs)</span>'):'')+'</label>'+
+        '<input class="fld-in ta-meter" data-unit="'+esc(u.unit)+'" inputmode="decimal" placeholder="'+(u.reading?('e.g. '+(u.reading+8)):'hours')+'">';
+    }).join("");
+  $("ta_form").style.display=""; $("ta_result").style.display="none"; $("ta_result").innerHTML="";
+  $("ta_to").value=""; $("ta_notes").value="";
+  $("ta_save").disabled=false; $("ta_save").innerHTML="Log arrival &amp; update servicing";
+  $("tripArriveModal").classList.add("show");
+}
+function saveTripArrive(){
+  var to=($("ta_to").value||"").trim();
+  if(!to){ toast("Where did you arrive?"); return; }
+  var hours=[];
+  document.querySelectorAll(".ta-meter").forEach(function(el){
+    var v=(el.value||"").trim(); if(v) hours.push({unit:el.getAttribute("data-unit"), reading:v});
+  });
+  var btn=$("ta_save"); btn.disabled=true; btn.textContent="Logging…";
+  apiPost({action:"tripArrive", email:ME.email, code:ME.code, key:ME.code, by:ME.name,
+           tripKey:TRIPOPEN, to:to, fuel:$("ta_fuel").value, water:$("ta_water").value,
+           black:$("ta_black").value, hours:hours, notes:$("ta_notes").value})
+    .then(function(r){
+      btn.disabled=false; btn.innerHTML="Log arrival &amp; update servicing";
+      if(!(r&&r.ok)){ toast((r&&r.error)||"Couldn\u2019t log the arrival"); return; }
+      // The pay-off: show what the fresh readings mean for servicing.
+      var bits=[];
+      bits.push('<div class="hcard"><div class="hu">&#10003; Trip logged &mdash; '+esc(r.vessel)+'</div>'+
+        '<div class="hmeta">'+(r.logged||[]).map(function(x){return esc(x.unit)+" <b>"+x.reading+" hrs</b>";}).join(" · ")+'</div></div>');
+      if(r.blackFlag) bits.push('<div class="hdue od"><h4>&#9888; Black water tank not empty</h4><div class="hd-meta">Flagged on the trip — book a pump-out before her next run.</div></div>');
+      (r.warnings||[]).forEach(function(w){ bits.push('<div class="hswarn">&#9888;&#65039; '+esc(w)+'</div>'); });
+      var due=(r.due||[]);
+      if(due.length){
+        bits.push('<div class="subbar" style="padding-top:12px"><h2>Now falling due on hours</h2></div>'+
+          due.map(function(x){
+            var od=x.status==="OVERDUE";
+            return '<div class="hdue'+(od?" od":"")+'"><span class="jcode">'+esc(x.code)+'</span><h4>'+esc(x.job)+'</h4>'+
+              '<div class="hd-meta">'+esc(x.unit)+' &middot; every '+x.hoursInterval+' hrs &middot; '+
+              (od?('<b>'+Math.abs(x.hoursRemaining)+' hrs overdue</b>'):('<b>'+x.hoursRemaining+' hrs to go</b>'))+
+              (x.projectedFmt?(' &mdash; about '+esc(x.projectedFmt)):'')+'</div></div>';
+          }).join(""));
+      } else {
+        bits.push('<p class="hello">Nothing falls due on hours yet &mdash; the schedule has the new readings.</p>');
+      }
+      $("ta_form").style.display="none";
+      $("ta_result").innerHTML=bits.join(""); $("ta_result").style.display="";
+      loadTrips();
+    }).catch(function(){ btn.disabled=false; btn.innerHTML="Log arrival &amp; update servicing"; toast("Couldn\u2019t connect"); });
 }
 
 /* ---- the parts register ---- */
