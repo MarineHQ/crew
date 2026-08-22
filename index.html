@@ -1021,7 +1021,7 @@
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-23·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-23·c</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1747,9 +1747,9 @@ function legacySession(){
    Sub-tabs marked mgr:true only exist for Directors/Managers; a group whose
    only visible sub-tab is one tab shows that tab's label and no sub-row. */
 var NAVGROUPS = [
-  ["work",  "Activity", [["jobs","Worklist"],["mine","My Tasks",true],["off","Off-Fleet"],["trip","Trip Log"],["cal","Calendar"]]],
+  ["work",  "Activity", [["jobs","Worklist"],["mine","My Tasks",true],["updates","Updates"],["off","Off-Fleet"],["trip","Trip Log"],["cal","Calendar"]]],
   ["fleet", "Fleet",    [["fleet","Fleet",true],["maint","Maintenance",true],["vessel","Engine & Parts"],["induct","Induction",true]]],
-  ["day",   "My Day",   [["hours","Time"],["updates","Updates"]]],
+  ["day",   "My Day",   [["hours","Time"]]],
   ["guides","Guides",   [["check","Checklists"],["sop","SOP"]]]
 ];
 // Profile lives OFF the tab bar — the 👤 button next to Sign out and the avatar
