@@ -1019,7 +1019,7 @@
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-22·h</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-23·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1162,7 +1162,8 @@
     </div>
   </div>
   <label class="fld">Photo or PDF of the certificate <span class="fldhint" id="cert_fileHint">(optional but worth doing)</span></label>
-  <input type="file" id="cert_file" accept="image/*,application/pdf">
+  <input type="file" id="cert_file" accept="image/*,application/pdf" onchange="certFilePicked(this)">
+  <div id="certScanNote" style="display:none;font-size:12px;font-weight:700;margin-top:6px"></div>
   <label class="fld">Notes <span class="fldhint">(optional)</span></label>
   <input class="fld-in" id="cert_notes" placeholder="e.g. renewal booked for March">
   <button class="go" id="certSaveBtn" onclick="submitCert()">✓ Save certificate</button>
@@ -5565,6 +5566,7 @@ function openCertModal(id){
   $("cert_expires").value=c?(c.expires||""):"";
   $("cert_notes").value=c?(c.notes||""):"";
   $("cert_file").value="";
+  certScanNote("");
   $("cert_fileHint").textContent=(c&&c.file)?"(picking a new file replaces the current one)":"(optional but worth doing)";
   // Directors adding a fresh one can file it for anyone; an edit stays with its owner.
   var row=$("certForRow");
@@ -5574,6 +5576,37 @@ function openCertModal(id){
     row.style.display="";
   } else row.style.display="none";
   $("certModal").classList.add("show");
+}
+/* Pick a file → the backend OCRs the certificate and hands back what it read.
+   Only EMPTY fields are filled, so it never overwrites something already typed.
+   When the ticket type has a standard validity (first aid 3yr, CPR 1yr, AMSA
+   NC 5yr) and no expiry is printed, a suggested renewal date is offered. */
+function certScanNote(msg, tone){
+  var el=$("certScanNote"); if(!el) return;
+  el.style.display=msg?"":"none"; el.textContent=msg||"";
+  el.style.color = tone==="ok" ? "#1e7d46" : (tone==="warn" ? "#b06000" : "var(--muted)");
+}
+function certFilePicked(input){
+  var f=(input.files||[])[0]; if(!f) { certScanNote(""); return; }
+  certScanNote("🔍 Reading the certificate…");
+  fileToUpload(f, 1600, 0.8).then(function(p){
+    if(!p){ certScanNote("Couldn’t read that file — fill the details in by hand.", "warn"); return; }
+    apiPost({action:"crewCertScan", email:ME.email, code:ME.code, file:p}).then(function(r){
+      if(!r || !r.ok){ certScanNote("Couldn’t read it automatically — fill the details in by hand.", "warn"); return; }
+      var filled=[];
+      if(r.title   && !$("cert_title").value.trim()){ $("cert_title").value=r.title; filled.push("title"); }
+      if(r.number  && !$("cert_number").value.trim()){ $("cert_number").value=r.number; filled.push("number"); }
+      if(r.issued  && !$("cert_issued").value){ $("cert_issued").value=r.issued; filled.push("issue date"); }
+      if(r.expires && !$("cert_expires").value){ $("cert_expires").value=r.expires; filled.push("expiry"); }
+      var note="";
+      if(r.suggest && r.suggest.expires && !$("cert_expires").value){
+        $("cert_expires").value=r.suggest.expires; filled.push("expiry");
+        note=" Expiry suggested from the "+r.suggest.note+" — check it against the card.";
+      }
+      if(filled.length) certScanNote("✓ Read the "+filled.join(", ")+" off the certificate — check it’s right."+note, note?"warn":"ok");
+      else certScanNote("Read it, but couldn’t pick out the details — fill them in by hand.", "warn");
+    }).catch(function(){ certScanNote("Couldn’t reach the scanner — fill the details in by hand.", "warn"); });
+  });
 }
 function submitCert(){
   var title=$("cert_title").value.trim();
