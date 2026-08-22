@@ -221,6 +221,8 @@
   .certpill.exp{background:#fdeaea;color:#c0392b}
   .certpill.none{background:#eef2f8;color:#5a6b85}
   .certdel{border:0;background:none;color:#b9c3d3;font-size:16px;cursor:pointer;padding:2px 4px;flex-shrink:0}
+  .cropwrap{margin:10px 0;touch-action:none}
+  .cropwrap canvas{width:100%;border-radius:10px;display:block;background:#0b1530}
   .donebtn{width:100%;margin-top:10px;border:0;background:var(--ok);color:#fff;font-weight:bold;font-size:13.5px;padding:11px;border-radius:10px;cursor:pointer}
 
   /* photos */
@@ -1019,7 +1021,7 @@
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-23·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-23·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1168,6 +1170,16 @@
   <input class="fld-in" id="cert_notes" placeholder="e.g. renewal booked for March">
   <button class="go" id="certSaveBtn" onclick="submitCert()">✓ Save certificate</button>
   <button class="cancel" onclick="closeModal('certModal')">Cancel</button>
+</div></div>
+
+<!-- Crop the certificate photo down to just the card. Sits ABOVE the cert
+     modal (z-index) — drag the corners, or drag inside the frame to move it. -->
+<div class="modal" id="cropModal" style="z-index:70"><div class="card2">
+  <h3>✂️ Trim to the licence</h3>
+  <p class="mhint">Drag the corners so the frame covers just the card, then tap ✓. Two licences in the photo? Frame one now — you'll be offered the other after saving.</p>
+  <div class="cropwrap"><canvas id="cropCanvas"></canvas></div>
+  <button class="go" onclick="cropConfirm()">✓ Use this crop</button>
+  <button class="cancel" onclick="cropSkip()">Use the whole photo</button>
 </div></div>
 
 <!-- Directors: add a new task / new worklist -->
@@ -5566,6 +5578,7 @@ function openCertModal(id){
   $("cert_expires").value=c?(c.expires||""):"";
   $("cert_notes").value=c?(c.notes||""):"";
   $("cert_file").value="";
+  CERTPICK=null; CERTSRC=null;
   certScanNote("");
   $("cert_fileHint").textContent=(c&&c.file)?"(picking a new file replaces the current one)":"(optional but worth doing)";
   // Directors adding a fresh one can file it for anyone; an edit stays with its owner.
@@ -5586,12 +5599,116 @@ function certScanNote(msg, tone){
   el.style.display=msg?"":"none"; el.textContent=msg||"";
   el.style.color = tone==="ok" ? "#1e7d46" : (tone==="warn" ? "#b06000" : "var(--muted)");
 }
+/* The picked photo goes through a CROP step first — trim to just the card so
+   the OCR isn't reading the kitchen bench, and so two licences photographed
+   together can be framed one at a time into two separate certificates.
+   CERTSRC holds the full (resized) source photo; CERTPICK is what actually
+   gets scanned and saved — the crop when one was made, else the whole file. */
+var CERTSRC=null, CERTPICK=null, CROP={x:0,y:0,w:0,h:0}, cropDrag=null;
 function certFilePicked(input){
   var f=(input.files||[])[0]; if(!f) { certScanNote(""); return; }
+  CERTPICK=null;
+  if(!/^image\//i.test(f.type||"")){                 // a PDF goes straight to the scanner
+    certScanNote("🔍 Reading the certificate…");
+    fileToUpload(f, 1600, 0.8).then(function(p){
+      if(!p){ certScanNote("Couldn’t read that file — fill the details in by hand.", "warn"); return; }
+      CERTPICK=p; certScan_(p);
+    });
+    return;
+  }
+  fileToUpload(f, 1600, 0.85).then(function(p){
+    if(!p){ certScanNote("Couldn’t read that photo — fill the details in by hand.", "warn"); return; }
+    openCrop(p);
+  });
+}
+function openCrop(p){
+  var img=new Image();
+  img.onload=function(){
+    CERTSRC={dataUrl:p.dataUrl, name:p.name, img:img};
+    CROP={x:Math.round(img.width*0.04), y:Math.round(img.height*0.04),
+          w:Math.round(img.width*0.92), h:Math.round(img.height*0.92)};
+    $("cropModal").classList.add("show");
+    cropDraw();
+  };
+  img.onerror=function(){ certScanNote("Couldn’t open that photo — fill the details in by hand.", "warn"); };
+  img.src=p.dataUrl;
+}
+function cropDraw(){
+  var cv=$("cropCanvas"), img=CERTSRC&&CERTSRC.img; if(!cv||!img) return;
+  if(cv.width!==img.width){ cv.width=img.width; cv.height=img.height; }
+  var g=cv.getContext("2d");
+  g.drawImage(img,0,0);
+  g.fillStyle="rgba(10,20,45,0.55)";                        // dim everything outside the frame
+  g.fillRect(0,0,cv.width,CROP.y);
+  g.fillRect(0,CROP.y+CROP.h,cv.width,cv.height-CROP.y-CROP.h);
+  g.fillRect(0,CROP.y,CROP.x,CROP.h);
+  g.fillRect(CROP.x+CROP.w,CROP.y,cv.width-CROP.x-CROP.w,CROP.h);
+  var lw=Math.max(3, cv.width*0.006);
+  g.strokeStyle="#E87722"; g.lineWidth=lw;
+  g.strokeRect(CROP.x,CROP.y,CROP.w,CROP.h);
+  var r=Math.max(14, cv.width*0.022);                       // finger-sized corner handles
+  g.fillStyle="#E87722";
+  [[CROP.x,CROP.y],[CROP.x+CROP.w,CROP.y],[CROP.x,CROP.y+CROP.h],[CROP.x+CROP.w,CROP.y+CROP.h]]
+    .forEach(function(c){ g.beginPath(); g.arc(c[0],c[1],r,0,7); g.fill(); });
+}
+function cropPos(ev){
+  var cv=$("cropCanvas"), b=cv.getBoundingClientRect();
+  var t=(ev.touches&&ev.touches[0])||ev;
+  return { x:(t.clientX-b.left)*cv.width/b.width, y:(t.clientY-b.top)*cv.height/b.height };
+}
+function cropDown(ev){
+  if(!CERTSRC) return;
+  var p=cropPos(ev), tol=Math.max(28, $("cropCanvas").width*0.05);
+  var corners=[["nw",CROP.x,CROP.y],["ne",CROP.x+CROP.w,CROP.y],["sw",CROP.x,CROP.y+CROP.h],["se",CROP.x+CROP.w,CROP.y+CROP.h]];
+  cropDrag=null;
+  for(var i=0;i<corners.length;i++){
+    if(Math.abs(p.x-corners[i][1])<tol && Math.abs(p.y-corners[i][2])<tol){ cropDrag={mode:corners[i][0]}; break; }
+  }
+  if(!cropDrag && p.x>CROP.x&&p.x<CROP.x+CROP.w&&p.y>CROP.y&&p.y<CROP.y+CROP.h)
+    cropDrag={mode:"move", dx:p.x-CROP.x, dy:p.y-CROP.y};
+  if(cropDrag) ev.preventDefault();
+}
+function cropMove(ev){
+  if(!cropDrag||!CERTSRC) return;
+  ev.preventDefault();
+  var p=cropPos(ev), img=CERTSRC.img, MIN=Math.max(60,img.width*0.1);
+  var x2=CROP.x+CROP.w, y2=CROP.y+CROP.h;
+  function cl(v,a,b){ return Math.max(a,Math.min(b,v)); }
+  if(cropDrag.mode==="move"){
+    CROP.x=cl(p.x-cropDrag.dx,0,img.width-CROP.w); CROP.y=cl(p.y-cropDrag.dy,0,img.height-CROP.h);
+  } else {
+    if(/w/.test(cropDrag.mode)) CROP.x=cl(p.x,0,x2-MIN);
+    if(/e/.test(cropDrag.mode)) x2=cl(p.x,CROP.x+MIN,img.width);
+    if(/n/.test(cropDrag.mode)) CROP.y=cl(p.y,0,y2-MIN);
+    if(/s/.test(cropDrag.mode)) y2=cl(p.y,CROP.y+MIN,img.height);
+    CROP.w=x2-CROP.x; CROP.h=y2-CROP.y;
+  }
+  cropDraw();
+}
+function cropUp(){ cropDrag=null; }
+(function(){
+  var cv=document.getElementById("cropCanvas"); if(!cv) return;
+  cv.addEventListener("mousedown",cropDown); document.addEventListener("mousemove",cropMove); document.addEventListener("mouseup",cropUp);
+  cv.addEventListener("touchstart",cropDown,{passive:false}); cv.addEventListener("touchmove",cropMove,{passive:false}); cv.addEventListener("touchend",cropUp);
+})();
+function cropConfirm(){
+  if(!CERTSRC) { closeModal("cropModal"); return; }
+  var c=document.createElement("canvas"); c.width=Math.round(CROP.w); c.height=Math.round(CROP.h);
+  c.getContext("2d").drawImage(CERTSRC.img, -CROP.x, -CROP.y);
+  CERTPICK={ name:(CERTSRC.name||"certificate").replace(/\.[a-z0-9]+$/i,"")+"-card.jpg", dataUrl:c.toDataURL("image/jpeg",0.85) };
+  closeModal("cropModal");
   certScanNote("🔍 Reading the certificate…");
-  fileToUpload(f, 1600, 0.8).then(function(p){
-    if(!p){ certScanNote("Couldn’t read that file — fill the details in by hand.", "warn"); return; }
-    apiPost({action:"crewCertScan", email:ME.email, code:ME.code, file:p}).then(function(r){
+  certScan_(CERTPICK);
+}
+function cropSkip(){
+  if(!CERTSRC) { closeModal("cropModal"); return; }
+  CERTPICK={ name:CERTSRC.name, dataUrl:CERTSRC.dataUrl };
+  closeModal("cropModal");
+  certScanNote("🔍 Reading the certificate…");
+  certScan_(CERTPICK);
+}
+function certScan_(p){
+  apiPost({action:"crewCertScan", email:ME.email, code:ME.code, file:p}).then(function(r){
       if(!r || !r.ok){ certScanNote("Couldn’t read it automatically — fill the details in by hand.", "warn"); return; }
       var filled=[];
       if(r.title   && !$("cert_title").value.trim()){ $("cert_title").value=r.title; filled.push("title"); }
@@ -5606,7 +5723,6 @@ function certFilePicked(input){
       if(filled.length) certScanNote("✓ Read the "+filled.join(", ")+" off the certificate — check it’s right."+note, note?"warn":"ok");
       else certScanNote("Read it, but couldn’t pick out the details — fill them in by hand.", "warn");
     }).catch(function(){ certScanNote("Couldn’t reach the scanner — fill the details in by hand.", "warn"); });
-  });
 }
 function submitCert(){
   var title=$("cert_title").value.trim();
@@ -5619,11 +5735,22 @@ function submitCert(){
   if(certEditId) body.id=certEditId;
   else if(isMgrRole() && $("certForRow").style.display!=="none") body.forName=$("cert_for").value;
   var f=($("cert_file").files||[])[0];
-  (f?fileToUpload(f,1600,0.8):Promise.resolve(null)).then(function(p){
+  // the cropped card wins over the raw input file when a crop was made
+  var prep = CERTPICK ? Promise.resolve(CERTPICK) : (f?fileToUpload(f,1600,0.8):Promise.resolve(null));
+  prep.then(function(p){
     if(p) body.file=p;
     apiPost(body).then(function(r){
       done();
-      if(r&&r.ok){ closeModal("certModal"); toast("✓ Certificate saved"); applyCerts(r.certs); }
+      if(r&&r.ok){
+        var src=CERTSRC, forWho=(isMgrRole()&&$("certForRow").style.display!=="none")?$("cert_for").value:"";
+        closeModal("certModal"); toast("✓ Certificate saved"); applyCerts(r.certs);
+        // Two licences photographed together → frame the second one now.
+        if(src && !certEditId && confirm("Saved. Is there ANOTHER licence in that same photo? OK to frame the next one.")){
+          openCertModal();
+          if(forWho && $("certForRow").style.display!=="none") $("cert_for").value=forWho;
+          openCrop({dataUrl:src.dataUrl, name:src.name});
+        }
+      }
       else toast((r&&r.error)||"Couldn’t save");
     }).catch(function(){ done(); toast("Couldn’t connect — check your signal and try again"); });
   });

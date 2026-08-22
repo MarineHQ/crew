@@ -85,12 +85,14 @@
   <button class="tab" data-t="shifts" onclick="go('shifts')">Today's shifts</button>
   <button class="tab" data-t="jobs" onclick="go('jobs')">Jobs</button>
   <button class="tab" data-t="crew" onclick="go('crew')">By crew</button>
+  <button class="tab" data-t="certs" onclick="go('certs')">Certs</button>
 </div>
 <div class="wrap">
   <div id="v-now"></div>
   <div id="v-shifts" class="hidden"></div>
   <div id="v-jobs" class="hidden"></div>
   <div id="v-crew" class="hidden"></div>
+  <div id="v-certs" class="hidden"></div>
 </div>
 <div class="footer-banner"><img src="footer-banner.jpg" alt="Marine HQ — 0439 748 387 · yachtsupport@marinehq.com.au"></div>
 
@@ -123,21 +125,23 @@ function dur(mins){var h=Math.floor(mins/60),m=mins%60;return (h?h+"h ":"")+m+"m
 function get(fn){return fetch(API+"?fn="+fn+"&key="+encodeURIComponent(KEY)+"&_="+Date.now()).then(function(r){return r.json();});}
 
 function unlock(){var v=(document.getElementById("gk").value||"").trim();if(!v)return;KEY=v;try{localStorage.setItem("mhq_crew_key",v);}catch(e){}document.getElementById("gate").classList.remove("show");loadAll();}
-function go(t){TAB=t;["now","shifts","jobs","crew"].forEach(function(x){document.getElementById("v-"+x).classList.toggle("hidden",x!==t);});
+function go(t){TAB=t;["now","shifts","jobs","crew","certs"].forEach(function(x){document.getElementById("v-"+x).classList.toggle("hidden",x!==t);});
   document.querySelectorAll(".tab").forEach(function(b){b.classList.toggle("on",b.dataset.t===t);});
   if(t==="now") setTimeout(function(){ if(map) map.invalidateSize(); },100);}
 
 function loadAll(){
   if(!KEY){document.getElementById("gate").classList.add("show");return;}
   document.getElementById("v-now").innerHTML='<div class="spin">Loading…</div>';
-  Promise.all([get("crewonshift"),get("crewallshifts"),get("hub"),get("crewlist")]).then(function(res){
+  Promise.all([get("crewonshift"),get("crewallshifts"),get("hub"),get("crewlist"),get("crewcerts&all=1")]).then(function(res){
     if((res[0]&&res[0].locked)||(res[3]&&res[3].locked)){KEY="";try{localStorage.removeItem("mhq_crew_key");}catch(e){}document.getElementById("gate").classList.add("show");return;}
     DATA.onShift=(res[0]&&res[0].onShift)||[];
     DATA.shifts=(res[1]&&res[1].shifts)||[];
     DATA.jobs=(res[2]&&res[2].jobs)||[];
     DATA.crew=(res[2]&&res[2].crew)||[];   // hub crew names — match the jobs' "Allocated To"
+    DATA.certs=(res[4]&&res[4].certs)||[];
+    DATA.certRoster=(res[4]&&res[4].roster)||[];
     document.getElementById("refresh").textContent="Updated "+tclock(Date.now());
-    renderNow(); renderShifts(); renderJobs(); renderCrew();
+    renderNow(); renderShifts(); renderJobs(); renderCrew(); renderCerts();
   }).catch(function(){document.getElementById("v-now").innerHTML='<div class="empty">Couldn’t load — check your connection.</div>';});
 }
 
@@ -248,6 +252,44 @@ function renderCrewDetail(){
     }).join(""):'<div class="empty" style="padding:14px">None</div>')+'</div>';
   }).join("")+'</div>';
   d.innerHTML=html;
+}
+
+/* ---------- Certs — everyone's tickets, worst first ---------- */
+function certState(c){
+  if(!c.expires) return {k:"none", label:"no expiry", col:"#5a6b85", bg:"#eef2f8"};
+  var d=new Date(c.expires+"T00:00:00"); if(isNaN(d)) return {k:"none", label:"no expiry", col:"#5a6b85", bg:"#eef2f8"};
+  var days=Math.round((d-new Date().setHours(0,0,0,0))/86400000);
+  if(days<0)  return {k:"exp",  label:"EXPIRED "+esc(c.expires), col:"#c0392b", bg:"#fdeaea", days:days};
+  if(days<=90)return {k:"soon", label:"expires in "+days+"d ("+esc(c.expires)+")", col:"#b06000", bg:"#fdf1de", days:days};
+  return {k:"ok", label:"current · "+esc(c.expires), col:"#1e7d46", bg:"#e8f5ee", days:days};
+}
+function renderCerts(){
+  var el=document.getElementById("v-certs"); if(!el) return;
+  var certs=(DATA.certs||[]).slice();
+  var nExp=0,nSoon=0;
+  certs.forEach(function(c){ var s=certState(c); if(s.k==="exp")nExp++; if(s.k==="soon")nSoon++; });
+  var html='<div class="kpis">'+
+    '<div class="kpi"><b>'+certs.length+'</b><span>On file</span></div>'+
+    '<div class="kpi"><b style="color:'+(nExp?'#c0392b':'var(--navy)')+'">'+nExp+'</b><span>Expired</span></div>'+
+    '<div class="kpi"><b style="color:'+(nSoon?'#b06000':'var(--navy)')+'">'+nSoon+'</b><span>Due in 90 days</span></div></div>';
+  var byCrew={}; certs.forEach(function(c){ (byCrew[c.crew]=byCrew[c.crew]||[]).push(c); });
+  function worst(list){ return Math.min.apply(null, list.map(function(c){ var s=certState(c); return s.days===undefined?9e9:s.days; })); }
+  Object.keys(byCrew).sort(function(a,b){ return worst(byCrew[a])-worst(byCrew[b]); }).forEach(function(n){
+    var rows=byCrew[n].sort(function(a,b){ var x=certState(a),y=certState(b); return (x.days===undefined?9e9:x.days)-(y.days===undefined?9e9:y.days); });
+    html+='<h2 class="sec">'+esc(n)+' · '+rows.length+'</h2><div class="card">'+rows.map(function(c){
+      var s=certState(c);
+      return '<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid #f0f3f8">'+
+        '<div style="flex:1;min-width:0"><b style="font-size:13.5px">'+esc(c.title)+'</b>'+
+        (c.number?('<span style="color:#5a6b85;font-size:12px"> · No. '+esc(c.number)+'</span>'):'')+
+        (c.file&&c.file.url?(' <a href="'+esc(c.file.url)+'" target="_blank" rel="noopener" style="font-size:12px">📄</a>'):'')+'</div>'+
+        '<span style="font-size:10.5px;font-weight:800;padding:2px 9px;border-radius:20px;white-space:nowrap;color:'+s.col+';background:'+s.bg+'">'+s.label+'</span></div>';
+    }).join("")+'</div>';
+  });
+  var have={}; certs.forEach(function(c){ have[((c.crew||"")+"").toLowerCase().split(/[\s(]/)[0]]=1; });
+  var missing=(DATA.certRoster||[]).filter(function(n){ return !have[((n||"")+"").toLowerCase().split(/[\s(]/)[0]]; });
+  if(missing.length) html+='<div class="empty">Nothing on file yet for: <b>'+missing.map(esc).join(", ")+'</b></div>';
+  if(!certs.length) html+='<div class="empty">No certificates on file yet — crew load theirs on the Profile page of the crew app.</div>';
+  el.innerHTML=html;
 }
 
 loadAll(); setInterval(loadAll, 30000);
