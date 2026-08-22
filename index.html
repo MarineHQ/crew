@@ -743,9 +743,10 @@
     padding:9px 12px calc(9px + env(safe-area-inset-bottom));
     background:rgba(255,255,255,.97);border-top:1px solid var(--line);
     box-shadow:0 -4px 16px rgba(26,43,92,.10)}
-  .actbtn{flex:1;border:0;border-radius:12px;padding:13px 10px;font-size:14px;font-weight:800;color:#fff;cursor:pointer;font-family:inherit}
+  .actbtn{flex:1;border:0;border-radius:12px;padding:10px 10px;font-size:14px;font-weight:800;color:#fff;cursor:pointer;font-family:inherit;line-height:1.15}
   .actbtn.raise{background:var(--orange)}
   .actbtn.log{background:var(--navy)}
+  .actbtn small{display:block;font-size:10px;font-weight:600;opacity:.85;margin-top:2px;letter-spacing:.1px}
   .actbtn:active{opacity:.9}
   body.has-actbar{padding-bottom:74px}
   .toast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);background:var(--navy);color:#fff;padding:12px 18px;border-radius:24px;font-size:13px;font-weight:bold;box-shadow:0 6px 20px rgba(0,0,0,.25);opacity:0;transition:.25s;z-index:80;max-width:90%;text-align:center;pointer-events:none}
@@ -1021,7 +1022,7 @@
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-23·c</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-23·d</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1031,8 +1032,8 @@
        so this space is free). The page gets padding underneath so it never covers
        content — unlike the floating buttons it replaces. -->
   <div class="actbar hidden" id="actBar">
-    <button class="actbtn log" id="fabLog" onclick="openWorkLog()">✓ Log work done</button>
-    <button class="actbtn raise" id="fab" onclick="openRaise()">＋ Raise a job</button>
+    <button class="actbtn log" id="fabLog" onclick="openWorkLog()">✓ Log work done<small>work you've already finished</small></button>
+    <button class="actbtn raise" id="fab" onclick="openRaise()">＋ Raise a job<small>something still to be done</small></button>
   </div>
 
 </div>
