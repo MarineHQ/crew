@@ -1210,7 +1210,7 @@
   <label class="fld">Type of job</label>
   <div class="assignrow" id="of_types"></div>
   <p class="ofhint" id="of_tplNote"></p>
-  <label class="fld">Client</label>
+  <label class="fld">Client <span class="fldhint">&mdash; directors only, crew never see this</span></label>
   <input class="fld-in" id="of_client" placeholder="Who we invoice" autocomplete="off">
   <div style="display:flex;gap:8px;margin-top:8px">
     <input class="fld-in" id="of_email" placeholder="Email" style="flex:1" autocomplete="off">
@@ -3822,7 +3822,7 @@ function renderOffFleet(){
     var pct = j.checkTotal ? Math.round((j.checkDone/j.checkTotal)*100) : 0;
     var bits=[];
     if(j.type) bits.push(esc(j.type));
-    if(j.client) bits.push(esc(j.client));
+    if(j.client && isMgrRole()) bits.push(esc(j.client));   // who we invoice is director-only
     var dt=ofDates(j); if(dt) bits.push(esc(dt));
     var route=(j.from||j.to) ? (esc(j.from||"?")+" → "+esc(j.to||"?")) : "";
     var sub=[];
@@ -3862,7 +3862,7 @@ function ofRenderDetail(){
   var route=(j.from||j.to) ? (esc(j.from||"?")+" → "+esc(j.to||"?")) : "";
   var dt=ofDates(j);
   var rows=[];
-  if(j.client) rows.push(["Client", esc(j.client)+(j.phone?(' · <a href="tel:'+esc(j.phone)+'">'+esc(j.phone)+'</a>'):"")]);
+  if(j.client && isMgrRole()) rows.push(["Client", esc(j.client)+(j.phone?(' · <a href="tel:'+esc(j.phone)+'">'+esc(j.phone)+'</a>'):"")]);
   if(j.type)   rows.push(["Job", esc(j.type)]);
   if(route)    rows.push(["Route", route]);
   if(dt)       rows.push(["Dates", esc(dt)]);
