@@ -3401,13 +3401,13 @@ function wlSignoff(key,on){
 }
 function wlRecord(key){
   apiPost({action:"crewJobRecord", email:ME.email, code:ME.code, jobKey:key}).then(function(r){
-    if(r&&r.ok){ toast("📁 Logged — internal only"); var j=wlFind(key); if(j)j.signoff=r.signoff||{}; openWLJob(key); loadJobs(); }
+    if(r&&r.ok){ toast("📁 Logged — internal only"+((r.recur||""))); var j=wlFind(key); if(j)j.signoff=r.signoff||{}; openWLJob(key); loadJobs(); }
     else toast((r&&r.error)||"Couldn’t record");
   }).catch(function(){ toast("Couldn’t connect"); });
 }
 function wlApprove(key, share){
   apiPost({action:"crewJobApprove", email:ME.email, code:ME.code, jobKey:key, share:share}).then(function(r){
-    if(r&&r.ok){ toast(share?"✓ Logged & pushed to owner":"Pulled back from owner");
+    if(r&&r.ok){ toast((share?"✓ Logged & pushed to owner":"Pulled back from owner")+((r.recur||"")));
       var j=wlFind(key);
       if(j){ j.shared=share; j.approvedBy=r.approvedBy||""; j.approvedAt=r.approvedAt||""; }
       openWLJob(key); loadJobs(); }
