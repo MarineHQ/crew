@@ -146,6 +146,18 @@
   .wlacc h3{margin:0;font-size:15px;flex:1;line-height:1.25} .wlacc .n{background:rgba(255,255,255,.18);border-radius:12px;font-size:12px;font-weight:bold;padding:2px 9px}
   .wlacc .car{transition:transform .2s;font-size:15px} .wlacc.closed .car{transform:rotate(-90deg)}
   .wlbody.closed{display:none}
+  .wlacc.duewl{background:linear-gradient(135deg,#c0392b,#e05a3f);box-shadow:0 4px 12px rgba(192,57,43,.26)}
+  .duenote{font-size:12px;color:var(--muted);line-height:1.5;margin:0 2px 9px}
+  .srcchip{display:inline-block;background:#eef2f6;color:var(--navy);border-radius:10px;font-size:9.5px;font-weight:800;padding:2px 7px;vertical-align:middle}
+  /* Completed work files itself away under each list — still one tap from the record. */
+  .dnacc{background:#eef2f6;color:var(--navy);border:1px solid #dbe4ec;border-radius:11px;padding:10px 13px;margin:2px 0 9px;cursor:pointer;display:flex;align-items:center;gap:9px}
+  .dnacc h4{margin:0;font-size:13px;font-weight:800;flex:1;line-height:1.25}
+  .dnacc .n{background:rgba(26,43,92,.10);border-radius:12px;font-size:11.5px;font-weight:bold;padding:2px 8px}
+  .dnacc .car{transition:transform .2s;font-size:13px;color:var(--orange)} .dnacc.closed .car{transform:rotate(-90deg)}
+  .dnacc.sign{background:#fdf1e3;border-color:#f2d5b0;color:#8a5a12} .dnacc.sign .n{background:rgba(138,90,18,.12)}
+  .dnbody.closed{display:none}
+  .wldone-none{background:#f6f9f6;border:1px dashed #cfe0d4;border-radius:11px;padding:13px;text-align:center;color:var(--muted);font-size:12.5px;margin-bottom:9px}
+  .tosign{background:#fff!important;color:#8a5a12!important}
   .prio{font-size:9.5px;font-weight:bold;color:#fff;background:var(--red);padding:3px 7px;border-radius:5px}
 
   /* ---------- checklist cards ---------- */
@@ -1022,7 +1034,7 @@
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-23·e</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-24·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1939,7 +1951,7 @@ function pickDueVessel(v){ DUE_VESSEL=v; renderDueList(); }
 function addDueToWorklist(btn, idx){
   var i=DUE_ITEMS[idx]; if(!i)return;
   btn.disabled=true; btn.textContent='Adding…';
-  apiPost({action:"crewRaiseJob", email:ME.email, code:ME.code, vessel:i.vessel, title:i.item, desc:"Scheduled maintenance — due "+i.nextDue, category:"Scheduled"}).then(function(r){
+  apiPost({action:"crewRaiseJob", email:ME.email, code:ME.code, vessel:i.vessel, title:i.item, desc:"Scheduled maintenance — due "+i.nextDue, category:"Scheduled", maintRef:(i.ref||"")}).then(function(r){
     if(r&&r.ok){ btn.textContent='✓ Added '+(r.code||''); btn.classList.add('added'); toast("✓ Added to "+i.vessel+" worklist"); }
     else { btn.disabled=false; btn.textContent='＋ Worklist'; toast((r&&r.error)||"Couldn’t add"); }
   }).catch(function(){ btn.disabled=false; btn.textContent='＋ Worklist'; toast("Couldn’t connect"); });
@@ -2601,6 +2613,53 @@ function renderSegBody(){
   if(cnt) cnt.textContent=list.length+(list.length===1?" job":" jobs");
   el.innerHTML = list.length ? list.join("") : ('<div class="empty">'+empty+'</div>');
 }
+function wlJobCard(j, idx, noNum){
+    var b=hubBucket(j.status), done=b==="Done", cls=hubCls(b);
+    if((j.status||"").toLowerCase()==="requested"){ b="Requested"; cls="req"; done=false; }
+    var np=(j.photos&&j.photos.length)||0, hasNote=!!(j.notes&&j.notes.trim()), nd=(j.docs&&j.docs.length)||0;
+    var codeChip = j.code ? ' <span class="jcode'+(j.standard==="Boat-specific"?" bs":"")+'">'+esc(j.code)+'</span>' : '';
+    codeChip += catChip(j.category);
+    if(j.dueTs){ codeChip += ' <span class="duechip'+dueCls(j.dueTs,done)+'">📅 '+esc(dayLabel(j.dueTs))+(j.dueTime?(' '+esc(fmtTime12(j.dueTime))):'')+'</span>'; }
+    // came in from Zoho — directors see where it originated
+    if(isMgrRole() && j.zoho){ codeChip += ' <span class="zchip" title="Zoho task '+esc(j.zoho)+'">🔗 Zoho</span>'; }
+    if(isMgrRole() && j.allocatedTo){ codeChip += (j.accepted&&j.accepted.by) ? ' <span class="acptchip ok">✓ '+esc(firstName(j.accepted.by))+'</span>' : ' <span class="acptchip wait">⏳ '+esc(firstNames(j.allocatedTo))+'</span>'; }
+    else if(!isMgrRole() && j.allocatedTo){ var _meLc=(ME.name||"").toLowerCase().replace(/\s*\(test\)/,"").trim(); if(_meLc && j.allocatedTo.toLowerCase().indexOf(_meLc)>=0){ codeChip += (j.accepted&&j.accepted.by) ? ' <span class="acptchip ok">✓ accepted</span>' : ' <span class="acptchip urgent">🚨 Accept</span>'; } }
+    var upd = jobRecent(j) ? '<span class="upd">● updated '+relTime(j.updated)+'</span>' : '';
+    return '<div class="job brd-'+cls+(done?" jobdone":"")+(jobRecent(j)?" jobnew":"")+'" onclick="openWLJob(\''+esc(j.key)+'\')">'+
+      '<div class="top"><div style="flex:1"><h3>'+(noNum?'':('<span class="jnum">'+(idx+1)+'.</span> '))+esc(j.task||j.desc||"(job)")+codeChip+'</h3></div>'+
+      '<span class="badge s-'+cls+'">'+esc(b)+'</span></div>'+
+      cardBody(j)+'</div>';
+}
+
+/* ---- Filing completed work ----------------------------------------------
+   A worklist should show the work that's still LIVE. Once a task is ticked
+   Complete it drops out of the list body into its own section underneath:
+   first "waiting on sign-off" (a director still has to log it / push it to the
+   owner), then "Completed & filed" — the permanent record, one tap away.
+   Nothing is ever deleted or hidden; it just stops crowding the live list. */
+var WLDONE={};
+function toggleDone(k){ WLDONE[k]=!WLDONE[k]; renderJobs(); }
+function wlFiled(j){ return !!(j.signoff && j.signoff.disp); }   // logged internally or approved to the owner
+function wlDoneTs(j){ var t=Date.parse(j.completed||""); return isNaN(t) ? (j.updated||0) : t; }
+function wlSplit(jobs){
+  var live=[], toSign=[], filed=[];
+  jobs.forEach(function(j){
+    if(hubBucket(j.status)!=="Done"){ live.push(j); return; }
+    (wlFiled(j)?filed:toSign).push(j);
+  });
+  var byNewest=function(a,b){ return wlDoneTs(b)-wlDoneTs(a); };
+  toSign.sort(byNewest); filed.sort(byNewest);
+  return { live:live, toSign:toSign, filed:filed };
+}
+function doneBlock(g, kind, arr, label){
+  if(!arr.length) return "";
+  // Filtering to "Done" means you came looking for it — open the section for them.
+  var k=g+"|"+kind, open=(k in WLDONE) ? !!WLDONE[k] : (JOBFILTER==="Done");
+  var kJs=k.replace(/\\/g,"\\\\").replace(/'/g,"\\'");
+  return '<div class="dnacc'+(kind==="sign"?" sign":"")+(open?"":" closed")+'" onclick="event.stopPropagation();toggleDone(\''+esc(kJs)+'\')">'+
+    '<span class="car">&#9662;</span><h4>'+label+'</h4><span class="n">'+arr.length+'</span></div>'+
+    '<div class="dnbody'+(open?"":" closed")+'">'+arr.map(function(j,i){ return wlJobCard(j,i,true); }).join("")+'</div>';
+}
 function renderJobs(){
   renderJobSeg();
   if(JOBSEG!=="all"){ renderSegBody(); return; }
@@ -2636,26 +2695,14 @@ function renderJobs(){
     list.forEach(function(j){ var g=allBoats?(j.list||((j.vessel||"Other")+" — Other jobs")):(j.list||"Other jobs"); if(!groups[g]){groups[g]=[];order.push(g); if(!(g in WLCLOSED)) WLCLOSED[g]=true;} groups[g].push(j); });
   }
   el.innerHTML=renderOffer()+order.map(function(g){
-    var jobs=groups[g], openN=jobs.filter(function(j){return hubBucket(j.status)!=="Done";}).length;
-    var newN=jobs.filter(jobRecent).length;
+    var jobs=groups[g], sp=wlSplit(jobs), live=sp.live, toSign=sp.toSign, filed=sp.filed;
+    var openN=live.length;
+    var newN=live.filter(jobRecent).length;
     var collapsed = WLCLOSED[g] ? " closed":"", bodyC = WLCLOSED[g] ? " closed":"";
-    var cards=jobs.map(function(j,idx){
-      var b=hubBucket(j.status), done=b==="Done", cls=hubCls(b);
-      if((j.status||"").toLowerCase()==="requested"){ b="Requested"; cls="req"; done=false; }
-      var np=(j.photos&&j.photos.length)||0, hasNote=!!(j.notes&&j.notes.trim()), nd=(j.docs&&j.docs.length)||0;
-      var codeChip = j.code ? ' <span class="jcode'+(j.standard==="Boat-specific"?" bs":"")+'">'+esc(j.code)+'</span>' : '';
-      codeChip += catChip(j.category);
-      if(j.dueTs){ codeChip += ' <span class="duechip'+dueCls(j.dueTs,done)+'">📅 '+esc(dayLabel(j.dueTs))+(j.dueTime?(' '+esc(fmtTime12(j.dueTime))):'')+'</span>'; }
-      // came in from Zoho — directors see where it originated
-      if(isMgrRole() && j.zoho){ codeChip += ' <span class="zchip" title="Zoho task '+esc(j.zoho)+'">🔗 Zoho</span>'; }
-      if(isMgrRole() && j.allocatedTo){ codeChip += (j.accepted&&j.accepted.by) ? ' <span class="acptchip ok">✓ '+esc(firstName(j.accepted.by))+'</span>' : ' <span class="acptchip wait">⏳ '+esc(firstNames(j.allocatedTo))+'</span>'; }
-      else if(!isMgrRole() && j.allocatedTo){ var _meLc=(ME.name||"").toLowerCase().replace(/\s*\(test\)/,"").trim(); if(_meLc && j.allocatedTo.toLowerCase().indexOf(_meLc)>=0){ codeChip += (j.accepted&&j.accepted.by) ? ' <span class="acptchip ok">✓ accepted</span>' : ' <span class="acptchip urgent">🚨 Accept</span>'; } }
-      var upd = jobRecent(j) ? '<span class="upd">● updated '+relTime(j.updated)+'</span>' : '';
-      return '<div class="job brd-'+cls+(done?" jobdone":"")+(jobRecent(j)?" jobnew":"")+'" onclick="openWLJob(\''+esc(j.key)+'\')">'+
-        '<div class="top"><div style="flex:1"><h3><span class="jnum">'+(idx+1)+'.</span> '+esc(j.task||j.desc||"(job)")+codeChip+'</h3></div>'+
-        '<span class="badge s-'+cls+'">'+esc(b)+'</span></div>'+
-        cardBody(j)+'</div>';
-    }).join("");
+    var cards=live.map(wlJobCard).join("");
+    if(!live.length) cards='<div class="wldone-none">'+(jobs.length?'&#10003; Everything on this list is done &mdash; it&rsquo;s all filed below.':'Nothing on this list yet.')+'</div>';
+    cards+=doneBlock(g,"sign",toSign,(isMgrRole()?'&#10003; Done &mdash; waiting on sign-off':'&#10003; Done &mdash; with Marine HQ'));
+    cards+=doneBlock(g,"filed",filed,'&#128193; Completed &amp; filed');
     var note=(LISTMETA&&LISTMETA[g])||"";
     var gJs=g.replace(/\\/g,"\\\\").replace(/'/g,"\\'"), gVessel=((jobs[0]&&jobs[0].vessel)||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
     var canEdit = isMgrRole() && !SCHEDVIEW;
@@ -2669,7 +2716,8 @@ function renderJobs(){
       '<button onclick="event.stopPropagation();openAddTask(\''+esc(gJs)+'\',\''+esc(gVessel)+'\')">＋ Add task to this list</button>'+
       '<button onclick="event.stopPropagation();renameList(\''+esc(gJs)+'\')">✎ Rename list</button></div>') : '';
     return '<div class="wlacc'+collapsed+'" onclick="toggleWL(\''+esc(g)+'\')"><span class="car">▾</span>'+
-      '<h3>'+esc(g)+'</h3>'+(newN?'<span class="n newn">'+newN+' new</span>':'')+'<span class="n">'+openN+' open</span>'+editIcon+'</div>'+
+      '<h3>'+esc(g)+'</h3>'+(newN?'<span class="n newn">'+newN+' new</span>':'')+'<span class="n">'+openN+' open</span>'+
+      ((isMgrRole()&&toSign.length)?('<span class="n tosign">'+toSign.length+' to sign off</span>'):'')+editIcon+'</div>'+
       noteRow+editMenu+
       '<div class="wlbody'+bodyC+'" data-g="'+esc(g)+'">'+cards+'</div>';
   }).join("");
@@ -2828,10 +2876,12 @@ function careRow(x){
   var st=careStatus(x);
   var vJs=(CAREV||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'"), coJs=(x.code||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
   var taJs=(x.task||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'"), caJs=(x.category||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
+  var rfJs=(x.ref||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
   return '<div class="careitem cs-'+st.c+'">'+
-    '<div class="ci-top"><span class="ci-task">'+esc(x.task)+'</span> <span class="jcode">'+esc(x.code)+'</span></div>'+
+    '<div class="ci-top"><span class="ci-task">'+esc(x.task)+'</span>'+(x.code?(' <span class="jcode">'+esc(x.code)+'</span>'):'')+
+      (x.source==="schedule"?' <span class="srcchip">'+esc(CAREV)+'&rsquo;s schedule</span>':'')+'</div>'+
     '<div class="ci-meta"><span class="carepill '+st.c+'">'+esc(st.t)+'</span>'+(x.freq?('<span>🔁 '+esc(x.freq)+'</span>'):'')+(x.lastDone?('<span>last '+esc(x.lastDone)+'</span>'):'<span>never logged</span>')+(x.nextDue?('<span>next '+esc(x.nextDue)+'</span>'):'')+'</div>'+
-    '<button class="m2w" onclick="maintToWorklist(\''+esc(vJs)+'\',\''+esc(coJs)+'\',\''+esc(taJs)+'\',\''+esc(caJs)+'\')">➕ Push to worklist</button></div>';
+    '<button class="m2w" onclick="maintToWorklist(\''+esc(vJs)+'\',\''+esc(coJs)+'\',\''+esc(taJs)+'\',\''+esc(caJs)+'\',\''+esc(rfJs)+'\')">➕ Push to worklist</button></div>';
 }
 function renderCare(){
   var el=$("maintList"); if(!el) return;
@@ -2841,6 +2891,13 @@ function renderCare(){
   $("maintCount").textContent=CAREITEMS.length+" tasks";
   var msLink='<div class="mslink" onclick="openMaintSchedule(\''+esc((CAREV||"").replace(/'/g,"\\'"))+'\')">📋 Open '+esc(CAREV)+'’s full Care Schedule ↗<div class="mslink-sub">The client’s read-only copy in MyYacht.</div></div>';
   var summary='<div class="caresum"><span class="cs od">'+od+' overdue</span><span class="cs soon">'+soon+' due soon</span><span class="cs nd">'+nd+' not logged</span></div>';
+  // What's due, in one place, at the top — this is the working end of the tab:
+  // read what's due or coming up, push it through to a worklist, assign or offer it.
+  var dueNow=CAREITEMS.filter(function(x){return x.status==="overdue"||x.status==="soon";})
+    .sort(function(a,b){ return ((a.inDays==null)?9e9:a.inDays)-((b.inDays==null)?9e9:b.inDays); });
+  var dueOpen=(CARESEC.__due__!==false);
+  var dueBlk=dueNow.length ? ('<div class="wlacc duewl'+(dueOpen?"":" closed")+'" onclick="toggleCareSec(\'__due__\')"><span class="car">▾</span><h3>🔔 Due now &amp; coming up</h3><span class="n">'+dueNow.length+'</span></div>'+
+    '<div class="wlbody'+(dueOpen?"":" closed")+'"><div class="duenote">Push any of these straight onto a worklist — then assign or offer it. When it&rsquo;s ticked Complete the schedule updates itself.</div>'+dueNow.map(careRow).join("")+'</div>') : '';
   var groups={}, order=[], rank={overdue:0,soon:1,notdone:2,ok:3};
   CAREITEMS.slice().sort(function(a,b){return (rank[a.status]-rank[b.status])||((a.num||0)-(b.num||0));}).forEach(function(x){ var g=x.section||"Other"; if(!groups[g]){groups[g]=[];order.push(g);} groups[g].push(x); });
   var body=order.map(function(g){
@@ -2849,7 +2906,7 @@ function renderCare(){
     var head='<div class="wlacc'+(open?"":" closed")+'" onclick="toggleCareSec(\''+esc(g.replace(/'/g,"\\'"))+'\')"><span class="car">▾</span><h3>'+esc(g)+'</h3>'+(arr.filter(function(x){return x.status==="overdue"||x.status==="soon";}).length?('<span class="n newn">'+arr.filter(function(x){return x.status==="overdue"||x.status==="soon";}).length+' due</span>'):'')+'<span class="n">'+arr.length+'</span></div>';
     return head+'<div class="wlbody'+(open?"":" closed")+'">'+arr.map(careRow).join("")+'</div>';
   }).join("");
-  el.innerHTML=msLink+bundleBlock()+summary+body;
+  el.innerHTML=msLink+bundleBlock()+summary+dueBlk+body;
 }
 function renderFleetCare(vs){
   var el=$("maintList"); if(!el) return;
@@ -2871,10 +2928,10 @@ function loadMaintLog(){
 function dueLabel(n){ if(n<0) return {t:(-n)+(n===-1?" day overdue":" days overdue"),c:"od"}; if(n===0) return {t:"Due today",c:"soon"}; if(n<=14) return {t:"Due in "+n+(n===1?" day":" days"),c:"soon"}; return {t:"Due in "+n+" days",c:"ok"}; }
 // Directors: push a due/overdue maintenance item onto the worklist as a task, filed
 // under its standard code, then jump to it so you can assign a crew member.
-function maintToWorklist(vessel, code, task, category){
+function maintToWorklist(vessel, code, task, category, ref){
   // Open the Add-task form pre-filled → director picks/creates the worklist + assigns.
   var num=parseFloat((code||"").replace(/^.*-/,""))||"";   // parseFloat: sub-tasks are 0054.1 etc.
-  openAddTask("", vessel, { title:task, matchNum:num, code:code, category:category });
+  openAddTask("", vessel, { title:task, matchNum:num, code:code, category:category, maintRef:ref||"" });
 }
 function renderMaintLog(){
   var el=$("maintList"); if(!el) return;
@@ -4883,6 +4940,9 @@ function openAddTask(prefList, prefVessel, opts){
   ATSUGG=[]; ATNEW=false; ATEXISTS=null;
   // Pushed from the maintenance schedule → file it under that standard task automatically.
   ATCHOSEN = opts.matchNum ? { num:opts.matchNum, job:(opts.title||""), code:(opts.code||""), category:(opts.category||"") } : null;
+  // Pushed off a vessel's maintenance schedule: hold onto which line it was, so
+  // ticking the task Complete later rolls that line's Last Done / Next Due forward.
+  ATMREF = opts.maintRef || "";
   atFillLists(); atLoadVesselLists(curV); atRenderCats(); atRenderAssign(); atRenderMatch();
   if(!CREWNAMES.length) loadCrewNames();
   $("addTaskModal").classList.add("show");
@@ -4959,13 +5019,14 @@ function atRenderCats(){ var el=$("at_cats"); if(el) el.innerHTML=ADD_CATS.map(f
 function atRenderAssign(){ var el=$("at_assign"); if(!el) return;
   el.innerHTML=(CREWNAMES||[]).length ? (CREWNAMES).map(function(c){var on=ADDASSIGN.indexOf(c.name)>=0;return '<button type="button" class="aopt'+(on?' on':'')+'" onclick="atToggleAssign(\''+esc((c.name||"").replace(/'/g,"\\'"))+'\')">'+esc(firstName(c.name))+(on?' ✓':'')+'</button>';}).join("") : '<span class="fldhint">Loading crew…</span>'; }
 function atToggleAssign(n){ var i=ADDASSIGN.indexOf(n); if(i>=0) ADDASSIGN.splice(i,1); else ADDASSIGN.push(n); atRenderAssign(); }
+var ATMREF="";
 function submitAddTask(){
   var title=($("at_title").value||"").trim(); if(!title){ toast("Give the task a title"); return; }
   var vessel=atVessel(); if(!vessel){ toast("Pick or type a yacht"); return; }
   var alloc=ADDASSIGN.slice(); var contractor=($("at_contractor").value||"").trim(); if(contractor) alloc.push(contractor);
   var body={ email:ME.email, code:ME.code, vessel:vessel, list:($("at_list").value||"").trim(),
     title:title, desc:($("at_desc").value||"").trim(), category:ADDCAT, allocatedTo:alloc.join(", "),
-    due:($("at_due").value||""), time:($("at_time").value||"") };
+    due:($("at_due").value||""), time:($("at_time").value||""), maintRef:ATMREF };
   var mode=atMode();
   if(mode==="chosen"){ body.action="crewAddTask"; body.matchNum=ATCHOSEN.num; }
   else if(mode==="new" && ADDSCOPE==="standard"){
