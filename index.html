@@ -1034,7 +1034,7 @@
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-24·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-25·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1097,7 +1097,8 @@
   <select class="fld-in" id="r_vessel" onchange="onVesselPick('r_vessel','r_other')"></select>
   <input class="fld-in" id="r_other" placeholder="Type the yacht name" style="display:none;margin-top:8px">
   <label class="fld">What needs doing?</label>
-  <input class="fld-in" id="r_title" placeholder="e.g. Bilge pump float switch sticking">
+  <input class="fld-in" id="r_title" placeholder="Start typing — e.g. teak, polish, bilge" oninput="rjSuggest()" autocomplete="off">
+  <div id="r_match" style="display:none"></div>
   <label class="fld">Detail (optional)</label>
   <textarea class="fld-ta" id="r_desc" placeholder="Where it is, what you noticed…"></textarea>
   <label class="fld">Photos (optional)</label>
@@ -1206,7 +1207,7 @@
   <input class="fld-in" id="at_list" list="at_listOpts" placeholder="e.g. Mahalo Work List" autocomplete="off">
   <datalist id="at_listOpts"></datalist>
   <label class="fld">Task title</label>
-  <input class="fld-in" id="at_title" placeholder="e.g. Wash aft deck" onblur="atCheckMatch()" oninput="atTitleTyping()">
+  <input class="fld-in" id="at_title" placeholder="Start typing — e.g. teak, polish, anodes" onblur="atCheckMatch()" oninput="atTitleTyping();atCheckMatch()" autocomplete="off">
   <div id="at_match" class="atmatch" style="display:none"></div>
   <label class="fld">Detail / variation <span class="fldhint">(optional — e.g. “just the aft deck”)</span></label>
   <textarea class="fld-ta" id="at_desc" placeholder="Any specifics…"></textarea>
@@ -4816,7 +4817,7 @@ function submitRaise(){
   var desc=($("r_desc").value||"").trim();
   var files=Array.prototype.slice.call(($("r_photos").files)||[]);
   toast("Raising job…");
-  apiPost({action:"crewRaiseJob", email:ME.email, code:ME.code, vessel:vessel, title:t, desc:desc}).then(function(r){
+  apiPost({action:"crewRaiseJob", email:ME.email, code:ME.code, vessel:vessel, title:t, desc:desc, matchNum:(RJNUM||"")}).then(function(r){
     if(!r||!r.ok){ toast((r&&r.error)||"Couldn’t raise the job"); return; }
     closeModal("raiseModal");
     toast(r.status==="Requested" ? "🔔 Sent to Marine HQ — awaiting approval" : ("✓ Job added — "+(r.code||"")));
@@ -5009,6 +5010,52 @@ function atRenderMatch(){
   el.innerHTML=h; el.style.display=h?"":"none";
 }
 function atOpenExisting(key){ closeModal("addTaskModal"); openFromUpdate(key, atVessel()); }
+
+/* ---- Raise a job: the same catalogue behind it ----------------------------
+   Crew type what they see ("teak looking tired"); the catalogue offers the
+   standard tasks that match. Picking one files the job under that task's
+   number, so the same job stops arriving under five different names. Typing
+   their own words still works — it just gets a boat-specific number instead. */
+var RJSUGG=[], RJNUM=null, _rjT=null, _rjReq=null;
+function rjVessel(){ var v=$("r_vessel"); var val=v?v.value:""; return val==="__other__" ? (($("r_other")||{}).value||"").trim() : val; }
+function rjSuggest(){
+  RJNUM=null;
+  clearTimeout(_rjT);
+  _rjT=setTimeout(function(){
+    var q=($("r_title").value||"").trim();
+    if(q.length<2){ RJSUGG=[]; rjRenderMatch(); return; }
+    var mine={q:q}; _rjReq=mine;
+    apiGet("fn=tasksuggest&code="+encodeURIComponent(ME.code||"")+"&email="+encodeURIComponent(ME.email||"")+
+           "&vessel="+encodeURIComponent(rjVessel())+"&q="+encodeURIComponent(q))
+      .then(function(r){ if(_rjReq!==mine) return; RJSUGG=(r&&r.suggestions)||[]; rjRenderMatch(); })
+      .catch(function(){});
+  }, 220);
+}
+function rjRenderMatch(){
+  var el=$("r_match"); if(!el) return;
+  if(RJNUM){
+    var pick=RJSUGG.filter(function(x){return x.num===RJNUM;})[0]||{};
+    el.innerHTML='<div class="atm-ok">&#9989; Filing under <b>'+esc(pick.job||"")+'</b>'+(pick.code?(' <span class="jcode">'+esc(pick.code)+'</span>'):'')+
+      '<button type="button" class="atm-open" style="background:#64748b" onclick="rjClear()">Change</button>'+
+      '<div class="atm-sub">Put what you actually saw in Detail below.</div></div>';
+    el.style.display=""; return;
+  }
+  if(!RJSUGG.length){ el.innerHTML=""; el.style.display="none"; return; }
+  el.innerHTML='<div class="atm-sugg"><div class="atm-sugg-hd">Is it one of these? Tap to file it there:</div>'+
+    RJSUGG.map(function(x){
+      return '<button type="button" class="atm-row" onclick="rjChoose('+x.num+')"><span class="atm-row-j">'+esc(x.job)+'</span>'+
+        (x.category?('<span class="atm-row-c">'+esc(x.category)+'</span>'):'')+(x.code?('<span class="jcode">'+esc(x.code)+'</span>'):'')+'</button>';
+    }).join("")+
+    '<button type="button" class="atm-row new" onclick="rjClear(1)">&#10133; None of these &mdash; use my own words</button></div>';
+  el.style.display="";
+}
+function rjChoose(num){
+  RJNUM=num;
+  var pick=RJSUGG.filter(function(x){return x.num===num;})[0];
+  if(pick) $("r_title").value=pick.job;      // the standard wording, so it reads the same fleet-wide
+  rjRenderMatch();
+}
+function rjClear(hide){ RJNUM=null; if(hide){ RJSUGG=[]; } rjRenderMatch(); }
 function atFillLists(){
   var names={}; Object.keys(LISTMETA||{}).forEach(function(n){ if(n) names[n]=1; });
   (CREWJOBS||[]).forEach(function(j){ if(j.list) names[j.list]=1; });
