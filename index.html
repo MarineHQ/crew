@@ -428,6 +428,8 @@
   .acptchip{display:inline-block;font-size:10.5px;font-weight:800;border-radius:8px;padding:1px 7px;vertical-align:middle}
   .acptchip.ok{background:#dcfce7;color:#166534} .acptchip.wait{background:#fef3d7;color:#8a5a12}
   .acptchip.urgent{background:#fee2e2;color:#b91c1c;animation:acptpulse 1.6s ease-in-out infinite}
+  /* The owner asked for this one. Solid brand orange — it has to win the card. */
+  .acptchip.owner{background:#e87722;color:#fff}
   @keyframes acptpulse{0%,100%{opacity:1}50%{opacity:.55}}
   .acceptcall{background:#fef2f2;border:1.5px solid #fca5a5;border-radius:12px;padding:13px 14px;box-shadow:0 2px 10px rgba(220,38,38,.12)}
   .acceptcall .ac-hd{font-size:15px;font-weight:800;color:#b91c1c;margin-bottom:4px}
@@ -2617,10 +2619,20 @@ function segWaitOwner(){
   return (CREWJOBS||[]).filter(function(j){ return j.signoff && j.signoff.wait && hubBucket(j.status)!=="Done"; })
     .sort(function(a,b){ return ((b.signoff.wait.at)||0)-((a.signoff.wait.at)||0); });
 }
+/* THE OWNER'S LIST — every open job the owner actually asked for, on the boats
+   in view. Not the same as "Waiting on owner": that one is stalled on THEIR
+   answer, this one is stalled on US. Kept as its own list because an owner's ask
+   is the work that gets noticed if it slips. */
+function segOwnerAsk(){
+  return (CREWJOBS||[]).filter(function(j){ return j.ownerReq && hubBucket(j.status)!=="Done"; })
+    .sort(function(a,b){ return (a.dueTs||9e15)-(b.dueTs||9e15); });
+}
 function jobSegs(){
-  if(isMgrRole()) return [["all","📋 All work"],["raised","🔔 Raised by crew",(REQJOBS||[]).length],
+  if(isMgrRole()) return [["all","📋 All work"],["ownerask","👤 Owner asked",segOwnerAsk().length],
+                          ["raised","🔔 Raised by crew",(REQJOBS||[]).length],
                           ["waitowner","⏳ Waiting on owner",segWaitOwner().length]];
-  return [["all","📋 My worklist"],["offered","🗂 Offered to me",segOffered().length],
+  return [["all","📋 My worklist"],["ownerask","👤 Owner asked",segOwnerAsk().length],
+          ["offered","🗂 Offered to me",segOffered().length],
           ["approve","🚨 To approve",segToApprove().length],["raised","📤 My raised jobs",(CREWRAISED||[]).length]];
 }
 function renderJobSeg(){
@@ -2680,6 +2692,18 @@ function renderSegBody(){
     renderApproveQueue(el);                       // same queue as My Tasks — one list, two ways in
     return;
   }
+  if(JOBSEG==="ownerask"){
+    title="Owner asked"; list=segOwnerAsk();
+    if(cnt) cnt.textContent=list.length+(list.length===1?" job":" jobs");
+    if(sub) sub.textContent=title;
+    el.innerHTML = list.length ? list.map(function(j){
+      var who=(j.ownerReqBy||"").toString();
+      var chip='<span class="acptchip owner">👤 '+(who?esc(firstName(who))+' asked for this':'The owner asked for this')+'</span>';
+      if(j.dueTs) chip+=' <span class="duechip'+dueCls(j.dueTs,false)+'">📅 '+esc(dayLabel(j.dueTs))+'</span>';
+      return segCard(j, chip);
+    }).join("") : '<div class="empty">Nothing the owner has asked for is open. 🎉<br><span style="font-size:12px">A job shows here once a director marks it as the owner\'s request on its card. It also appears on the owner\'s own My Jobs page.</span></div>';
+    return;
+  }
   if(JOBSEG==="waitowner" && isMgrRole()){
     title="Waiting on owner"; list=segWaitOwner();
     if(cnt) cnt.textContent=list.length+" waiting";
@@ -2726,6 +2750,9 @@ function wlJobCard(j, idx, noNum){
     if(j.dueTs){ codeChip += ' <span class="duechip'+dueCls(j.dueTs,done)+'">📅 '+esc(dayLabel(j.dueTs))+(j.dueTime?(' '+esc(fmtTime12(j.dueTime))):'')+'</span>'; }
     // parked on the owner's answer — everyone sees why it isn't moving
     if(j.signoff && j.signoff.wait){ codeChip += ' <span class="acptchip urgent">⏳ Waiting on owner</span>'; }
+    // The owner asked for this job. Flagged everywhere it appears, because "the
+    // owner is waiting on this" is the one thing that should change what you pick up next.
+    if(j.ownerReq){ codeChip += ' <span class="acptchip owner">👤 Owner asked</span>'; }
     // came in from Zoho — directors see where it originated
     if(isMgrRole() && j.zoho){ codeChip += ' <span class="zchip" title="Zoho task '+esc(j.zoho)+'">🔗 Zoho</span>'; }
     if(isMgrRole() && j.allocatedTo){ codeChip += (j.accepted&&j.accepted.by) ? ' <span class="acptchip ok">✓ '+esc(firstName(j.accepted.by))+'</span>' : ' <span class="acptchip wait">⏳ '+esc(firstNames(j.allocatedTo))+'</span>'; }
@@ -3781,6 +3808,18 @@ function wlApproveBlock(j,key){
   var waitBtn = waiting
     ? '<button class="jobbtn" style="background:#64748b;margin-top:8px" onclick="wlWaitOwner(\''+kk+'\',false)">Clear “waiting on owner”</button>'
     : '<button class="jobbtn" style="background:#b45309;margin-top:8px" onclick="wlWaitOwner(\''+kk+'\',true)">⏳ Waiting on owner</button>';
+  // "The owner asked for this." Separate from Waiting-on-owner on purpose: this
+  // says where the job CAME FROM, that one says who it's stuck on. Marking it
+  // also puts the job on the owner's own My Jobs page in MyYacht.
+  var asked = !!j.ownerReq;
+  var askBtn = asked
+    ? '<button class="jobbtn" style="background:#64748b;margin-top:8px" onclick="wlOwnerAsk(\''+kk+'\',false)">Not the owner\u2019s request</button>'
+    : '<button class="jobbtn" style="background:#e87722;margin-top:8px" onclick="wlOwnerAsk(\''+kk+'\',true)">\ud83d\udc64 The owner asked for this</button>';
+  var askOn = asked
+    ? '<div class="apprOn" style="background:#fdf0e6;color:#8a4a12;border-color:#f3d7bd;margin-top:8px">\ud83d\udc64 '+
+      (j.ownerReqBy?(esc(firstName(j.ownerReqBy))+' asked for this'):'The owner asked for this')+
+      '<div style="font-weight:400;margin-top:4px;font-size:12px">It shows on their own My Jobs page, and in \u201cOwner asked\u201d on the worklist.</div></div>'
+    : '';
   var waitOn = waiting
     ? '<div class="apprOn" style="background:#fdf3e3;color:#8a5a12;border-color:#f0dcb8;margin-top:8px">⏳ Waiting on the owner'+
       ((j.signoff.wait.by)?(' · asked by '+esc(firstName(j.signoff.wait.by))):'')+
@@ -3795,14 +3834,14 @@ function wlApproveBlock(j,key){
     if(j.shared){
       return '<div class="sec"><h4>Owner</h4>'+
         '<div class="apprOn" style="background:#eef4fb;color:var(--navy);border-color:#d3e2f2">👁 The owner can see this task'+who+'.</div>'+
-        waitOn+
+        askOn+waitOn+
         '<p class="body" style="font-size:12.5px;color:var(--muted);margin:10px 0 0">Nothing has been filed to the maintenance record — that happens when it’s marked <b>Complete</b>. They can reply on the job and you’ll get their note.</p>'+
-        waitBtn+pullBtn+'</div>';
+        askBtn+waitBtn+pullBtn+'</div>';
     }
     return '<div class="sec"><h4>Owner</h4>'+
       '<p class="body" style="font-size:12.5px;color:var(--muted);margin:0 0 8px">Let the owner see this job while it’s still open — because they already know about it, or because you need a decision before you can carry on. <b>Nothing is filed</b> to the maintenance record until it’s complete.</p>'+
       '<button class="jobbtn complete" onclick="wlApprove(\''+kk+'\',true)">👁 Show owner</button>'+
-      waitBtn+'</div>';
+      askBtn+waitBtn+'</div>';
   }
   // QC / sign-off (optional — not every job needs it)
   var qcRow = qc
@@ -3850,6 +3889,14 @@ function wlRecord(key){
    — you can't wait on someone who can't see it. Optional question goes on the job
    as a note he can reply to; his reply clears the flag by itself. */
 var _waitKey="";
+function wlOwnerAsk(key, on){
+  apiPost({action:"crewJobOwnerReq", email:ME.email, code:ME.code, jobKey:key, ownerReq:on}).then(function(r){
+    if(r&&r.ok){ toast(on?"\ud83d\udc64 Marked as the owner\u2019s request":"Cleared \u2014 no longer the owner\u2019s request");
+      var j=wlFind(key); if(j){ j.ownerReq=!!r.ownerReq; j.ownerReqBy=r.by||""; if(on) j.shared=true; }
+      openWLJob(key); loadJobs(); }
+    else toast((r&&r.error)||"Couldn\u2019t update");
+  }).catch(function(){ toast("Couldn\u2019t connect"); });
+}
 function wlWaitOwner(key, on){
   if(on){
     _waitKey=key;
