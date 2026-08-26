@@ -160,6 +160,20 @@
   .wlsecbody{padding-left:2px}
   .wlsecbody.closed{display:none}
   .wlnone{color:var(--muted);font-size:12.5px;padding:4px 2px 10px}
+  .secbtn{background:rgba(255,255,255,.9);color:var(--navy);border:0;border-radius:8px;padding:5px 11px;font-size:11.5px;font-weight:bold;cursor:pointer;font-family:inherit;white-space:nowrap}
+  .secbtn:active{background:#fff}
+  .cmopts{display:flex;flex-direction:column;gap:8px;margin:4px 0 12px}
+  .cmopt{display:flex;gap:10px;align-items:flex-start;border:1.5px solid var(--line);border-radius:11px;padding:11px 13px;cursor:pointer;background:#fff}
+  .cmopt.on{border-color:var(--orange);background:#fff8f2}
+  .cmopt b{display:block;font-size:13.5px;color:var(--navy)}
+  .cmsub{display:block;font-size:12px;color:var(--muted);line-height:1.45;margin-top:2px}
+  .cmrad{width:16px;height:16px;border-radius:50%;border:2px solid var(--line);flex:0 0 auto;margin-top:2px}
+  .cmopt.on .cmrad{border-color:var(--orange);background:radial-gradient(circle,var(--orange) 0 45%,transparent 46%)}
+  .cmlist{border:1px solid var(--line);border-radius:11px;overflow:hidden;margin-top:4px}
+  .cmrow{display:flex;gap:10px;align-items:baseline;padding:8px 11px;border-top:1px solid var(--line);font-size:12.5px}
+  .cmrow:first-child{border-top:0}
+  .cmt{flex:1;min-width:0;color:var(--ink)}
+  .cmto{color:var(--muted);font-size:11.5px;white-space:nowrap}
   .secstate{font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;background:rgba(255,255,255,.22);border-radius:5px;padding:2px 7px;margin-left:8px;vertical-align:middle}
   .wlsec.old .secstate{background:rgba(26,43,92,.10)}
   .lstate{font-size:9px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;border-radius:5px;padding:2px 6px;margin-left:8px;vertical-align:middle;background:rgba(255,255,255,.22)}
@@ -1061,7 +1075,7 @@
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-26·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-26·c</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1107,6 +1121,14 @@
 </div>
 
 <!-- Raise a job modal -->
+<!-- Close a month -->
+<div class="modal" id="closeMonthModal"><div class="card2">
+  <h3 id="closeMonthTitle">Close month</h3>
+  <div id="cmBody"></div>
+  <button class="jobbtn complete" id="cmGo" style="background:#0f766e;margin-top:14px;display:none" onclick="cmGo()">Close the month</button>
+  <button class="jobbtn" style="background:none;color:var(--muted);margin-top:4px" onclick="closeModal('closeMonthModal')">Cancel</button>
+</div></div>
+
 <!-- Mark complete confirmation -->
 <div class="modal" id="completeModal"><div class="card2">
   <h3>✓ Mark task complete</h3>
@@ -2813,10 +2835,10 @@ function wlSectionOf(name){
 }
 function wlSecOpen(k, dflt){ return (k in WLSEC) ? WLSEC[k] : dflt; }
 function toggleSec(k, dflt){ WLSEC[k]=!wlSecOpen(k,dflt); renderJobs(); }
-function wlSection(key, title, count, cls, inner, dfltOpen){
+function wlSection(key, title, count, cls, inner, dfltOpen, btn){
   var open=wlSecOpen(key, dfltOpen);
   return '<div class="wlsec '+cls+(open?"":" closed")+'" onclick="toggleSec(\''+key+'\','+(dfltOpen?"true":"false")+')">'+
-      '<span class="car">▾</span><h3>'+title+'</h3>'+(count?('<span class="n">'+count+'</span>'):'')+'</div>'+
+      '<span class="car">▾</span><h3>'+title+'</h3>'+(count?('<span class="n">'+count+'</span>'):'')+(btn||'')+'</div>'+
     '<div class="wlsecbody'+(open?"":" closed")+'">'+(inner||'<div class="wlnone">Nothing here.</div>')+'</div>';
 }
 function wlSections(order, groups){
@@ -2829,7 +2851,8 @@ function wlSections(order, groups){
   var cur=G.current, curTitle=cur ? (esc(cur.vessel)+(cur.period?(' &middot; '+esc(cur.period)):'')) : esc(CURVESSEL);
   var curLists=buckets.current.concat(buckets.other);         // a list with no record still has to appear
   var openN=curLists.reduce(function(n,g){ return n+wlSplit(groups[g]).live.length; },0);
-  html+=wlSection("cur", curTitle+' <span class="secstate live">Live</span>', openN+' open', 'now', draw(curLists), true);
+  var closeBtn = (cur&&cur.period) ? ('<button class="secbtn" onclick="event.stopPropagation();closeMonthDlg(\''+esc((cur.period||"").replace(/'/g,"\\'"))+'\')">Close month</button>') : '';
+  html+=wlSection("cur", curTitle+' <span class="secstate live">Live</span>', openN+' open', 'now', draw(curLists), true, closeBtn);
   if(buckets.waiting.length){
     var wN=buckets.waiting.reduce(function(n,g){ return n+wlSplit(groups[g]).live.length; },0);
     html+=wlSection("wait", 'Waiting <span class="secstate waiting">Not live</span>', wN+' waiting', 'wait', draw(buckets.waiting), false);
@@ -2837,6 +2860,79 @@ function wlSections(order, groups){
   if(buckets.earlier.length) html+=wlSection("earl","Earlier months", buckets.earlier.length, 'old', draw(buckets.earlier), false);
   if(buckets.closed.length)  html+=wlSection("shut","Closed months", buckets.closed.length, 'old', draw(buckets.closed), false);
   return html;
+}
+/* ---- Closing a month ------------------------------------------------------
+   Finished work stays on the closed month as its record. Everything unfinished
+   has to be sent somewhere, and there are only three honest answers: carry it
+   into next month, move it to Coming for shipyard (because rolling out-of-water
+   work into a month she's afloat just moves a job nobody can do), or close it
+   as not done with the reason. Always previewed before it writes. */
+var CM={period:"", dispo:"roll", reason:"", preview:null};
+function closeMonthDlg(period){
+  CM={period:period, dispo:"roll", reason:"", preview:null};
+  $("closeMonthTitle").textContent = "Close "+CURVESSEL+" · "+period;
+  $("cmBody").innerHTML='<div class="loadingbox"><span class="spin"></span> Working out what would happen…</div>';
+  $("cmGo").style.display="none";
+  $("closeMonthModal").classList.add("show");
+  cmPreview();
+}
+/* ONE dry run, then switching option just re-labels. The set of unfinished jobs
+   is the same whichever way you send them — only the destination changes — and
+   the round trip is 5-10 seconds, which was long enough for a slow reply to land
+   after you'd already picked something else and paint the wrong destinations. */
+function cmPreview(){
+  $("cmBody").innerHTML='<div class="loadingbox"><span class="spin"></span> Working out what would happen…</div>';
+  $("cmGo").style.display="none";
+  apiPost({action:"crewMonthClose", email:ME.email, code:ME.code, vessel:CURVESSEL,
+           period:CM.period, dispo:"roll", dry:true}).then(function(r){
+    if(!r||!r.ok){ $("cmBody").innerHTML='<div class="empty">'+esc((r&&r.error)||"Couldn’t work that out")+'</div>'; return; }
+    CM.preview=r; cmRender();
+  }).catch(function(){ $("cmBody").innerHTML='<div class="empty">Couldn’t connect.</div>'; });
+}
+function cmDest(x){
+  if(CM.dispo==="yard")  return "Coming for shipyard";
+  if(CM.dispo==="close") return "closed — not done";
+  return x.to;
+}
+function cmRender(){
+  var r=CM.preview; if(!r) return;
+  var moving=r.rolled.length+r.toYard.length+r.closed.length;
+  var opts=[
+    ["roll","Carry into "+esc(r.nextPeriod||"next month"),"They move across with their photos, notes and whoever they’re assigned to. Their carry count goes up by one."],
+    ["yard","Move to “Coming for shipyard”","For anything that can only be done out of the water. It waits there until she’s booked in."],
+    ["close","Close them — not doing them","Kept on the closed month as a record, marked with your reason."]
+  ];
+  $("cmBody").innerHTML=
+    '<p class="mhint"><b>'+r.kept+'</b> finished — they stay on '+esc(CM.period)+' as the month’s record.<br>'+
+    '<b>'+moving+'</b> unfinished — where do they go?</p>'+
+    '<div class="cmopts">'+opts.map(function(o){
+      return '<div class="cmopt'+(CM.dispo===o[0]?" on":"")+'" onclick="cmPick(\''+o[0]+'\')"><span class="cmrad"></span>'+
+        '<span><b>'+o[1]+'</b><span class="cmsub">'+o[2]+'</span></span></div>';
+    }).join("")+'</div>'+
+    (CM.dispo==="close" ? ('<label class="fld">Why not?</label><input class="fld-in" id="cmReason" placeholder="e.g. she went back in the water" value="'+esc(CM.reason)+'" oninput="CM.reason=this.value">') : '')+
+    '<div class="cmlist">'+(moving?cmRows(r):'<div class="mhint" style="padding:10px">Nothing outstanding — the month is finished.</div>')+'</div>'+
+    '<p class="mhint" style="margin-top:10px">Individual jobs can be sent different ways later; this sends them all the same way.</p>';
+  $("cmGo").style.display="";
+  $("cmGo").textContent = moving ? ("Close "+CM.period+" · move "+moving) : ("Close "+CM.period);
+}
+function cmRows(r){
+  var all=r.rolled.concat(r.toYard).concat(r.closed);
+  return all.slice(0,12).map(function(x){
+    var c=(CM.dispo==="roll" && x.carried>1) ? (' · carried '+x.carried+'×') : '';
+    return '<div class="cmrow"><span class="cmt">'+esc(x.task)+'</span><span class="cmto">'+esc(cmDest(x))+c+'</span></div>';
+  }).join("")+(all.length>12?('<div class="mhint" style="padding:8px 11px">…and '+(all.length-12)+' more</div>'):'');
+}
+function cmPick(d){ CM.dispo=d; cmRender(); }          // instant — no second round trip
+function cmGo(){
+  var b=$("cmGo"); b.disabled=true; b.textContent="Closing…";
+  apiPost({action:"crewMonthClose", email:ME.email, code:ME.code, vessel:CURVESSEL,
+           period:CM.period, dispo:CM.dispo, reason:CM.reason}).then(function(r){
+    b.disabled=false;
+    if(!r||!r.ok){ toast((r&&r.error)||"Couldn’t close the month"); b.textContent="Close "+CM.period; return; }
+    closeModal("closeMonthModal");
+    toast("✓ "+CM.period+" closed — "+r.rolled.length+" carried, "+r.toYard.length+" to shipyard, "+r.closed.length+" closed");
+    _liFor=""; loadListInfo(CURVESSEL); loadJobs();
+  }).catch(function(){ b.disabled=false; toast("Couldn’t connect"); });
 }
 /* ---- Jobs on offer (crew): unassigned jobs anyone can claim ---- */
 var OFFERCLOSED=false;
