@@ -1034,7 +1034,7 @@
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-25·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-26·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1285,6 +1285,16 @@
 </div></div>
 
 <!-- Move a task to another worklist on the SAME vessel -->
+<!-- Waiting on owner (director) — park a job on the owner's decision -->
+<div class="modal" id="waitOwnerModal"><div class="card2">
+  <h3>Waiting on the owner</h3>
+  <p class="mhint" id="wo_hint"></p>
+  <label class="fld">What do you need from them? <span class="fldhint">— optional; goes on the job as a note they can reply to</span></label>
+  <textarea class="fld-in" id="wo_ask" rows="3" placeholder="e.g. Happy for us to order the replacement unit at ~$900, or would you rather we repair it?"></textarea>
+  <button class="go" onclick="wlDoWaitOwner()">⏳ Mark as waiting</button>
+  <button class="cancel" onclick="closeModal('waitOwnerModal')">Cancel</button>
+</div></div>
+
 <div class="modal" id="moveListModal"><div class="card2">
   <h3>Move to a worklist</h3>
   <p class="mhint" id="ml_hint"></p>
@@ -2527,8 +2537,17 @@ function segToApprove(){
         && hubBucket(j.status)!=="Done" && !(j.accepted && j.accepted.by);
   });
 }
+/* Jobs parked on an owner's answer — set by a director via "Waiting on owner",
+   cleared the moment the owner posts a note (the backend lifts the flag). Kept
+   fleet-wide like the raised-by-crew queue: a director drilled into one boat must
+   still see everything that's stalled. */
+function segWaitOwner(){
+  return (CREWJOBS||[]).filter(function(j){ return j.signoff && j.signoff.wait && hubBucket(j.status)!=="Done"; })
+    .sort(function(a,b){ return ((b.signoff.wait.at)||0)-((a.signoff.wait.at)||0); });
+}
 function jobSegs(){
-  if(isMgrRole()) return [["all","📋 All work"],["raised","🔔 Raised by crew",(REQJOBS||[]).length]];
+  if(isMgrRole()) return [["all","📋 All work"],["raised","🔔 Raised by crew",(REQJOBS||[]).length],
+                          ["waitowner","⏳ Waiting on owner",segWaitOwner().length]];
   return [["all","📋 My worklist"],["offered","🗂 Offered to me",segOffered().length],
           ["approve","🚨 To approve",segToApprove().length],["raised","📤 My raised jobs",(CREWRAISED||[]).length]];
 }
@@ -2589,6 +2608,18 @@ function renderSegBody(){
     renderApproveQueue(el);                       // same queue as My Tasks — one list, two ways in
     return;
   }
+  if(JOBSEG==="waitowner" && isMgrRole()){
+    title="Waiting on owner"; list=segWaitOwner();
+    if(cnt) cnt.textContent=list.length+" waiting";
+    if(sub) sub.textContent=title;
+    el.innerHTML = list.length ? list.map(function(j){
+      var wt=(j.signoff&&j.signoff.wait)||{};
+      var chip='<span class="acptchip urgent">⏳ Waiting on the owner'+(wt.by?(' · asked by '+esc(firstName(wt.by))):'')+'</span>';
+      if(wt.ask) chip+='<div style="font-size:12.5px;color:var(--muted);margin-top:5px">“'+esc(wt.ask)+'”</div>';
+      return segCard(j, chip);
+    }).join("") : '<div class="empty">Nothing waiting on an owner. 🎉<br><span style="font-size:12px">Park a job here from its card when you need a decision before you can carry on. It clears itself as soon as the owner replies.</span></div>';
+    return;
+  }
   if(JOBSEG==="offered"){
     title="Offered to me"; list=segOffered();
     empty="Nothing on offer right now. 🎉<br><span style=\"font-size:12px\">Jobs Marine HQ offer you land here — tap ✓ Accept to take one on.</span>";
@@ -2621,6 +2652,8 @@ function wlJobCard(j, idx, noNum){
     var codeChip = j.code ? ' <span class="jcode'+(j.standard==="Boat-specific"?" bs":"")+'">'+esc(j.code)+'</span>' : '';
     codeChip += catChip(j.category);
     if(j.dueTs){ codeChip += ' <span class="duechip'+dueCls(j.dueTs,done)+'">📅 '+esc(dayLabel(j.dueTs))+(j.dueTime?(' '+esc(fmtTime12(j.dueTime))):'')+'</span>'; }
+    // parked on the owner's answer — everyone sees why it isn't moving
+    if(j.signoff && j.signoff.wait){ codeChip += ' <span class="acptchip urgent">⏳ Waiting on owner</span>'; }
     // came in from Zoho — directors see where it originated
     if(isMgrRole() && j.zoho){ codeChip += ' <span class="zchip" title="Zoho task '+esc(j.zoho)+'">🔗 Zoho</span>'; }
     if(isMgrRole() && j.allocatedTo){ codeChip += (j.accepted&&j.accepted.by) ? ' <span class="acptchip ok">✓ '+esc(firstName(j.accepted.by))+'</span>' : ' <span class="acptchip wait">⏳ '+esc(firstNames(j.allocatedTo))+'</span>'; }
@@ -3353,16 +3386,32 @@ function wlApproveBlock(j,key){
   var who=(j.approvedBy?(' · '+esc(firstName(j.approvedBy))):'')+(j.approvedAt?(' · '+esc(j.approvedAt)):'');
   var pullBtn='<button class="jobbtn" style="background:#64748b;margin-top:8px" onclick="wlApprove(\''+kk+'\',false)">Pull back from owner</button>';
   var ready=wlBucketToStatus(j)==="Complete";
+  var waiting=!!(j.signoff&&j.signoff.wait);
+  var waitBtn = waiting
+    ? '<button class="jobbtn" style="background:#64748b;margin-top:8px" onclick="wlWaitOwner(\''+kk+'\',false)">Clear “waiting on owner”</button>'
+    : '<button class="jobbtn" style="background:#b45309;margin-top:8px" onclick="wlWaitOwner(\''+kk+'\',true)">⏳ Waiting on owner</button>';
+  var waitOn = waiting
+    ? '<div class="apprOn" style="background:#fdf3e3;color:#8a5a12;border-color:#f0dcb8;margin-top:8px">⏳ Waiting on the owner'+
+      ((j.signoff.wait.by)?(' · asked by '+esc(firstName(j.signoff.wait.by))):'')+
+      ((j.signoff.wait.ask)?('<div style="font-weight:400;margin-top:4px">“'+esc(j.signoff.wait.ask)+'”</div>'):'')+
+      '<div style="font-weight:400;margin-top:4px;font-size:12px">Clears itself as soon as they reply on the job.</div></div>'
+    : '';
   if(!ready){
-    // Not finished — nothing to push. But if the owner can already see it, say so.
+    // NOT FINISHED. Showing an owner an open job is a normal thing to do — he may
+    // already know about it, or the job may be stuck waiting on his decision — and
+    // it is NOT a sign-off: nothing is filed to the maintenance record until the
+    // work is actually complete. Hence two different words: SHOW vs APPROVE.
     if(j.shared){
-      return '<div class="sec"><h4>Sign-off &amp; log</h4>'+
-        '<div class="apprOn" style="background:#fdf3e3;color:#8a5a12;border-color:#f0dcb8">👁 The owner can see this task now'+who+' — it was shared before it was finished.</div>'+
-        '<p class="body" style="font-size:12.5px;color:var(--muted);margin:10px 0 0">Mark it <b>Complete</b> to sign it off and file it to the maintenance record — or pull it back until it’s done.</p>'+
-        pullBtn+'</div>';
+      return '<div class="sec"><h4>Owner</h4>'+
+        '<div class="apprOn" style="background:#eef4fb;color:var(--navy);border-color:#d3e2f2">👁 The owner can see this task'+who+'.</div>'+
+        waitOn+
+        '<p class="body" style="font-size:12.5px;color:var(--muted);margin:10px 0 0">Nothing has been filed to the maintenance record — that happens when it’s marked <b>Complete</b>. They can reply on the job and you’ll get their note.</p>'+
+        waitBtn+pullBtn+'</div>';
     }
-    return '<div class="sec"><h4>Sign-off &amp; log</h4>'+
-      '<p class="body" style="font-size:13px;color:var(--muted)">Mark it <b>Complete</b> first — then you can sign it off (QC), log it, or log &amp; push it to the owner.</p></div>';
+    return '<div class="sec"><h4>Owner</h4>'+
+      '<p class="body" style="font-size:12.5px;color:var(--muted);margin:0 0 8px">Let the owner see this job while it’s still open — because they already know about it, or because you need a decision before you can carry on. <b>Nothing is filed</b> to the maintenance record until it’s complete.</p>'+
+      '<button class="jobbtn complete" onclick="wlApprove(\''+kk+'\',true)">👁 Show owner</button>'+
+      waitBtn+'</div>';
   }
   // QC / sign-off (optional — not every job needs it)
   var qcRow = qc
@@ -3374,24 +3423,24 @@ function wlApproveBlock(j,key){
     if(so.disp!=="owner"){
       return '<div class="sec"><h4>Sign-off &amp; log</h4>'+qcRow+
         '<div class="apprOn" style="background:#fdf3e3;color:#8a5a12;border-color:#f0dcb8;margin-top:8px">👁 Visible to the owner'+who+', but <b>not approved</b> — not yet filed to the maintenance record.</div>'+
-        '<button class="jobbtn complete" style="margin-top:8px" onclick="wlApprove(\''+kk+'\',true)">✓ Approve &amp; log now</button>'+
+        '<button class="jobbtn complete" style="margin-top:8px" onclick="wlApprove(\''+kk+'\',true)">✓ Approve &amp; file</button>'+
         pullBtn+'</div>';
     }
     return '<div class="sec"><h4>Sign-off &amp; log</h4>'+qcRow+
-      '<div class="apprOn" style="margin-top:8px">📤 Logged &amp; pushed to owner’s app'+who+'</div>'+
+      '<div class="apprOn" style="margin-top:8px">✓ Approved &amp; filed to the maintenance record · owner can see it'+who+'</div>'+
       pullBtn+'</div>';
   }
   if(so.disp==="internal"){
     // already logged internally — still offer to push to owner later
     return '<div class="sec"><h4>Sign-off &amp; log</h4>'+qcRow+
       '<div class="apprOn" style="background:#eef4fb;color:var(--navy);border-color:#d3e2f2;margin-top:8px">📁 Logged (internal — the owner does <b>not</b> see this)</div>'+
-      '<button class="jobbtn complete" style="margin-top:8px" onclick="wlApprove(\''+kk+'\',true)">📤 Push to owner</button></div>';
+      '<button class="jobbtn complete" style="margin-top:8px" onclick="wlApprove(\''+kk+'\',true)">✓ Approve &amp; file</button></div>';
   }
   return '<div class="sec"><h4>Sign-off &amp; log</h4>'+qcRow+
-    '<p class="body" style="font-size:12.5px;color:var(--muted);margin:10px 0 8px">Sign off (QC) if it needs it, then log it. Both file it to the maintenance record — <b>Push to owner</b> also shows it in the owner’s app.</p>'+
+    '<p class="body" style="font-size:12.5px;color:var(--muted);margin:10px 0 8px">Sign off (QC) if it needs it, then log it. Both file it to the maintenance record — <b>Approve &amp; file</b> also shows it in the owner’s app.</p>'+
     '<div class="logbtns">'+
       '<button class="jobbtn complete logbtn" style="background:var(--navy)" onclick="wlRecord(\''+kk+'\')">📁 Log only<br><small>internal</small></button>'+
-      '<button class="jobbtn complete logbtn" onclick="wlApprove(\''+kk+'\',true)">📤 Push to owner</button>'+
+      '<button class="jobbtn complete logbtn" onclick="wlApprove(\''+kk+'\',true)">✓ Approve &amp; file<br><small>owner sees it</small></button>'+
     '</div></div>';
 }
 function wlSignoff(key,on){
@@ -3406,9 +3455,43 @@ function wlRecord(key){
     else toast((r&&r.error)||"Couldn’t record");
   }).catch(function(){ toast("Couldn’t connect"); });
 }
+/* Park a job on the owner's answer (director). Shares it first if it isn't already
+   — you can't wait on someone who can't see it. Optional question goes on the job
+   as a note he can reply to; his reply clears the flag by itself. */
+var _waitKey="";
+function wlWaitOwner(key, on){
+  if(on){
+    _waitKey=key;
+    var j=wlFind(key);
+    var el=$("wo_hint"); if(el) el.textContent=(j?((j.code?j.code+" · ":"")+(j.task||"")):"");
+    var t=$("wo_ask"); if(t) t.value="";
+    if(!(j&&j.shared)){
+      var h=$("wo_hint"); if(h) h.textContent=(h.textContent||"")+" — this will also show the job to the owner.";
+    }
+    $("waitOwnerModal").classList.add("show");
+    return;
+  }
+  wlSendWaitOwner(key, false, "");
+}
+function wlDoWaitOwner(){
+  var ask=(($("wo_ask")||{}).value||"").trim();
+  closeModal("waitOwnerModal");
+  wlSendWaitOwner(_waitKey, true, ask);
+}
+function wlSendWaitOwner(key, on, ask){
+  apiPost({action:"crewJobWaitOwner", email:ME.email, code:ME.code, jobKey:key, on:on, ask:ask}).then(function(r){
+    if(r&&r.ok){ toast(on?"⏳ Waiting on the owner":"Cleared — no longer waiting");
+      var j=wlFind(key); if(j){ j.signoff=r.signoff||{}; if(on) j.shared=true; }
+      openWLJob(key); loadJobs(); }
+    else toast((r&&r.error)||"Couldn’t update");
+  }).catch(function(){ toast("Couldn’t connect"); });
+}
 function wlApprove(key, share){
   apiPost({action:"crewJobApprove", email:ME.email, code:ME.code, jobKey:key, share:share}).then(function(r){
-    if(r&&r.ok){ toast((share?"✓ Logged & pushed to owner":"Pulled back from owner")+((r.recur||"")));
+    if(r&&r.ok){
+      // Same call does two different jobs — say which one actually happened.
+      var _j=wlFind(key), _done=_j&&wlBucketToStatus(_j)==="Complete";
+      toast((share?(_done?"✓ Approved & filed":"👁 Owner can see it now"):"Pulled back from owner")+((r.recur||"")));
       var j=wlFind(key);
       if(j){ j.shared=share; j.approvedBy=r.approvedBy||""; j.approvedAt=r.approvedAt||""; }
       openWLJob(key); loadJobs(); }
