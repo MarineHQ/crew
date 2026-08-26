@@ -162,6 +162,8 @@
   .wlnone{color:var(--muted);font-size:12.5px;padding:4px 2px 10px}
   .secbtn{background:rgba(255,255,255,.9);color:var(--navy);border:0;border-radius:8px;padding:5px 11px;font-size:11.5px;font-weight:bold;cursor:pointer;font-family:inherit;white-space:nowrap}
   .secbtn:active{background:#fff}
+  .secbtn.dark{background:var(--navy);color:#fff}
+  .wlsec.old .secbtn{background:var(--navy);color:#fff}
   .cmopts{display:flex;flex-direction:column;gap:8px;margin:4px 0 12px}
   .cmopt{display:flex;gap:10px;align-items:flex-start;border:1.5px solid var(--line);border-radius:11px;padding:11px 13px;cursor:pointer;background:#fff}
   .cmopt.on{border-color:var(--orange);background:#fff8f2}
@@ -1087,7 +1089,7 @@
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-26·f</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-26·g</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1133,6 +1135,14 @@
 </div>
 
 <!-- Raise a job modal -->
+<!-- Report -->
+<div class="modal" id="reportModal"><div class="card2">
+  <h3 id="rptTitle">Report</h3>
+  <div id="rptBody"></div>
+  <button class="jobbtn complete" id="rptGo" style="background:#0f766e;margin-top:8px" onclick="buildReport()">Build the report</button>
+  <button class="jobbtn" style="background:none;color:var(--muted);margin-top:4px" onclick="closeModal('reportModal')">Cancel</button>
+</div></div>
+
 <!-- Close a month -->
 <div class="modal" id="closeMonthModal"><div class="card2">
   <h3 id="closeMonthTitle">Close month</h3>
@@ -2874,20 +2884,122 @@ function wlSections(order, groups){
   // read "218 open" when the month's actual work was four jobs.
   var curLists=buckets.current;
   var openN=curLists.reduce(function(n,g){ return n+wlSplit(groups[g]).live.length; },0);
-  var closeBtn = (cur&&cur.period) ? ('<button class="secbtn" onclick="event.stopPropagation();closeMonthDlg(\''+esc((cur.period||"").replace(/'/g,"\\'"))+'\')">Close month</button>') : '';
-  html+=wlSection("cur", curTitle+' <span class="secstate live">Live</span>', openN+' open', 'now', draw(curLists), true, closeBtn);
+  var pJs=esc((cur&&cur.period||"").replace(/'/g,"\\'"));
+  var btns = (cur&&cur.period)
+    ? ('<button class="secbtn" onclick="event.stopPropagation();reportDlg(\''+pJs+'\')">Report</button>'+
+       '<button class="secbtn" onclick="event.stopPropagation();closeMonthDlg(\''+pJs+'\')">Close month</button>')
+    : '';
+  html+=wlSection("cur", curTitle+' <span class="secstate live">Live</span>', openN+' open', 'now', draw(curLists), true, btns);
   if(buckets.waiting.length){
     var wN=buckets.waiting.reduce(function(n,g){ return n+wlSplit(groups[g]).live.length; },0);
     html+=wlSection("wait", 'Waiting <span class="secstate waiting">Not live</span>', wN+' waiting', 'wait', draw(buckets.waiting), false);
   }
   if(buckets.earlier.length) html+=wlSection("earl","Earlier months", buckets.earlier.length, 'old', draw(buckets.earlier), false);
-  if(buckets.closed.length)  html+=wlSection("shut","Closed months", buckets.closed.length, 'old', draw(buckets.closed), false);
+  if(buckets.closed.length){
+    var cP=(G.closed[0]&&G.closed[0].period)||"";
+    var cBtn=cP?('<button class="secbtn dark" onclick="event.stopPropagation();reportDlg(\''+esc(cP.replace(/'/g,"\\'"))+'\')">Report</button>'):'';
+    html+=wlSection("shut","Closed months", buckets.closed.length, 'old', draw(buckets.closed), false, cBtn);
+  }
   if(buckets.other.length){
     var oN=buckets.other.reduce(function(n,g){ return n+wlSplit(groups[g]).live.length; },0);
     html+=wlSection("nolist",'Not on a list', oN+' open', 'old', draw(buckets.other), false);
   }
   if(buckets.foreign.length) html+=wlSection("foreign","Other yachts", buckets.foreign.length, 'old', draw(buckets.foreign), false);
   return html;
+}
+/* ---- The report -----------------------------------------------------------
+   Built in the browser from the jobs already on screen, the same way the
+   Off-Fleet report is, so it can be produced from a phone on the dock: it opens
+   ready to print, and "print" on a phone means Save as PDF or share straight to
+   the owner. Three cuts, because a report has three different audiences:
+     everything          — your working record, including what didn't happen
+     completed only      — the one that goes to an owner
+     completed + in hand — the mid-month "here's where we're at" */
+var RPT={period:"", scope:"done"};
+function reportDlg(period){
+  RPT={period:period, scope:"done"};
+  $("rptTitle").textContent="Report — "+CURVESSEL+" · "+period;
+  rptRender(); $("reportModal").classList.add("show");
+}
+function rptJobs(){
+  var vlc=(CURVESSEL||"").toLowerCase();
+  return (CREWJOBS||[]).filter(function(j){
+    if((j.vessel||"").toLowerCase()!==vlc) return false;
+    var rec=LISTINFO[(j.list||"").toLowerCase()];
+    if(!rec || rec.period!==RPT.period) return false;               // this month's lists only
+    var b=hubBucket(j.status), st=(j.status||"").toLowerCase();
+    if(st==="cancelled") return RPT.scope==="all";                  // not-done work is a record, not a result
+    if(RPT.scope==="done")   return b==="Done";
+    if(RPT.scope==="prog")   return b==="Done" || b==="In progress";
+    return true;
+  });
+}
+function rptRender(){
+  var opts=[["all","Everything on the list","Every job and where it got to, including what didn’t happen. Your working record."],
+            ["done","Completed only","What was finished. This is the one that goes to an owner."],
+            ["prog","Completed + in hand","Finished work plus what’s still on the go — the mid-month update."]];
+  var n=rptJobs().length;
+  $("rptBody").innerHTML='<div class="cmopts">'+opts.map(function(o){
+      return '<div class="cmopt'+(RPT.scope===o[0]?" on":"")+'" onclick="RPT.scope=\''+o[0]+'\';rptRender()"><span class="cmrad"></span>'+
+        '<span><b>'+o[1]+'</b><span class="cmsub">'+o[2]+'</span></span></div>';
+    }).join("")+'</div>'+
+    '<p class="mhint">'+n+(n===1?' job':' jobs')+' in this report. It opens ready to print — on a phone that’s <b>Save as PDF</b> or share.</p>';
+  $("rptGo").textContent = n ? ("Build the report · "+n) : "Nothing to report";
+  $("rptGo").disabled = !n;
+}
+function rptEsc(x){ return (x==null?"":String(x)).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];}); }
+function buildReport(){
+  var jobs=rptJobs(); if(!jobs.length) return;
+  var label={all:"Every job", done:"Completed works", prog:"Completed &amp; in hand"}[RPT.scope];
+  var base=location.href.replace(/[^/]*$/,"");
+  var rows=jobs.map(function(j){
+    var b=hubBucket(j.status), st=((j.status||"").toLowerCase()==="cancelled")?"Not done":(b==="Done"?"Complete":(b==="In progress"?"In hand":"To do"));
+    // Use driveImg untouched. Asking Google for =w600 to save bytes looked sensible
+    // and was wrong: the SAME file serves at =w1600 and is refused at =w600, so the
+    // report came out with no photos at all. Size is handled in CSS instead, and the
+    // count is capped at four per job to keep the burst small.
+    var ph=(j.photos||[]).slice(0,4).map(function(p){
+      return '<img src="'+rptEsc(driveImg(p.url))+'">'; }).join("");
+    var notes=(j.comments||[]).filter(function(c){ return (c.text||"").trim(); })
+      .map(function(c){ return '<div class="n"><b>'+rptEsc(c.by||"Marine HQ")+'</b> '+rptEsc(c.text)+'</div>'; }).join("");
+    return '<div class="job"><div class="jh"><span class="code">'+rptEsc(j.code||"")+'</span>'+
+      '<span class="t">'+rptEsc(j.task||j.desc||"Task")+'</span><span class="st s-'+b.replace(/\s/g,"")+'">'+st+'</span></div>'+
+      '<div class="m">'+(j.completed?('Completed '+rptEsc(j.completed)+' &middot; '):'')+
+        (j.allocatedTo?('By '+rptEsc(j.allocatedTo)):'')+(j.carried>1?(' &middot; carried '+j.carried+'&times;'):'')+'</div>'+
+      (j.desc&&j.desc!==j.task?('<div class="d">'+rptEsc(j.desc)+'</div>'):'')+
+      (notes?('<div class="ns">'+notes+'</div>'):'')+
+      (ph?('<div class="ph">'+ph+'</div>'):'')+'</div>';
+  }).join("");
+  var doc='<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'+
+    '<title>'+rptEsc(CURVESSEL)+' '+rptEsc(RPT.period)+' — '+label+'</title><style>'+
+    '@page{size:A4;margin:14mm}*{box-sizing:border-box}'+
+    'body{margin:0;font-family:-apple-system,Segoe UI,Arial,sans-serif;color:#22303f;background:#fff}'+
+    '.wrap{max-width:820px;margin:0 auto;padding:0 16px 40px}'+
+    'img.bnr{display:block;width:100%;height:auto}'+
+    'h1{font-size:21px;color:#1A2B5C;margin:16px 0 2px}.sub{color:#6b7a8d;font-size:12.5px;margin-bottom:16px}'+
+    '.job{border:1px solid #e3e8ef;border-radius:11px;padding:11px 13px;margin-bottom:10px;page-break-inside:avoid}'+
+    '.jh{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}'+
+    '.code{font-family:ui-monospace,Menlo,monospace;font-size:10.5px;background:#eef1f8;color:#1A2B5C;border:1px solid #dbe1f0;border-radius:5px;padding:1px 6px}'+
+    '.t{font-weight:700;font-size:14px;color:#1A2B5C;flex:1;min-width:0}'+
+    '.st{font-size:10px;font-weight:800;border-radius:20px;padding:2px 9px;background:#eef2f6;color:#6b7a8d}'+
+    '.s-Done{background:#dfede4;color:#1F7A54}.s-Inprogress{background:#faecd8;color:#9A5C10}'+
+    '.m{font-size:11.5px;color:#6b7a8d;margin-top:4px}.d{font-size:13px;margin-top:6px;line-height:1.5}'+
+    '.ns{margin-top:7px}.n{font-size:12px;color:#3d4d5c;background:#f4f6f9;border-radius:8px;padding:6px 9px;margin-top:4px;line-height:1.45}'+
+    '.ph{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.ph img{width:118px;height:88px;object-fit:cover;border-radius:7px;border:1px solid #e3e8ef}'+
+    '.ft{color:#6b7a8d;font-size:11px;text-align:center;margin-top:18px}'+
+    '@media print{.noprint{display:none}}'+
+    '</style></head><body>'+
+    '<img class="bnr" src="'+rptEsc(base)+'banner.jpg" alt="Marine HQ">'+
+    '<div class="wrap"><h1>'+rptEsc(CURVESSEL)+' &middot; '+rptEsc(RPT.period)+'</h1>'+
+    '<div class="sub">'+label+' &middot; '+jobs.length+(jobs.length===1?' job':' jobs')+' &middot; produced '+rptEsc(new Date().toLocaleDateString("en-AU",{day:"2-digit",month:"long",year:"numeric"}))+'</div>'+
+    '<button class="noprint" onclick="window.print()" style="border:0;background:#E87722;color:#fff;border-radius:9px;padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:14px">Print / Save as PDF</button>'+
+    rows+
+    '<div class="ft">Marine HQ Fleet Management &middot; '+rptEsc(CURVESSEL)+'</div></div>'+
+    '<img class="bnr" src="'+rptEsc(base)+'footer-banner.jpg" alt="Marine HQ"></body></html>';
+  var w=window.open("","_blank");
+  if(!w){ toast("Allow pop-ups to open the report"); return; }
+  w.document.open(); w.document.write(doc); w.document.close();
+  closeModal("reportModal");
 }
 /* ---- Closing a month ------------------------------------------------------
    Finished work stays on the closed month as its record. Everything unfinished
