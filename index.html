@@ -1087,7 +1087,7 @@
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-26·e</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-26·f</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2869,7 +2869,10 @@ function wlSections(order, groups){
   var draw=function(arr){ return arr.map(function(g){ return wlGroupHTML(g, groups); }).join(""); };
   var G=LISTGROUPS, html="";
   var cur=G.current, curTitle=cur ? (esc(cur.vessel)+(cur.period?(' &middot; '+esc(cur.period)):'')) : esc(CURVESSEL);
-  var curLists=buckets.current.concat(buckets.other);         // a list with no record still has to appear
+  // ONLY lists that belong to the month go in the month. Andiamo carries 214
+  // listless tasks from the Zoho feed; sweeping those into August made the month
+  // read "218 open" when the month's actual work was four jobs.
+  var curLists=buckets.current;
   var openN=curLists.reduce(function(n,g){ return n+wlSplit(groups[g]).live.length; },0);
   var closeBtn = (cur&&cur.period) ? ('<button class="secbtn" onclick="event.stopPropagation();closeMonthDlg(\''+esc((cur.period||"").replace(/'/g,"\\'"))+'\')">Close month</button>') : '';
   html+=wlSection("cur", curTitle+' <span class="secstate live">Live</span>', openN+' open', 'now', draw(curLists), true, closeBtn);
@@ -2879,7 +2882,11 @@ function wlSections(order, groups){
   }
   if(buckets.earlier.length) html+=wlSection("earl","Earlier months", buckets.earlier.length, 'old', draw(buckets.earlier), false);
   if(buckets.closed.length)  html+=wlSection("shut","Closed months", buckets.closed.length, 'old', draw(buckets.closed), false);
-  if(buckets.foreign.length) html+=wlSection("other","Other yachts", buckets.foreign.length, 'old', draw(buckets.foreign), false);
+  if(buckets.other.length){
+    var oN=buckets.other.reduce(function(n,g){ return n+wlSplit(groups[g]).live.length; },0);
+    html+=wlSection("nolist",'Not on a list', oN+' open', 'old', draw(buckets.other), false);
+  }
+  if(buckets.foreign.length) html+=wlSection("foreign","Other yachts", buckets.foreign.length, 'old', draw(buckets.foreign), false);
   return html;
 }
 /* ---- Closing a month ------------------------------------------------------
