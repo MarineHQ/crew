@@ -1087,7 +1087,7 @@
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-26·d</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-26·e</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2856,8 +2856,16 @@ function wlSection(key, title, count, cls, inner, dfltOpen, btn){
 function wlSections(order, groups){
   var single = isMgrRole() && CURVESSEL && CURVESSEL!=="__all__" && !SCHEDVIEW;
   if(!single || !LISTGROUPS) return order.map(function(g){ return wlGroupHTML(g, groups); }).join("");
-  var buckets={current:[], waiting:[], earlier:[], closed:[], other:[]};
-  order.forEach(function(g){ var sec=wlSectionOf(g)||"other"; buckets[sec].push(g); });
+  var buckets={current:[], waiting:[], earlier:[], closed:[], other:[], foreign:[]};
+  var vlc=(CURVESSEL||"").toLowerCase();
+  order.forEach(function(g){
+    // A list only belongs to this boat's month if its work IS this boat's. Without
+    // this, any other vessel's rows sitting in memory land under the heading of
+    // whichever boat is selected — 218 "open" on Andiamo when it was really the fleet.
+    var mine=(groups[g]||[]).some(function(j){ return (j.vessel||"").toLowerCase()===vlc; });
+    if(!mine){ buckets.foreign.push(g); return; }
+    var sec=wlSectionOf(g)||"other"; buckets[sec].push(g);
+  });
   var draw=function(arr){ return arr.map(function(g){ return wlGroupHTML(g, groups); }).join(""); };
   var G=LISTGROUPS, html="";
   var cur=G.current, curTitle=cur ? (esc(cur.vessel)+(cur.period?(' &middot; '+esc(cur.period)):'')) : esc(CURVESSEL);
@@ -2871,6 +2879,7 @@ function wlSections(order, groups){
   }
   if(buckets.earlier.length) html+=wlSection("earl","Earlier months", buckets.earlier.length, 'old', draw(buckets.earlier), false);
   if(buckets.closed.length)  html+=wlSection("shut","Closed months", buckets.closed.length, 'old', draw(buckets.closed), false);
+  if(buckets.foreign.length) html+=wlSection("other","Other yachts", buckets.foreign.length, 'old', draw(buckets.foreign), false);
   return html;
 }
 /* ---- Closing a month ------------------------------------------------------
