@@ -1089,7 +1089,7 @@
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-27·c</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-27·d</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -3021,7 +3021,10 @@ function buildReport(){
     '.topbar{position:sticky;top:0;display:flex;gap:8px;align-items:center;background:#fff;padding:10px 0;margin-bottom:6px;border-bottom:1px solid #e3e8ef;z-index:9}'+
     '.topbar .tbtn{border:0;border-radius:9px;padding:9px 15px;font-size:13px;font-weight:700;cursor:pointer}'+
     '.topbar .close{background:#eef1f6;color:#1A2B5C}.topbar .print{background:#E87722;color:#fff;margin-left:auto}'+
-    '@media print{.noprint{display:none}}'+
+    '.end{page-break-inside:avoid}.end .bnr{width:62%;max-width:430px;margin:12px auto 0;display:block}'+
+    // Print can't measure page breaks, so fill the footer's own last page and
+    // bottom-align it — drops the contact banner to the bottom of the last page.
+    '@media print{.noprint{display:none}.end{min-height:265mm;display:flex;flex-direction:column;justify-content:flex-end}}'+
     '</style></head><body>'+
     '<div class="wrap noprint"><div class="topbar">'+
       '<button class="tbtn close" onclick="window.close()">&lsaquo; Close report</button>'+
@@ -3032,8 +3035,9 @@ function buildReport(){
     '<div class="sub">'+label+' &middot; '+jobs.length+(jobs.length===1?' job':' jobs')+' &middot; produced '+rptEsc(new Date().toLocaleDateString("en-AU",{day:"2-digit",month:"long",year:"numeric"}))+'</div>'+
     '<div class="noprint" style="font-size:11.5px;color:#6b7a8d;margin-bottom:14px">Tip: if Close doesn’t return you to the app, close this browser tab to go back.</div>'+
     rows+
-    '<div class="ft">Marine HQ Fleet Management &middot; '+rptEsc(CURVESSEL)+'</div></div>'+
-    '<img class="bnr" src="'+rptEsc(base)+'footer-banner.jpg" alt="Marine HQ"></body></html>';
+    '</div>'+
+    '<div class="wrap end"><div class="ft">Marine HQ Fleet Management &middot; '+rptEsc(CURVESSEL)+'</div>'+
+    '<img class="bnr" src="'+rptEsc(base)+'footer-banner.jpg" alt="Marine HQ"></div></body></html>';
   var w=window.open("","_blank");
   if(!w){ toast("Allow pop-ups to open the report"); return; }
   w.document.open(); w.document.write(doc); w.document.close();
