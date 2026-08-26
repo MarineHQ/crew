@@ -170,10 +170,22 @@
   .cmrad{width:16px;height:16px;border-radius:50%;border:2px solid var(--line);flex:0 0 auto;margin-top:2px}
   .cmopt.on .cmrad{border-color:var(--orange);background:radial-gradient(circle,var(--orange) 0 45%,transparent 46%)}
   .cmlist{border:1px solid var(--line);border-radius:11px;overflow:hidden;margin-top:4px}
-  .cmrow{display:flex;gap:10px;align-items:baseline;padding:8px 11px;border-top:1px solid var(--line);font-size:12.5px}
-  .cmrow:first-child{border-top:0}
-  .cmt{flex:1;min-width:0;color:var(--ink)}
-  .cmto{color:var(--muted);font-size:11.5px;white-space:nowrap}
+  .cmrow2{padding:10px 11px;border-top:1px solid var(--line)}
+  .cmrow2:first-child{border-top:0}
+  .cmt{font-size:13px;font-weight:600;color:var(--ink);line-height:1.35}
+  .cmcarry{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#8a5a12;background:#fdf1e3;border-radius:5px;padding:1px 6px;margin-left:7px;vertical-align:middle}
+  .cmsegs{display:flex;gap:5px;margin:7px 0 5px}
+  .cmseg{flex:1;border:1.5px solid var(--line);background:#fff;color:var(--muted);border-radius:8px;padding:6px 4px;font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit}
+  .cmseg.on{color:#fff;border-color:transparent}
+  .cmseg.on.roll{background:var(--navy)}
+  .cmseg.on.yard{background:#2C5273}
+  .cmseg.on.close{background:#9a3b2a}
+  .cmto{font-size:11.5px;color:var(--muted)}
+  .cmall{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:2px 0 10px}
+  .cmalll{font-size:11.5px;color:var(--muted);font-weight:700}
+  .cmallb{border:1.5px solid var(--line);background:#fff;color:var(--navy);border-radius:8px;padding:5px 11px;font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit}
+  .cmallb:active{background:#eef4fb}
+  .cmlist{max-height:46vh;overflow-y:auto}
   .secstate{font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;background:rgba(255,255,255,.22);border-radius:5px;padding:2px 7px;margin-left:8px;vertical-align:middle}
   .wlsec.old .secstate{background:rgba(26,43,92,.10)}
   .lstate{font-size:9px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;border-radius:5px;padding:2px 6px;margin-left:8px;vertical-align:middle;background:rgba(255,255,255,.22)}
@@ -1075,7 +1087,7 @@
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-26·c</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-26·d</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2876,57 +2888,71 @@ function closeMonthDlg(period){
   $("closeMonthModal").classList.add("show");
   cmPreview();
 }
-/* ONE dry run, then switching option just re-labels. The set of unfinished jobs
-   is the same whichever way you send them — only the destination changes — and
-   the round trip is 5-10 seconds, which was long enough for a slow reply to land
-   after you'd already picked something else and paint the wrong destinations. */
+/* ONE dry run, then every decision is local. The set of unfinished jobs is the
+   same whichever way you send them, so the round trip happens once; after that
+   each job carries its own destination and nothing waits on the server.
+
+   Per job, not per month: at a real month end some work carries over, some can
+   only be done out of the water, and some isn't happening at all. "Send all"
+   sets the lot in one tap, then you change the odd one. */
+var CMWAY={};                                    // job key -> "roll" | "yard" | "close"
 function cmPreview(){
   $("cmBody").innerHTML='<div class="loadingbox"><span class="spin"></span> Working out what would happen…</div>';
   $("cmGo").style.display="none";
   apiPost({action:"crewMonthClose", email:ME.email, code:ME.code, vessel:CURVESSEL,
            period:CM.period, dispo:"roll", dry:true}).then(function(r){
     if(!r||!r.ok){ $("cmBody").innerHTML='<div class="empty">'+esc((r&&r.error)||"Couldn’t work that out")+'</div>'; return; }
-    CM.preview=r; cmRender();
+    CM.preview=r; CMWAY={};
+    r.rolled.forEach(function(x){ CMWAY[x.key]="roll"; });     // everything carries over unless you say otherwise
+    cmRender();
   }).catch(function(){ $("cmBody").innerHTML='<div class="empty">Couldn’t connect.</div>'; });
 }
-function cmDest(x){
-  if(CM.dispo==="yard")  return "Coming for shipyard";
-  if(CM.dispo==="close") return "closed — not done";
+var CMLBL={roll:"Carry over", yard:"Shipyard", close:"Not doing"};
+function cmDestText(x){
+  var w=CMWAY[x.key]||"roll";
+  if(w==="yard")  return "Coming for shipyard";
+  if(w==="close") return "closed — not done";
   return x.to;
 }
+function cmTally(){
+  var t={roll:0,yard:0,close:0};
+  Object.keys(CMWAY).forEach(function(k){ t[CMWAY[k]]=(t[CMWAY[k]]||0)+1; });
+  return t;
+}
+function cmSetAll(w){ Object.keys(CMWAY).forEach(function(k){ CMWAY[k]=w; }); cmRender(); }
+function cmSet(key,w){ CMWAY[key]=w; cmRender(); }
 function cmRender(){
   var r=CM.preview; if(!r) return;
-  var moving=r.rolled.length+r.toYard.length+r.closed.length;
-  var opts=[
-    ["roll","Carry into "+esc(r.nextPeriod||"next month"),"They move across with their photos, notes and whoever they’re assigned to. Their carry count goes up by one."],
-    ["yard","Move to “Coming for shipyard”","For anything that can only be done out of the water. It waits there until she’s booked in."],
-    ["close","Close them — not doing them","Kept on the closed month as a record, marked with your reason."]
-  ];
+  var jobs=r.rolled, moving=jobs.length, t=cmTally();
+  var setAll='<div class="cmall"><span class="cmalll">Send all:</span>'+
+    ["roll","yard","close"].map(function(w){
+      return '<button class="cmallb" onclick="cmSetAll(\''+w+'\')">'+CMLBL[w]+'</button>';
+    }).join("")+'</div>';
+  var rows=jobs.map(function(x){
+    var w=CMWAY[x.key]||"roll";
+    var seg=["roll","yard","close"].map(function(o){
+      return '<button class="cmseg'+(w===o?" on "+o:"")+'" onclick="cmSet(\''+esc((x.key||"").replace(/'/g,"\\'"))+'\',\''+o+'\')">'+CMLBL[o]+'</button>';
+    }).join("");
+    var carried=(w==="roll"&&x.carried>1)?('<span class="cmcarry">carried '+x.carried+'×</span>'):'';
+    return '<div class="cmrow2"><div class="cmt">'+esc(x.task)+carried+'</div>'+
+      '<div class="cmsegs">'+seg+'</div>'+
+      '<div class="cmto">→ '+esc(cmDestText(x))+'</div></div>';
+  }).join("");
+  var bits=[]; if(t.roll)bits.push(t.roll+' carrying into '+esc(r.nextPeriod||"next month"));
+  if(t.yard)bits.push(t.yard+' to shipyard'); if(t.close)bits.push(t.close+' closed');
   $("cmBody").innerHTML=
     '<p class="mhint"><b>'+r.kept+'</b> finished — they stay on '+esc(CM.period)+' as the month’s record.<br>'+
-    '<b>'+moving+'</b> unfinished — where do they go?</p>'+
-    '<div class="cmopts">'+opts.map(function(o){
-      return '<div class="cmopt'+(CM.dispo===o[0]?" on":"")+'" onclick="cmPick(\''+o[0]+'\')"><span class="cmrad"></span>'+
-        '<span><b>'+o[1]+'</b><span class="cmsub">'+o[2]+'</span></span></div>';
-    }).join("")+'</div>'+
-    (CM.dispo==="close" ? ('<label class="fld">Why not?</label><input class="fld-in" id="cmReason" placeholder="e.g. she went back in the water" value="'+esc(CM.reason)+'" oninput="CM.reason=this.value">') : '')+
-    '<div class="cmlist">'+(moving?cmRows(r):'<div class="mhint" style="padding:10px">Nothing outstanding — the month is finished.</div>')+'</div>'+
-    '<p class="mhint" style="margin-top:10px">Individual jobs can be sent different ways later; this sends them all the same way.</p>';
+    (moving?('<b>'+moving+'</b> unfinished — send each one where it belongs.'):'Nothing outstanding — the month is finished.')+'</p>'+
+    (moving?(setAll+'<div class="cmlist">'+rows+'</div>'):'')+
+    (t.close ? ('<label class="fld">'+(t.close===1?'Why isn’t that one happening?':'Why aren’t those '+t.close+' happening?')+'</label>'+
+       '<input class="fld-in" id="cmReason" placeholder="e.g. she went back in the water" value="'+esc(CM.reason)+'" oninput="CM.reason=this.value">') : '');
   $("cmGo").style.display="";
-  $("cmGo").textContent = moving ? ("Close "+CM.period+" · move "+moving) : ("Close "+CM.period);
+  $("cmGo").textContent = moving ? ("Close "+CM.period+" · "+bits.join(", ")) : ("Close "+CM.period);
 }
-function cmRows(r){
-  var all=r.rolled.concat(r.toYard).concat(r.closed);
-  return all.slice(0,12).map(function(x){
-    var c=(CM.dispo==="roll" && x.carried>1) ? (' · carried '+x.carried+'×') : '';
-    return '<div class="cmrow"><span class="cmt">'+esc(x.task)+'</span><span class="cmto">'+esc(cmDest(x))+c+'</span></div>';
-  }).join("")+(all.length>12?('<div class="mhint" style="padding:8px 11px">…and '+(all.length-12)+' more</div>'):'');
-}
-function cmPick(d){ CM.dispo=d; cmRender(); }          // instant — no second round trip
 function cmGo(){
   var b=$("cmGo"); b.disabled=true; b.textContent="Closing…";
   apiPost({action:"crewMonthClose", email:ME.email, code:ME.code, vessel:CURVESSEL,
-           period:CM.period, dispo:CM.dispo, reason:CM.reason}).then(function(r){
+           period:CM.period, dispo:"roll", perTask:CMWAY, reason:CM.reason}).then(function(r){
     b.disabled=false;
     if(!r||!r.ok){ toast((r&&r.error)||"Couldn’t close the month"); b.textContent="Close "+CM.period; return; }
     closeModal("closeMonthModal");
