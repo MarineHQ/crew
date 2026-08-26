@@ -146,6 +146,33 @@
   .wlacc h3{margin:0;font-size:15px;flex:1;line-height:1.25} .wlacc .n{background:rgba(255,255,255,.18);border-radius:12px;font-size:12px;font-weight:bold;padding:2px 9px}
   .wlacc .car{transition:transform .2s;font-size:15px} .wlacc.closed .car{transform:rotate(-90deg)}
   .wlbody.closed{display:none}
+  /* One boat, three headings. The month leads (orange, like the list headers it
+     contains); waiting and closed recede so live work reads as the live work. */
+  .wlsec{border-radius:12px;padding:12px 14px;margin:10px 0 9px;cursor:pointer;display:flex;align-items:center;gap:9px;color:#fff}
+  .wlsec h3{margin:0;font-size:14.5px;flex:1;line-height:1.25;font-weight:bold}
+  .wlsec .n{background:rgba(255,255,255,.2);border-radius:12px;font-size:11px;font-weight:bold;padding:2px 9px;white-space:nowrap}
+  .wlsec .car{transition:transform .2s;font-size:14px}
+  .wlsec.closed .car{transform:rotate(-90deg)}
+  .wlsec.now{background:linear-gradient(135deg,var(--orange),var(--orange2));box-shadow:0 4px 12px rgba(232,119,34,.26)}
+  .wlsec.wait{background:linear-gradient(135deg,#3F6C8F,#2C5273)}
+  .wlsec.old{background:#e6ecf2;color:var(--navy)}
+  .wlsec.old .n{background:rgba(26,43,92,.10)}
+  .wlsecbody{padding-left:2px}
+  .wlsecbody.closed{display:none}
+  .wlnone{color:var(--muted);font-size:12.5px;padding:4px 2px 10px}
+  .secstate{font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;background:rgba(255,255,255,.22);border-radius:5px;padding:2px 7px;margin-left:8px;vertical-align:middle}
+  .wlsec.old .secstate{background:rgba(26,43,92,.10)}
+  .lstate{font-size:9px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;border-radius:5px;padding:2px 6px;margin-left:8px;vertical-align:middle;background:rgba(255,255,255,.22)}
+  /* A list INSIDE a section is contents, not a heading — orange on orange made the
+     month and its lists read as the same thing. Pale inside, so the hierarchy shows. */
+  .wlsecbody .wlacc{background:#eef2f6;color:var(--navy);box-shadow:none;border:1px solid var(--line);margin:4px 0 9px}
+  .wlsecbody .wlacc .n{background:rgba(26,43,92,.10);color:var(--navy)}
+  .wlsecbody .wlacc .n.newn{background:var(--orange)!important;color:#fff!important}
+  .wlsecbody .wlacc .n.tosign{background:#fff!important;color:#8a5a12!important}
+  .wlsecbody .wlacc .car{color:var(--orange)}
+  .wlsecbody .wlacc .lstate{background:rgba(26,43,92,.10)}
+  .wlsecbody .wlacc .lstate.waiting{background:rgba(99,118,138,.16);color:var(--muted)}
+  .wlsecbody .wlacc .wledit{color:var(--navy)}
   .wlacc.duewl{background:linear-gradient(135deg,#c0392b,#e05a3f);box-shadow:0 4px 12px rgba(192,57,43,.26)}
   .duenote{font-size:12px;color:var(--muted);line-height:1.5;margin:0 2px 9px}
   .srcchip{display:inline-block;background:#eef2f6;color:var(--navy);border-radius:10px;font-size:9.5px;font-weight:800;padding:2px 7px;vertical-align:middle}
@@ -1034,7 +1061,7 @@
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-26·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-26·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1871,6 +1898,7 @@ var CURVESSEL="", FLEETVESSELS=[];
    they live only in the Off-Fleet tab. */
 function notOffFleet(x){ return !(x && x.oj); }
 function loadJobs(){
+  if(isMgrRole() && CURVESSEL && CURVESSEL!=="__all__") loadListInfo(CURVESSEL);
   if(!ME) return;
   ofSync();          // an action on an off-fleet item refreshes that screen too
   if(isMgrRole() && !CURVESSEL) CURVESSEL="__all__";   // directors open on All Yachts, not their first boat
@@ -1922,7 +1950,7 @@ function renderVesselBar(){
   }
   hosts.forEach(function(h){ if(h) h.innerHTML=html; });
 }
-function pickVessel(v){ CURVESSEL=v; WLCLOSED={}; renderVesselBar(); if(TAB==="maint"){ if(v==="__all__") loadFleetCare(); else loadCare(v); } else if(TAB==="induct") loadInduct(); else loadJobs(); }
+function pickVessel(v){ CURVESSEL=v; WLCLOSED={}; WLSEC={}; loadListInfo(v); renderVesselBar(); if(TAB==="maint"){ if(v==="__all__") loadFleetCare(); else loadCare(v); } else if(TAB==="induct") loadInduct(); else loadJobs(); }
 // Open the Command Centre, passing the director's code so it unlocks (no 2nd passcode).
 function openCommand(){ try{ if(ME&&ME.code) localStorage.setItem("mhq_crew_key", ME.code); }catch(e){} location.href="overview.html"; }
 /* What's Due — scheduled maintenance from the maintenance schedule → add to a worklist */
@@ -2728,7 +2756,12 @@ function renderJobs(){
   } else {
     list.forEach(function(j){ var g=allBoats?(j.list||((j.vessel||"Other")+" — Other jobs")):(j.list||"Other jobs"); if(!groups[g]){groups[g]=[];order.push(g); if(!(g in WLCLOSED)) WLCLOSED[g]=true;} groups[g].push(j); });
   }
-  el.innerHTML=renderOffer()+order.map(function(g){
+  el.innerHTML=renderOffer()+wlSections(order, groups);
+}
+/* One worklist, drawn as it always has been. Pulled out of renderJobs so the
+   month / waiting / closed sections can each draw their own lists. */
+function wlGroupHTML(g, groups){
+  {
     var jobs=groups[g], sp=wlSplit(jobs), live=sp.live, toSign=sp.toSign, filed=sp.filed;
     var openN=live.length;
     var newN=live.filter(jobRecent).length;
@@ -2749,12 +2782,61 @@ function renderJobs(){
       '<button onclick="event.stopPropagation();setListNote(\''+esc(gJs)+'\')">🗓️ '+(note?'Edit':'Add')+' deadline / note</button>'+
       '<button onclick="event.stopPropagation();openAddTask(\''+esc(gJs)+'\',\''+esc(gVessel)+'\')">＋ Add task to this list</button>'+
       '<button onclick="event.stopPropagation();renameList(\''+esc(gJs)+'\')">✎ Rename list</button></div>') : '';
+    // Months and states are a director thing — crew keep the plain list, whatever
+    // happens to be loaded in memory.
+    var rec=isMgrRole()?LISTINFO[(g||"").toLowerCase()]:null, lst=rec&&rec.state;
+    var stateTag = lst ? ('<span class="lstate '+lst+'">'+(lst==="live"?"Live":(lst==="waiting"?"Waiting":"Closed"))+'</span>') : '';
+    // inside a month the heading already carries the boat and period
+    var shown = (rec&&rec.sub&&wlSectionOf(g)==="current") ? rec.sub : g;
     return '<div class="wlacc'+collapsed+'" onclick="toggleWL(\''+esc(g)+'\')"><span class="car">▾</span>'+
-      '<h3>'+esc(g)+'</h3>'+(newN?'<span class="n newn">'+newN+' new</span>':'')+'<span class="n">'+openN+' open</span>'+
+      '<h3>'+esc(shown)+stateTag+'</h3>'+(newN?'<span class="n newn">'+newN+' new</span>':'')+'<span class="n">'+openN+' open</span>'+
       ((isMgrRole()&&toSign.length)?('<span class="n tosign">'+toSign.length+' to sign off</span>'):'')+editIcon+'</div>'+
       noteRow+editMenu+
       '<div class="wlbody'+bodyC+'" data-g="'+esc(g)+'">'+cards+'</div>';
-  }).join("");
+  }
+}
+
+/* ---- One boat, three headings (directors) --------------------------------
+   The month being worked, the lists that never roll, and the months already
+   closed. Only for a director looking at ONE boat: across the fleet "the
+   current month" means nothing, and crew keep the plain list they have.
+   Falls back to the flat list whenever the records haven't loaded. */
+function wlSectionOf(name){
+  var G=LISTGROUPS; if(!G) return null;
+  var lc=(name||"").toLowerCase();
+  function has(m){ return m && m.lists.some(function(x){ return (x.list||"").toLowerCase()===lc; }); }
+  if(has(G.current)) return "current";
+  if((G.waiting||[]).some(function(x){ return (x.list||"").toLowerCase()===lc; })) return "waiting";
+  if((G.earlier||[]).some(has)) return "earlier";
+  if((G.closed||[]).some(has)) return "closed";
+  return null;
+}
+function wlSecOpen(k, dflt){ return (k in WLSEC) ? WLSEC[k] : dflt; }
+function toggleSec(k, dflt){ WLSEC[k]=!wlSecOpen(k,dflt); renderJobs(); }
+function wlSection(key, title, count, cls, inner, dfltOpen){
+  var open=wlSecOpen(key, dfltOpen);
+  return '<div class="wlsec '+cls+(open?"":" closed")+'" onclick="toggleSec(\''+key+'\','+(dfltOpen?"true":"false")+')">'+
+      '<span class="car">▾</span><h3>'+title+'</h3>'+(count?('<span class="n">'+count+'</span>'):'')+'</div>'+
+    '<div class="wlsecbody'+(open?"":" closed")+'">'+(inner||'<div class="wlnone">Nothing here.</div>')+'</div>';
+}
+function wlSections(order, groups){
+  var single = isMgrRole() && CURVESSEL && CURVESSEL!=="__all__" && !SCHEDVIEW;
+  if(!single || !LISTGROUPS) return order.map(function(g){ return wlGroupHTML(g, groups); }).join("");
+  var buckets={current:[], waiting:[], earlier:[], closed:[], other:[]};
+  order.forEach(function(g){ var sec=wlSectionOf(g)||"other"; buckets[sec].push(g); });
+  var draw=function(arr){ return arr.map(function(g){ return wlGroupHTML(g, groups); }).join(""); };
+  var G=LISTGROUPS, html="";
+  var cur=G.current, curTitle=cur ? (esc(cur.vessel)+(cur.period?(' &middot; '+esc(cur.period)):'')) : esc(CURVESSEL);
+  var curLists=buckets.current.concat(buckets.other);         // a list with no record still has to appear
+  var openN=curLists.reduce(function(n,g){ return n+wlSplit(groups[g]).live.length; },0);
+  html+=wlSection("cur", curTitle+' <span class="secstate live">Live</span>', openN+' open', 'now', draw(curLists), true);
+  if(buckets.waiting.length){
+    var wN=buckets.waiting.reduce(function(n,g){ return n+wlSplit(groups[g]).live.length; },0);
+    html+=wlSection("wait", 'Waiting <span class="secstate waiting">Not live</span>', wN+' waiting', 'wait', draw(buckets.waiting), false);
+  }
+  if(buckets.earlier.length) html+=wlSection("earl","Earlier months", buckets.earlier.length, 'old', draw(buckets.earlier), false);
+  if(buckets.closed.length)  html+=wlSection("shut","Closed months", buckets.closed.length, 'old', draw(buckets.closed), false);
+  return html;
 }
 /* ---- Jobs on offer (crew): unassigned jobs anyone can claim ---- */
 var OFFERCLOSED=false;
@@ -2812,7 +2894,24 @@ function crewClaim(key){
 function isMgrRole(){ return /director|manager/i.test((ME&&ME.role)||""); }
 function jobRecent(j){ return isMgrRole() && j.source==="worklist" && j.updated && (Date.now()-j.updated < 2*864e5); }
 function relTime(ms){ if(!ms)return""; var s=Math.floor((Date.now()-ms)/1000); if(s<50)return"just now"; var m=Math.round(s/60); if(m<60)return m+"m ago"; var h=Math.round(m/60); if(h<24)return h+"h ago"; var d=Math.round(h/24); return d===1?"yesterday":d+"d ago"; }
-var WLCLOSED={};
+var WLCLOSED={}, WLSEC={};
+/* The list records behind the sections (fn=worklists). Directors, one boat.
+   Kept separate from LISTMETA, which is only the deadline note. */
+var LISTINFO={}, LISTGROUPS=null, _liFor="";
+function loadListInfo(vessel){
+  if(!isMgrRole() || !vessel || vessel==="__all__"){ LISTGROUPS=null; _liFor=""; return; }
+  if(_liFor===vessel) return;                       // already have this boat
+  _liFor=vessel;
+  apiGet("fn=worklists&code="+encodeURIComponent(ME.code||"")+"&email="+encodeURIComponent(ME.email||"")+
+         "&vessel="+encodeURIComponent(vessel))
+    .then(function(j){
+      if(_liFor!==vessel) return;                   // they moved on while we were asking
+      if(!j||!j.ok) return;
+      LISTINFO={}; (j.lists||[]).forEach(function(r){ LISTINFO[(r.list||"").toLowerCase()]=r; });
+      LISTGROUPS=j.groups||null;
+      if(TAB==="jobs") renderJobs();
+    }).catch(function(){});
+}
 var LISTMETA={};
 function toggleWL(g){ WLCLOSED[g]=!WLCLOSED[g]; renderJobs(); }
 var WLEDIT={};
