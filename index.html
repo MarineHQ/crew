@@ -1089,7 +1089,7 @@
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-27·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-27·c</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -3018,12 +3018,19 @@ function buildReport(){
     '.cmt{font-size:12.5px;margin:0 0 6px;padding-left:10px;border-left:2px solid #D6E4EF;line-height:1.45}.cmt b{color:#1A2B5C}.cmt i{color:#6b7a8d;font-style:normal;font-size:11px}'+
     '.shots{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.shots figure{margin:0}.shots img{width:150px;height:112px;object-fit:cover;border-radius:8px;border:1px solid #e3e8ef;display:block}'+
     '.ft{color:#6b7a8d;font-size:11px;text-align:center;margin-top:18px}'+
+    '.topbar{position:sticky;top:0;display:flex;gap:8px;align-items:center;background:#fff;padding:10px 0;margin-bottom:6px;border-bottom:1px solid #e3e8ef;z-index:9}'+
+    '.topbar .tbtn{border:0;border-radius:9px;padding:9px 15px;font-size:13px;font-weight:700;cursor:pointer}'+
+    '.topbar .close{background:#eef1f6;color:#1A2B5C}.topbar .print{background:#E87722;color:#fff;margin-left:auto}'+
     '@media print{.noprint{display:none}}'+
     '</style></head><body>'+
+    '<div class="wrap noprint"><div class="topbar">'+
+      '<button class="tbtn close" onclick="window.close()">&lsaquo; Close report</button>'+
+      '<button class="tbtn print" onclick="window.print()">Print / Save as PDF</button>'+
+    '</div></div>'+
     '<img class="bnr" src="'+rptEsc(base)+'banner.jpg" alt="Marine HQ">'+
     '<div class="wrap"><h1>'+rptEsc(CURVESSEL)+' &middot; '+rptEsc(RPT.period)+'</h1>'+
     '<div class="sub">'+label+' &middot; '+jobs.length+(jobs.length===1?' job':' jobs')+' &middot; produced '+rptEsc(new Date().toLocaleDateString("en-AU",{day:"2-digit",month:"long",year:"numeric"}))+'</div>'+
-    '<button class="noprint" onclick="window.print()" style="border:0;background:#E87722;color:#fff;border-radius:9px;padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:14px">Print / Save as PDF</button>'+
+    '<div class="noprint" style="font-size:11.5px;color:#6b7a8d;margin-bottom:14px">Tip: if Close doesn’t return you to the app, close this browser tab to go back.</div>'+
     rows+
     '<div class="ft">Marine HQ Fleet Management &middot; '+rptEsc(CURVESSEL)+'</div></div>'+
     '<img class="bnr" src="'+rptEsc(base)+'footer-banner.jpg" alt="Marine HQ"></body></html>';
