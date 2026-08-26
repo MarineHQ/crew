@@ -1089,7 +1089,7 @@
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-27·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-27·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2969,7 +2969,7 @@ function buildReport(){
   var rows=jobs.map(function(j,ix){
     var b=hubBucket(j.status);
     var sfx=(b==="Done")?"done":(b==="In progress"?"inprog":"todo");
-    var stl=(b==="Done")?"Done":(b==="In progress"?"In progress":"To do");
+    var stl=(b==="Done")?"Complete":(b==="In progress"?"In progress":"To do");
     var cat=(j.category||"").trim(), cc=CATC[cat.toLowerCase()]||"";
     var dstr=j.completed?rptDate(j.completed):"";
     // Use driveImg untouched. Asking Google for =w600 to save bytes looked sensible
