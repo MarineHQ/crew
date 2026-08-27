@@ -1155,7 +1155,7 @@
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-27·e</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-27·f</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -3034,9 +3034,9 @@ function wlSections(order, groups){
      everything          — your working record, including what didn't happen
      completed only      — the one that goes to an owner
      completed + in hand — the mid-month "here's where we're at" */
-var RPT={period:"", scope:"done", range:"list", from:"", to:""};
+var RPT={period:"", scope:"done", range:"list", from:"", to:"", month:""};
 function reportDlg(period){
-  RPT={period:period, scope:"done", range:"list", from:"", to:""};
+  RPT={period:period, scope:"done", range:"list", from:"", to:"", month:""};
   $("rptTitle").textContent="Report — "+CURVESSEL+" · "+period;
   rptRender(); $("reportModal").classList.add("show");
 }
@@ -3045,6 +3045,11 @@ function reportDlg(period){
 function rptDateRange(){
   if(!RPT.range || RPT.range==="list") return null;
   if(RPT.range==="all") return {from:null,to:null};
+  if(RPT.range==="month"){
+    if(!RPT.month) return {from:null,to:null};
+    var yy=+RPT.month.slice(0,4), mm=+RPT.month.slice(5,7);
+    return {from:new Date(yy,mm-1,1,0,0,0), to:new Date(yy,mm,0,23,59,59)};
+  }
   if(RPT.range==="custom") return {
     from: RPT.from?new Date(RPT.from+"T00:00:00"):null,
     to:   RPT.to?new Date(RPT.to+"T23:59:59"):null };
@@ -3055,6 +3060,7 @@ function rptDateRange(){
 function rptPeriodLabel(){
   if(!RPT.range || RPT.range==="list") return RPT.period;
   if(RPT.range==="all") return "All work";
+  if(RPT.range==="month"){ if(!RPT.month) return "A month"; var d=new Date(+RPT.month.slice(0,4),+RPT.month.slice(5,7)-1,1); return d.toLocaleDateString("en-AU",{month:"long",year:"numeric"}); }
   if(RPT.range==="custom") return (RPT.from?rptDate(RPT.from):"…")+" – "+(RPT.to?rptDate(RPT.to):"…");
   return {"7":"Last 7 days","28":"Last 4 weeks","42":"Last 6 weeks"}[RPT.range]||("Last "+RPT.range+" days");
 }
@@ -3086,13 +3092,14 @@ function rptRender(){
             ["done","Completed only","What was finished. This is the one that goes to an owner."],
             ["prog","Completed + in hand","Finished work plus what’s still on the go — the mid-month update."]];
   var n=rptJobs().length;
-  var ranges=[["list","This list"],["7","Last 7 days"],["28","Last 4 weeks"],["42","Last 6 weeks"],["all","All time"],["custom","Custom…"]];
+  var ranges=[["list","This list"],["month","Month…"],["7","Last 7 days"],["28","Last 4 weeks"],["42","Last 6 weeks"],["all","All time"],["custom","Custom…"]];
   function chip(r){ var on=RPT.range===r[0];
     return '<button onclick="RPT.range=\''+r[0]+'\';rptRender()" style="border:1px solid '+(on?'#1A2B5C':'#e3e8ef')+
       ';background:'+(on?'#1A2B5C':'#fff')+';color:'+(on?'#fff':'#22303f')+
       ';border-radius:20px;padding:6px 12px;font-size:12px;margin:0 6px 7px 0;font-weight:700;cursor:pointer">'+r[1]+'</button>'; }
   var rangeUI='<div style="font-size:11px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--muted);margin:2px 0 7px">Period</div>'+
     '<div style="margin-bottom:6px">'+ranges.map(chip).join("")+'</div>'+
+    (RPT.range==="month"?('<div style="margin:2px 0 12px"><input type="month" value="'+rptEsc(RPT.month)+'" onchange="RPT.month=this.value;rptRender()" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;font-size:13px"></div>'):'')+
     (RPT.range==="custom"?('<div style="display:flex;align-items:center;gap:8px;margin:2px 0 12px">'+
       '<input type="date" value="'+rptEsc(RPT.from)+'" onchange="RPT.from=this.value;rptRender()" style="flex:1;padding:8px;border:1px solid var(--line);border-radius:8px;font-size:13px">'+
       '<span style="color:var(--muted);font-size:12px">to</span>'+
