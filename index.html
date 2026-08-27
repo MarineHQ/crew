@@ -629,6 +629,61 @@
   .ph small{display:block;font-size:9.5px;color:var(--muted);margin-top:3px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .addph{border:1px dashed var(--line);color:var(--muted);background:#fafbfc;width:92px;height:70px;border-radius:9px;font-size:11px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}
 
+  /* ---- photo tags · offline queue · quick shot · gallery (27 Aug 2026) ---- */
+  .phtag{position:absolute;top:4px;right:4px;font-size:9px;font-weight:800;letter-spacing:.4px;
+    text-transform:uppercase;border-radius:7px;padding:1px 5px;color:#fff;
+    box-shadow:0 1px 3px rgba(0,0,0,.34)}
+  .phtag.before{background:var(--amber)} .phtag.after{background:var(--ok)}
+  /* On a job-card thumbnail the top edge is already taken — the lane pill sits
+     top-left and the delete ✕ hangs off top-right — so the tag goes along the
+     bottom of the 70px image instead, where nothing else lives. */
+  .ph .phtag{top:auto;bottom:17px;left:4px;right:auto;font-size:8.5px;padding:1px 4px}
+  .lightmeta .phtag{position:static;margin-left:7px;box-shadow:none}
+  .tagrow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:10px;
+    border-top:1px dashed var(--line);padding-top:9px}
+  .tagbtn{border:1px solid var(--line);background:#fff;border-radius:14px;padding:4px 11px;
+    font-size:11.5px;font-weight:700;color:var(--navy);cursor:pointer;font-family:inherit}
+  .tagbtn.before.on{background:var(--amber);border-color:var(--amber);color:#fff}
+  .tagbtn.after.on{background:var(--ok);border-color:var(--ok);color:#fff}
+  .taghint{flex:1 0 100%;font-size:11px;color:var(--muted);line-height:1.4}
+
+  /* Waiting-to-upload pill. Sits above the action bar so it never covers it. */
+  .qpill{position:fixed;left:14px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:45;
+    background:var(--navy);color:#fff;border-radius:22px;padding:9px 15px;font-size:12.5px;
+    font-weight:700;box-shadow:0 6px 18px rgba(20,30,50,.28);cursor:pointer;max-width:calc(100vw - 28px)}
+  body.has-actbar .qpill{bottom:calc(84px + env(safe-area-inset-bottom))}
+  .qpill.hidden{display:none}
+  .clockbtn.qshot{background:#fff;color:var(--navy);border:2px solid var(--navy);margin-top:8px}
+
+  .qsthumbs{display:flex;gap:7px;overflow-x:auto;padding-bottom:4px;margin-bottom:12px}
+  .qsthumb{flex:0 0 auto;width:66px;height:66px;border-radius:9px;overflow:hidden;border:1px solid var(--line)}
+  .qsthumb img{width:100%;height:100%;object-fit:cover;display:block}
+  .qslbl{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--muted);margin:12px 0 6px}
+  .qschips{flex-wrap:wrap}
+  .qsjob{display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:#fff;
+    border-radius:10px;padding:9px 11px;margin-bottom:6px;cursor:pointer}
+  .qsjob.on{border-color:var(--orange);background:#fff7f0;box-shadow:0 0 0 1px var(--orange) inset}
+  .qsj-main{flex:1;min-width:0;font-size:13px;color:var(--ink)}
+  .qsj-main b{display:block;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .qsj-st{font-size:10px;font-weight:800;border-radius:11px;padding:2px 8px;white-space:nowrap;color:#fff}
+  .qsj-st.s-done{background:var(--ok)}.qsj-st.s-prog{background:var(--amber)}.qsj-st.s-todo{background:var(--grey)}
+  .qsnone{font-size:13px;color:var(--muted);background:#fff;border:1px dashed var(--line);
+    border-radius:10px;padding:14px;line-height:1.5}
+  .qstags{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:14px}
+  #qsGo:disabled{background:#9fb0c4;cursor:default}
+
+  .galday{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--muted);margin:16px 4px 8px}
+  .galgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+  @media(min-width:520px){.galgrid{grid-template-columns:repeat(4,1fr)}}
+  .galcell{position:relative;aspect-ratio:1/1;border-radius:9px;overflow:hidden;
+    border:1px solid var(--line);background:#eef1f6;cursor:pointer}
+  .galcell img{width:100%;height:100%;object-fit:cover;display:block}
+  .galcell small{position:absolute;left:0;right:0;bottom:0;font-size:9.5px;color:#fff;
+    background:linear-gradient(transparent,rgba(0,0,0,.62));padding:10px 5px 3px;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
   /* notes thread (crew <-> MHQ only) */
   .wallnote{font-size:11px;color:var(--muted);background:#f0f4fa;border:1px dashed #cdd8ea;border-radius:9px;padding:8px 10px;margin-bottom:11px;line-height:1.4}
   .msg{display:flex;gap:9px;margin-bottom:13px}
@@ -948,6 +1003,15 @@
       <div id="mineBody"></div>
     </div>
 
+    <!-- PHOTOS — every shot on one yacht, newest first -->
+    <div id="tab-photos" class="hidden">
+      <div id="galVesselBar"></div>
+      <div class="subbar"><h2>Photos</h2><span class="count" id="galCount"></span>
+        <button class="addtaskbtn" onclick="quickShot()">📸 Quick photo</button></div>
+      <div id="galFilters" style="margin:0 4px 12px"></div>
+      <div id="galBody"></div>
+    </div>
+
     <!-- UPDATES / notifications feed -->
     <div id="tab-updates" class="hidden">
       <div class="subbar"><h2>Updates</h2><span class="count" id="updCount"></span></div>
@@ -1091,7 +1155,7 @@
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-27·d</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-27·e</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1109,6 +1173,18 @@
 
 <div class="overlay" id="overlay" onclick="closeSheet()"></div>
 <div class="sheet" id="sheet"></div>
+<!-- Photos still on the phone waiting for signal. Tap to try them now. -->
+<div class="qpill hidden" id="qPill" onclick="MHQQ.drain(true)"></div>
+
+<!-- Quick shot: camera first, job second -->
+<input type="file" id="qsInput" accept="image/*" capture="environment" multiple style="display:none" onchange="qsPicked(this)">
+<div class="modal" id="quickShotModal"><div class="card2">
+  <h3>Where does this photo go?</h3>
+  <div id="qsBody"></div>
+  <button class="jobbtn complete" id="qsGo" style="margin-top:10px" onclick="qsSend()">Pick a job first</button>
+  <button class="jobbtn" style="background:none;color:var(--muted);margin-top:4px" onclick="closeModal('quickShotModal')">Cancel</button>
+</div></div>
+
 <div class="lightbox" id="lightbox" onclick="closePhoto()">
   <button class="lightclose" onclick="event.stopPropagation();closePhoto()">✕</button>
   <button class="lightnav prev" onclick="event.stopPropagation();lbGo(-1)">‹</button>
@@ -1118,6 +1194,7 @@
     <div class="lightbar">
       <div class="lightmeta" id="lightMeta"></div>
       <div class="lightlane" id="lightLane" style="display:none"></div>
+      <div class="lightlane" id="lightTag" style="display:none"></div>
       <div class="lightcaprow"><input id="lightCap" placeholder="Add a note — e.g. see the rust here"><button onclick="lbSaveCap()">Save</button></div>
     </div>
   </div>
@@ -1802,6 +1879,7 @@ function enterReal(crew, shift){
   try{ MHQPush.signIn(ME.code); }catch(e){}      // tie push on this phone to this person
   $("login").classList.add("hidden"); $("app").classList.remove("hidden");
   go("jobs"); refreshAll();
+  try{ MHQQ.refresh().then(function(){ MHQQ.drain(); }); }catch(e){}   // photos parked on this phone last time
 }
 // Stay signed in on this device (90-day style) — auto sign-in if remembered.
 // Marine HQ controls (test account + onboarding) only on the admin URL — crew get a clean login.
@@ -1844,7 +1922,7 @@ function legacySession(){
    Sub-tabs marked mgr:true only exist for Directors/Managers; a group whose
    only visible sub-tab is one tab shows that tab's label and no sub-row. */
 var NAVGROUPS = [
-  ["work",  "Activity", [["jobs","Worklist"],["mine","My Tasks",true],["updates","Updates"],["off","Off-Fleet"],["trip","Trip Log"],["cal","Calendar"]]],
+  ["work",  "Activity", [["jobs","Worklist"],["mine","My Tasks",true],["photos","Photos"],["updates","Updates"],["off","Off-Fleet"],["trip","Trip Log"],["cal","Calendar"]]],
   ["fleet", "Fleet",    [["fleet","Fleet",true],["maint","Maintenance",true],["vessel","Engine & Parts"],["induct","Induction",true]]],
   ["day",   "My Day",   [["hours","Time"]]],
   ["guides","Guides",   [["check","Checklists"],["sop","SOP"]]]
@@ -1886,15 +1964,16 @@ function navGroup(g){
 }
 function go(tab){
   TAB=tab;
-  ["jobs","mine","updates","cal","fleet","maint","induct","check","off","trip","hours","vessel","sop","profile"].forEach(function(t){ $("tab-"+t).classList.toggle("hidden", t!==tab); });
+  ["jobs","mine","photos","updates","cal","fleet","maint","induct","check","off","trip","hours","vessel","sop","profile"].forEach(function(t){ $("tab-"+t).classList.toggle("hidden", t!==tab); });
   renderNav();
   $("actBar").classList.toggle("hidden", tab!=="jobs");
   document.body.classList.toggle("has-actbar", tab==="jobs");
   if(tab==="updates"){ try{ MHQPush.render(); }catch(e){} }
-  var titles={jobs:["Marine HQ Crew","Your jobs, checklists & hours"],mine:["My Tasks","Just what's assigned or offered to you"],updates:["Updates","Crew activity — newest first"],cal:["Calendar","Scheduled jobs by day"],fleet:["Fleet","Director view — whole operation"],maint:["Maintenance","Care schedule — directors control"],induct:["Vessel induction","Particulars & specialised gear"],check:["Checklists","Tick & sign off"],off:["Off-Fleet","Deliveries, polishes & callouts"],trip:["Trip Log","Passages — tanks out, hours in"],hours:["Time clock","Clock in · EOD · hours"],vessel:["Engine & parts","Hour meters & spares on board"],sop:["SOP & guides","Marine HQ standards"],profile:["My profile","You & your certificates"]};
+  var titles={jobs:["Marine HQ Crew","Your jobs, checklists & hours"],mine:["My Tasks","Just what's assigned or offered to you"],photos:["Photos","Every shot on this yacht — newest first"],updates:["Updates","Crew activity — newest first"],cal:["Calendar","Scheduled jobs by day"],fleet:["Fleet","Director view — whole operation"],maint:["Maintenance","Care schedule — directors control"],induct:["Vessel induction","Particulars & specialised gear"],check:["Checklists","Tick & sign off"],off:["Off-Fleet","Deliveries, polishes & callouts"],trip:["Trip Log","Passages — tanks out, hours in"],hours:["Time clock","Clock in · EOD · hours"],vessel:["Engine & parts","Hour meters & spares on board"],sop:["SOP & guides","Marine HQ standards"],profile:["My profile","You & your certificates"]};
   $("hdrTitle").textContent=titles[tab][0]; $("hdrSub").textContent=titles[tab][1];
   if(tab==="jobs") loadJobs();
   if(tab==="mine"){ renderMine(); loadJobs(); }   // instant from cache, then refresh (loadJobs re-renders mine)
+  if(tab==="photos") loadGallery();
   if(tab==="updates") renderUpdates();
   if(tab==="cal") loadCal();
   if(tab==="maint") loadMaint();
@@ -2536,8 +2615,20 @@ function opvView(ci, pi){
 function renderLightbox(){
   var p=LB_PHOTOS[LB_I]; if(!p) return;
   $("lightImg").src=driveImg(p.url);
-  $("lightMeta").innerHTML=(p.by?('📷 <b>'+esc(firstName(p.by))+'</b>'):'')+(p.at?(' · '+esc(fmtDateTime(p.at))):'');
+  $("lightMeta").innerHTML=(p.by?('📷 <b>'+esc(firstName(p.by))+'</b>'):'')+(p.at?(' · '+esc(fmtDateTime(p.at))):'')+
+    (p.task?(' · '+esc(p.code||p.task)):'')+phTagPill(p);
   $("lightCap").value=p.caption||"";
+  // Re-tagging posts against ONE jobKey, so it is offered only from a job card —
+  // never from the gallery, where the photos on screen belong to many jobs.
+  var lt=$("lightTag");
+  if(lt){
+    if(LB_KEY){
+      lt.innerHTML='<span class="movelbl">Tag:</span>'+["before","after"].map(function(t){
+        return '<button class="movebtn'+(phTag(p)===t?" on":"")+'" onclick="event.stopPropagation();lbSetTag(\''+t+'\')">'+PH_TAGS[t].lbl+'</button>';
+      }).join('');
+      lt.style.display="";
+    } else lt.style.display="none";
+  }
   // Per-photo lane control (directors only) — lives here so the grid stays clean.
   var ll=$("lightLane");
   if(ll){
@@ -2548,6 +2639,7 @@ function renderLightbox(){
       ll.style.display="";
     } else ll.style.display="none";
   }
+  var cr=document.querySelector(".lightcaprow"); if(cr) cr.style.display = LB_KEY ? "" : "none";
   $("lightCount").textContent=LB_PHOTOS.length>1 ? (LB_I+1)+' / '+LB_PHOTOS.length : '';
   var multi=LB_PHOTOS.length>1;
   var pv=document.querySelector('.lightnav.prev'), nx=document.querySelector('.lightnav.next');
@@ -2942,23 +3034,51 @@ function wlSections(order, groups){
      everything          — your working record, including what didn't happen
      completed only      — the one that goes to an owner
      completed + in hand — the mid-month "here's where we're at" */
-var RPT={period:"", scope:"done"};
+var RPT={period:"", scope:"done", range:"list", from:"", to:""};
 function reportDlg(period){
-  RPT={period:period, scope:"done"};
+  RPT={period:period, scope:"done", range:"list", from:"", to:""};
   $("rptTitle").textContent="Report — "+CURVESSEL+" · "+period;
   rptRender(); $("reportModal").classList.add("show");
 }
+// The chosen window as {from,to} Dates (either may be null = open-ended);
+// null return = "this list" mode (filter by the worklist's month, not by date).
+function rptDateRange(){
+  if(!RPT.range || RPT.range==="list") return null;
+  if(RPT.range==="all") return {from:null,to:null};
+  if(RPT.range==="custom") return {
+    from: RPT.from?new Date(RPT.from+"T00:00:00"):null,
+    to:   RPT.to?new Date(RPT.to+"T23:59:59"):null };
+  var days=parseInt(RPT.range,10)||7, to=new Date(), from=new Date();
+  from.setHours(0,0,0,0); from.setDate(from.getDate()-days+1);
+  return {from:from, to:to};
+}
+function rptPeriodLabel(){
+  if(!RPT.range || RPT.range==="list") return RPT.period;
+  if(RPT.range==="all") return "All work";
+  if(RPT.range==="custom") return (RPT.from?rptDate(RPT.from):"…")+" – "+(RPT.to?rptDate(RPT.to):"…");
+  return {"7":"Last 7 days","28":"Last 4 weeks","42":"Last 6 weeks"}[RPT.range]||("Last "+RPT.range+" days");
+}
 function rptJobs(){
   var vlc=(CURVESSEL||"").toLowerCase();
+  var rng=rptDateRange();
   return (CREWJOBS||[]).filter(function(j){
     if((j.vessel||"").toLowerCase()!==vlc) return false;
-    var rec=LISTINFO[(j.list||"").toLowerCase()];
-    if(!rec || rec.period!==RPT.period) return false;               // this month's lists only
     var b=hubBucket(j.status), st=(j.status||"").toLowerCase();
-    if(st==="cancelled") return RPT.scope==="all";                  // not-done work is a record, not a result
-    if(RPT.scope==="done")   return b==="Done";
-    if(RPT.scope==="prog")   return b==="Done" || b==="In progress";
-    return true;
+    // scope
+    if(st==="cancelled"){ if(RPT.scope!=="all") return false; }      // not-done work is a record, not a result
+    else if(RPT.scope==="done" && b!=="Done") return false;
+    else if(RPT.scope==="prog" && !(b==="Done"||b==="In progress")) return false;
+    if(rng){                                                          // date-range mode — any list, filter by completed date
+      if(rng.from || rng.to){
+        var cd=j.completed?new Date(j.completed+"T12:00:00"):null;
+        if(!cd) return false;
+        if(rng.from && cd<rng.from) return false;
+        if(rng.to && cd>rng.to) return false;
+      }
+      return true;
+    }
+    var rec=LISTINFO[(j.list||"").toLowerCase()];                     // "this list" mode — the worklist's month
+    return !!(rec && rec.period===RPT.period);
   });
 }
 function rptRender(){
@@ -2966,7 +3086,19 @@ function rptRender(){
             ["done","Completed only","What was finished. This is the one that goes to an owner."],
             ["prog","Completed + in hand","Finished work plus what’s still on the go — the mid-month update."]];
   var n=rptJobs().length;
-  $("rptBody").innerHTML='<div class="cmopts">'+opts.map(function(o){
+  var ranges=[["list","This list"],["7","Last 7 days"],["28","Last 4 weeks"],["42","Last 6 weeks"],["all","All time"],["custom","Custom…"]];
+  function chip(r){ var on=RPT.range===r[0];
+    return '<button onclick="RPT.range=\''+r[0]+'\';rptRender()" style="border:1px solid '+(on?'#1A2B5C':'#e3e8ef')+
+      ';background:'+(on?'#1A2B5C':'#fff')+';color:'+(on?'#fff':'#22303f')+
+      ';border-radius:20px;padding:6px 12px;font-size:12px;margin:0 6px 7px 0;font-weight:700;cursor:pointer">'+r[1]+'</button>'; }
+  var rangeUI='<div style="font-size:11px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--muted);margin:2px 0 7px">Period</div>'+
+    '<div style="margin-bottom:6px">'+ranges.map(chip).join("")+'</div>'+
+    (RPT.range==="custom"?('<div style="display:flex;align-items:center;gap:8px;margin:2px 0 12px">'+
+      '<input type="date" value="'+rptEsc(RPT.from)+'" onchange="RPT.from=this.value;rptRender()" style="flex:1;padding:8px;border:1px solid var(--line);border-radius:8px;font-size:13px">'+
+      '<span style="color:var(--muted);font-size:12px">to</span>'+
+      '<input type="date" value="'+rptEsc(RPT.to)+'" onchange="RPT.to=this.value;rptRender()" style="flex:1;padding:8px;border:1px solid var(--line);border-radius:8px;font-size:13px"></div>'):'')+
+    '<div style="font-size:11px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--muted);margin:6px 0 7px">Show</div>';
+  $("rptBody").innerHTML=rangeUI+'<div class="cmopts">'+opts.map(function(o){
       return '<div class="cmopt'+(RPT.scope===o[0]?" on":"")+'" onclick="RPT.scope=\''+o[0]+'\';rptRender()"><span class="cmrad"></span>'+
         '<span><b>'+o[1]+'</b><span class="cmsub">'+o[2]+'</span></span></div>';
     }).join("")+'</div>'+
@@ -3003,8 +3135,23 @@ function buildReport(){
     // and was wrong: the SAME file serves at =w1600 and is refused at =w600, so the
     // report came out with no photos at all. Size is handled in CSS instead, and the
     // count is capped at four per job to keep the burst small.
-    var ph=(j.photos||[]).slice(0,4).map(function(p){
-      return '<figure><img src="'+rptEsc(driveImg(p.url))+'"></figure>'; }).join("");
+    var pics=(j.photos||[]);
+    var befs=pics.filter(function(p){return phTag(p)==="before";});
+    var afts=pics.filter(function(p){return phTag(p)==="after";});
+    var plain=pics.filter(function(p){return !phTag(p);});
+    var np=Math.min(befs.length, afts.length, 3);
+    var pairs="";
+    for(var pi=0; pi<np; pi++){
+      pairs+='<div class="pair">'+
+        '<figure><img src="'+rptEsc(driveImg(befs[pi].url))+'"><figcaption class="b">Before</figcaption></figure>'+
+        '<span class="parrow">&rarr;</span>'+
+        '<figure><img src="'+rptEsc(driveImg(afts[pi].url))+'"><figcaption class="a">After</figcaption></figure>'+
+      '</div>';
+    }
+    // Whatever didn't pair off still shows, so tagging one photo never hides another.
+    var ph=plain.concat(befs.slice(np), afts.slice(np)).slice(0, pairs?2:4).map(function(p){
+      var t=phTag(p);
+      return '<figure><img src="'+rptEsc(driveImg(p.url))+'">'+(t?('<figcaption class="'+(t==="before"?"b":"a")+'">'+PH_TAGS[t].lbl+'</figcaption>'):'')+'</figure>'; }).join("");
     var notes=(j.comments||[]).filter(function(c){ return (c.text||"").trim(); })
       .map(function(c){ return '<p class="cmt"><b>'+rptEsc(c.by||"Marine HQ")+'</b> <i>'+rptEsc(dstr)+'</i><br>'+rptEsc(c.text)+'</p>'; }).join("");
     var who=(j.allocatedTo||"").split(",").map(function(s){return s.trim();}).filter(Boolean)
@@ -3018,10 +3165,11 @@ function buildReport(){
       '</div><span class="badge s-'+sfx+'">'+stl+'</span></div>'+
       ((j.desc&&j.desc!==j.task)?('<div class="desc">'+rptEsc(j.desc)+'</div>'):'')+
       (notes?('<div class="notes"><h4>Crew notes</h4>'+notes+'</div>'):'')+
+      (pairs?('<div class="pairs">'+pairs+'</div>'):'')+
       (ph?('<div class="shots">'+ph+'</div>'):'')+'</div>';
   }).join("");
   var doc='<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'+
-    '<title>'+rptEsc(CURVESSEL)+' '+rptEsc(RPT.period)+' — '+label+'</title><style>'+
+    '<title>'+rptEsc(CURVESSEL)+' '+rptEsc(rptPeriodLabel())+' — '+label+'</title><style>'+
     '@page{size:A4;margin:14mm}*{box-sizing:border-box}'+
     'body{margin:0;font-family:-apple-system,Segoe UI,Arial,sans-serif;color:#22303f;background:#fff}'+
     '.wrap{max-width:820px;margin:0 auto;padding:0 16px 40px}'+
@@ -3043,7 +3191,15 @@ function buildReport(){
     '.desc{font-size:13px;margin-top:9px;line-height:1.5}'+
     '.notes{margin-top:10px;border-top:1px dashed #e3e8ef;padding-top:8px}.notes h4{margin:0 0 6px;font-size:9.5px;color:#6b7a8d;text-transform:uppercase;letter-spacing:.06em}'+
     '.cmt{font-size:12.5px;margin:0 0 6px;padding-left:10px;border-left:2px solid #D6E4EF;line-height:1.45}.cmt b{color:#1A2B5C}.cmt i{color:#6b7a8d;font-style:normal;font-size:11px}'+
-    '.shots{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.shots figure{margin:0}.shots img{width:150px;height:112px;object-fit:cover;border-radius:8px;border:1px solid #e3e8ef;display:block}'+
+    '.shots{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.shots figure{margin:0;position:relative}.shots img{width:150px;height:112px;object-fit:cover;border-radius:8px;border:1px solid #e3e8ef;display:block}'+
+    '.pairs{margin-top:10px}'+
+    '.pair{display:flex;align-items:center;gap:9px;margin-bottom:8px;page-break-inside:avoid}'+
+    '.pair figure{margin:0;position:relative;flex:1;min-width:0}'+
+    '.pair img{width:100%;height:150px;object-fit:cover;border-radius:8px;border:1px solid #e3e8ef;display:block}'+
+    '.parrow{color:#7a869a;font-size:19px;font-weight:700;flex:0 0 auto}'+
+    'figcaption{position:absolute;top:6px;left:6px;font-size:9px;font-weight:800;letter-spacing:.4px;'+
+      'text-transform:uppercase;color:#fff;border-radius:6px;padding:2px 6px}'+
+    'figcaption.b{background:#B77410}figcaption.a{background:#1F7A54}'+
     '.ft{color:#6b7a8d;font-size:11px;text-align:center;margin-top:18px}'+
     '.topbar{position:sticky;top:0;display:flex;gap:8px;align-items:center;background:#fff;padding:10px 0;margin-bottom:6px;border-bottom:1px solid #e3e8ef;z-index:9}'+
     '.topbar .tbtn{border:0;border-radius:9px;padding:9px 15px;font-size:13px;font-weight:700;cursor:pointer}'+
@@ -3058,7 +3214,7 @@ function buildReport(){
       '<button class="tbtn print" onclick="window.print()">Print / Save as PDF</button>'+
     '</div></div>'+
     '<img class="bnr" src="'+rptEsc(base)+'banner.jpg" alt="Marine HQ">'+
-    '<div class="wrap"><h1>'+rptEsc(CURVESSEL)+' &middot; '+rptEsc(RPT.period)+'</h1>'+
+    '<div class="wrap"><h1>'+rptEsc(CURVESSEL)+' &middot; '+rptEsc(rptPeriodLabel())+'</h1>'+
     '<div class="sub">'+label+' &middot; '+jobs.length+(jobs.length===1?' job':' jobs')+' &middot; produced '+rptEsc(new Date().toLocaleDateString("en-AU",{day:"2-digit",month:"long",year:"numeric"}))+'</div>'+
     '<div class="noprint" style="font-size:11.5px;color:#6b7a8d;margin-bottom:14px">Tip: if Close doesn’t return you to the app, close this browser tab to go back.</div>'+
     rows+
@@ -3584,7 +3740,7 @@ var WLSTATUS=["To do","In hand","Complete"];
 function wlBucketToStatus(j){ var b=hubBucket(j.status); return b==="Done"?"Complete":(b==="In progress"?"In hand":"To do"); }
 function openWLJob(key){
   var j=wlFind(key); if(!j)return;
-  openJobId=key; WLMENTIONS=[]; WLLANE="";
+  openJobId=key; WLMENTIONS=[]; WLLANE=""; PHTAG="";   // a Before left on last week must not mislabel today
   var pool=(j.oj && typeof OFITEMS!=="undefined" && OFITEMS.length) ? OFITEMS : CREWJOBS;
   var inList=pool.filter(function(x){return (x.list||"")===(j.list||"");}); var num=inList.indexOf(j)+1;
   var cur=wlBucketToStatus(j);
@@ -3597,8 +3753,8 @@ function openWLJob(key){
   // Per ITEM, not per job: your own upload is yours to remove even after the
   // job has been shared with the owner, and someone else's never is (unless
   // you're a director). See wlMayDel above.
-  var phHTML=(j.photos&&j.photos.length ? j.photos.map(function(p,idx){return '<div class="ph"><img src="'+esc(driveImg(p.url))+'" alt="" loading="lazy" onerror="this.classList.add(\'imgerr\')" onclick="event.stopPropagation();openPhoto(\''+esc(key)+'\','+idx+')" style="cursor:pointer">'+(p.caption?'<span class="phcap" title="'+esc(p.caption)+'">💬</span>':'')+'<small>'+esc(p.by?firstName(p.by):(p.name||"photo"))+(p.at?(' · '+relTime(p.at)):'')+'</small>'+(wlMayDel(p)?'<button class="attdel" title="Remove" onclick="event.stopPropagation();wlDelAtt(\''+esc(key)+'\',\''+esc(p.url)+'\',\'photo\')">✕</button>':'')+(isMgrRole()?lanePill(p.aud):'')+'</div>';}).join("") : '<div style="font-size:13px;color:var(--muted)">No photos yet.</div>')
-    +'<label class="addph" for="wlPhotoInput" onclick="if(!laneReady())return event.preventDefault();">📷<span>Add</span></label><input id="wlPhotoInput" type="file" accept="image/*" multiple style="display:none" onchange="wlAddPhotos(\''+esc(key)+'\',this)">';
+  var phHTML=(j.photos&&j.photos.length ? j.photos.map(function(p,idx){return '<div class="ph"><img src="'+esc(driveImg(p.url))+'" alt="" loading="lazy" onerror="this.classList.add(\'imgerr\')" onclick="event.stopPropagation();openPhoto(\''+esc(key)+'\','+idx+')" style="cursor:pointer">'+(p.caption?'<span class="phcap" title="'+esc(p.caption)+'">💬</span>':'')+phTagPill(p)+'<small>'+esc(p.by?firstName(p.by):(phName(p)||"photo"))+(p.at?(' · '+relTime(p.at)):'')+'</small>'+(wlMayDel(p)?'<button class="attdel" title="Remove" onclick="event.stopPropagation();wlDelAtt(\''+esc(key)+'\',\''+esc(p.url)+'\',\'photo\')">✕</button>':'')+(isMgrRole()?lanePill(p.aud):'')+'</div>';}).join("") : '<div style="font-size:13px;color:var(--muted)">No photos yet.</div>')
+    +'<label class="addph" id="phAddLbl" for="wlPhotoInput" onclick="if(!laneReady())return event.preventDefault();">'+phAddLabel()+'</label><input id="wlPhotoInput" type="file" accept="image/*" multiple style="display:none" onchange="wlAddPhotos(\''+esc(key)+'\',this)">';
   // Images (even ones added via the 📎 button) show as thumbnails; real files (PDF/xls…) show as rows.
   var _docs=j.docs||[];
   var _imgDocs=_docs.filter(function(d){return isImgFile(d.name,d.url);});
@@ -3709,7 +3865,7 @@ function openWLJob(key){
     assignHTML+offerHTML+
     dueHTML+
     laneHTML+
-    '<div class="sec"><h4>Photos</h4><div class="photos">'+phHTML+'</div>'+((j.photos&&j.photos.length)?bulkBar('photo',key):'')+'</div>'+
+    '<div class="sec"><h4>Photos</h4><div class="photos">'+phHTML+'</div><div class="tagrow" id="phTagRow">'+phTagRowHtml()+'</div>'+((j.photos&&j.photos.length)?bulkBar('photo',key):'')+'</div>'+
     '<div class="sec"><h4>Documents</h4><div class="docrow">'+docHTML+'</div>'+((j.docs&&j.docs.length)?bulkBar('doc',key):'')+'</div>'+
     '<div class="sec"><h4>Notes &amp; timeline</h4><div class="cmts">'+cmtHTML+'</div>'+
       '<textarea id="wlNote" class="fld-ta" placeholder="Add a note… (crew &amp; Marine HQ can both post here)"></textarea>'+
@@ -4047,10 +4203,16 @@ function fileToUpload(file, maxDim, quality){
    The thumbnails appear the instant the photo is picked; the upload finishes
    behind them, so it feels immediate even on a slow connection. */
 var UPLOAD_LANES = 3;             // parallel requests — enough to saturate 4G, not enough to swamp it
-function uploadFilesSeq(key, input, action, field, maxDim, quality){
-  var files=Array.prototype.slice.call(input.files||[]); if(!files.length)return;
+function uploadFilesSeq(key, input, action, field, maxDim, quality, tag){
+  var files=Array.prototype.slice.call(input.files||[]);
   input.value="";                       // let them re-pick the same file later
-  var total=files.length, next=0, done=0, okc=0, first=true,
+  uploadFiles(key, files, action, field, maxDim, quality, tag);
+}
+/* The same upload driven by an ARRAY of files rather than an <input>, because
+   the quick shot holds its photos in memory while you pick the job. */
+function uploadFiles(key, files, action, field, maxDim, quality, tag){
+  files=files||[]; if(!files.length)return;
+  var total=files.length, next=0, done=0, okc=0, qd=0, first=true,
       label=(field==="docs"?"document":"photo");
   var job=wlFind(key);
 
@@ -4066,7 +4228,7 @@ function uploadFilesSeq(key, input, action, field, maxDim, quality){
   if(job && field==="photos"){
     files.forEach(function(f){
       if(!/^image\//i.test(f.type||"")) return;
-      pending.push({ name:f.name||"photo", url:URL.createObjectURL(f), by:(ME.name||""),
+      pending.push({ name:phTagName(f.name||"photo", tag), url:URL.createObjectURL(f), by:(ME.name||""),
                      at:Date.now(), aud:WLLANE||"crew", _uploading:true });
     });
     if(pending.length){ paint(); openWLJob(key); }
@@ -4078,6 +4240,7 @@ function uploadFilesSeq(key, input, action, field, maxDim, quality){
     var f=files[next++];
     fileToUpload(f, maxDim, quality).then(function(p){
       if(!p){ finish(false); return; }
+      if(tag && field==="photos") p.name=phTagName(p.name, tag);
       var body={action:action, email:ME.email, code:ME.code, jobKey:key, aud:WLLANE}; body[field]=[p];
       if(first){ body.batch=total; first=false; }   // tag first sent file → one ping per upload session
       apiPost(body).then(function(r){
@@ -4087,7 +4250,12 @@ function uploadFilesSeq(key, input, action, field, maxDim, quality){
           if(r.docs)   job.docs=r.docs;
         }
         finish(good);
-      }).catch(function(){ finish(false); });
+      }).catch(function(){
+        // The signal died mid-upload. The prepared file goes into the queue on
+        // this phone and is posted again once we're back on the air — losing it
+        // to a toast was the old behaviour, and photos went missing for good.
+        MHQQ.add(body, p.name||label).then(function(saved){ if(saved) qd++; finish(false); });
+      });
     });
   }
   function finish(good){
@@ -4095,10 +4263,13 @@ function uploadFilesSeq(key, input, action, field, maxDim, quality){
     // retire one preview — it is now in the server's list
     var ph=pending.shift(); if(ph){ try{ URL.revokeObjectURL(ph.url); }catch(e){} }
     paint();
-    if(++done < total){ if(total>1) toast("Uploaded "+done+" of "+total+"…"); pump(); return; }
+    if(++done < total){ if(total>1) toast("Sending "+done+" of "+total+"…"); pump(); return; }
     pending.forEach(function(x){ try{ URL.revokeObjectURL(x.url); }catch(e){} });
     pending=[]; paint();
-    toast(okc?("✓ "+okc+" "+label+(okc>1?"s":"")+" added"):"Couldn’t upload — check signal & try again");
+    var msg = okc ? ("✓ "+okc+" "+label+(okc>1?"s":"")+" added") : "";
+    if(qd) msg = (msg?msg+" · ":"") + qd + " waiting for signal — saved on your phone";
+    if(!msg) msg = "Couldn’t upload — check signal & try again";
+    toast(msg);
     openWLJob(key); loadJobs();
   }
   for(var lane=0; lane<Math.min(UPLOAD_LANES,total); lane++) pump();
@@ -4186,7 +4357,7 @@ function wlNoteAud(key, at, lane){
     else toast((r&&r.error)||"Couldn’t move");
   }).catch(function(){ toast("Couldn’t connect"); });
 }
-function wlAddPhotos(key, input){ uploadFilesSeq(key, input, "crewJobPhotos", "photos", 1600, 0.7); }
+function wlAddPhotos(key, input){ uploadFilesSeq(key, input, "crewJobPhotos", "photos", 1600, 0.7, PHTAG); }
 function wlAddDocs(key, input){ uploadFilesSeq(key, input, "crewJobDocs", "docs", 2000, 0.8); }
 function wlDelAtt(key, url, kind){
   if(!confirm("Remove this "+(kind==="doc"?"document":"photo")+"?")) return;
@@ -5076,7 +5247,8 @@ function renderClock(){
     cc.innerHTML='<div class="clockcard in"><div class="onchip"><span class="dot"></span> On the clock</div>'+
       '<div class="timer" id="clockTimer">'+fmtElapsed(Date.now()-c.at)+'</div>'+
       '<div class="cmeta">'+esc(c.vessel)+' · since '+fmtClockTime(c.at)+'<br>📍 '+esc(c.loc||"Location shared with Marine HQ")+'</div>'+
-      '<button class="clockbtn doout" onclick="clockOut()">Clock out</button></div>';
+      '<button class="clockbtn doout" onclick="clockOut()">Clock out</button>'+
+      '<button class="clockbtn qshot" onclick="quickShot()">📸 Quick photo of this job</button></div>';
   } else {
     cc.innerHTML='<div class="clockcard out"><div class="clabel">Which boat are you on?</div>'+
       '<div class="boatpick"><select id="clockVessel" onchange="onClockVessel()">'+vesselOpts()+'</select></div>'+
@@ -6391,6 +6563,368 @@ function certDelete(id){
     .then(function(r){ if(r&&r.ok){ toast("✓ Removed"); applyCerts(r.certs); } else toast((r&&r.error)||"Couldn’t remove"); })
     .catch(function(){ toast("Couldn’t connect"); });
 }
+
+/* ============================================================================
+   PHOTOS · the four things a site-photo app does that we didn't (27 Aug 2026)
+   ----------------------------------------------------------------------------
+   1. OFFLINE QUEUE  — an upload that dies on marina wi-fi used to be gone, with
+      nothing but a "check your signal" toast. Now the prepared photo is parked
+      in IndexedDB and posted again the moment the phone is back on the air.
+   2. QUICK SHOT     — camera first, job second. Shoot, then pick from the jobs
+      open on the boat you're clocked in on. No hunting for the card first.
+   3. BEFORE / AFTER — a photo carries its tag in its own file name, so it needs
+      no new column and no back-end deploy to start working. Pairs render side
+      by side in the owner report, which is where the money is.
+   4. GALLERY        — every photo for a boat on one wall, newest first. Sale
+      prep, insurance, "when did that crack start".
+   ========================================================================== */
+
+/* ---- 1. tags ------------------------------------------------------------
+   The tag lives in the file name as "[BEFORE] hull.jpg". jbSavePhotosTo_ keeps
+   name and url and drops everything else, so the name is the ONLY field a
+   client can write that survives the round trip without a back-end change.
+   Everything on screen shows phName(), never the raw name. */
+var PH_TAGS = { before:{lbl:"Before"}, after:{lbl:"After"} };
+var PH_RE = /^\s*\[(BEFORE|AFTER)\]\s*/i;
+function phTag(p){ var m=PH_RE.exec((p&&p.name)||""); return m?m[1].toLowerCase():""; }
+function phName(p){ return ((p&&p.name)||"").replace(PH_RE,""); }
+function phTagName(name, tag){
+  var base=((name||"photo")+"").replace(PH_RE,"");
+  return tag ? ("["+tag.toUpperCase()+"] "+base) : base;
+}
+function phTagPill(p){ var t=phTag(p); return t?('<span class="phtag '+t+'">'+PH_TAGS[t].lbl+'</span>'):''; }
+
+/* The tag the NEXT upload on the open job card will carry. Reset every time a
+   card is opened, so a Before left switched on last week never mislabels. */
+var PHTAG = "";
+function setPhTag(t){
+  PHTAG = (PHTAG===t) ? "" : t;                     // tapping the lit one clears it
+  var r=$("phTagRow"); if(r) r.innerHTML=phTagRowHtml();
+  var l=$("phAddLbl"); if(l) l.innerHTML=phAddLabel();
+}
+function phAddLabel(){ return "📷<span>"+(PHTAG?("Add "+PH_TAGS[PHTAG].lbl):"Add")+"</span>"; }
+function phTagRowHtml(){
+  return '<span class="movelbl">Tag as:</span>'+
+    ["before","after"].map(function(t){
+      return '<button class="tagbtn '+t+(PHTAG===t?" on":"")+'" onclick="setPhTag(\''+t+'\')">'+PH_TAGS[t].lbl+'</button>';
+    }).join("")+
+    (PHTAG?'<button class="tagbtn" onclick="setPhTag(\''+PHTAG+'\')">Clear</button>':'')+
+    '<span class="taghint">'+(PHTAG?("Next photos are tagged "+PH_TAGS[PHTAG].lbl):"Optional — tagged pairs print side by side in the report")+'</span>';
+}
+
+/* Re-tag a photo already uploaded. Needs the crewJobPhotoTag action on the
+   back end; until that deploy lands it answers "unknown action", so say what
+   to do instead of a bare failure. */
+function lbSetTag(t){
+  var p=LB_PHOTOS[LB_I]; if(!p || !LB_KEY) return;
+  var want = (phTag(p)===t) ? "" : t;
+  apiPost({action:"crewJobPhotoTag", email:ME.email, code:ME.code, jobKey:LB_KEY, url:p.url, tag:want})
+    .then(function(r){
+      if(r&&r.ok){
+        p.name=phTagName(p.name,want);
+        var j=wlFind(LB_KEY); if(j&&r.photos) j.photos=r.photos;
+        toast(want?("✓ Tagged "+PH_TAGS[want].lbl):"✓ Tag removed");
+        renderLightbox(); if(openJobId===LB_KEY) openWLJob(LB_KEY);
+      } else {
+        toast("Re-tagging needs the next back-end deploy — tag it as you upload for now");
+      }
+    }).catch(function(){ toast("Couldn’t connect"); });
+}
+
+/* ---- 2. offline upload queue -------------------------------------------
+   A queued item is the exact POST body that failed, so draining is a replay —
+   no second code path that can drift from the live one. Items are stamped with
+   whose device session made them and only that person's drain, or a photo
+   would go up in the wrong name after a crew swap on a shared phone. */
+var MHQQ = (function(){
+  var NAME="mhq-upload-queue", STORE="q", VER=1, DB=null, opening=null, busy=false, count=0;
+  function supported(){ return !!window.indexedDB; }
+  function open(){
+    if(DB) return Promise.resolve(DB);
+    if(opening) return opening;
+    opening = new Promise(function(res,rej){
+      if(!supported()){ rej(new Error("no indexeddb")); return; }
+      var rq=indexedDB.open(NAME,VER);
+      rq.onupgradeneeded=function(){
+        var d=rq.result;
+        if(!d.objectStoreNames.contains(STORE)) d.createObjectStore(STORE,{keyPath:"id",autoIncrement:true});
+      };
+      rq.onsuccess=function(){ DB=rq.result; res(DB); };
+      rq.onerror=function(){ rej(rq.error); };
+    });
+    opening.catch(function(){ opening=null; });
+    return opening;
+  }
+  function store(mode){ return open().then(function(d){ return d.transaction(STORE,mode).objectStore(STORE); }); }
+  function req(r){ return new Promise(function(res,rej){ r.onsuccess=function(){res(r.result);}; r.onerror=function(){rej(r.error);}; }); }
+
+  /* Resolves TRUE only if the photo really is on the phone. A private window
+     has no IndexedDB, and telling crew their photo is safe when it isn't is
+     worse than telling them it failed. */
+  function add(body, label){
+    return store("readwrite").then(function(s){
+      return req(s.add({ body:body, label:label||"photo", owner:(ME&&ME.code)||"", who:(ME&&ME.name)||"", at:Date.now(), tries:0 }));
+    }).then(function(){ return refresh(); })
+      .then(function(){ return true; })
+      .catch(function(){ return false; });
+  }
+  function all(){ return store("readonly").then(function(s){ return req(s.getAll()); }).catch(function(){ return []; }); }
+  function put(it){ return store("readwrite").then(function(s){ return req(s.put(it)); }).catch(function(){}); }
+  function del(id){ return store("readwrite").then(function(s){ return req(s.delete(id)); }).catch(function(){}); }
+  function mine(list){ var c=(ME&&ME.code)||""; return (list||[]).filter(function(x){ return !x.owner || x.owner===c; }); }
+
+  function refresh(){
+    return all().then(function(list){
+      count = mine(list).length;
+      paint();
+      return count;
+    });
+  }
+  function paint(){
+    var el=$("qPill"); if(!el) return;
+    if(!count){ el.classList.add("hidden"); return; }
+    el.classList.remove("hidden");
+    el.innerHTML = busy
+      ? '<span class="spin"></span> Sending '+count+' photo'+(count>1?"s":"")+'…'
+      : '⏳ '+count+' photo'+(count>1?"s":"")+' waiting'+(navigator.onLine?' · tap to send':' · no signal');
+  }
+
+  /* Replay the queue oldest first. One failure stops the run — the rest are
+     almost certainly failing for the same reason, and hammering a dead
+     connection just burns the battery. */
+  function drain(manual){
+    if(busy) return Promise.resolve();
+    if(!navigator.onLine){ if(manual) toast("Still no signal — they’ll go up on their own"); return Promise.resolve(); }
+    return all().then(function(list){
+      var q=mine(list).sort(function(a,b){ return a.at-b.at; });
+      count=q.length; if(!q.length){ paint(); return; }
+      busy=true; paint();
+      var sent=0;
+      function step(i){
+        if(i>=q.length) return Promise.resolve();
+        var it=q[i];
+        var body=it.body||{};
+        body.email=(ME&&ME.email)||body.email; body.code=(ME&&ME.code)||body.code;  // re-stamp: codes rotate
+        return apiPost(body).then(function(r){
+          if(r&&r.ok){ sent++; count--; paint(); return del(it.id).then(function(){ return step(i+1); }); }
+          // A real refusal (job deleted, not yours, malformed) will never come
+          // good — drop it after three goes rather than retry it every minute
+          // for ever. Anything transient is back on the air long before three.
+          it.tries=(it.tries||0)+1;
+          if(it.tries>=3){ count--; paint(); return del(it.id).then(function(){ return step(i+1); }); }
+          return put(it);                                   // stop the run, keep the item
+        }).catch(function(){
+          // Connection dropped again mid-drain. Stop, keep everything still in
+          // the queue, and let the caller finish normally — the ones that DID
+          // go up a moment ago still need their toast and their refresh.
+          return;
+        });
+      }
+      return step(0).then(function(){
+        busy=false;
+        return refresh().then(function(){
+          if(sent){ toast("✓ "+sent+" queued photo"+(sent>1?"s":"")+" uploaded"); try{ loadJobs(); }catch(e){} }
+          else if(manual) toast("Couldn’t send yet — they’re still safe on your phone");
+        });
+      });
+    }).catch(function(){ busy=false; paint(); });
+  }
+  function n(){ return count; }
+  return { add:add, drain:drain, refresh:refresh, count:n, paint:paint };
+})();
+
+/* ---- 3. quick shot ------------------------------------------------------
+   Camera first. Files are held in memory while you choose the job, so nothing
+   is uploaded until the destination is known. */
+var QS = { files:[], vessel:"", tag:"", jobs:[], loading:false, key:"" };
+function quickShot(){
+  var c=clk();
+  QS.vessel = (c&&c.in&&c.vessel) ? c.vessel
+            : (CURVESSEL && CURVESSEL!=="__all__" ? CURVESSEL : ((ME&&ME.vessels&&ME.vessels[0])||""));
+  QS.files=[]; QS.tag=""; QS.key=""; QS.jobs=[];
+  var inp=$("qsInput"); if(inp){ inp.value=""; inp.click(); }
+}
+function qsPicked(input){
+  QS.files=Array.prototype.slice.call(input.files||[]); input.value="";
+  if(!QS.files.length) return;
+  $("quickShotModal").classList.add("show");
+  qsRender(); qsLoadJobs();
+}
+/* Its own fetch, so the quick shot works on the boat you're standing on even
+   when the worklist on screen is filtered to another one. */
+function qsLoadJobs(){
+  if(!QS.vessel){ QS.jobs=[]; QS.loading=false; qsRender(); return; }
+  QS.loading=true; qsRender();
+  var mine = isMgrRole() ? "0" : "1";
+  apiGet("fn=crewjobs&email="+encodeURIComponent(ME.email)+"&code="+encodeURIComponent(ME.code||"")+
+         "&vessel="+encodeURIComponent(QS.vessel)+"&mine="+mine)
+    .then(function(j){
+      var list=((j&&j.jobs)||[]).filter(notOffFleet);
+      // Open work first, then anything finished recently — a photo of the
+      // finished job is exactly what the owner report wants.
+      QS.jobs=list.sort(function(a,b){
+        var ad=hubBucket(a.status)==="Done"?1:0, bd=hubBucket(b.status)==="Done"?1:0;
+        if(ad!==bd) return ad-bd;
+        return (b.updated||0)-(a.updated||0);
+      }).slice(0,25);
+      QS.loading=false; qsRender();
+    }).catch(function(){ QS.loading=false; qsRender(); });
+}
+function qsSetVessel(v){ QS.vessel=v; QS.key=""; qsLoadJobs(); }
+function qsSetTag(t){ QS.tag=(QS.tag===t)?"":t; qsRender(); }
+function qsPick(k){ QS.key=k; qsRender(); }
+function qsVessels(){
+  var set={}; (ME&&ME.vessels||[]).forEach(function(v){ if(v)set[v]=1; });
+  (isMgrRole()?FLEETVESSELS:[]).forEach(function(v){ if(v)set[v]=1; });
+  if(QS.vessel) set[QS.vessel]=1;
+  return Object.keys(set).sort();
+}
+function qsRender(){
+  var b=$("qsBody"); if(!b) return;
+  var thumbs=QS.files.map(function(f){ return '<div class="qsthumb"><img src="'+URL.createObjectURL(f)+'" alt=""></div>'; }).join("");
+  var vchips=qsVessels().map(function(v){
+    return '<div class="chip'+(v===QS.vessel?" on":"")+'" onclick="qsSetVessel(\''+esc(v).replace(/'/g,"\\'")+'\')">'+esc(v)+'</div>';
+  }).join("");
+  var tagrow='<span class="movelbl">Tag:</span>'+["before","after"].map(function(t){
+    return '<button class="tagbtn '+t+(QS.tag===t?" on":"")+'" onclick="qsSetTag(\''+t+'\')">'+PH_TAGS[t].lbl+'</button>';
+  }).join("");
+  var jobsHTML;
+  if(QS.loading) jobsHTML='<div class="loadingbox"><span class="spin"></span> Loading jobs on '+esc(QS.vessel||"this yacht")+'…</div>';
+  else if(!QS.jobs.length) jobsHTML='<div class="qsnone">No jobs on '+esc(QS.vessel||"this yacht")+' yet. Raise one first, then add the photo to it.</div>';
+  else jobsHTML=QS.jobs.map(function(j){
+    var bk=hubBucket(j.status);
+    return '<div class="qsjob'+(QS.key===j.key?" on":"")+'" onclick="qsPick(\''+esc(j.key).replace(/'/g,"\\'")+'\')">'+
+      '<div class="qsj-main"><b>'+esc(j.task||j.desc||"Task")+'</b>'+
+      (j.code?('<span class="code">'+esc(j.code)+'</span>'):'')+'</div>'+
+      '<span class="qsj-st s-'+(bk==="Done"?"done":bk==="In progress"?"prog":"todo")+'">'+esc(bk)+'</span></div>';
+  }).join("");
+  b.innerHTML =
+    '<div class="qsthumbs">'+thumbs+'</div>'+
+    '<div class="qslbl">Which yacht?</div><div class="chips qschips">'+vchips+'</div>'+
+    '<div class="qslbl">Which job?</div>'+jobsHTML+
+    '<div class="qstags">'+tagrow+'</div>';
+  var go=$("qsGo");
+  if(go){ go.disabled=!QS.key; go.textContent = QS.key ? ("Add "+QS.files.length+" photo"+(QS.files.length>1?"s":"")) : "Pick a job first"; }
+}
+function qsSend(){
+  if(!QS.key || !QS.files.length) return;
+  var key=QS.key, files=QS.files.slice(), tag=QS.tag;
+  closeModal("quickShotModal"); QS.files=[];
+  // Land on the card so the crew see the photo arrive where it went.
+  uploadFiles(key, files, "crewJobPhotos", "photos", 1600, 0.7, tag);
+}
+
+/* ---- 4. per-vessel gallery ---------------------------------------------- */
+var GAL = { vessel:"", filter:"all", items:[], loading:false, days:0 };
+function galVessels(){
+  var set={}; (ME&&ME.vessels||[]).forEach(function(v){ if(v)set[v]=1; });
+  (isMgrRole()?FLEETVESSELS:[]).forEach(function(v){ if(v)set[v]=1; });
+  return Object.keys(set).sort();
+}
+function loadGallery(){
+  if(!GAL.vessel){
+    GAL.vessel = (CURVESSEL && CURVESSEL!=="__all__") ? CURVESSEL : (galVessels()[0]||"");
+  }
+  if(!GAL.vessel){ GAL.items=[]; renderGallery(); return; }
+  var cached=_cGet(_ck("gal",GAL.vessel));
+  if(cached && cached.length){ GAL.items=cached; renderGallery(); }
+  else { GAL.loading=true; renderGallery(); }
+  var mine = isMgrRole() ? "0" : "1";
+  apiGet("fn=crewjobs&email="+encodeURIComponent(ME.email)+"&code="+encodeURIComponent(ME.code||"")+
+         "&vessel="+encodeURIComponent(GAL.vessel)+"&mine="+mine)
+    .then(function(j){
+      var jobs=((j&&j.jobs)||[]).filter(notOffFleet);
+      var out=[];
+      jobs.forEach(function(job){
+        (job.photos||[]).forEach(function(p){
+          out.push({ url:p.url, name:p.name, caption:p.caption, by:p.by, at:p.at||0, aud:p.aud,
+                     key:job.key, task:job.task||job.desc||"Task", code:job.code||"" });
+        });
+      });
+      out.sort(function(a,b){ return (b.at||0)-(a.at||0); });
+      GAL.items=out; GAL.loading=false;
+      _cSet(_ck("gal",GAL.vessel), out);
+      renderGallery();
+    }).catch(function(){ GAL.loading=false; renderGallery(); });
+}
+function galPickVessel(v){ GAL.vessel=v; GAL.items=[]; loadGallery(); }
+function galSetFilter(f){ GAL.filter=f; renderGallery(); }
+function galSetDays(d){ GAL.days=d; renderGallery(); }
+function galShown(){
+  var cut = GAL.days ? (Date.now() - GAL.days*86400000) : 0;
+  return GAL.items.filter(function(p){
+    if(cut && (p.at||0) < cut) return false;
+    if(GAL.filter==="all") return true;
+    if(GAL.filter==="tagged") return !!phTag(p);
+    return phTag(p)===GAL.filter;
+  });
+}
+function galDayLabel(ms){
+  if(!ms) return "Undated";
+  var d=new Date(ms), t=new Date(), y=new Date(Date.now()-86400000);
+  function same(a,b){ return a.toDateString()===b.toDateString(); }
+  if(same(d,t)) return "Today";
+  if(same(d,y)) return "Yesterday";
+  return d.toLocaleDateString("en-AU",{weekday:"short",day:"numeric",month:"short",year:(d.getFullYear()===t.getFullYear()?undefined:"numeric")});
+}
+function renderGallery(){
+  var bar=$("galVesselBar");
+  if(bar){
+    var vs=galVessels();
+    bar.innerHTML = vs.length>1 ? ('<div class="chips boatchips">'+vs.map(function(v){
+      return '<div class="chip'+(v===GAL.vessel?" on":"")+'" onclick="galPickVessel(\''+esc(v).replace(/'/g,"\\'")+'\')">'+esc(v)+'</div>';
+    }).join("")+'</div>') : "";
+  }
+  var fb=$("galFilters");
+  if(fb){
+    var fs=[["all","All"],["before","Before"],["after","After"],["tagged","Tagged only"]];
+    var ds=[[0,"All time"],[30,"30 days"],[90,"90 days"]];
+    fb.innerHTML='<div class="chips">'+fs.map(function(f){
+        return '<div class="chip'+(GAL.filter===f[0]?" on":"")+'" onclick="galSetFilter(\''+f[0]+'\')">'+f[1]+'</div>'; }).join("")+'</div>'+
+      '<div class="chips" style="margin-top:6px">'+ds.map(function(d){
+        return '<div class="chip'+(GAL.days===d[0]?" on":"")+'" onclick="galSetDays('+d[0]+')">'+d[1]+'</div>'; }).join("")+'</div>';
+  }
+  var body=$("galBody"); if(!body) return;
+  if(GAL.loading && !GAL.items.length){
+    body.innerHTML='<div class="loadingbox"><span class="spin"></span> Loading '+esc(GAL.vessel||"photos")+'…</div>';
+    if($("galCount")) $("galCount").textContent="";
+    return;
+  }
+  var shown=galShown();
+  if($("galCount")) $("galCount").textContent = shown.length ? (shown.length+(shown.length===1?" photo":" photos")) : "";
+  if(!shown.length){
+    body.innerHTML='<div class="qsnone">'+(GAL.items.length
+      ? 'No photos match that filter.'
+      : 'No photos on '+esc(GAL.vessel||"this yacht")+' yet. They appear here the moment crew add one to a job.')+'</div>';
+    return;
+  }
+  // Newest first, grouped by the day they were taken.
+  GALSHOWN=shown;
+  var html="", lastDay="";
+  shown.forEach(function(p,i){
+    var day=galDayLabel(p.at);
+    if(day!==lastDay){ if(lastDay) html+='</div>'; html+='<div class="galday">'+esc(day)+'</div><div class="galgrid">'; lastDay=day; }
+    html+='<div class="galcell" onclick="galOpen('+i+')">'+
+      '<img src="'+esc(driveImg(p.url))+'" alt="" loading="lazy" onerror="this.classList.add(\'imgerr\')">'+
+      phTagPill(p)+
+      '<small>'+esc(p.code||p.task)+'</small></div>';
+  });
+  if(lastDay) html+='</div>';
+  body.innerHTML=html;
+}
+var GALSHOWN=[];
+/* The gallery reuses the ordinary viewer. LB_KEY is left blank on purpose:
+   these photos belong to many different jobs, so the caption and lane controls
+   (which post against ONE jobKey) would be posting to the wrong card. */
+function galOpen(i){
+  if(!GALSHOWN.length) return;
+  LB_KEY=""; LB_PHOTOS=GALSHOWN; LB_I=Math.max(0,Math.min(i,GALSHOWN.length-1));
+  renderLightbox(); $("lightbox").classList.add("show");
+}
+
+/* ---- wiring ------------------------------------------------------------- */
+window.addEventListener("online", function(){ MHQQ.drain(); });
+setInterval(function(){ if(navigator.onLine) MHQQ.drain(); }, 45000);
 
 // live tick for the running shift timer
 setInterval(tickClock, 1000);
