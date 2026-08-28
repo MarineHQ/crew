@@ -165,6 +165,20 @@
   .secbtn.dark{background:var(--navy);color:#fff}
   .wlsec.old .secbtn{background:var(--navy);color:#fff}
   .cmopts{display:flex;flex-direction:column;gap:8px;margin:4px 0 12px}
+  /* Report picker fields — same card language as the owner portal. */
+  #reportModal .rptf{margin-bottom:11px}
+  #reportModal .rptf>label{display:block;font-size:10px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);margin:0 0 5px 2px}
+  #reportModal .rptsel{position:relative}
+  #reportModal .rptsel select{appearance:none;-webkit-appearance:none;width:100%;padding:12px 38px 12px 13px;border:1px solid var(--line);border-radius:11px;font-size:14px;font-weight:600;font-family:inherit;color:var(--ink);background:#fbfcfe}
+  #reportModal .rptsel::after{content:"";position:absolute;right:15px;top:44%;width:8px;height:8px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:translateY(-50%) rotate(45deg);pointer-events:none}
+  #reportModal .rptsel select:focus{outline:none;border-color:var(--navy);background:#fff}
+  #reportModal .rptin{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:11px;font-size:14px;font-family:inherit;color:var(--ink);background:#fbfcfe}
+  #reportModal .rptdates{display:flex;align-items:center;gap:9px}
+  #reportModal .rptdates .rptin{flex:1;min-width:0}#reportModal .rptdates span{color:var(--muted);font-size:12px;flex:0 0 auto}
+  #reportModal .rpthead{display:flex;gap:11px;align-items:center;margin:2px 0 15px}
+  #reportModal .rpticon{width:38px;height:38px;border-radius:11px;background:#eef2fb;display:flex;align-items:center;justify-content:center;font-size:19px;flex:0 0 auto}
+  #reportModal .rptt{font-weight:800;font-size:15px;color:var(--navy);line-height:1.2}
+  #reportModal .rptd{font-size:11.5px;color:var(--muted);margin-top:2px}
   .cmopt{display:flex;gap:10px;align-items:flex-start;border:1.5px solid var(--line);border-radius:11px;padding:11px 13px;cursor:pointer;background:#fff}
   .cmopt.on{border-color:var(--orange);background:#fff8f2}
   .cmopt b{display:block;font-size:13.5px;color:var(--navy)}
@@ -1155,7 +1169,7 @@
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-27·f</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-27·g</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1216,7 +1230,9 @@
 <!-- Raise a job modal -->
 <!-- Report -->
 <div class="modal" id="reportModal"><div class="card2">
-  <h3 id="rptTitle">Report</h3>
+  <div class="rpthead"><span class="rpticon">📄</span>
+    <div><div class="rptt" id="rptTitle">Works report</div><div class="rptd">A branded PDF of your work, with photos</div></div>
+  </div>
   <div id="rptBody"></div>
   <button class="jobbtn complete" id="rptGo" style="background:#0f766e;margin-top:8px" onclick="buildReport()">Build the report</button>
   <button class="jobbtn" style="background:none;color:var(--muted);margin-top:4px" onclick="closeModal('reportModal')">Cancel</button>
@@ -3034,17 +3050,19 @@ function wlSections(order, groups){
      everything          — your working record, including what didn't happen
      completed only      — the one that goes to an owner
      completed + in hand — the mid-month "here's where we're at" */
-var RPT={period:"", scope:"done", range:"list", from:"", to:"", month:""};
+var RPT={scope:"done", range:"all", from:"", to:"", month:"", list:"all"};
 function reportDlg(period){
-  RPT={period:period, scope:"done", range:"list", from:"", to:"", month:""};
-  $("rptTitle").textContent="Report — "+CURVESSEL+" · "+period;
+  // period is the month bucket the Report button belongs to (e.g. "0826").
+  // Preselect that month so the report opens on the right window; the picker
+  // then lets you change list / period / scope — same card as the owner portal.
+  var r="all", mo="", mm=/^(\d{2})(\d{2})$/.exec((period||"").trim());
+  if(mm){ r="month"; mo="20"+mm[2]+"-"+mm[1]; }
+  RPT={scope:"done", range:r, from:"", to:"", month:mo, list:"all"};
+  $("rptTitle").textContent="Works report — "+CURVESSEL;
   rptRender(); $("reportModal").classList.add("show");
 }
-// The chosen window as {from,to} Dates (either may be null = open-ended);
-// null return = "this list" mode (filter by the worklist's month, not by date).
 function rptDateRange(){
-  if(!RPT.range || RPT.range==="list") return null;
-  if(RPT.range==="all") return {from:null,to:null};
+  if(!RPT.range || RPT.range==="all") return {from:null,to:null};
   if(RPT.range==="month"){
     if(!RPT.month) return {from:null,to:null};
     var yy=+RPT.month.slice(0,4), mm=+RPT.month.slice(5,7);
@@ -3058,58 +3076,55 @@ function rptDateRange(){
   return {from:from, to:to};
 }
 function rptPeriodLabel(){
-  if(!RPT.range || RPT.range==="list") return RPT.period;
-  if(RPT.range==="all") return "All work";
+  if(!RPT.range || RPT.range==="all") return "All work";
   if(RPT.range==="month"){ if(!RPT.month) return "A month"; var d=new Date(+RPT.month.slice(0,4),+RPT.month.slice(5,7)-1,1); return d.toLocaleDateString("en-AU",{month:"long",year:"numeric"}); }
   if(RPT.range==="custom") return (RPT.from?rptDate(RPT.from):"…")+" – "+(RPT.to?rptDate(RPT.to):"…");
   return {"7":"Last 7 days","28":"Last 4 weeks","42":"Last 6 weeks"}[RPT.range]||("Last "+RPT.range+" days");
 }
+function rptListsFor(){
+  var vlc=(CURVESSEL||"").toLowerCase(), seen={}, out=[];
+  (CREWJOBS||[]).forEach(function(j){
+    if((j.vessel||"").toLowerCase()!==vlc) return;
+    var nm=((j.list||j.project||"")+"").trim(); if(!nm||seen[nm])return; seen[nm]=1; out.push(nm);
+  });
+  return out;
+}
 function rptJobs(){
-  var vlc=(CURVESSEL||"").toLowerCase();
-  var rng=rptDateRange();
+  var vlc=(CURVESSEL||"").toLowerCase(), rng=rptDateRange();
   return (CREWJOBS||[]).filter(function(j){
     if((j.vessel||"").toLowerCase()!==vlc) return false;
+    if(RPT.list && RPT.list!=="all" && (((j.list||j.project||"")+"").trim())!==RPT.list) return false;
     var b=hubBucket(j.status), st=(j.status||"").toLowerCase();
-    // scope
-    if(st==="cancelled"){ if(RPT.scope!=="all") return false; }      // not-done work is a record, not a result
+    if(st==="cancelled"){ if(RPT.scope!=="all") return false; }
     else if(RPT.scope==="done" && b!=="Done") return false;
     else if(RPT.scope==="prog" && !(b==="Done"||b==="In progress")) return false;
-    if(rng){                                                          // date-range mode — any list, filter by completed date
-      if(rng.from || rng.to){
-        var cd=j.completed?new Date(j.completed+"T12:00:00"):null;
-        if(!cd) return false;
-        if(rng.from && cd<rng.from) return false;
-        if(rng.to && cd>rng.to) return false;
-      }
-      return true;
+    if(rng && (rng.from||rng.to)){
+      var cd=j.completed?new Date(j.completed+"T12:00:00"):null;
+      if(!cd) return false;
+      if(rng.from && cd<rng.from) return false;
+      if(rng.to && cd>rng.to) return false;
     }
-    var rec=LISTINFO[(j.list||"").toLowerCase()];                     // "this list" mode — the worklist's month
-    return !!(rec && rec.period===RPT.period);
+    return true;
   });
 }
 function rptRender(){
-  var opts=[["all","Everything on the list","Every job and where it got to, including what didn’t happen. Your working record."],
-            ["done","Completed only","What was finished. This is the one that goes to an owner."],
-            ["prog","Completed + in hand","Finished work plus what’s still on the go — the mid-month update."]];
+  var lists=rptListsFor();
+  var listOpts='<option value="all"'+(RPT.list==="all"?" selected":"")+'>All work lists</option>'+
+    lists.map(function(nm){ var lbl=(nm==="Raised jobs"?"Additional works":nm);
+      return '<option value="'+rptEsc(nm)+'"'+(RPT.list===nm?" selected":"")+'>'+rptEsc(lbl)+'</option>'; }).join("");
+  var periods=[["all","All time"],["month","A month…"],["7","Last 7 days"],["28","Last 4 weeks"],["42","Last 6 weeks"],["custom","Custom dates…"]];
+  var periodOpts=periods.map(function(r){ return '<option value="'+r[0]+'"'+(RPT.range===r[0]?" selected":"")+'>'+r[1]+'</option>'; }).join("");
+  var scopes=[["done","Completed only"],["prog","Completed + in hand"],["all","All tasks on the list"]];
+  var scopeOpts=scopes.map(function(o){ return '<option value="'+o[0]+'"'+(RPT.scope===o[0]?" selected":"")+'>'+o[1]+'</option>'; }).join("");
   var n=rptJobs().length;
-  var ranges=[["list","This list"],["month","Month…"],["7","Last 7 days"],["28","Last 4 weeks"],["42","Last 6 weeks"],["all","All time"],["custom","Custom…"]];
-  function chip(r){ var on=RPT.range===r[0];
-    return '<button onclick="RPT.range=\''+r[0]+'\';rptRender()" style="border:1px solid '+(on?'#1A2B5C':'#e3e8ef')+
-      ';background:'+(on?'#1A2B5C':'#fff')+';color:'+(on?'#fff':'#22303f')+
-      ';border-radius:20px;padding:6px 12px;font-size:12px;margin:0 6px 7px 0;font-weight:700;cursor:pointer">'+r[1]+'</button>'; }
-  var rangeUI='<div style="font-size:11px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--muted);margin:2px 0 7px">Period</div>'+
-    '<div style="margin-bottom:6px">'+ranges.map(chip).join("")+'</div>'+
-    (RPT.range==="month"?('<div style="margin:2px 0 12px"><input type="month" value="'+rptEsc(RPT.month)+'" onchange="RPT.month=this.value;rptRender()" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;font-size:13px"></div>'):'')+
-    (RPT.range==="custom"?('<div style="display:flex;align-items:center;gap:8px;margin:2px 0 12px">'+
-      '<input type="date" value="'+rptEsc(RPT.from)+'" onchange="RPT.from=this.value;rptRender()" style="flex:1;padding:8px;border:1px solid var(--line);border-radius:8px;font-size:13px">'+
-      '<span style="color:var(--muted);font-size:12px">to</span>'+
-      '<input type="date" value="'+rptEsc(RPT.to)+'" onchange="RPT.to=this.value;rptRender()" style="flex:1;padding:8px;border:1px solid var(--line);border-radius:8px;font-size:13px"></div>'):'')+
-    '<div style="font-size:11px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--muted);margin:6px 0 7px">Show</div>';
-  $("rptBody").innerHTML=rangeUI+'<div class="cmopts">'+opts.map(function(o){
-      return '<div class="cmopt'+(RPT.scope===o[0]?" on":"")+'" onclick="RPT.scope=\''+o[0]+'\';rptRender()"><span class="cmrad"></span>'+
-        '<span><b>'+o[1]+'</b><span class="cmsub">'+o[2]+'</span></span></div>';
-    }).join("")+'</div>'+
-    '<p class="mhint">'+n+(n===1?' job':' jobs')+' in this report. It opens ready to print — on a phone that’s <b>Save as PDF</b> or share.</p>';
+  var html=
+    '<div class="rptf"><label>Work list</label><div class="rptsel"><select onchange="RPT.list=this.value;rptRender()">'+listOpts+'</select></div></div>'+
+    '<div class="rptf"><label>Period</label><div class="rptsel"><select onchange="RPT.range=this.value;rptRender()">'+periodOpts+'</select></div></div>'+
+    (RPT.range==="month"?('<div class="rptf"><label>Month</label><input type="month" class="rptin" value="'+rptEsc(RPT.month)+'" onchange="RPT.month=this.value;rptRender()"></div>'):'')+
+    (RPT.range==="custom"?('<div class="rptf"><label>Dates</label><div class="rptdates"><input type="date" class="rptin" value="'+rptEsc(RPT.from)+'" onchange="RPT.from=this.value;rptRender()"><span>to</span><input type="date" class="rptin" value="'+rptEsc(RPT.to)+'" onchange="RPT.to=this.value;rptRender()"></div></div>'):'')+
+    '<div class="rptf"><label>Show</label><div class="rptsel"><select onchange="RPT.scope=this.value;rptRender()">'+scopeOpts+'</select></div></div>'+
+    '<p class="mhint">'+n+(n===1?' job':' jobs')+' in this report. It opens ready to print — on a phone that\u2019s <b>Save as PDF</b> or share.</p>';
+  $("rptBody").innerHTML=html;
   $("rptGo").textContent = n ? ("Build the report · "+n) : "Nothing to report";
   $("rptGo").disabled = !n;
 }
