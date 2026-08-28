@@ -74,6 +74,13 @@
   .gate .contact b{color:var(--orange)}
   .footer-banner{width:100%;background:#1B3A6B;line-height:0}
   .footer-banner img{width:100%;display:block}
+  .wsec{margin-top:11px;border-top:1px solid var(--line);padding-top:9px}
+  .wsec h4{margin:0 0 7px;font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;display:flex;align-items:center;gap:7px}
+  .wsec .wn{background:#eef2f8;color:var(--navy);border-radius:10px;font-size:10.5px;padding:1px 7px;font-weight:800}
+  .wsec .shift{border-top:1px solid #f2f5f9}
+  .wmore{font-size:11.5px;color:var(--muted);padding:3px 0}
+  .wcode{font-family:ui-monospace,Menlo,monospace;font-size:10px;font-weight:700;background:#eef1f8;color:var(--navy);border:1px solid #dbe1f0;border-radius:5px;padding:0 4px;white-space:nowrap}
+  .wnote{background:#fdf1de;border:1px solid #f0dcb8;color:#7a5410;border-radius:10px;padding:9px 12px;font-size:12.5px;margin-bottom:12px;line-height:1.45}
   .hidden{display:none!important}
 </style>
 </head>
@@ -84,7 +91,7 @@
   <button class="tab on" data-t="now" onclick="go('now')">On now</button>
   <button class="tab" data-t="shifts" onclick="go('shifts')">Today's shifts</button>
   <button class="tab" data-t="jobs" onclick="go('jobs')">Jobs</button>
-  <button class="tab" data-t="crew" onclick="go('crew')">By crew</button>
+  <button class="tab" data-t="crew" onclick="go('crew')">Who's on what</button>
   <button class="tab" data-t="certs" onclick="go('certs')">Certs</button>
 </div>
 <div class="wrap">
@@ -132,7 +139,8 @@ function go(t){TAB=t;["now","shifts","jobs","crew","certs"].forEach(function(x){
 function loadAll(){
   if(!KEY){document.getElementById("gate").classList.add("show");return;}
   document.getElementById("v-now").innerHTML='<div class="spin">Loading…</div>';
-  Promise.all([get("crewonshift"),get("crewallshifts"),get("hub"),get("crewlist"),get("crewcerts&all=1")]).then(function(res){
+  Promise.all([get("crewonshift"),get("crewallshifts"),get("hub"),get("crewlist"),get("crewcerts&all=1"),
+               get("crewjobs&code="+encodeURIComponent(KEY)+"&all=1&mine=0")]).then(function(res){
     if((res[0]&&res[0].locked)||(res[3]&&res[3].locked)){KEY="";try{localStorage.removeItem("mhq_crew_key");}catch(e){}document.getElementById("gate").classList.add("show");return;}
     DATA.onShift=(res[0]&&res[0].onShift)||[];
     DATA.shifts=(res[1]&&res[1].shifts)||[];
@@ -140,8 +148,10 @@ function loadAll(){
     DATA.crew=(res[2]&&res[2].crew)||[];   // hub crew names — match the jobs' "Allocated To"
     DATA.certs=(res[4]&&res[4].certs)||[];
     DATA.certRoster=(res[4]&&res[4].roster)||[];
+    DATA.wl=(res[5]&&res[5].jobs)||[];        // every boat's worklist — what crew are actually on
+    SHIFTC={};                                 // today moved on / data refreshed
     document.getElementById("refresh").textContent="Updated "+tclock(Date.now());
-    renderNow(); renderShifts(); renderJobs(); renderCrew(); renderCerts();
+    renderNow(); renderShifts(); renderJobs(); renderWho(); renderCerts();
   }).catch(function(){document.getElementById("v-now").innerHTML='<div class="empty">Couldn’t load — check your connection.</div>';});
 }
 
@@ -227,31 +237,165 @@ function renderJobs(){
 }
 function setJobFilter(c){ jobCrewFilter=c; renderJobs(); }
 
-/* ---------- By crew (drill-down) ---------- */
-function renderCrew(){
-  var el=document.getElementById("v-crew");
-  var opts=DATA.crew.map(function(c){return '<option>'+esc(c)+'</option>';}).join("");
-  el.innerHTML='<select class="crewsel" id="crewPick" onchange="renderCrewDetail()"><option value="">Choose a crew member…</option>'+opts+'</select><div id="crewDetail"></div>';
+/* ---------- Who's doing what — any crew, any window ----------
+   Asked for 28 Aug 2026: "see what task all crew are doing today or this
+   week or this month — select Ty or Duncan or all crew."
+   Two feeds answer it together: the clock says WHERE they were and for how
+   long, the fleet-wide worklist says WHAT they actually did. Hours for a
+   window come from crewallshifts&from=&to= — if the backend hasn't been
+   redeployed yet it quietly returns today only, and the page says so
+   rather than showing a wrong number. */
+var WHO={period:"today",crew:"All"}, SHIFTC={};
+var MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+var DOW=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+function dstr(d){ return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); }
+function dnice(s){ if(!s) return ""; var p=(s||"").split("-"); if(p.length!==3) return s;
+  var d=new Date(+p[0],+p[1]-1,+p[2]); if(isNaN(d)) return s;
+  return DOW[d.getDay()]+" "+d.getDate()+" "+MON[d.getMonth()]; }
+// Two windows, not one. Hours and completed work can only run up to today —
+// but "due this week/month" has to include the days still to come, or a
+// director looking on a Monday sees nothing due all week.
+function whoRange(){
+  var now=new Date(), to=dstr(now), from=to, dueTo=to;
+  if(WHO.period==="week"){
+    var back=(now.getDay()+6)%7;                                   // Monday = start
+    var m=new Date(now); m.setDate(now.getDate()-back); from=dstr(m);
+    var e=new Date(m); e.setDate(m.getDate()+6); dueTo=dstr(e);     // Sunday = end
+  } else if(WHO.period==="month"){
+    from=dstr(new Date(now.getFullYear(), now.getMonth(), 1));
+    dueTo=dstr(new Date(now.getFullYear(), now.getMonth()+1, 0));
+  }
+  return {from:from, to:to, dueTo:dueTo};
 }
-function renderCrewDetail(){
-  var name=document.getElementById("crewPick").value; var d=document.getElementById("crewDetail");
-  if(!name){ d.innerHTML=''; return; }
-  var shifts=DATA.shifts.filter(function(s){return (s.crew||"").toLowerCase().indexOf(name.toLowerCase())>=0;});
-  var jobs=DATA.jobs.filter(function(j){return (j.allocatedTo||"")===name;});
-  var tot=shifts.reduce(function(a,s){return a+(s.minutes||0);},0);
-  var html='<h2 class="sec">Today — '+esc(name)+' · '+dur(tot)+'</h2>';
-  html+= shifts.length? '<div class="card">'+shifts.map(function(s){
-    return '<div class="shift"><span class="v">'+esc(s.vessel)+'</span><span class="d">'+tclock(s.inAt)+(s.outAt?(' – '+tclock(s.outAt)):' – now')+(s.desc?(' · '+esc(s.desc)):'')+'</span><span class="h">'+dur(s.minutes)+'</span></div>';
-  }).join("")+'</div>' : '<div class="empty">No shifts today.</div>';
-  var buckets={todo:[],prog:[],done:[]}; jobs.forEach(function(j){buckets[jobBucket(j.status)].push(j);});
-  html+='<h2 class="sec">Allocated jobs ('+jobs.length+')</h2>';
-  html+='<div class="jobcols">'+["todo","prog","done"].map(function(k){
-    var lbl={todo:"To do",prog:"In progress",done:"Done"}[k]; var arr=buckets[k];
-    return '<div class="jobcol '+k+'"><h3>'+lbl+' <span class="n">'+arr.length+'</span></h3>'+(arr.length?arr.slice(0,40).map(function(j){
-      return '<div class="job '+k+'"><div class="jv">'+esc(j.vessel)+'</div><div class="jt">'+esc(j.task||j.desc||"(job)")+'</div></div>';
-    }).join(""):'<div class="empty" style="padding:14px">None</div>')+'</div>';
-  }).join("")+'</div>';
-  d.innerHTML=html;
+function whoLabel(){ return {today:"today", week:"this week", month:"this month"}[WHO.period]; }
+function inWin(day,r){ return !!day && day>=r.from && day<=r.to; }
+// "Duncan" has to match "Duncan Reid", and a task allocated to "Jack, Tyrone"
+// counts for both of them — the same loose rule the backend allocates by.
+function nameMatch(field,name){
+  var a=(field||"").toString().toLowerCase(), n=(name||"").toString().toLowerCase().replace(/\s*\(test\)/,"").trim();
+  if(!a||!n) return false;
+  if(a.indexOf(n)>=0) return true;
+  var f=n.split(/\s+/)[0]; if(f.length<3) return false;
+  return a.split(",").some(function(x){ return x.trim().split(/\s+/)[0]===f; });
+}
+// Everyone we could possibly show: the hub crew list, plus anyone who has
+// clocked on or holds an allocated job (so a new starter never goes missing).
+function whoRoster(){
+  var seen={}, out=[];
+  function add(n){ n=(n||"").toString().trim(); if(!n) return; var k=n.toLowerCase(); if(seen[k]) return; seen[k]=1; out.push(n); }
+  (DATA.crew||[]).forEach(add);
+  (DATA.shifts||[]).forEach(function(s){ add(s.crew); });
+  (SHIFTC[whoRange().from+"|"+whoRange().to]||{shifts:[]}).shifts.forEach(function(s){ add(s.crew); });
+  (DATA.wl||[]).forEach(function(j){ (j.allocatedTo||"").split(",").forEach(add); });
+  return out.sort(function(a,b){ return a.localeCompare(b); });
+}
+function setWhoPeriod(p){ WHO.period=p; renderWho(); }
+function setWhoCrew(c){ WHO.crew=c; renderWho(); }
+
+function loadShiftRange(r){
+  var ck=r.from+"|"+r.to;
+  if(SHIFTC[ck]) return Promise.resolve(SHIFTC[ck]);
+  if(r.from===r.to && r.to===dstr(new Date())) { SHIFTC[ck]={shifts:DATA.shifts||[], ranged:true}; return Promise.resolve(SHIFTC[ck]); }
+  return get("crewallshifts&from="+r.from+"&to="+r.to).then(function(res){
+    var o={ shifts:(res&&res.shifts)||[], ranged:!!(res&&res.range) };
+    SHIFTC[ck]=o; return o;
+  }).catch(function(){ return {shifts:[], ranged:true}; });
+}
+
+function renderWho(){
+  var el=document.getElementById("v-crew"); if(!el) return;
+  var r=whoRange(), roster=whoRoster();
+  var per=[["today","Today"],["week","This week"],["month","This month"]].map(function(p){
+    return '<div class="chip '+(WHO.period===p[0]?"on":"")+'" onclick="setWhoPeriod(\''+p[0]+'\')">'+p[1]+'</div>'; }).join("");
+  var crw=["All crew"].concat(roster).map(function(c){
+    var v=(c==="All crew")?"All":c;
+    return '<div class="chip '+(WHO.crew===v?"on":"")+'" data-c="'+esc(v)+'" onclick="setWhoCrew(this.dataset.c)">'+esc(c)+'</div>'; }).join("");
+  el.innerHTML='<div class="chips">'+per+'</div><div class="chips">'+crw+'</div>'+
+    '<div id="whoBody"><div class="spin">Loading…</div></div>';
+  loadShiftRange(r).then(function(sr){ renderWhoBody(r, roster, sr); });
+}
+
+function renderWhoBody(r, roster, sr){
+  var el=document.getElementById("whoBody"); if(!el) return;
+  var names = (WHO.crew==="All") ? roster : [WHO.crew];
+  var wl = DATA.wl||[];
+  var cards=[], idle=[], tot={mins:0,done:0,prog:0,due:0,people:0};
+
+  names.forEach(function(name){
+    var shifts=sr.shifts.filter(function(s){ return nameMatch(s.crew,name); })
+                        .sort(function(a,b){ return a.inAt-b.inAt; });
+    var jobs=wl.filter(function(j){ return nameMatch(j.allocatedTo,name); });
+    var done=jobs.filter(function(j){ return jobBucket(j.status)==="done" && inWin(j.completed,r); })
+                 .sort(function(a,b){ return (b.completed||"").localeCompare(a.completed||""); });
+    var prog=jobs.filter(function(j){ return jobBucket(j.status)==="prog"; });
+    // Anything already shown under "In progress now" is left out here, so a task
+    // never appears twice on the same card — its due date rides on that row.
+    var due =jobs.filter(function(j){ var b=jobBucket(j.status);
+                   return b!=="done" && b!=="prog" && j.due && j.due>=r.from && j.due<=r.dueTo; })
+                 .sort(function(a,b){ return (a.due||"").localeCompare(b.due||""); });
+    var mins=shifts.reduce(function(a,s){ return a+(s.minutes||0); },0);
+    var boats={}; shifts.forEach(function(s){ boats[s.vessel]=1; });
+    var open=shifts.filter(function(s){ return s.open; })[0];
+
+    if(!shifts.length && !done.length && !prog.length && !due.length){ idle.push(name); return; }
+    tot.mins+=mins; tot.done+=done.length; tot.prog+=prog.length; tot.due+=due.length; tot.people++;
+
+    var h='<div class="card"><div class="crewhd"><div class="av'+(open?" on":"")+'">'+esc(initials(name))+'</div>'+
+      '<div style="flex:1"><h3>'+esc(name)+'</h3><div class="sub">'+
+        (open?('<b style="color:var(--ok)">On '+esc(open.vessel)+' now</b> · since '+tclock(open.inAt)+' · '):'')+
+        Object.keys(boats).length+(Object.keys(boats).length===1?" boat":" boats")+' · '+shifts.length+
+        (shifts.length===1?" shift":" shifts")+'</div></div>'+
+      '<div class="tot">'+(mins?dur(mins):"—")+'</div></div>';
+
+    h+=whoList("In progress now", prog, "prog", whoDue);
+    h+=whoList("Completed "+whoLabel(), done, "done", function(j){ return dnice(j.completed); });
+    h+=whoList("Due "+whoLabel(), due, "todo", whoDue);
+
+    if(shifts.length){
+      h+='<div class="wsec"><h4>Time on the clock</h4>'+shifts.slice(0,14).map(function(s){
+        var day=dstr(new Date(s.inAt));
+        return '<div class="shift"><span class="v">'+esc(s.vessel)+'</span><span class="d">'+
+          (WHO.period!=="today"?('<b>'+dnice(day)+'</b> · '):'')+tclock(s.inAt)+(s.outAt?(' – '+tclock(s.outAt)):' – now')+
+          (s.desc?(' · '+esc(s.desc)):'')+'</span><span class="h">'+dur(s.minutes||0)+'</span></div>';
+      }).join("")+(shifts.length>14?('<div class="wmore">+ '+(shifts.length-14)+' more shifts</div>'):'')+'</div>';
+    }
+    h+='</div>';
+    cards.push(h);
+  });
+
+  var head='<div class="kpis">'+
+    '<div class="kpi on"><b>'+tot.people+'</b><span>Crew active</span></div>'+
+    '<div class="kpi"><b>'+(tot.mins/60).toFixed(1)+'</b><span>Hours '+whoLabel()+'</span></div>'+
+    '<div class="kpi"><b>'+tot.done+'</b><span>Tasks completed</span></div>'+
+    '<div class="kpi"><b>'+tot.prog+'</b><span>In progress</span></div>'+
+    '<div class="kpi"><b>'+tot.due+'</b><span>Due '+whoLabel()+'</span></div></div>';
+  var note = (!sr.ranged && WHO.period!=="today")
+    ? '<div class="wnote">Tasks cover '+whoLabel()+'. <b>Hours are today only</b> until the shift-range update is deployed — everything else on this screen is right.</div>' : '';
+  var body = cards.length ? cards.join("")
+    : '<div class="empty">Nothing logged '+whoLabel()+(WHO.crew==="All"?"":' for '+esc(WHO.crew))+'.</div>';
+  var quiet = (WHO.crew==="All" && idle.length)
+    ? '<div class="empty" style="padding:14px">Nothing '+whoLabel()+' for: <b>'+idle.map(esc).join(", ")+'</b></div>' : '';
+  el.innerHTML=head+note+body+quiet;
+}
+
+// Due date as it should read on a task row — red once the day has passed.
+function whoDue(j){
+  if(!j.due) return "";
+  var late = j.due < dstr(new Date());
+  return '<span'+(late?' style="color:#C0472A;font-weight:bold"':'')+'>due '+dnice(j.due)+(late?" · overdue":"")+'</span>';
+}
+// One titled block of tasks inside a crew card. `when` renders the date chip.
+function whoList(title, arr, cls, when){
+  if(!arr.length) return "";
+  var rows=arr.slice(0,12).map(function(j){
+    var w=when(j);
+    return '<div class="job '+cls+'" style="margin-bottom:6px">'+
+      '<div class="jv">'+esc(j.vessel)+(j.list?(' · '+esc(j.list)):'')+'</div>'+
+      '<div class="jt">'+esc(j.task||j.desc||"(task)")+(j.code?(' <span class="wcode">'+esc(j.code)+'</span>'):'')+'</div>'+
+      (w?('<div class="jd">'+w+'</div>'):'')+'</div>';
+  }).join("");
+  return '<div class="wsec"><h4>'+title+' <span class="wn">'+arr.length+'</span></h4>'+rows+
+    (arr.length>12?('<div class="wmore">+ '+(arr.length-12)+' more</div>'):'')+'</div>';
 }
 
 /* ---------- Certs — everyone's tickets, worst first ---------- */
