@@ -565,6 +565,25 @@
   .m2w:active{opacity:.9}
   .addtaskbtn{margin-left:auto;background:var(--navy);color:#fff;border:none;border-radius:9px;padding:7px 13px;font-size:13px;font-weight:700;cursor:pointer}
   .fldhint{font-weight:600;color:var(--muted);font-size:11.5px}
+  /* ---- Work agent: tell it what to do, read the plan, confirm ---- */
+  .agentbtn{background:linear-gradient(135deg,var(--orange),var(--orange2));color:#fff;border:none;border-radius:9px;padding:7px 12px;font-size:13px;font-weight:700;cursor:pointer;margin-left:8px}
+  .agtxt{min-height:96px}
+  .agbox{margin-top:12px}
+  .agsum{background:#eef4fb;border:1px solid #d3e2f2;color:var(--navy);border-radius:10px;padding:11px 12px;font-size:13.5px;font-weight:700;line-height:1.45}
+  .agstep{display:flex;gap:9px;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 11px;margin-top:8px;font-size:13px;line-height:1.45}
+  .agstep .agn{flex:0 0 22px;height:22px;border-radius:50%;background:var(--navy);color:#fff;font-size:11.5px;font-weight:700;display:flex;align-items:center;justify-content:center}
+  .agstep.share{border-color:#f0cfae;background:#fff7ef}
+  .agstep.share .agn{background:var(--orange)}
+  .agstep.done .agn{background:var(--ok)}
+  .agstep.fail{border-color:#e6bcb2;background:#fdf2ef}
+  .agstep.fail .agn{background:var(--red)}
+  .agstep .agd{font-size:12px;color:var(--red);margin-top:3px}
+  .agnote{border-radius:10px;padding:10px 11px;margin-top:8px;font-size:12.5px;line-height:1.45}
+  .agnote.q{background:#fff8e8;border:1px solid #efdcae;color:#7a5a12}
+  .agnote.w{background:#fdf2ef;border:1px solid #e6bcb2;color:#8a3b26}
+  .agmuted{color:var(--muted);font-size:12px;margin-top:10px;line-height:1.45}
+  .agex{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 2px}
+  .agex span{background:#eef1f6;border:1px solid var(--line);color:var(--muted);border-radius:20px;padding:5px 10px;font-size:11.5px;cursor:pointer}
   .atmatch{margin:8px 0 2px;font-size:12.5px;line-height:1.45}
   .atmatch .atm-ok{background:#eafaf1;border:1px solid #bfe6d0;color:#166534;border-radius:9px;padding:9px 11px}
   .atmatch .atm-info{background:#eef4fb;border:1px solid #d3e2f2;color:var(--navy);border-radius:9px;padding:9px 11px}
@@ -1072,7 +1091,7 @@
       <!-- Sub-tabs. Directors: All work | Raised by crew. Crew: My worklist |
            Offered to me | To approve | My raised jobs. -->
       <div class="assignrow" id="jobSeg" style="margin:0 4px 12px"></div>
-      <div class="subbar"><h2 id="jobsSubTitle">My worklist</h2><span class="count" id="jobsCount"></span><button id="addTaskBtn" class="addtaskbtn" style="display:none" onclick="openAddTask()">＋ Add task</button></div>
+      <div class="subbar"><h2 id="jobsSubTitle">My worklist</h2><span class="count" id="jobsCount"></span><button id="addTaskBtn" class="addtaskbtn" style="display:none" onclick="openAddTask()">＋ Add task</button><button id="agentBtn" class="agentbtn" style="display:none" onclick="openAgent()">✨ Just tell me</button></div>
       <div class="chips" id="jobChips"></div>
       <div id="jobList"></div>
     </div>
@@ -1462,6 +1481,22 @@
   </div>
   <button class="go" onclick="submitAddTask()">✓ Add task</button>
   <button class="cancel" onclick="closeModal('addTaskModal')">Cancel</button>
+</div></div>
+
+
+<!-- Work agent: say it in plain English, read the plan, confirm -->
+<div class="modal" id="agentModal"><div class="card2">
+  <h3>&#10024; Just tell me</h3>
+  <p class="mhint">Say what you want done to the work lists. I&rsquo;ll show you exactly what I&rsquo;m about to do &mdash; nothing is written until you tap Confirm.</p>
+  <div class="agex">
+    <span onclick="agEx(this)">Add 4 jobs to Mahalo: teak scrub, tender service, bilge clean, check fenders</span>
+    <span onclick="agEx(this)">Push the annual shipyard list to Andiamo and offer it to everyone</span>
+    <span onclick="agEx(this)">Add a wash down to Everywhen for Friday and assign it to Jack</span>
+  </div>
+  <textarea class="fld-ta agtxt" id="ag_instr" placeholder="e.g. Add these 4 jobs to Mahalo&hellip;"></textarea>
+  <div id="ag_box" class="agbox"></div>
+  <button class="go" id="ag_go" onclick="agentPlan()">Work out the plan</button>
+  <button class="cancel" onclick="closeModal('agentModal')">Close</button>
 </div></div>
 
 
@@ -3147,6 +3182,8 @@ function renderJobs(){
   $("jobsHello").innerHTML="Hi <b>"+esc(first)+"</b> — <b>"+openN+"</b> open "+(openN===1?"job":"jobs")+(isMgrRole()?(" on <b>"+esc(JOBSVESSEL||"your vessel")+"</b>"):" assigned to you")+"."+
     (ME.signedAt ? "" : '<div class="guideprompt" onclick="openGuide()">📋 Please read &amp; sign the Crew Onboarding Guide — tap here.</div>');
   var _atb=$("addTaskBtn"); if(_atb) _atb.style.display=isMgrRole()?"":"none";
+  var _agb=$("agentBtn"); if(_agb) _agb.style.display=(isMgrRole()&&AGENTREADY)?"":"none";
+  if(isMgrRole()) checkAgent();
   var FILTERS=["All","To do","In progress","Done"];
   $("jobChips").innerHTML=FILTERS.map(function(f){return '<div class="chip '+(f===JOBFILTER?"on":"")+'" onclick="setJobFilter(\''+f+'\')">'+f+'</div>';}).join("")
     +'<div class="chip sched'+(SCHEDVIEW?" on":"")+'" onclick="toggleSched()">📅 Schedule</div>';
@@ -6036,6 +6073,87 @@ function submitWorkLog(){
 var ADD_CATS=["Scheduled","Unscheduled","Upgrade","Ops"];
 var ADDCAT="Scheduled", ADDASSIGN=[], ADDSCOPE="boat";
 var ATSUGG=[], ATCHOSEN=null, ATNEW=false, ATEXISTS=null, _atMatchT=null, _atMatchReq=null;
+/* ================= work agent — "just tell me" =================
+   A director says it in plain English; the backend (Agent.gs) turns it into a
+   PLAN of the app's own actions and holds it server-side; we show the plan and
+   post back nothing but its id to confirm. Two rules live on this side:
+     • The plan the director reads is the plan that runs. We never rebuild it
+       here, never edit it, and never send steps back — only the planId.
+     • The feature hides itself completely unless the backend says it is both
+       keyed (ready) and this login is allowed to use it. */
+var AGENTREADY=false, AGENTCHECKED=false, AGPLANID="", AGBUSY=false;
+function checkAgent(){
+  if(AGENTCHECKED) return; AGENTCHECKED=true;
+  apiGet("fn=agentstatus&code="+encodeURIComponent(ME.code||"")+"&email="+encodeURIComponent(ME.email||""))
+    .then(function(j){
+      AGENTREADY=!!(j&&j.ok&&j.ready&&j.allowed);
+      var b=$("agentBtn"); if(b) b.style.display=(isMgrRole()&&AGENTREADY)?"":"none";
+    }).catch(function(){});
+}
+function agEx(el){ $("ag_instr").value=el.textContent; $("ag_instr").focus(); }
+function openAgent(){
+  if(!isMgrRole()){ toast("Directors only"); return; }
+  $("ag_instr").value=""; $("ag_box").innerHTML=""; AGPLANID=""; AGBUSY=false;
+  var g=$("ag_go"); g.textContent="Work out the plan"; g.setAttribute("onclick","agentPlan()"); g.disabled=false;
+  $("agentModal").classList.add("show");
+}
+function agNote(cls, items){
+  if(!items || !items.length) return "";
+  return items.map(function(t){ return '<div class="agnote '+cls+'">'+esc(t)+'</div>'; }).join("");
+}
+function agentPlan(){
+  if(AGBUSY) return;
+  var instr=($("ag_instr").value||"").trim();
+  if(!instr){ toast("Tell me what you'd like done"); return; }
+  AGBUSY=true; AGPLANID="";
+  var g=$("ag_go"); g.disabled=true; g.textContent="Working it out…";
+  $("ag_box").innerHTML='<div class="agmuted">Reading the fleet and writing the plan…</div>';
+  apiPost({ action:"agentPlan", code:ME.code||"", email:ME.email||"", instruction:instr })
+    .then(function(j){
+      AGBUSY=false; g.disabled=false;
+      if(!j||!j.ok){ $("ag_box").innerHTML='<div class="agnote w">'+esc((j&&j.error)||"Couldn't work that one out — try wording it differently.")+'</div>'; g.textContent="Try again"; return; }
+      var h="";
+      if(j.summary) h+='<div class="agsum">'+esc(j.summary)+'</div>';
+      (j.steps||[]).forEach(function(st,i){
+        h+='<div class="agstep'+(st.op==="share"?" share":"")+'"><div class="agn">'+(i+1)+'</div><div>'+esc(st.line)+'</div></div>';
+      });
+      h+=agNote("q", j.questions);
+      h+=agNote("w", j.warnings);
+      $("ag_box").innerHTML=h;
+      if(j.planId && (j.steps||[]).length){
+        AGPLANID=j.planId;
+        g.textContent="✓ Confirm — do it"; g.setAttribute("onclick","agentConfirm()");
+        $("ag_box").innerHTML+='<div class="agmuted">Nothing has been written yet. This plan holds for 15 minutes.</div>';
+      } else {
+        g.textContent="Work out the plan"; g.setAttribute("onclick","agentPlan()");
+      }
+    })
+    .catch(function(){ AGBUSY=false; g.disabled=false; g.textContent="Try again";
+      $("ag_box").innerHTML='<div class="agnote w">Couldn\'t connect — check your signal and try again.</div>'; });
+}
+function agentConfirm(){
+  if(AGBUSY || !AGPLANID) return;
+  AGBUSY=true;
+  var g=$("ag_go"); g.disabled=true; g.textContent="Doing it…";
+  // The planId only. The steps stay on the server, exactly as they were shown.
+  apiPost({ action:"agentRun", code:ME.code||"", email:ME.email||"", planId:AGPLANID })
+    .then(function(j){
+      AGBUSY=false; AGPLANID=""; g.disabled=false;
+      if(!j||!j.ok){ $("ag_box").innerHTML='<div class="agnote w">'+esc((j&&j.error)||"That didn't run.")+'</div>';
+        g.textContent="Work out the plan"; g.setAttribute("onclick","agentPlan()"); return; }
+      var h='<div class="agsum">Done — '+(j.added||0)+' task'+((j.added===1)?"":"s")+' added.</div>';
+      (j.results||[]).forEach(function(r,i){
+        h+='<div class="agstep '+(r.ok?"done":"fail")+'"><div class="agn">'+(r.ok?"✓":"!")+'</div><div>'+esc(r.line)+
+           (r.detail?'<div class="agd">'+esc(r.detail)+'</div>':'')+'</div></div>';
+      });
+      $("ag_box").innerHTML=h;
+      g.textContent="Ask for something else"; g.setAttribute("onclick","openAgent()");
+      toast("Done — "+(j.added||0)+" task"+((j.added===1)?"":"s")+" added");
+      ATVLISTS={}; loadJobs(); loadUnassigned();
+    })
+    .catch(function(){ AGBUSY=false; g.disabled=false; g.textContent="Try again";
+      $("ag_box").innerHTML='<div class="agnote w">Couldn\'t connect — the plan may still be waiting. Check the worklist before asking again.</div>'; });
+}
 function openAddTask(prefList, prefVessel, opts){
   if(!isMgrRole()){ toast("Directors only"); return; }
   opts=opts||{};
