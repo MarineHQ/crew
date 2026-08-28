@@ -74,6 +74,46 @@
   .gate .contact b{color:var(--orange)}
   .footer-banner{width:100%;background:#1B3A6B;line-height:0}
   .footer-banner img{width:100%;display:block}
+  .chipgap{flex:1}
+  @media(max-width:640px){.chipgap{display:none}}   /* on a phone the toggle just follows the periods */
+  /* calendar blocks */
+  .tl{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px 14px;overflow-x:auto}
+  .tlrow{display:flex;align-items:flex-start;gap:10px;padding:5px 0}
+  .tlname{width:120px;flex:0 0 120px;font-size:12.5px;font-weight:bold;color:var(--navy);line-height:1.25}
+  .tlname span{display:block;font-weight:normal;color:var(--muted);font-size:11px}
+  .tlname{padding-top:4px}
+  .tlbody{flex:1;min-width:420px}
+  .tlrail{position:relative;width:100%;height:30px;background:#f4f6f9;border-radius:8px;border:1px solid var(--line)}
+  .tlhead .tlrail{height:16px;background:none;border:0}
+  .tlhead .hr{position:absolute;top:0;font-size:10px;color:var(--muted);transform:translateX(-50%);white-space:nowrap}
+  .tlchips{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}
+  .tlchips .chp{display:inline-block;margin:0;max-width:230px}
+  .blk{position:absolute;top:3px;bottom:3px;border-radius:7px;color:#fff;overflow:hidden;
+       padding:0 7px;font-size:10.5px;display:flex;align-items:center;gap:5px;white-space:nowrap}
+  .blk b{font-size:10.5px;overflow:hidden;text-overflow:ellipsis}
+  .blk span{opacity:.82;font-size:9.5px}
+  .chp.prog{background:#fdf1de;color:#b06000}
+  .calwrap{overflow-x:auto;background:#fff;border:1px solid var(--line);border-radius:12px}
+  table.cal{border-collapse:collapse;width:100%;min-width:520px}
+  table.cal th,table.cal td{border:1px solid var(--line);vertical-align:top;padding:5px}
+  table.cal thead th{background:#f4f6f9;font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;position:sticky;top:0}
+  table.cal th.cn{text-align:left;font-size:12px;color:var(--navy);width:118px;min-width:118px;background:#fff;position:sticky;left:0;z-index:2}
+  table.cal thead th.cn{background:#f4f6f9}
+  table.cal th.cn span{display:block;font-weight:normal;color:var(--muted);font-size:10.5px}
+  table.cal .td{background:#fffaf3}
+  table.cal td{min-width:78px}
+  .blk.sq{position:static;border-radius:7px;padding:4px 6px;margin-bottom:4px;display:block}
+  .blk.sq b{font-size:10px}
+  .blk.sq span{display:block;font-size:9.5px}
+  .blk.lg{display:inline-block;padding:2px 8px;vertical-align:middle}
+  .chp{display:block;font-size:10px;font-weight:bold;border-radius:6px;padding:3px 6px;margin-bottom:4px;line-height:1.25;
+       overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .chp.done{background:#e8f5ee;color:#1e7d46}
+  .chp.due{background:#e6efff;color:#1d4ed8}
+  .chp.late{background:#fdeaea;color:#c0392b}
+  .cal .dot{color:#cfd7e3}
+  .callegend{font-size:11.5px;color:var(--muted);padding:9px 2px;display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+  .callegend .chp{display:inline-block;margin:0}
   .wsec{margin-top:11px;border-top:1px solid var(--line);padding-top:9px}
   .wsec h4{margin:0 0 7px;font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;display:flex;align-items:center;gap:7px}
   .wsec .wn{background:#eef2f8;color:var(--navy);border-radius:10px;font-size:10.5px;padding:1px 7px;font-weight:800}
@@ -91,7 +131,8 @@
   <button class="tab on" data-t="now" onclick="go('now')">On now</button>
   <button class="tab" data-t="shifts" onclick="go('shifts')">Today's shifts</button>
   <button class="tab" data-t="jobs" onclick="go('jobs')">Jobs</button>
-  <button class="tab" data-t="crew" onclick="go('crew')">Who's on what</button>
+  <button class="tab" data-t="crew" onclick="go('crew')">By crew</button>
+  <button class="tab" data-t="who" onclick="go('who')">Who's on what</button>
   <button class="tab" data-t="certs" onclick="go('certs')">Certs</button>
 </div>
 <div class="wrap">
@@ -99,6 +140,7 @@
   <div id="v-shifts" class="hidden"></div>
   <div id="v-jobs" class="hidden"></div>
   <div id="v-crew" class="hidden"></div>
+  <div id="v-who" class="hidden"></div>
   <div id="v-certs" class="hidden"></div>
 </div>
 <div class="footer-banner"><img src="footer-banner.jpg" alt="Marine HQ — 0439 748 387 · yachtsupport@marinehq.com.au"></div>
@@ -132,7 +174,7 @@ function dur(mins){var h=Math.floor(mins/60),m=mins%60;return (h?h+"h ":"")+m+"m
 function get(fn){return fetch(API+"?fn="+fn+"&key="+encodeURIComponent(KEY)+"&_="+Date.now()).then(function(r){return r.json();});}
 
 function unlock(){var v=(document.getElementById("gk").value||"").trim();if(!v)return;KEY=v;try{localStorage.setItem("mhq_crew_key",v);}catch(e){}document.getElementById("gate").classList.remove("show");loadAll();}
-function go(t){TAB=t;["now","shifts","jobs","crew","certs"].forEach(function(x){document.getElementById("v-"+x).classList.toggle("hidden",x!==t);});
+function go(t){TAB=t;["now","shifts","jobs","crew","who","certs"].forEach(function(x){document.getElementById("v-"+x).classList.toggle("hidden",x!==t);});
   document.querySelectorAll(".tab").forEach(function(b){b.classList.toggle("on",b.dataset.t===t);});
   if(t==="now") setTimeout(function(){ if(map) map.invalidateSize(); },100);}
 
@@ -151,7 +193,7 @@ function loadAll(){
     DATA.wl=(res[5]&&res[5].jobs)||[];        // every boat's worklist — what crew are actually on
     SHIFTC={};                                 // today moved on / data refreshed
     document.getElementById("refresh").textContent="Updated "+tclock(Date.now());
-    renderNow(); renderShifts(); renderJobs(); renderWho(); renderCerts();
+    renderNow(); renderShifts(); renderJobs(); renderCrew(); renderWho(); renderCerts();
   }).catch(function(){document.getElementById("v-now").innerHTML='<div class="empty">Couldn’t load — check your connection.</div>';});
 }
 
@@ -237,6 +279,33 @@ function renderJobs(){
 }
 function setJobFilter(c){ jobCrewFilter=c; renderJobs(); }
 
+/* ---------- By crew (drill-down) ---------- */
+function renderCrew(){
+  var el=document.getElementById("v-crew");
+  var opts=DATA.crew.map(function(c){return '<option>'+esc(c)+'</option>';}).join("");
+  el.innerHTML='<select class="crewsel" id="crewPick" onchange="renderCrewDetail()"><option value="">Choose a crew member…</option>'+opts+'</select><div id="crewDetail"></div>';
+}
+function renderCrewDetail(){
+  var name=document.getElementById("crewPick").value; var d=document.getElementById("crewDetail");
+  if(!name){ d.innerHTML=''; return; }
+  var shifts=DATA.shifts.filter(function(s){return (s.crew||"").toLowerCase().indexOf(name.toLowerCase())>=0;});
+  var jobs=DATA.jobs.filter(function(j){return (j.allocatedTo||"")===name;});
+  var tot=shifts.reduce(function(a,s){return a+(s.minutes||0);},0);
+  var html='<h2 class="sec">Today — '+esc(name)+' · '+dur(tot)+'</h2>';
+  html+= shifts.length? '<div class="card">'+shifts.map(function(s){
+    return '<div class="shift"><span class="v">'+esc(s.vessel)+'</span><span class="d">'+tclock(s.inAt)+(s.outAt?(' – '+tclock(s.outAt)):' – now')+(s.desc?(' · '+esc(s.desc)):'')+'</span><span class="h">'+dur(s.minutes)+'</span></div>';
+  }).join("")+'</div>' : '<div class="empty">No shifts today.</div>';
+  var buckets={todo:[],prog:[],done:[]}; jobs.forEach(function(j){buckets[jobBucket(j.status)].push(j);});
+  html+='<h2 class="sec">Allocated jobs ('+jobs.length+')</h2>';
+  html+='<div class="jobcols">'+["todo","prog","done"].map(function(k){
+    var lbl={todo:"To do",prog:"In progress",done:"Done"}[k]; var arr=buckets[k];
+    return '<div class="jobcol '+k+'"><h3>'+lbl+' <span class="n">'+arr.length+'</span></h3>'+(arr.length?arr.slice(0,40).map(function(j){
+      return '<div class="job '+k+'"><div class="jv">'+esc(j.vessel)+'</div><div class="jt">'+esc(j.task||j.desc||"(job)")+'</div></div>';
+    }).join(""):'<div class="empty" style="padding:14px">None</div>')+'</div>';
+  }).join("")+'</div>';
+  d.innerHTML=html;
+}
+
 /* ---------- Who's doing what — any crew, any window ----------
    Asked for 28 Aug 2026: "see what task all crew are doing today or this
    week or this month — select Ty or Duncan or all crew."
@@ -245,7 +314,7 @@ function setJobFilter(c){ jobCrewFilter=c; renderJobs(); }
    window come from crewallshifts&from=&to= — if the backend hasn't been
    redeployed yet it quietly returns today only, and the page says so
    rather than showing a wrong number. */
-var WHO={period:"today",crew:"All"}, SHIFTC={};
+var WHO={period:"today",crew:"All",view:"list"}, SHIFTC={};
 var MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 var DOW=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 function dstr(d){ return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); }
@@ -291,6 +360,7 @@ function whoRoster(){
 }
 function setWhoPeriod(p){ WHO.period=p; renderWho(); }
 function setWhoCrew(c){ WHO.crew=c; renderWho(); }
+function setWhoView(v){ WHO.view=v; renderWho(); }
 
 function loadShiftRange(r){
   var ck=r.from+"|"+r.to;
@@ -303,14 +373,16 @@ function loadShiftRange(r){
 }
 
 function renderWho(){
-  var el=document.getElementById("v-crew"); if(!el) return;
+  var el=document.getElementById("v-who"); if(!el) return;
   var r=whoRange(), roster=whoRoster();
   var per=[["today","Today"],["week","This week"],["month","This month"]].map(function(p){
     return '<div class="chip '+(WHO.period===p[0]?"on":"")+'" onclick="setWhoPeriod(\''+p[0]+'\')">'+p[1]+'</div>'; }).join("");
   var crw=["All crew"].concat(roster).map(function(c){
     var v=(c==="All crew")?"All":c;
     return '<div class="chip '+(WHO.crew===v?"on":"")+'" data-c="'+esc(v)+'" onclick="setWhoCrew(this.dataset.c)">'+esc(c)+'</div>'; }).join("");
-  el.innerHTML='<div class="chips">'+per+'</div><div class="chips">'+crw+'</div>'+
+  var vw=[["list","&#9776; List"],["cal","&#128197; Calendar"]].map(function(v){
+    return '<div class="chip '+(WHO.view===v[0]?"on":"")+'" onclick="setWhoView(\''+v[0]+'\')">'+v[1]+'</div>'; }).join("");
+  el.innerHTML='<div class="chips">'+per+'<span class="chipgap"></span>'+vw+'</div><div class="chips">'+crw+'</div>'+
     '<div id="whoBody"><div class="spin">Loading…</div></div>';
   loadShiftRange(r).then(function(sr){ renderWhoBody(r, roster, sr); });
 }
@@ -319,8 +391,9 @@ function renderWhoBody(r, roster, sr){
   var el=document.getElementById("whoBody"); if(!el) return;
   var names = (WHO.crew==="All") ? roster : [WHO.crew];
   var wl = DATA.wl||[];
-  var cards=[], idle=[], tot={mins:0,done:0,prog:0,due:0,people:0};
+  var rows=[], idle=[], tot={mins:0,done:0,prog:0,due:0,people:0};
 
+  // One record per crew member — the list and the calendar draw the same numbers.
   names.forEach(function(name){
     var shifts=sr.shifts.filter(function(s){ return nameMatch(s.crew,name); })
                         .sort(function(a,b){ return a.inAt-b.inAt; });
@@ -335,32 +408,11 @@ function renderWhoBody(r, roster, sr){
                  .sort(function(a,b){ return (a.due||"").localeCompare(b.due||""); });
     var mins=shifts.reduce(function(a,s){ return a+(s.minutes||0); },0);
     var boats={}; shifts.forEach(function(s){ boats[s.vessel]=1; });
-    var open=shifts.filter(function(s){ return s.open; })[0];
 
     if(!shifts.length && !done.length && !prog.length && !due.length){ idle.push(name); return; }
     tot.mins+=mins; tot.done+=done.length; tot.prog+=prog.length; tot.due+=due.length; tot.people++;
-
-    var h='<div class="card"><div class="crewhd"><div class="av'+(open?" on":"")+'">'+esc(initials(name))+'</div>'+
-      '<div style="flex:1"><h3>'+esc(name)+'</h3><div class="sub">'+
-        (open?('<b style="color:var(--ok)">On '+esc(open.vessel)+' now</b> · since '+tclock(open.inAt)+' · '):'')+
-        Object.keys(boats).length+(Object.keys(boats).length===1?" boat":" boats")+' · '+shifts.length+
-        (shifts.length===1?" shift":" shifts")+'</div></div>'+
-      '<div class="tot">'+(mins?dur(mins):"—")+'</div></div>';
-
-    h+=whoList("In progress now", prog, "prog", whoDue);
-    h+=whoList("Completed "+whoLabel(), done, "done", function(j){ return dnice(j.completed); });
-    h+=whoList("Due "+whoLabel(), due, "todo", whoDue);
-
-    if(shifts.length){
-      h+='<div class="wsec"><h4>Time on the clock</h4>'+shifts.slice(0,14).map(function(s){
-        var day=dstr(new Date(s.inAt));
-        return '<div class="shift"><span class="v">'+esc(s.vessel)+'</span><span class="d">'+
-          (WHO.period!=="today"?('<b>'+dnice(day)+'</b> · '):'')+tclock(s.inAt)+(s.outAt?(' – '+tclock(s.outAt)):' – now')+
-          (s.desc?(' · '+esc(s.desc)):'')+'</span><span class="h">'+dur(s.minutes||0)+'</span></div>';
-      }).join("")+(shifts.length>14?('<div class="wmore">+ '+(shifts.length-14)+' more shifts</div>'):'')+'</div>';
-    }
-    h+='</div>';
-    cards.push(h);
+    rows.push({ name:name, shifts:shifts, done:done, prog:prog, due:due, mins:mins,
+                boats:Object.keys(boats), open:shifts.filter(function(s){return s.open;})[0] });
   });
 
   var head='<div class="kpis">'+
@@ -371,11 +423,122 @@ function renderWhoBody(r, roster, sr){
     '<div class="kpi"><b>'+tot.due+'</b><span>Due '+whoLabel()+'</span></div></div>';
   var note = (!sr.ranged && WHO.period!=="today")
     ? '<div class="wnote">Tasks cover '+whoLabel()+'. <b>Hours are today only</b> until the shift-range update is deployed — everything else on this screen is right.</div>' : '';
-  var body = cards.length ? cards.join("")
-    : '<div class="empty">Nothing logged '+whoLabel()+(WHO.crew==="All"?"":' for '+esc(WHO.crew))+'.</div>';
+  var body = !rows.length
+    ? '<div class="empty">Nothing logged '+whoLabel()+(WHO.crew==="All"?"":' for '+esc(WHO.crew))+'.</div>'
+    : (WHO.view==="cal" ? (WHO.period==="today" ? whoTimeline(rows) : whoGrid(rows, r))
+                        : rows.map(whoCard).join(""));
   var quiet = (WHO.crew==="All" && idle.length)
     ? '<div class="empty" style="padding:14px">Nothing '+whoLabel()+' for: <b>'+idle.map(esc).join(", ")+'</b></div>' : '';
   el.innerHTML=head+note+body+quiet;
+  // A month opens on the 1st, which is usually a wall of empty days — scroll
+  // the grid so today sits in view the moment it draws.
+  if(WHO.view==="cal"){
+    var w=el.querySelector(".calwrap"), td=el.querySelector("th.td");
+    if(w&&td) w.scrollLeft=Math.max(0, td.offsetLeft - Math.round(w.clientWidth*0.55));
+  }
+}
+
+// One crew member, written out in full.
+function whoCard(p){
+  var h='<div class="card"><div class="crewhd"><div class="av'+(p.open?" on":"")+'">'+esc(initials(p.name))+'</div>'+
+    '<div style="flex:1"><h3>'+esc(p.name)+'</h3><div class="sub">'+
+      (p.open?('<b style="color:var(--ok)">On '+esc(p.open.vessel)+' now</b> · since '+tclock(p.open.inAt)+' · '):'')+
+      p.boats.length+(p.boats.length===1?" boat":" boats")+' · '+p.shifts.length+
+      (p.shifts.length===1?" shift":" shifts")+'</div></div>'+
+    '<div class="tot">'+(p.mins?dur(p.mins):"—")+'</div></div>';
+  h+=whoList("In progress now", p.prog, "prog", whoDue);
+  h+=whoList("Completed "+whoLabel(), p.done, "done", function(j){ return dnice(j.completed); });
+  h+=whoList("Due "+whoLabel(), p.due, "todo", whoDue);
+  if(p.shifts.length){
+    h+='<div class="wsec"><h4>Time on the clock</h4>'+p.shifts.slice(0,14).map(function(s){
+      var day=dstr(new Date(s.inAt));
+      return '<div class="shift"><span class="v">'+esc(s.vessel)+'</span><span class="d">'+
+        (WHO.period!=="today"?('<b>'+dnice(day)+'</b> · '):'')+tclock(s.inAt)+(s.outAt?(' – '+tclock(s.outAt)):' – now')+
+        (s.desc?(' · '+esc(s.desc)):'')+'</span><span class="h">'+dur(s.minutes||0)+'</span></div>';
+    }).join("")+(p.shifts.length>14?('<div class="wmore">+ '+(p.shifts.length-14)+' more shifts</div>'):'')+'</div>';
+  }
+  return h+'</div>';
+}
+
+/* ---------- Calendar blocks ----------
+   The list answers "what did Ty do"; the calendar answers "when, and who
+   else was on that boat" — the shape you can only see laid out on time.
+   Today draws a real hour timeline from the clock (a block IS the shift).
+   A week or a month draws a crew × day grid: clock blocks first, then the
+   tasks due that day and the ones finished that day. */
+var VCOL=["#1A2B5C","#2A5DB0","#1F7A54","#B77410","#7B4FA8","#0E7490","#C0472A","#3F6212"];
+function vcol(v){ var n=0, t=(v||"").toString(); for(var i=0;i<t.length;i++) n=(n*31+t.charCodeAt(i))%9973; return VCOL[n%VCOL.length]; }
+function dparse(s){ var p=(s||"").split("-"); return new Date(+p[0],+p[1]-1,+p[2]); }
+function dshort(s){ var d=dparse(s); return DOW[d.getDay()]+" "+d.getDate(); }
+// Every day the grid should show: the clock window, extended to the end of
+// the period so the rest of the week/month's due work has somewhere to sit.
+function whoDays(r){
+  var out=[], d=dparse(r.from), e=dparse(WHO.period==="today"?r.to:r.dueTo), guard=0;
+  while(dstr(d)<=dstr(e) && guard++<40){ out.push(dstr(d)); d.setDate(d.getDate()+1); }
+  return out;
+}
+
+// ---- Today: one hour rail per crew member ----
+function whoTimeline(rows){
+  var all=[]; rows.forEach(function(p){ p.shifts.forEach(function(s){ all.push(s); }); });
+  if(!all.length) return '<div class="empty">Nobody has clocked on today.</div>';
+  var lo=24, hi=0;
+  all.forEach(function(s){
+    var a=new Date(s.inAt), b=new Date(s.outAt||Date.now());
+    lo=Math.min(lo, a.getHours()); hi=Math.max(hi, b.getHours()+(b.getMinutes()?1:0));
+  });
+  lo=Math.max(0, lo-1); hi=Math.min(24, Math.max(hi+1, lo+6));
+  var span=(hi-lo)*60;
+  var hrs=""; for(var h=lo;h<=hi;h++){ hrs+='<div class="hr" style="left:'+(((h-lo)*60/span)*100)+'%">'+((h%12)||12)+(h<12?"a":"p")+'</div>'; }
+  var today=dstr(new Date());
+  var body=rows.map(function(p){
+    var blocks=p.shifts.map(function(s){
+      var a=new Date(s.inAt), b=new Date(s.outAt||Date.now());
+      var x=((a.getHours()*60+a.getMinutes())-lo*60), w=Math.max(6, (b-a)/60000);
+      return '<div class="blk" style="left:'+((x/span)*100)+'%;width:'+((w/span)*100)+'%;background:'+vcol(s.vessel)+'" '+
+        'title="'+esc(s.vessel)+' · '+tclock(s.inAt)+(s.outAt?(' – '+tclock(s.outAt)):' – now')+' · '+dur(s.minutes||0)+(s.desc?(' · '+esc(s.desc)):'')+'">'+
+        '<b>'+esc(s.vessel)+'</b><span>'+dur(s.minutes||0)+'</span></div>';
+    }).join("");
+    // The rail is where they were; the chips under it are the work itself.
+    var chips=p.prog.map(function(j){ return '<span class="chp prog" title="'+esc(j.vessel)+'">&#9679; '+esc(j.task||j.desc||"task")+'</span>'; })
+      .concat(p.done.filter(function(j){ return j.completed===today; })
+        .map(function(j){ return '<span class="chp done" title="'+esc(j.vessel)+'">&#10003; '+esc(j.task||j.desc||"task")+'</span>'; }))
+      .concat(p.due.filter(function(j){ return j.due===today; })
+        .map(function(j){ return '<span class="chp due" title="'+esc(j.vessel)+'">&#128197; '+esc(j.task||j.desc||"task")+'</span>'; })).join("");
+    return '<div class="tlrow"><div class="tlname">'+esc(p.name)+'<span>'+(p.mins?dur(p.mins):"—")+'</span></div>'+
+           '<div class="tlbody"><div class="tlrail">'+blocks+'</div>'+
+           (chips?('<div class="tlchips">'+chips+'</div>'):'')+'</div></div>';
+  }).join("");
+  return '<div class="tl"><div class="tlrow tlhead"><div class="tlname"></div><div class="tlbody"><div class="tlrail">'+hrs+'</div></div></div>'+body+'</div>'+
+    '<div class="callegend">Blocks are time on the clock, coloured by boat. '+
+    '<span class="chp prog">&#9679; in progress</span> <span class="chp done">&#10003; done today</span> <span class="chp due">&#128197; due today</span></div>';
+}
+
+// ---- A week or a month: crew down, days across ----
+function whoGrid(rows, r){
+  var days=whoDays(r), today=dstr(new Date());
+  var head='<tr><th class="cn">Crew</th>'+days.map(function(d){
+    return '<th'+(d===today?' class="td"':'')+'>'+dshort(d)+'</th>'; }).join("")+'</tr>';
+  var body=rows.map(function(p){
+    var cells=days.map(function(d){
+      var bits="";
+      p.shifts.filter(function(s){ return dstr(new Date(s.inAt))===d; }).forEach(function(s){
+        bits+='<div class="blk sq" style="background:'+vcol(s.vessel)+'" title="'+esc(s.vessel)+' · '+tclock(s.inAt)+
+          (s.outAt?(' – '+tclock(s.outAt)):' – now')+' · '+dur(s.minutes||0)+'"><b>'+esc(s.vessel)+'</b><span>'+dur(s.minutes||0)+'</span></div>';
+      });
+      p.done.filter(function(j){ return j.completed===d; }).forEach(function(j){
+        bits+='<div class="chp done" title="'+esc(j.vessel)+' · '+esc(j.task||"")+'">&#10003; '+esc(j.task||j.desc||"task")+'</div>'; });
+      p.due.concat(p.prog).filter(function(j){ return j.due===d; }).forEach(function(j){
+        var late=d<today;
+        bits+='<div class="chp '+(late?"late":"due")+'" title="'+esc(j.vessel)+' · '+esc(j.task||"")+'">'+
+          (late?"&#9888; ":"&#128197; ")+esc(j.task||j.desc||"task")+'</div>'; });
+      return '<td'+(d===today?' class="td"':'')+'>'+(bits||'<span class="dot">·</span>')+'</td>';
+    }).join("");
+    return '<tr><th class="cn">'+esc(p.name)+'<span>'+(p.mins?dur(p.mins):"—")+'</span></th>'+cells+'</tr>';
+  }).join("");
+  return '<div class="calwrap"><table class="cal"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div>'+
+    '<div class="callegend"><span class="blk sq lg" style="background:#1A2B5C"><b>Boat</b></span> time on the clock · '+
+    '<span class="chp done">&#10003; done</span> · <span class="chp due">&#128197; due</span> · <span class="chp late">&#9888; overdue</span></div>';
 }
 
 // Due date as it should read on a task row — red once the day has passed.
