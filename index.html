@@ -73,7 +73,10 @@
   .previewbar select{background:#1d3160;color:#fff;border:1px solid #2b4372;border-radius:7px;padding:4px 8px;font-size:11px;font-family:inherit}
 
   /* ---------- section headers ---------- */
-  .subbar{display:flex;align-items:baseline;gap:10px;padding:16px 2px 8px}
+  .subbar{display:flex;align-items:baseline;flex-wrap:wrap;gap:10px;padding:16px 2px 8px}
+  /* Two buttons on a 375px phone squeezed the heading and both labels onto two
+     lines each. Let the row wrap instead: the buttons drop together, intact. */
+  .subbar button{white-space:nowrap}
   .subbar h2{font-size:17px;margin:0}
   .subbar .count{font-size:12px;color:var(--muted)}
   .hello{font-size:13px;color:var(--muted);padding:14px 2px 0}
@@ -566,7 +569,7 @@
   .addtaskbtn{margin-left:auto;background:var(--navy);color:#fff;border:none;border-radius:9px;padding:7px 13px;font-size:13px;font-weight:700;cursor:pointer}
   .fldhint{font-weight:600;color:var(--muted);font-size:11.5px}
   /* ---- Work agent: tell it what to do, read the plan, confirm ---- */
-  .agentbtn{background:linear-gradient(135deg,var(--orange),var(--orange2));color:#fff;border:none;border-radius:9px;padding:7px 12px;font-size:13px;font-weight:700;cursor:pointer;margin-left:8px}
+  .agentbtn{background:linear-gradient(135deg,var(--orange),var(--orange2));color:#fff;border:none;border-radius:9px;padding:7px 12px;font-size:13px;font-weight:700;cursor:pointer;margin-left:auto}   /* auto, so when the row wraps it right-aligns under ＋ Add task */
   .agtxt{min-height:96px}
   .agbox{margin-top:12px}
   .agsum{background:#eef4fb;border:1px solid #d3e2f2;color:var(--navy);border-radius:10px;padding:11px 12px;font-size:13.5px;font-weight:700;line-height:1.45}
