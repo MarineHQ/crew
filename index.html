@@ -601,6 +601,10 @@
   .upd-sub{font-size:12px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis}
   .upd-at{font-size:11px;color:var(--muted);white-space:nowrap;flex:0 0 auto}
   .ph img.imgerr{opacity:.35}
+  /* Picked-but-not-yet-sent attachments on the Raise / Log forms — the same tile
+     as the one on a task card, so both ways in look and behave the same. A file
+     that isn't an image falls back to the app's existing .thumb (navy card). */
+  .photos.staged{padding-top:2px}
   /* Fleet (director) links */
   .fleetlink{display:flex;align-items:center;gap:13px;background:#fff;border:1px solid var(--line);border-radius:13px;padding:15px 15px;margin-bottom:11px;cursor:pointer;text-decoration:none;box-shadow:0 2px 8px rgba(20,30,50,.06)}
   .fleetlink.soon{opacity:.6;cursor:default}
@@ -1169,7 +1173,7 @@
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-27·g</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-29·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1248,7 +1252,7 @@
 
 <!-- Mark complete confirmation -->
 <div class="modal" id="completeModal"><div class="card2">
-  <h3>✓ Mark task complete</h3>
+  <h3 id="completeTitle">✓ Mark task complete</h3>
   <p class="mhint" id="completeMsg">You’re marking this task as complete.</p>
   <label class="fld">Completed on</label>
   <input type="date" id="completeDate" class="fld-in">
@@ -1267,8 +1271,9 @@
   <div id="r_match" style="display:none"></div>
   <label class="fld">Detail (optional)</label>
   <textarea class="fld-ta" id="r_desc" placeholder="Where it is, what you noticed…"></textarea>
-  <label class="fld">Photos (optional)</label>
-  <input type="file" id="r_photos" accept="image/*" multiple>
+  <label class="fld">Photos <span class="fldhint">(optional)</span></label>
+  <div class="photos staged" id="r_phGrid"></div>
+  <input type="file" id="r_phIn" accept="image/*" multiple style="display:none" onchange="stagedAdd('r_ph',this)">
   <button class="go" onclick="submitRaise()">Send to Marine HQ</button>
   <button class="cancel" onclick="closeModal('raiseModal')">Cancel</button>
 </div></div>
@@ -1297,9 +1302,11 @@
     </div>
   </div>
   <label class="fld">Photos <span class="fldhint">(optional)</span></label>
-  <input type="file" id="wl_photos" accept="image/*" multiple>
+  <div class="photos staged" id="wl_phGrid"></div>
+  <input type="file" id="wl_phIn" accept="image/*" multiple style="display:none" onchange="stagedAdd('wl_ph',this)">
   <label class="fld">Documents <span class="fldhint">(optional — receipts, reports, manuals)</span></label>
-  <input type="file" id="wl_docs" multiple>
+  <div class="photos staged" id="wl_dcGrid"></div>
+  <input type="file" id="wl_dcIn" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,image/*" multiple style="display:none" onchange="stagedAdd('wl_dc',this)">
   <button class="go" onclick="submitWorkLog()">✓ Log it</button>
   <button class="cancel" onclick="closeModal('workLogModal')">Cancel</button>
 </div></div>
@@ -3415,8 +3422,8 @@ var WLEDIT={};
 function toggleWlEdit(g){ WLEDIT[g]=!WLEDIT[g]; renderJobs(); }
 /* Per-task quick "sub note" (Directors/Managers) */
 function wlSetSubNote(key){
-  if(!isMgrRole()) return;
   var j=wlFind(key);
+  if(!wlCanFix(j)) return;
   var cur=(j&&j.subNote)||"";
   var n=prompt("Sub note for this task (a quick line shown under the title):", cur);
   if(n===null) return;
@@ -3735,7 +3742,7 @@ function wlSetDue(key, clear){
 /* Directors only: edit a job's MAIN description inline (crew can't — the ✎ only renders
    for managers and the backend rejects non-managers). In-app textarea, no native prompt. */
 function wlEditDesc(key){
-  if(!isMgrRole()) return;
+  if(!wlCanFix(wlFind(key))) return;
   var sec=$("wlDescSec"); if(!sec) return;
   var j=(CREWJOBS.concat(CREWOPEN||[])).filter(function(x){return x.key===key;})[0]; var cur=(j&&j.desc)||"";
   sec.innerHTML='<h4>The job</h4>'+
@@ -3829,12 +3836,12 @@ function openWLJob(key){
     '</div><p class="body" style="font-size:12px;color:var(--muted);margin-top:7px">Pick <b>Everyone</b> or tap specific people — only they see it under “Unassigned tasks” and can accept it. Or <b>Assign</b> above to give it to someone directly.</p></div>'
   ) : '';
   // Day / due (Directors & Managers) — shows on the crew's Schedule
-  var dueHTML = !isMgrRole() ? '' :
+  var dueHTML = !wlCanFix(j) ? '' :
     '<div class="sec"><h4>Day '+(j.due?('· <span style="color:var(--orange)">'+esc(dayLabel(j.dueTs))+(j.dueTime?(" "+esc(fmtTime12(j.dueTime))):"")+'</span>'):'')+'</h4>'+
     '<div style="display:flex;gap:8px;flex-wrap:wrap"><input type="date" id="wlDue" class="fld-in" style="flex:1;min-width:130px" value="'+esc(j.due||"")+'" onchange="wlSetDue(\''+esc(key)+'\')">'+
     '<input type="time" id="wlDueTime" class="fld-in" style="max-width:120px" value="'+esc(j.dueTime||"")+'" onchange="wlSetDue(\''+esc(key)+'\')"></div>'+
     (j.due?'<button class="aopt" style="margin-top:8px" onclick="wlSetDue(\''+esc(key)+'\',true)">Clear day</button>':'')+
-    '<p class="body" style="font-size:12px;color:var(--muted);margin-top:6px">Sets the day (and optional time — e.g. haul-out) — the crew see it on their 📅 Schedule.</p></div>';
+    '<p class="body" style="font-size:12px;color:var(--muted);margin-top:6px">Sets the day (and optional time — e.g. haul-out). It shows on the 📅 Schedule.</p></div>';
   // Conversation lanes — directors pick who their next note / photo / quote is for
   var laneHTML = !isMgrRole() ? '' :
     '<div class="sec"><h4>Who sees what you add next</h4>'+
@@ -3869,9 +3876,9 @@ function openWLJob(key){
   $("sheet").innerHTML=
     '<div class="sheet-hd"><div style="flex:1"><div style="font-size:11px;font-weight:bold;letter-spacing:.4px;color:#ffd7b0">'+esc(j.vessel)+(j.list?(" · "+esc(j.list)):"")+(j.code?(' &nbsp;<span class="jcode">'+esc(j.code)+'</span>'):'')+catChip(j.category)+'</div>'+
       '<h3>'+num+'. '+esc(j.task||"(job)")+'</h3></div><button class="closeb" onclick="closeSheet()">✕</button></div>'+
-    (function(){ if(!j.desc && !isMgrRole()) return '';
+    (function(){ if(!j.desc && !wlCanFix(j)) return '';
       var b=j.desc?('<p class="body" id="wlDescText">'+esc(j.desc)+'</p>'):'<p class="body" id="wlDescText" style="color:var(--muted)">No description yet.</p>';
-      var ed=isMgrRole()?' <span class="wlnote-ed" style="cursor:pointer" onclick="wlEditDesc(\''+esc(key)+'\')">✎ Edit</span>':'';
+      var ed=wlCanFix(j)?' <span class="wlnote-ed" style="cursor:pointer" onclick="wlEditDesc(\''+esc(key)+'\')">✎ Edit</span>':'';
       return '<div class="sec" id="wlDescSec"><h4>The job'+ed+'</h4>'+b+'</div>'; })()+
     // where this job came from — the matched Zoho task, for traceability
     ((isMgrRole() && j.zoho)?('<div class="sec"><h4>Source</h4><div class="srcref">🔗 Matched to <b>Zoho '+esc(String(j.zoho).slice(-7))+'</b>'+(j.project?(' · '+esc(j.project)):'')+'<div class="srcsub">Zoho task id '+esc(j.zoho)+'</div></div></div>'):'')+
@@ -3879,11 +3886,11 @@ function openWLJob(key){
     ((isMgrRole() && j.zoho)?('<div class="sec"><h4>From Michael’s Zoho <span style="font-size:10px;color:#9aa7b4;font-weight:700">directors only</span></h4><div id="zinbox" style="font-size:12.5px;color:var(--muted)">Loading his Zoho comments…</div></div>'):'')+
     ((j.reqOk&&j.reqOk.by)?('<div class="sec"><h4>Approved</h4><div class="body" style="font-size:13px">\u2713 Approved by <b>'+esc(j.reqOk.by)+'</b>'+(j.reqOk.at?(' \u00b7 '+esc(dayLabel(j.reqOk.at))):'')+(j.raisedBy?('<br><span style="color:var(--muted)">Raised by '+esc(j.raisedBy)+'</span>'):'')+'</div></div>'):'')+
     (isMgrRole()?('<div class="sec"><h4>Worklist</h4><div class="subnote-box" onclick="wlMoveList(\''+esc(key)+'\')">\ud83d\udccb '+esc(j.list||"\u2014 not on a worklist \u2014")+' <span class="wlnote-ed">\u270e</span></div></div>'):'')+
-    ((j.subNote||isMgrRole())?('<div class="sec"><h4>Sub note</h4><div class="subnote-box'+(j.subNote?"":" empty")+'"'+(isMgrRole()?(' onclick="wlSetSubNote(\''+esc(key)+'\')"'):'')+'>'+(j.subNote?('📌 '+esc(j.subNote)):'＋ add a quick note')+(isMgrRole()?' <span class="wlnote-ed">✎</span>':'')+'</div></div>'):'')+
+    ((j.subNote||wlCanFix(j))?('<div class="sec"><h4>Sub note</h4><div class="subnote-box'+(j.subNote?"":" empty")+'"'+(wlCanFix(j)?(' onclick="wlSetSubNote(\''+esc(key)+'\')"'):'')+'>'+(j.subNote?('📌 '+esc(j.subNote)):'＋ add a quick note')+(wlCanFix(j)?' <span class="wlnote-ed">✎</span>':'')+'</div></div>'):'')+
     reqBlock+
     acceptHTML+
     crewAssignHTML+
-    '<div class="sec"><h4>Status</h4><div class="pillrow">'+pills+'</div>'+(j.completed?'<div class="apprOn" style="margin-top:8px">✓ Completed '+esc(j.completed)+'</div>':'')+'</div>'+
+    '<div class="sec"><h4>Status</h4><div class="pillrow">'+pills+'</div>'+(j.completed?('<div class="apprOn" style="margin-top:8px">✓ Completed '+esc(j.completed)+' <span class="wlnote-ed" style="cursor:pointer" onclick="openCompleteModal(\''+esc(key)+'\')">✎ Edit date</span></div>'):'')+'</div>'+
     assignHTML+offerHTML+
     dueHTML+
     laneHTML+
@@ -4125,9 +4132,14 @@ var _completeKey="";
 function openCompleteModal(key){
   _completeKey=key;
   var d=new Date(), today=d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2);
-  var el=$("completeDate"); if(el) el.value=today;
   var j=wlFind(key);
-  var msg=$("completeMsg"); if(msg) msg.innerHTML="You’re marking <b>"+esc((j&&(j.task||j.title))||"this task")+"</b> as complete — dated below. Change it only if it was finished on a different day.";
+  // Already complete? Open on the date it carries — this is an edit, not a re-date to today.
+  var el=$("completeDate"); if(el) el.value=(j&&j.completed)||today;
+  var msg=$("completeMsg");
+  if(msg) msg.innerHTML=(j&&j.completed)
+    ? ("Change the day <b>"+esc(j.task||j.title||"this task")+"</b> was finished.")
+    : ("You’re marking <b>"+esc((j&&(j.task||j.title))||"this task")+"</b> as complete — dated below. Change it only if it was finished on a different day.");
+  var ttl=$("completeTitle"); if(ttl) ttl.textContent=(j&&j.completed)?"✎ Change the completion date":"✓ Mark task complete";
   $("completeModal").classList.add("show");
 }
 function closeCompleteModal(){ $("completeModal").classList.remove("show"); }
@@ -4395,6 +4407,7 @@ function wlDelAtt(key, url, kind){
    Directors/Managers on any task; anyone else only on a task they raised that
    hasn't gone to the owner yet. The backend enforces the same rule. */
 function wlCanFix(j){
+  if(!j) return false;
   if(isMgrRole()) return true;
   if(j.shared) return false;
   var me=(ME.name||"").toLowerCase().replace(/\s*\(test\)/,"").trim();
@@ -5518,10 +5531,54 @@ function openSOP(id){
   showSheet();
 }
 
+/* ===== Photos & documents you've picked but not yet sent =====
+   Crew feedback (Aug 2026): adding photos to a task they've been allocated felt
+   right — a grid of thumbnails with a ✕ on each and a ＋ tile to add more — and
+   the two "new job" forms didn't match it at all, they were a plain file button.
+   Same tiles here, before it's even sent, so there's one way to add a photo. */
+var STAGED={};
+function stagedReset(b){
+  (STAGED[b]||[]).forEach(function(f){ if(f._u){ try{ URL.revokeObjectURL(f._u); }catch(e){} } });
+  STAGED[b]=[]; stagedRender(b);
+}
+function stagedAdd(b, input){
+  var files=Array.prototype.slice.call(input.files||[]); input.value="";   // let them re-pick the same file
+  STAGED[b]=(STAGED[b]||[]).concat(files); stagedRender(b);
+}
+function stagedDrop(b, i){
+  var a=STAGED[b]||[], f=a[i];
+  if(f&&f._u){ try{ URL.revokeObjectURL(f._u); }catch(e){} }
+  a.splice(i,1); stagedRender(b);
+}
+function stagedFiles(b){ return (STAGED[b]||[]).slice(); }
+function stagedRender(b){
+  var el=$(b+"Grid"); if(!el) return;
+  var a=STAGED[b]||[], isDocs=(b.indexOf("_dc")>=0);
+  el.innerHTML = a.map(function(f,i){
+    var img=/^image\//i.test(f.type||"");
+    if(img && !f._u){ try{ f._u=URL.createObjectURL(f); }catch(e){} }
+    var face = img ? ('<img src="'+esc(f._u||"")+'" alt="">')
+                   : '<div class="thumb">📄</div>';
+    return '<div class="ph">'+face+'<small>'+esc(f.name||(isDocs?"document":"photo"))+'</small>'+
+           '<button type="button" class="attdel" title="Remove" onclick="stagedDrop(\''+b+'\','+i+')">✕</button></div>';
+  }).join("") +
+  '<label class="addph" for="'+b+'In">'+(isDocs?'📎<span>Add</span>':'＋<span>Add photo</span>')+'</label>';
+}
+/* Raise and Log now finish the same way a task does: on the job's own card, open,
+   with what you picked landing on it — not back on a list with a toast. The card
+   has to exist in CREWJOBS before the upload can paint onto it, so wait for it. */
+function afterCreate(key, photos, docs){
+  loadJobs();
+  wlogOpenWhenReady(key, 0, function(){
+    if(photos && photos.length) uploadFiles(key, photos, "crewJobPhotos", "photos", 1600, 0.7);
+    if(docs   && docs.length)   uploadFiles(key, docs,   "crewJobDocs",   "docs",   2000, 0.8);
+  });
+}
+
 /* ================= raise a job ================= */
 function openRaise(){
   $("r_vessel").innerHTML=vesselOpts(ME.vessels[0]); $("r_other").style.display="none"; $("r_other").value="";
-  $("r_title").value=""; $("r_desc").value=""; $("r_photos").value=""; raisePhotos=[];
+  $("r_title").value=""; $("r_desc").value=""; stagedReset("r_ph");
   $("raiseModal").classList.add("show");
 }
 function submitRaise(){
@@ -5530,7 +5587,7 @@ function submitRaise(){
   if(vsel==="__other__"){ vessel=($("r_other").value||"").trim(); if(!vessel){ toast("Type the yacht name"); return; } vessel="Other — "+vessel; }
   else { vessel=vsel; }
   var desc=($("r_desc").value||"").trim();
-  var files=Array.prototype.slice.call(($("r_photos").files)||[]);
+  var files=stagedFiles("r_ph");
   toast("Raising job…");
   apiPost({action:"crewRaiseJob", email:ME.email, code:ME.code, vessel:vessel, title:t, desc:desc, matchNum:(RJNUM||"")}).then(function(r){
     if(!r||!r.ok){ toast((r&&r.error)||"Couldn’t raise the job"); return; }
@@ -5538,7 +5595,8 @@ function submitRaise(){
     toast(r.status==="Requested" ? "🔔 Sent to Marine HQ — awaiting approval" : ("✓ Job added — "+(r.code||"")));
     if(isMgrRole() && r.vessel) CURVESSEL=r.vessel;   // jump to that boat so it's visible
     go("jobs");
-    if(files.length) uploadFilesSeq(r.key, {files:files, value:""}, "crewJobPhotos", "photos", 1600, 0.7);
+    STAGED["r_ph"]=[];                                 // handed to the upload — don't revoke the previews
+    afterCreate(r.key, files, null);
   }).catch(function(){ toast("Couldn’t connect"); });
 }
 
@@ -5601,7 +5659,7 @@ function wlogSetStat(s){ WLOGSTAT=s; wlogRenderStat(); }
 function openWorkLog(){
   $("wl_vessel").innerHTML=vesselOpts(ME.vessels[0]); $("wl_other").style.display="none"; $("wl_other").value="";
   $("wl_title").value=""; $("wl_desc").value=""; $("wl_hours").value="";
-  $("wl_photos").value=""; $("wl_docs").value="";
+  stagedReset("wl_ph"); stagedReset("wl_dc");
   WLOGSTAT="Complete"; wlogRenderStat();
   var d=new Date(), p=function(n){return (n<10?"0":"")+n;};
   $("wl_done").value=d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate());   // defaults to today
@@ -5609,19 +5667,19 @@ function openWorkLog(){
 }
 // The card won't exist in CREWJOBS until the next load comes back — wait for it,
 // then drop the crew member straight into it so they can add notes and more photos.
-function wlogOpenWhenReady(key, tries){
+function wlogOpenWhenReady(key, tries, then){
   tries=tries||0;
-  if((CREWJOBS||[]).filter(function(x){return x.key===key;}).length){ openWLJob(key); return; }
-  if(tries>12) return;                                  // ~6s then give up quietly
-  setTimeout(function(){ wlogOpenWhenReady(key, tries+1); }, 500);
+  if((CREWJOBS||[]).filter(function(x){return x.key===key;}).length){ openWLJob(key); if(then) then(); return; }
+  if(tries>12){ if(then) then(); return; }               // ~6s then upload anyway — never lose a photo
+  setTimeout(function(){ wlogOpenWhenReady(key, tries+1, then); }, 500);
 }
 function submitWorkLog(){
   var t=($("wl_title").value||"").trim(); if(!t){ toast("What did you do? Give it a short title"); return; }
   var vsel=$("wl_vessel").value, vessel;
   if(vsel==="__other__"){ vessel=($("wl_other").value||"").trim(); if(!vessel){ toast("Type the yacht name"); return; } vessel="Other — "+vessel; }
   else { vessel=vsel; }
-  var photos=Array.prototype.slice.call(($("wl_photos").files)||[]);
-  var docs=Array.prototype.slice.call(($("wl_docs").files)||[]);
+  var photos=stagedFiles("wl_ph");
+  var docs=stagedFiles("wl_dc");
   toast("Logging…");
   apiPost({action:"crewWorkLog", email:ME.email, code:ME.code, vessel:vessel, title:t,
            desc:($("wl_desc").value||"").trim(), status:WLOGSTAT,
@@ -5631,10 +5689,8 @@ function submitWorkLog(){
     toast((r.status==="In hand"?"◐ Logged — still in hand":"✓ Logged")+(r.code?(" — "+r.code):""));
     if(isMgrRole() && r.vessel) CURVESSEL=r.vessel;
     go("jobs");
-    if(photos.length) uploadFilesSeq(r.key, {files:photos, value:""}, "crewJobPhotos", "photos", 1600, 0.7);
-    if(docs.length)   uploadFilesSeq(r.key, {files:docs,   value:""}, "crewJobDocs",   "docs",   2000, 0.8);
-    loadJobs();
-    wlogOpenWhenReady(r.key);
+    STAGED["wl_ph"]=[]; STAGED["wl_dc"]=[];            // handed to the upload — don't revoke the previews
+    afterCreate(r.key, photos, docs);
   }).catch(function(){ toast("Couldn’t connect"); });
 }
 
