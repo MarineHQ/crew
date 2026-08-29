@@ -345,7 +345,7 @@
   .cmt-tx .ment{color:var(--orange);font-weight:700}
   .cmt-tag{display:inline-block;margin-top:5px;font-size:11px;font-weight:700;color:#8a5a12;background:#fdf3e3;border:1px solid #f0dcb8;border-radius:20px;padding:2px 9px}
   /* @tag picker */
-  .taghd{display:flex;align-items:center;gap:9px;margin:9px 0 4px}
+  .taghd{display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin:9px 0 4px}
   .tagbtn{border:1.5px solid var(--orange);background:#fff;color:var(--orange);font-weight:700;font-size:13px;border-radius:20px;padding:7px 13px;cursor:pointer}
   .taghint{font-size:11.5px;color:var(--muted)}
   .tagpicker{display:flex;flex-wrap:wrap;gap:7px;margin:2px 0 10px}
@@ -676,7 +676,7 @@
     font-size:11.5px;font-weight:700;color:var(--navy);cursor:pointer;font-family:inherit}
   .tagbtn.before.on{background:var(--amber);border-color:var(--amber);color:#fff}
   .tagbtn.after.on{background:var(--ok);border-color:var(--ok);color:#fff}
-  .taghint{flex:1 0 100%;font-size:11px;color:var(--muted);line-height:1.4}
+  .tagrow .taghint{flex:1 0 100%;font-size:11px;color:var(--muted);line-height:1.4}
 
   /* Waiting-to-upload pill. Sits above the action bar so it never covers it. */
   .qpill{position:fixed;left:14px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:45;
@@ -1186,7 +1186,7 @@
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-29·e</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-29·f</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
