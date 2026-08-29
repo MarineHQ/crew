@@ -1186,7 +1186,7 @@
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-29·d</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-29·e</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -5718,7 +5718,9 @@ function wlDoMove(){
 var WLOGSTAT="Complete";   // most entries are "did it, done" — but not all
 function wlogRenderStat(){
   var el=$("wl_stat"); if(!el) return;
-  el.innerHTML=[["Complete","✓ Done"],["In hand","◐ Still in hand"]].map(function(s){
+  // Still in hand first, Done second — the same left-to-right progression a task
+  // card runs (To do → In hand → Complete). Trish, 29 Aug 2026.
+  el.innerHTML=[["In hand","◐ Still in hand"],["Complete","✓ Done"]].map(function(s){
     return '<button type="button" class="aopt'+(s[0]===WLOGSTAT?' on':'')+'" onclick="wlogSetStat(\''+s[0]+'\')">'+s[1]+'</button>';
   }).join("");
   // A job you're still on hasn't got a completion date — it has a start date.
