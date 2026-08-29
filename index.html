@@ -659,6 +659,12 @@
   .lbn-save{border:0;border-radius:7px;background:var(--ok);color:#fff;font-weight:700;font-size:12px;padding:6px 12px;cursor:pointer;font-family:inherit}
   .lbn-cancel{border:0;border-radius:7px;background:rgba(255,255,255,.16);color:#fff;font-size:12px;padding:6px 12px;cursor:pointer;font-family:inherit}
   .lbn-lane{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;align-items:center}
+  .lbn-push{border:0;border-radius:20px;background:var(--orange);color:#fff;font-weight:700;
+    font-size:11px;padding:4px 10px;cursor:pointer;font-family:inherit;white-space:nowrap}
+  .lbn-more{border:1px solid rgba(255,255,255,.28);border-radius:20px;background:none;color:#dbe4ee;
+    font-weight:800;font-size:12px;line-height:1;padding:4px 9px;cursor:pointer;font-family:inherit}
+  .lbn-lanes{display:none;flex-basis:100%;flex-wrap:wrap;gap:5px;margin-top:5px}
+  .lbn-lanes.open{display:flex}
   .lightcaprow{display:flex;gap:8px}
   .lightcaprow input{flex:1;border:0;border-radius:9px;padding:11px 12px;font-size:14px;font-family:inherit}
   .lightcaprow button{border:0;border-radius:9px;background:var(--orange);color:#fff;font-weight:bold;font-size:14px;padding:0 16px;cursor:pointer}
@@ -1209,7 +1215,7 @@
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-30·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-30·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2721,12 +2727,30 @@ function lbRenderNotes(p){
     var lane=(nt.aud==="owner"||nt.aud==="dir"||nt.aud==="both")?nt.aud:"crew";
     var ed = wlMine(nt) ? '<button class="lbn-b" title="Edit" onclick="event.stopPropagation();lbEditNote('+at+')">✎</button>' : '';
     var del= (wlMine(nt)||isMgrRole()) ? '<button class="lbn-b" title="Delete" onclick="event.stopPropagation();lbDelNote('+at+')">✕</button>' : '';
-    var mv = isMgrRole() ? ('<div class="lbn-lane">'+lanePill(lane)+LANE_ORDER.filter(function(l){return l!==lane;}).map(function(l){
-      return '<button class="movebtn" onclick="event.stopPropagation();lbNoteAud('+at+',\''+l+'\')">'+LANE_META[l].ic+' '+LANE_META[l].lbl+'</button>'; }).join('')+'</div>') : '';
+    /* Four lane buttons on every note made a long thread very tall on a phone
+       (Trish, 30 Aug 2026). The one move that matters is pushing a note across to
+       the owner, so that's a single tap; the other lanes live behind ⋯. */
+    var mv = "";
+    if(isMgrRole()){
+      var out = (lane==="owner" || lane==="both");
+      mv = '<div class="lbn-lane">'+lanePill(lane)+
+        (out ? '' : '<button class="lbn-push" onclick="event.stopPropagation();lbNoteAud('+at+',\'both\')">👤 Push to owner</button>')+
+        '<button class="lbn-more" title="Other lanes" onclick="event.stopPropagation();lbLaneMore('+at+')">⋯</button>'+
+        '<div class="lbn-lanes" id="lbnlane-'+at+'">'+
+          LANE_ORDER.filter(function(l){return l!==lane;}).map(function(l){
+            return '<button class="movebtn" onclick="event.stopPropagation();lbNoteAud('+at+',\''+l+'\')">'+LANE_META[l].ic+' '+LANE_META[l].lbl+'</button>'; }).join('')+
+        '</div></div>';
+    }
     return '<div class="lbn lane-'+lane+'" id="lbn-'+at+'" data-raw="'+esc(nt.text||"")+'">'+
       '<div class="lbn-hd"><b>'+esc(firstName(nt.by)||"—")+'</b><span class="lbn-at">'+esc(fmtDateTime(at))+(nt.editedAt?' (edited)':'')+'</span>'+ed+del+'</div>'+
       '<div class="lbn-tx" id="lbntx-'+at+'">'+esc(nt.text||"")+'</div>'+mv+'</div>';
   }).join("");
+}
+/* Show / hide the full lane list for one note. Deliberately no state kept: the
+   thread re-renders after any change, and collapsed is the right resting state. */
+function lbLaneMore(at){
+  var e=document.getElementById("lbnlane-"+at); if(!e) return;
+  e.classList.toggle("open");
 }
 function lbPhotoOk(){ var p=LB_PHOTOS[LB_I]; return (p && LB_KEY) ? p : null; }
 function lbAfterNotes(r){
