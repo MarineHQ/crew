@@ -247,6 +247,15 @@
   .sheet.show{transform:translateY(0)}
   .sheet-hd{position:sticky;top:0;background:var(--navy);color:#fff;padding:14px 16px;border-radius:18px 18px 0 0;display:flex;align-items:flex-start;gap:10px;z-index:2}
   .sheet-hd h3{margin:3px 0 0;font-size:16px;line-height:1.3}
+  /* The task name edits where it sits. Every other part of a task already had a
+     ✎ on the thing itself; the name was the odd one out, buried in a Rename
+     button at the bottom of the sheet. Trish, 29 Aug 2026. */
+  .sheet-hd .hd-ed{opacity:.75;font-size:14px;cursor:pointer;padding:0 4px}
+  .sheet-hd .hd-ed:active{opacity:1}
+  .hd-in{width:100%;font-size:16px;font-weight:800;color:var(--navy);background:#fff;border:0;border-radius:9px;padding:9px 10px;font-family:inherit}
+  .hd-edrow{display:flex;gap:8px;margin-top:8px}
+  .hd-save{flex:1;border:0;border-radius:9px;background:#0f766e;color:#fff;font-weight:800;font-size:13px;padding:9px;cursor:pointer;font-family:inherit}
+  .hd-cancel{border:0;border-radius:9px;background:rgba(255,255,255,.16);color:#fff;font-weight:700;font-size:13px;padding:9px 14px;cursor:pointer;font-family:inherit}
   .closeb{margin-left:auto;background:rgba(255,255,255,.15);border:0;color:#fff;width:30px;height:30px;border-radius:50%;font-size:16px;cursor:pointer;flex-shrink:0}
   .sec{background:#fff;margin:12px;border:1px solid var(--line);border-radius:12px;padding:14px}
   .sec h4{margin:0 0 10px;font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
@@ -1173,7 +1182,7 @@
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-29·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-29·c</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2704,6 +2713,9 @@ function closePhoto(){ $("lightbox").classList.remove("show"); var im=$("lightIm
   document.addEventListener('touchstart',function(e){ if(!$("lightbox")||!$("lightbox").classList.contains("show"))return; x0=e.touches[0].clientX; y0=e.touches[0].clientY; },{passive:true});
   document.addEventListener('touchend',function(e){ if(x0===null||!$("lightbox")||!$("lightbox").classList.contains("show"))return; var dx=e.changedTouches[0].clientX-x0, dy=e.changedTouches[0].clientY-y0; x0=null; if(Math.abs(dx)>45 && Math.abs(dx)>Math.abs(dy)) lbGo(dx<0?1:-1); },{passive:true});
 })();
+/* Work the crew LOGGED (already done, never on a worklist) rather than work they
+   were given. ccWorkLog_ files every one of these on the "Work Log" list. */
+function isWorkLog(j){ return ((j&&j.list)||"")==="Work Log"; }
 function hubBucket(st){ st=(st||"").toLowerCase(); if(st.indexOf("progress")>=0)return"In progress"; if(st.indexOf("complete")>=0||st.indexOf("done")>=0)return"Done"; return"To do"; }
 function hubCls(b){ return b==="Done"?"done":(b==="In progress"?"inprog":"todo"); }
 function catChip(cat){
@@ -2870,7 +2882,10 @@ function wlJobCard(j, idx, noNum){
     if(j.ownerReq){ codeChip += ' <span class="acptchip owner">👤 Owner asked</span>'; }
     // came in from Zoho — directors see where it originated
     if(isMgrRole() && j.zoho){ codeChip += ' <span class="zchip" title="Zoho task '+esc(j.zoho)+'">🔗 Zoho</span>'; }
-    if(isMgrRole() && j.allocatedTo){ codeChip += (j.accepted&&j.accepted.by) ? ' <span class="acptchip ok">✓ '+esc(firstName(j.accepted.by))+'</span>' : ' <span class="acptchip wait">⏳ '+esc(firstNames(j.allocatedTo))+'</span>'; }
+    // A Work Log entry never carries an accept chip — see openWLJob. Directors
+    // still want to know WHO did it; the crew member who logged it already knows.
+    if(isWorkLog(j)){ if(isMgrRole() && j.allocatedTo) codeChip += ' <span class="acptchip ok">✓ done by '+esc(firstNames(j.allocatedTo))+'</span>'; }
+    else if(isMgrRole() && j.allocatedTo){ codeChip += (j.accepted&&j.accepted.by) ? ' <span class="acptchip ok">✓ '+esc(firstName(j.accepted.by))+'</span>' : ' <span class="acptchip wait">⏳ '+esc(firstNames(j.allocatedTo))+'</span>'; }
     else if(!isMgrRole() && j.allocatedTo){ var _meLc=(ME.name||"").toLowerCase().replace(/\s*\(test\)/,"").trim(); if(_meLc && j.allocatedTo.toLowerCase().indexOf(_meLc)>=0){ codeChip += (j.accepted&&j.accepted.by) ? ' <span class="acptchip ok">✓ accepted</span>' : ' <span class="acptchip urgent">🚨 Accept</span>'; } }
     var upd = jobRecent(j) ? '<span class="upd">● updated '+relTime(j.updated)+'</span>' : '';
     return '<div class="job brd-'+cls+(done?" jobdone":"")+(jobRecent(j)?" jobnew":"")+'" onclick="openWLJob(\''+esc(j.key)+'\')">'+
@@ -3851,13 +3866,27 @@ function openWLJob(key){
       '<button class="lanebtn" data-lane="both" onclick="setLane(\'both\')">👥 Crew + Owner</button>'+'<button class="lanebtn" data-lane="dir" onclick="setLane(\'dir\')">🔒 Directors</button>'+
     '</div>'+
     '<p class="body" style="font-size:12px;color:var(--muted);margin-top:7px">Pick a lane, then add a note, photo or quote below — <b>only that group sees it</b>. Crew and owner never see each other’s lane; you &amp; Jack see all three.</p></div>';
-  // Accept — so directors know the crew member has taken the task on.
+  /* Accept — so directors know the crew member has taken the task on.
+     A WORK LOG entry has no accept step: the work was already done by the person
+     logging it, so there is nothing to accept and nobody to nod at. The backend
+     still fills the Accepted cell (it's what attributes the job and what keeps
+     the "🚨 Please accept" nag off your own logged work) — it just shouldn't be
+     read out as an acceptance. Trish, 29 Aug 2026. */
   var _me=(ME.name||"").toLowerCase().replace(/\s*\(test\)/,"").trim();
   var mineJob = j.allocatedTo && _me && j.allocatedTo.toLowerCase().indexOf(_me)>=0;
   var acc = j.accepted;
   var _others=allocList.filter(function(n){return n.toLowerCase()!==_me;});
   var acceptHTML='';
-  if(acc && acc.by){
+  if(isWorkLog(j)){
+    // Who did it, not who accepted it.
+    var _did=firstName((acc&&acc.by)||j.raisedBy||allocList[0]||"");
+    var _mine=_did && _did.toLowerCase()===_me.split(/[\s(]/)[0];
+    if(_did) acceptHTML='<div class="sec"><div class="apprOn">'+
+      (hubBucket(j.status)==="Done"
+        ? ('✓ Done by '+(_mine?'you':esc(_did)))   // the date is right below, under Status
+        : ('◐ Logged by '+(_mine?'you':esc(_did))+' — still in hand'))+
+      '</div></div>';
+  } else if(acc && acc.by){
     acceptHTML='<div class="sec"><div class="apprOn">✓ Accepted by '+esc(firstName(acc.by))+(acc.date?(' · '+esc(acc.date)):'')+'</div></div>';
   } else if(mineJob){
     // Urgent, unmissable call to accept a task Marine HQ has assigned to this crew member.
@@ -3869,13 +3898,13 @@ function openWLJob(key){
     acceptHTML='<div class="sec"><div class="apprOn" style="background:#fdf3e3;color:#8a5a12;border-color:#f0dcb8">⏳ Awaiting acceptance from '+esc(firstNames(j.allocatedTo))+'</div></div>';
   }
   // Crew see a clear read-only "Assigned to" line (directors get the editable picker instead).
-  var crewAssignHTML = (!isMgrRole() && allocList.length) ?
+  var crewAssignHTML = (!isMgrRole() && allocList.length && !isWorkLog(j)) ?
     ('<div class="sec"><div class="assignedto">👷 Assigned to <b>'+
       allocList.map(function(n){ return (n.toLowerCase()===_me) ? "you" : esc(firstName(n)); }).join(", ")+
       '</b>'+(mineJob&&acc&&acc.by?'':(mineJob?' · please accept above 🚨':''))+'</div></div>') : '';
   $("sheet").innerHTML=
     '<div class="sheet-hd"><div style="flex:1"><div style="font-size:11px;font-weight:bold;letter-spacing:.4px;color:#ffd7b0">'+esc(j.vessel)+(j.list?(" · "+esc(j.list)):"")+(j.code?(' &nbsp;<span class="jcode">'+esc(j.code)+'</span>'):'')+catChip(j.category)+'</div>'+
-      '<h3>'+num+'. '+esc(j.task||"(job)")+'</h3></div><button class="closeb" onclick="closeSheet()">✕</button></div>'+
+      '<h3 id="wlTitleH">'+num+'. '+esc(j.task||"(job)")+(wlCanFix(j)?(' <span class="hd-ed" title="Edit the task name" onclick="wlEditTitle(\''+esc(key)+'\')">✎</span>'):'')+'</h3></div><button class="closeb" onclick="closeSheet()">✕</button></div>'+
     (function(){ if(!j.desc && !wlCanFix(j)) return '';
       var b=j.desc?('<p class="body" id="wlDescText">'+esc(j.desc)+'</p>'):'<p class="body" id="wlDescText" style="color:var(--muted)">No description yet.</p>';
       var ed=wlCanFix(j)?' <span class="wlnote-ed" style="cursor:pointer" onclick="wlEditDesc(\''+esc(key)+'\')">✎ Edit</span>':'';
@@ -4417,21 +4446,31 @@ function wlCanFix(j){
 function wlFixBlock(j,key){
   if(!wlCanFix(j)) return "";
   var kk=esc(key);
-  return '<div class="sec"><h4>Fix a mistake</h4>'+
-    '<p class="body" style="font-size:12.5px;color:var(--muted);margin:0 0 9px">Wrong wording, wrong boat, or raised by accident.'+
-      (j.shared?' <b>The owner can see this task</b> — a change shows on their app too.':'')+'</p>'+
-    '<div class="logbtns">'+
-      '<button class="jobbtn complete logbtn" style="background:var(--navy)" onclick="wlRenameJob(\''+kk+'\')">✎ Rename<br><small>change the task name</small></button>'+
-      '<button class="jobbtn complete logbtn" style="background:#c0392b" onclick="wlDeleteJob(\''+kk+'\')">🗑 Delete<br><small>remove the task</small></button>'+
-    '</div></div>';
+  return '<div class="sec"><h4>Raised by accident?</h4>'+
+    '<p class="body" style="font-size:12.5px;color:var(--muted);margin:0 0 9px">Everything on this task edits where it sits — tap the ✎ beside the name, the description, the sub note or the date. This removes the whole task.'+
+      (j.shared?' <b>The owner can see this task</b> — it disappears from their app too.':'')+'</p>'+
+    '<button class="jobbtn complete" style="background:#c0392b" onclick="wlDeleteJob(\''+kk+'\')">🗑 Delete this task</button>'+
+    '</div>';
 }
-function wlRenameJob(key){
-  var j=wlFind(key); if(!j) return;
-  var t=prompt("Task name:", j.task||j.desc||""); if(t===null) return;
-  t=t.trim(); if(!t){ toast("A task needs a name"); return; }
-  if(t===(j.task||"")) return;
+/* Rename in place. Was a "✎ Rename" button at the foot of the sheet driving a
+   native prompt() — the one part of a task you couldn't fix on the thing itself. */
+function wlEditTitle(key){
+  var j=wlFind(key); if(!wlCanFix(j)) return;
+  var h=$("wlTitleH"); if(!h) return;
+  h.innerHTML='<input id="wlTitleIn" class="hd-in" autocomplete="off">'+
+    '<div class="hd-edrow"><button class="hd-save" onclick="wlSaveTitle(\''+esc(key)+'\')">✓ Save name</button>'+
+    '<button class="hd-cancel" onclick="openWLJob(\''+esc(key)+'\')">Cancel</button></div>';
+  var i=$("wlTitleIn"); i.value=(j.task||""); i.focus();
+  try{ i.setSelectionRange(i.value.length, i.value.length); }catch(e){}
+}
+function wlSaveTitle(key){
+  var i=$("wlTitleIn"); if(!i) return;
+  var t=(i.value||"").trim(); if(!t){ toast("A task needs a name"); return; }
+  var j=wlFind(key);
+  if(j && t===(j.task||"")){ openWLJob(key); return; }
+  toast("Saving…");
   apiPost({action:"crewJobTitle", email:ME.email, code:ME.code, jobKey:key, title:t}).then(function(r){
-    if(r&&r.ok){ toast("✎ Renamed"); j.task=r.title; openWLJob(key); loadJobs(); }
+    if(r&&r.ok){ toast("✎ Renamed"); if(j) j.task=r.title; openWLJob(key); loadJobs(); }
     else toast((r&&r.error)||"Couldn’t rename");
   }).catch(function(){ toast("Couldn’t connect"); });
 }
