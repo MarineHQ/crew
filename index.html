@@ -77,6 +77,10 @@
   /* Two buttons on a 375px phone squeezed the heading and both labels onto two
      lines each. Let the row wrap instead: the buttons drop together, intact. */
   .subbar button{white-space:nowrap}
+  /* ---- Ask: any crew member, any boat they're on ---- */
+  .askbtn{background:#fff;color:var(--navy);border:1px solid var(--line);border-radius:9px;padding:7px 12px;font-size:13px;font-weight:700;cursor:pointer;margin-left:auto;box-shadow:0 1px 4px rgba(20,30,50,.06)}
+  .askans{background:#f7f9fc;border-left:3px solid var(--orange);border-radius:0 8px 8px 0;padding:12px 13px;margin-top:12px;font-size:13.5px;line-height:1.55;color:#33405c;white-space:pre-wrap}
+  .askans.thinking{color:var(--muted);font-style:italic}
   .subbar h2{font-size:17px;margin:0}
   .subbar .count{font-size:12px;color:var(--muted)}
   .hello{font-size:13px;color:var(--muted);padding:14px 2px 0}
@@ -1094,7 +1098,7 @@
       <!-- Sub-tabs. Directors: All work | Raised by crew. Crew: My worklist |
            Offered to me | To approve | My raised jobs. -->
       <div class="assignrow" id="jobSeg" style="margin:0 4px 12px"></div>
-      <div class="subbar"><h2 id="jobsSubTitle">My worklist</h2><span class="count" id="jobsCount"></span><button id="addTaskBtn" class="addtaskbtn" style="display:none" onclick="openAddTask()">＋ Add task</button><button id="agentBtn" class="agentbtn" style="display:none" onclick="openAgent()">✨ Just tell me</button></div>
+      <div class="subbar"><h2 id="jobsSubTitle">My worklist</h2><span class="count" id="jobsCount"></span><button id="addTaskBtn" class="addtaskbtn" style="display:none" onclick="openAddTask()">＋ Add task</button><button id="askBtn" class="askbtn" style="display:none" onclick="openAsk()">💬 Ask</button><button id="agentBtn" class="agentbtn" style="display:none" onclick="openAgent()">✨ Just tell me</button></div>
       <div class="chips" id="jobChips"></div>
       <div id="jobList"></div>
     </div>
@@ -1486,6 +1490,23 @@
   <button class="cancel" onclick="closeModal('addTaskModal')">Cancel</button>
 </div></div>
 
+
+<!-- Ask about a yacht: any crew member, any boat they're on -->
+<div class="modal" id="askModal"><div class="card2">
+  <h3>&#128172; Ask about a yacht</h3>
+  <p class="mhint">Anything on her record &mdash; when she&rsquo;s due, what&rsquo;s on file, what&rsquo;s open. Answers come from that yacht&rsquo;s own records; if it isn&rsquo;t on file, it says so.</p>
+  <label class="fld">Yacht</label>
+  <select class="fld-in" id="ask_vessel"></select>
+  <div class="agex" id="ask_ex">
+    <span onclick="askEx(this)">When are the engines due for service?</span>
+    <span onclick="askEx(this)">When was she last antifouled?</span>
+    <span onclick="askEx(this)">What&rsquo;s overdue on her?</span>
+  </div>
+  <textarea class="fld-ta" id="ask_q" placeholder="Ask anything about her&hellip;"></textarea>
+  <div id="ask_box"></div>
+  <button class="go" id="ask_go" onclick="askSend()">Ask</button>
+  <button class="cancel" onclick="closeModal('askModal')">Close</button>
+</div></div>
 
 <!-- Work agent: say it in plain English, read the plan, confirm -->
 <div class="modal" id="agentModal"><div class="card2">
@@ -3187,6 +3208,7 @@ function renderJobs(){
   var _atb=$("addTaskBtn"); if(_atb) _atb.style.display=isMgrRole()?"":"none";
   var _agb=$("agentBtn"); if(_agb) _agb.style.display=(isMgrRole()&&AGENTREADY)?"":"none";
   if(isMgrRole()) checkAgent();
+  checkAsk();                       // the ask box is for every crew member, not just directors
   var FILTERS=["All","To do","In progress","Done"];
   $("jobChips").innerHTML=FILTERS.map(function(f){return '<div class="chip '+(f===JOBFILTER?"on":"")+'" onclick="setJobFilter(\''+f+'\')">'+f+'</div>';}).join("")
     +'<div class="chip sched'+(SCHEDVIEW?" on":"")+'" onclick="toggleSched()">📅 Schedule</div>';
@@ -6076,6 +6098,57 @@ function submitWorkLog(){
 var ADD_CATS=["Scheduled","Unscheduled","Upgrade","Ops"];
 var ADDCAT="Scheduled", ADDASSIGN=[], ADDSCOPE="boat";
 var ATSUGG=[], ATCHOSEN=null, ATNEW=false, ATEXISTS=null, _atMatchT=null, _atMatchReq=null;
+/* ================= ask about a yacht =================
+   The read-only half, and the half every crew member gets: the director agent
+   DOES things, this one only answers. Vessel is sent in the body because crew
+   work several boats — the server checks it against that person's own list
+   before it reads anything (asAskCrew_). */
+var ASKREADY=false, ASKCHECKED=false, ASKBUSY=false;
+function checkAsk(){
+  if(ASKCHECKED) return; ASKCHECKED=true;
+  apiGet("fn=assistantstatus").then(function(j){
+    ASKREADY=!!(j&&j.ok&&j.ready);
+    var b=$("askBtn"); if(b) b.style.display=ASKREADY?"":"none";
+  }).catch(function(){});
+}
+function askVessels(){
+  var vs=(isMgrRole() && FLEETVESSELS.length) ? FLEETVESSELS : (ME.vessels||[]);
+  return vs.filter(function(v){ return v && !/test boat/i.test(v); });
+}
+function openAsk(){
+  var vs=askVessels();
+  if(!vs.length){ toast("No yacht on your record yet"); return; }
+  var cur=(CURVESSEL && CURVESSEL!=="__all__") ? CURVESSEL : vs[0];
+  if(vs.indexOf(cur)<0) cur=vs[0];
+  $("ask_vessel").innerHTML=vs.map(function(v){
+    return '<option'+(v===cur?' selected':'')+'>'+esc(v)+'</option>'; }).join("");
+  $("ask_q").value=""; $("ask_box").innerHTML=""; ASKBUSY=false;
+  var g=$("ask_go"); g.disabled=false; g.textContent="Ask";
+  $("askModal").classList.add("show");
+}
+function askEx(el){ $("ask_q").value=el.textContent; askSend(); }
+function askSend(){
+  if(ASKBUSY) return;
+  var q=($("ask_q").value||"").trim();
+  if(!q){ toast("What would you like to know?"); return; }
+  var g=$("ask_go");
+  ASKBUSY=true; g.disabled=true; g.textContent="Looking…";
+  $("ask_box").innerHTML='<div class="askans thinking">Looking through her records…</div>';
+  apiPost({ action:"assistantAskCrew", code:ME.code||"", email:ME.email||"",
+            vessel:$("ask_vessel").value, question:q })
+    .then(function(j){
+      ASKBUSY=false; g.disabled=false; g.textContent="Ask another";
+      $("ask_box").innerHTML = (j&&j.ok&&j.answer)
+        ? '<div class="askans">'+esc(j.answer)+'</div>'
+        : '<div class="agnote w">'+esc((j&&j.error)||"Couldn't answer that one just now.")+'</div>';
+      $("ask_q").value="";
+    })
+    .catch(function(){
+      ASKBUSY=false; g.disabled=false; g.textContent="Try again";
+      $("ask_box").innerHTML='<div class="agnote w">Couldn\'t connect — check your signal and try again.</div>';
+    });
+}
+
 /* ================= work agent — "just tell me" =================
    A director says it in plain English; the backend (Agent.gs) turns it into a
    PLAN of the app's own actions and holds it server-side; we show the plan and
