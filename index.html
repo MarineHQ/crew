@@ -658,6 +658,24 @@
   .lbn-row{display:flex;gap:6px;margin-top:6px}
   .lbn-save{border:0;border-radius:7px;background:var(--ok);color:#fff;font-weight:700;font-size:12px;padding:6px 12px;cursor:pointer;font-family:inherit}
   .lbn-cancel{border:0;border-radius:7px;background:rgba(255,255,255,.16);color:#fff;font-size:12px;padding:6px 12px;cursor:pointer;font-family:inherit}
+  .lbseg{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px}
+  .lbsegb{border:1px solid rgba(255,255,255,.28);background:none;color:#dbe4ee;border-radius:20px;
+    font-size:12px;font-weight:700;padding:5px 12px;cursor:pointer;font-family:inherit}
+  .lbsegb.on{background:#fff;color:var(--navy);border-color:#fff}
+  .lbsegb b{font-weight:900}
+  .lbseghint{flex-basis:100%;font-size:10.5px;color:#a9b8c8;line-height:1.35}
+  .lbn-tag{font-size:10.5px;color:#ffd7b0;font-weight:700;margin-top:5px}
+  .lbtagrow{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin-top:7px}
+  .lbtag-btn{border:1px solid rgba(255,255,255,.28);background:none;color:#dbe4ee;border-radius:20px;
+    font-size:11.5px;font-weight:700;padding:4px 11px;cursor:pointer;font-family:inherit}
+  .lbtag-hint{font-size:10.5px;color:#a9b8c8}
+  .lbtag-on{flex-basis:100%;font-size:11px;color:#ffd7b0;font-weight:700}
+  .lbtag-clr{border:0;background:none;color:#a9b8c8;font-size:10.5px;text-decoration:underline;cursor:pointer;font-family:inherit}
+  .lbtag-pick{display:none;flex-basis:100%;flex-wrap:wrap;gap:5px;margin-top:4px}
+  .lbtag-pick.open{display:flex}
+  .lbtag-n{border:1px solid rgba(255,255,255,.28);background:none;color:#fff;border-radius:20px;
+    font-size:11.5px;padding:4px 11px;cursor:pointer;font-family:inherit}
+  .lbtag-n.on{background:var(--orange);border-color:var(--orange);font-weight:800}
   .lbn-lane{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;align-items:center}
   .lbn-push{border:0;border-radius:20px;background:var(--orange);color:#fff;font-weight:700;
     font-size:11px;padding:4px 10px;cursor:pointer;font-family:inherit;white-space:nowrap}
@@ -1215,7 +1233,7 @@
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-30·c</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-30·d</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1257,6 +1275,7 @@
       <div class="lightlane" id="lightTag" style="display:none"></div>
       <div class="lightnotes" id="lightNotes"></div>
       <div class="lightcaprow"><input id="lightCap" placeholder="Add a note — e.g. see the rust here"><button onclick="lbAddNote()">Add</button></div>
+      <div class="lbtagrow" id="lightTagRow"></div>
     </div>
   </div>
   <div class="lightcount" id="lightCount"></div>
@@ -2684,7 +2703,12 @@ function renderLightbox(){
   $("lightMeta").innerHTML=(p.by?('📷 <b>'+esc(firstName(p.by))+'</b>'):'')+(p.at?(' · '+esc(fmtDateTime(p.at))):'')+
     (p.task?(' · '+esc(p.code||p.task)):'')+phTagPill(p);
   $("lightCap").value="";
+  if(!isMgrRole()) LBSIDE="crew";
   lbRenderNotes(p);
+  lbRenderTags();
+  var cap=$("lightCap");
+  if(cap) cap.placeholder = (isMgrRole() && LBSIDE==="owner")
+    ? "Add a note the owner will see…" : "Add a note — e.g. see the rust here";
   // Re-tagging posts against ONE jobKey, so it is offered only from a job card —
   // never from the gallery, where the photos on screen belong to many jobs.
   var lt=$("lightTag");
@@ -2718,11 +2742,44 @@ function lbGo(dir){ if(!LB_PHOTOS.length)return; LB_I=(LB_I+dir+LB_PHOTOS.length
 /* The note thread under the photo. Same rules as a job note: anyone may add,
    only the author may edit, the author or a director may delete, and a director
    moves one to the owner's lane when it's ready to go across. */
+/* A photo carries TWO conversations, and they are not the same conversation:
+
+     👷 Crew    crew ↔ directors    the owner never sees it
+     👤 Owner   directors ↔ owner   the crew never see it
+
+   Trish, 30 Aug 2026 — the same wall the jobs already have, per photo. Crew see
+   only their side and no switch; directors see both and write into whichever is
+   open. A note a director shares across ("both") shows in both. */
+var LBSIDE="crew", LBMENTIONS=[];
+function lbSides(){ return isMgrRole() ? ["crew","owner"] : ["crew"]; }
+function lbSideSet(sd){ LBSIDE=sd; LBMENTIONS=[]; var p=LB_PHOTOS[LB_I]; if(p){ lbRenderNotes(p); lbRenderTags(); } }
+function lbNotesFor(p, sd){
+  return phNotes(p).filter(function(nt){
+    var a=(nt.aud||"crew");
+    return (sd==="owner") ? (a==="owner"||a==="both") : (a==="crew"||a==="both"||a==="dir");
+  });
+}
+function lbSideLabel(sd){ return sd==="owner" ? "👤 Owner" : "👷 Crew"; }
 function lbRenderNotes(p){
   var box=$("lightNotes"); if(!box) return;
-  var arr=phNotes(p);
-  if(!arr.length){ box.innerHTML='<div class="lbn-empty">No notes on this photo yet.</div>'; return; }
-  box.innerHTML=arr.map(function(nt){
+  if(!isMgrRole()) LBSIDE="crew";                  // crew never see the owner thread
+  var arr=lbNotesFor(p, LBSIDE);
+  var segs = isMgrRole()
+    ? '<div class="lbseg">'+lbSides().map(function(sd){
+        var c=lbNotesFor(p,sd).length;
+        return '<button class="lbsegb'+(sd===LBSIDE?" on":"")+'" onclick="event.stopPropagation();lbSideSet(\''+sd+'\')">'+
+               lbSideLabel(sd)+(c?(' <b>'+c+'</b>'):'')+'</button>'; }).join('')+
+      '<span class="lbseghint">'+(LBSIDE==="owner"
+        ? "The owner sees this thread. Crew don’t."
+        : "Crew &amp; Marine HQ only. The owner never sees this.")+'</span></div>'
+    : '';
+  if(!arr.length){
+    box.innerHTML=segs+'<div class="lbn-empty">'+
+      (LBSIDE==="owner" ? "Nothing said to the owner about this photo yet."
+                        : "No notes on this photo yet.")+'</div>';
+    return;
+  }
+  box.innerHTML=segs+arr.map(function(nt){
     var at=parseInt(nt.at,10)||0;
     var lane=(nt.aud==="owner"||nt.aud==="dir"||nt.aud==="both")?nt.aud:"crew";
     var ed = wlMine(nt) ? '<button class="lbn-b" title="Edit" onclick="event.stopPropagation();lbEditNote('+at+')">✎</button>' : '';
@@ -2734,7 +2791,7 @@ function lbRenderNotes(p){
     if(isMgrRole()){
       var out = (lane==="owner" || lane==="both");
       mv = '<div class="lbn-lane">'+lanePill(lane)+
-        (out ? '' : '<button class="lbn-push" onclick="event.stopPropagation();lbNoteAud('+at+',\'both\')">👤 Push to owner</button>')+
+        (out ? '' : '<button class="lbn-push" onclick="event.stopPropagation();lbNoteAud('+at+',\'both\')">👤 Share with owner</button>')+
         '<button class="lbn-more" title="Other lanes" onclick="event.stopPropagation();lbLaneMore('+at+')">⋯</button>'+
         '<div class="lbn-lanes" id="lbnlane-'+at+'">'+
           LANE_ORDER.filter(function(l){return l!==lane;}).map(function(l){
@@ -2743,7 +2800,9 @@ function lbRenderNotes(p){
     }
     return '<div class="lbn lane-'+lane+'" id="lbn-'+at+'" data-raw="'+esc(nt.text||"")+'">'+
       '<div class="lbn-hd"><b>'+esc(firstName(nt.by)||"—")+'</b><span class="lbn-at">'+esc(fmtDateTime(at))+(nt.editedAt?' (edited)':'')+'</span>'+ed+del+'</div>'+
-      '<div class="lbn-tx" id="lbntx-'+at+'">'+esc(nt.text||"")+'</div>'+mv+'</div>';
+      '<div class="lbn-tx" id="lbntx-'+at+'">'+esc(nt.text||"")+'</div>'+
+      ((nt.mentions&&nt.mentions.length)?('<div class="lbn-tag">🔔 '+nt.mentions.map(function(x){return esc(firstName(x));}).join(", ")+'</div>'):'')+
+      mv+'</div>';
   }).join("");
 }
 /* Show / hide the full lane list for one note. Deliberately no state kept: the
@@ -2751,6 +2810,33 @@ function lbRenderNotes(p){
 function lbLaneMore(at){
   var e=document.getElementById("lbnlane-"+at); if(!e) return;
   e.classList.toggle("open");
+}
+/* 🔔 Tag on a photo note — the same alert + email a job note sends, so "this
+   particular pic needs attention" reaches the person. Crew names only for now:
+   ccMentionNotify_ resolves a tag against the crew roster, so tagging an owner
+   would log but never reach them. Owner tagging comes with the MyYacht side. */
+function lbRenderTags(){
+  var row=$("lightTagRow"); if(!row) return;
+  if(!LB_KEY){ row.innerHTML=""; return; }
+  var names=(CREWNAMES||[]).map(function(c){ return c.name||""; }).filter(String);
+  if(!names.length){ row.innerHTML=""; return; }
+  var chips=LBMENTIONS.length
+    ? '<div class="lbtag-on">🔔 '+LBMENTIONS.map(function(x){return esc(firstName(x));}).join(", ")+
+      ' <button class="lbtag-clr" onclick="event.stopPropagation();LBMENTIONS=[];lbRenderTags()">clear</button></div>'
+    : '';
+  row.innerHTML=chips+
+    '<button class="lbtag-btn" onclick="event.stopPropagation();lbTagPick()">🔔 Tag someone</button>'+
+    '<span class="lbtag-hint">they get an alert + email</span>'+
+    '<div class="lbtag-pick" id="lbTagPick">'+names.map(function(nm){
+      var on=LBMENTIONS.indexOf(nm)>=0;
+      return '<button class="lbtag-n'+(on?" on":"")+'" onclick="event.stopPropagation();lbTagToggle(\''+esc(nm.replace(/'/g,"\\'"))+'\')">'+esc(firstName(nm))+(on?" ✓":"")+'</button>';
+    }).join('')+'</div>';
+}
+function lbTagPick(){ var e=$("lbTagPick"); if(e) e.classList.toggle("open"); }
+function lbTagToggle(nm){
+  var i=LBMENTIONS.indexOf(nm);
+  if(i>=0) LBMENTIONS.splice(i,1); else LBMENTIONS.push(nm);
+  lbRenderTags(); var e=$("lbTagPick"); if(e) e.classList.add("open");
 }
 function lbPhotoOk(){ var p=LB_PHOTOS[LB_I]; return (p && LB_KEY) ? p : null; }
 function lbAfterNotes(r){
@@ -2764,8 +2850,12 @@ function lbAfterNotes(r){
 function lbAddNote(){
   var p=lbPhotoOk(); if(!p) return;
   var el=$("lightCap"), text=(el.value||"").trim(); if(!text){ toast("Type the note first"); return; }
-  apiPost({action:"crewJobPhotoNote", email:ME.email, code:ME.code, jobKey:LB_KEY, url:p.url, text:text, aud:WLLANE})
-    .then(function(r){ if(lbAfterNotes(r)) toast("✓ Note added"); })
+  apiPost({action:"crewJobPhotoNote", email:ME.email, code:ME.code, jobKey:LB_KEY, url:p.url,
+           text:text, aud:LBSIDE, mentions:LBMENTIONS})
+    .then(function(r){
+      if(lbAfterNotes(r)) toast(LBMENTIONS.length ? "✓ Note added · they’ve been told" : "✓ Note added");
+      LBMENTIONS=[]; el.value=""; lbRenderTags();
+    })
     .catch(function(){ toast("Couldn’t connect"); });
 }
 function lbEditNote(at){
