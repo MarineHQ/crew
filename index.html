@@ -644,12 +644,30 @@
   .lightstage{display:flex;flex-direction:column;align-items:center;gap:12px;max-width:100%;max-height:100%}
   .lightbar{width:100%;max-width:520px}
   .lightmeta{color:#dfe6f2;font-size:12.5px;text-align:center;margin-bottom:8px}
+  /* The note thread under a photo in the viewer. */
+  .lightnotes{max-height:34vh;overflow-y:auto;margin-bottom:8px;display:flex;flex-direction:column;gap:6px}
+  .lbn-empty{font-size:12px;color:#c9d3de}
+  .lbn{background:rgba(255,255,255,.10);border-radius:9px;padding:7px 9px;border-left:3px solid rgba(255,255,255,.25)}
+  .lbn.lane-owner{border-left-color:var(--orange)} .lbn.lane-dir{border-left-color:#c0392b}
+  .lbn.lane-both{border-left-color:var(--ok)}
+  .lbn-hd{display:flex;align-items:center;gap:7px;font-size:11.5px;color:#e8eef5;margin-bottom:3px;flex-wrap:wrap}
+  .lbn-at{color:#a9b8c8;font-size:10.5px}
+  .lbn-b{margin-left:auto;border:0;background:none;color:#cdd8e4;font-size:12px;cursor:pointer;padding:0 3px}
+  .lbn-tx{font-size:13px;color:#fff;line-height:1.4;word-break:break-word}
+  .lbn-in{width:100%;border:0;border-radius:7px;padding:8px 9px;font-size:13px;font-family:inherit}
+  .lbn-row{display:flex;gap:6px;margin-top:6px}
+  .lbn-save{border:0;border-radius:7px;background:var(--ok);color:#fff;font-weight:700;font-size:12px;padding:6px 12px;cursor:pointer;font-family:inherit}
+  .lbn-cancel{border:0;border-radius:7px;background:rgba(255,255,255,.16);color:#fff;font-size:12px;padding:6px 12px;cursor:pointer;font-family:inherit}
+  .lbn-lane{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;align-items:center}
   .lightcaprow{display:flex;gap:8px}
   .lightcaprow input{flex:1;border:0;border-radius:9px;padding:11px 12px;font-size:14px;font-family:inherit}
   .lightcaprow button{border:0;border-radius:9px;background:var(--orange);color:#fff;font-weight:bold;font-size:14px;padding:0 16px;cursor:pointer}
   .lightcount{position:absolute;top:calc(20px + env(safe-area-inset-top));left:16px;color:#fff;font-size:13px;font-weight:bold;background:rgba(0,0,0,.3);border-radius:12px;padding:3px 10px;z-index:3}
   .ph{position:relative}
-  .phcap{position:absolute;top:4px;left:4px;font-size:12px;background:rgba(0,0,0,.45);border-radius:6px;padding:0 3px}
+  .phcap{position:absolute;top:4px;left:4px;font-size:10px;font-weight:700;color:#fff;background:rgba(0,0,0,.55);border-radius:6px;padding:1px 5px}
+  /* The note used to be a hover tooltip, which on a phone meant invisible. */
+  .phnote{display:block;width:92px;font-size:10.5px;line-height:1.35;color:var(--ink);margin-top:2px;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
   .docmain{display:flex;flex-direction:column} .docby{font-size:11px;color:var(--muted);font-weight:normal;margin-top:2px}
   .ph img,.ph .thumb{width:92px;height:70px;border-radius:9px;object-fit:cover;display:block}
   .ph .thumb{display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;background:linear-gradient(135deg,#42607f,#2b4763)}
@@ -664,11 +682,16 @@
   /* On a job-card thumbnail the top edge is already taken — the lane pill sits
      top-left and the delete ✕ hangs off top-right — so the tag goes along the
      bottom of the 70px image instead, where nothing else lives. */
-  .ph .phtag{top:auto;bottom:17px;left:4px;right:auto;font-size:8.5px;padding:1px 4px}
+  .ph .phtag{top:52px;bottom:auto;left:4px;right:auto;font-size:8.5px;padding:1px 4px}
   /* The same pill, made tappable, on a photo you've picked but not yet sent. */
   .ph .phtag.tapme{border:0;cursor:pointer;font-family:inherit;line-height:1.5}
+  /* A staged tile carries a filename as well, so its pill goes to the top of
+     the image where nothing else sits. */
+  .photos.staged .ph .phtag{top:5px;left:5px}
   .ph .phtag.none{background:rgba(17,24,39,.62)}
   .staged-hint{flex-basis:100%;font-size:11.5px;color:var(--muted);margin-top:4px;line-height:1.45}
+  .phnote-in{display:block;width:92px;margin-top:3px;border:1px solid var(--line);border-radius:7px;
+    padding:4px 6px;font-size:10.5px;font-family:inherit;background:#fff}
   .lightmeta .phtag{position:static;margin-left:7px;box-shadow:none}
   .tagrow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:10px;
     border-top:1px dashed var(--line);padding-top:9px}
@@ -1186,7 +1209,7 @@
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-29·f</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-30·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1226,7 +1249,8 @@
       <div class="lightmeta" id="lightMeta"></div>
       <div class="lightlane" id="lightLane" style="display:none"></div>
       <div class="lightlane" id="lightTag" style="display:none"></div>
-      <div class="lightcaprow"><input id="lightCap" placeholder="Add a note — e.g. see the rust here"><button onclick="lbSaveCap()">Save</button></div>
+      <div class="lightnotes" id="lightNotes"></div>
+      <div class="lightcaprow"><input id="lightCap" placeholder="Add a note — e.g. see the rust here"><button onclick="lbAddNote()">Add</button></div>
     </div>
   </div>
   <div class="lightcount" id="lightCount"></div>
@@ -2653,7 +2677,8 @@ function renderLightbox(){
   $("lightImg").src=driveImg(p.url);
   $("lightMeta").innerHTML=(p.by?('📷 <b>'+esc(firstName(p.by))+'</b>'):'')+(p.at?(' · '+esc(fmtDateTime(p.at))):'')+
     (p.task?(' · '+esc(p.code||p.task)):'')+phTagPill(p);
-  $("lightCap").value=p.caption||"";
+  $("lightCap").value="";
+  lbRenderNotes(p);
   // Re-tagging posts against ONE jobKey, so it is offered only from a job card —
   // never from the gallery, where the photos on screen belong to many jobs.
   var lt=$("lightTag");
@@ -2684,6 +2709,70 @@ function renderLightbox(){
   if(pv) pv.style.display=multi?"":"none"; if(nx) nx.style.display=multi?"":"none";
 }
 function lbGo(dir){ if(!LB_PHOTOS.length)return; LB_I=(LB_I+dir+LB_PHOTOS.length)%LB_PHOTOS.length; renderLightbox(); }
+/* The note thread under the photo. Same rules as a job note: anyone may add,
+   only the author may edit, the author or a director may delete, and a director
+   moves one to the owner's lane when it's ready to go across. */
+function lbRenderNotes(p){
+  var box=$("lightNotes"); if(!box) return;
+  var arr=phNotes(p);
+  if(!arr.length){ box.innerHTML='<div class="lbn-empty">No notes on this photo yet.</div>'; return; }
+  box.innerHTML=arr.map(function(nt){
+    var at=parseInt(nt.at,10)||0;
+    var lane=(nt.aud==="owner"||nt.aud==="dir"||nt.aud==="both")?nt.aud:"crew";
+    var ed = wlMine(nt) ? '<button class="lbn-b" title="Edit" onclick="event.stopPropagation();lbEditNote('+at+')">✎</button>' : '';
+    var del= (wlMine(nt)||isMgrRole()) ? '<button class="lbn-b" title="Delete" onclick="event.stopPropagation();lbDelNote('+at+')">✕</button>' : '';
+    var mv = isMgrRole() ? ('<div class="lbn-lane">'+lanePill(lane)+LANE_ORDER.filter(function(l){return l!==lane;}).map(function(l){
+      return '<button class="movebtn" onclick="event.stopPropagation();lbNoteAud('+at+',\''+l+'\')">'+LANE_META[l].ic+' '+LANE_META[l].lbl+'</button>'; }).join('')+'</div>') : '';
+    return '<div class="lbn lane-'+lane+'" id="lbn-'+at+'" data-raw="'+esc(nt.text||"")+'">'+
+      '<div class="lbn-hd"><b>'+esc(firstName(nt.by)||"—")+'</b><span class="lbn-at">'+esc(fmtDateTime(at))+(nt.editedAt?' (edited)':'')+'</span>'+ed+del+'</div>'+
+      '<div class="lbn-tx" id="lbntx-'+at+'">'+esc(nt.text||"")+'</div>'+mv+'</div>';
+  }).join("");
+}
+function lbPhotoOk(){ var p=LB_PHOTOS[LB_I]; return (p && LB_KEY) ? p : null; }
+function lbAfterNotes(r){
+  if(!(r&&r.ok)) { toast((r&&r.error)||"Couldn’t save that note"); return false; }
+  var j=wlFind(LB_KEY); if(j && r.photos) j.photos=r.photos;
+  if(r.photos){ var u=(LB_PHOTOS[LB_I]||{}).url; LB_PHOTOS=r.photos;
+    for(var i=0;i<LB_PHOTOS.length;i++){ if(LB_PHOTOS[i].url===u){ LB_I=i; break; } } }
+  renderLightbox(); if(openJobId===LB_KEY) openWLJob(LB_KEY);
+  return true;
+}
+function lbAddNote(){
+  var p=lbPhotoOk(); if(!p) return;
+  var el=$("lightCap"), text=(el.value||"").trim(); if(!text){ toast("Type the note first"); return; }
+  apiPost({action:"crewJobPhotoNote", email:ME.email, code:ME.code, jobKey:LB_KEY, url:p.url, text:text, aud:WLLANE})
+    .then(function(r){ if(lbAfterNotes(r)) toast("✓ Note added"); })
+    .catch(function(){ toast("Couldn’t connect"); });
+}
+function lbEditNote(at){
+  var box=document.getElementById("lbntx-"+at), wrap=document.getElementById("lbn-"+at); if(!box||!wrap) return;
+  var cur=wrap.getAttribute("data-raw")||"";
+  box.innerHTML='<input class="lbn-in" id="lbned-'+at+'"><div class="lbn-row">'+
+    '<button class="lbn-save" onclick="event.stopPropagation();lbSaveNote('+at+')">Save</button>'+
+    '<button class="lbn-cancel" onclick="event.stopPropagation();renderLightbox()">Cancel</button></div>';
+  var i=document.getElementById("lbned-"+at); i.value=cur; i.focus();
+}
+function lbSaveNote(at){
+  var p=lbPhotoOk(); if(!p) return;
+  var i=document.getElementById("lbned-"+at); if(!i) return;
+  var text=(i.value||"").trim(); if(!text){ toast("A note can’t be empty"); return; }
+  apiPost({action:"crewJobPhotoNoteEdit", email:ME.email, code:ME.code, jobKey:LB_KEY, url:p.url, at:at, text:text})
+    .then(function(r){ if(lbAfterNotes(r)) toast("✓ Note updated"); })
+    .catch(function(){ toast("Couldn’t connect"); });
+}
+function lbDelNote(at){
+  var p=lbPhotoOk(); if(!p) return;
+  if(!confirm("Delete this note?")) return;
+  apiPost({action:"crewJobPhotoNoteDelete", email:ME.email, code:ME.code, jobKey:LB_KEY, url:p.url, at:at})
+    .then(function(r){ if(lbAfterNotes(r)) toast("Note deleted"); })
+    .catch(function(){ toast("Couldn’t connect"); });
+}
+function lbNoteAud(at, lane){
+  var p=lbPhotoOk(); if(!p) return;
+  apiPost({action:"crewJobPhotoNoteAud", email:ME.email, code:ME.code, jobKey:LB_KEY, url:p.url, at:at, aud:lane})
+    .then(function(r){ if(lbAfterNotes(r)) toast("Moved to "+(LANE_META[lane]?LANE_META[lane].lbl:lane)); })
+    .catch(function(){ toast("Couldn’t connect"); });
+}
 function lbSaveCap(){
   var p=LB_PHOTOS[LB_I]; if(!p)return; var cap=($("lightCap").value||"").trim();
   apiPost({action:"crewJobPhotoCaption", email:ME.email, code:ME.code, jobKey:LB_KEY, url:p.url, caption:cap}).then(function(r){
@@ -3193,15 +3282,18 @@ function buildReport(){
     var pairs="";
     for(var pi=0; pi<np; pi++){
       pairs+='<div class="pair">'+
-        '<figure><img src="'+rptEsc(driveImg(befs[pi].url))+'"><figcaption class="b">Before</figcaption></figure>'+
+        '<figure><img src="'+rptEsc(driveImg(befs[pi].url))+'"><figcaption class="b">Before</figcaption>'+(phFirstNote(befs[pi])?('<figcaption class="n">'+rptEsc(phFirstNote(befs[pi]))+'</figcaption>'):'')+'</figure>'+
         '<span class="parrow">&rarr;</span>'+
-        '<figure><img src="'+rptEsc(driveImg(afts[pi].url))+'"><figcaption class="a">After</figcaption></figure>'+
+        '<figure><img src="'+rptEsc(driveImg(afts[pi].url))+'"><figcaption class="a">After</figcaption>'+(phFirstNote(afts[pi])?('<figcaption class="n">'+rptEsc(phFirstNote(afts[pi]))+'</figcaption>'):'')+'</figure>'+
       '</div>';
     }
     // Whatever didn't pair off still shows, so tagging one photo never hides another.
+    // What a photo SHOWS is the half the report was missing: it printed
+    // Before/After and threw the words away. Trish, 30 Aug 2026.
+    function rptPhNote(p){ var t=phFirstNote(p); return t?('<figcaption class="n">'+rptEsc(t)+'</figcaption>'):''; }
     var ph=plain.concat(befs.slice(np), afts.slice(np)).slice(0, pairs?2:4).map(function(p){
       var t=phTag(p);
-      return '<figure><img src="'+rptEsc(driveImg(p.url))+'">'+(t?('<figcaption class="'+(t==="before"?"b":"a")+'">'+PH_TAGS[t].lbl+'</figcaption>'):'')+'</figure>'; }).join("");
+      return '<figure><img src="'+rptEsc(driveImg(p.url))+'">'+(t?('<figcaption class="'+(t==="before"?"b":"a")+'">'+PH_TAGS[t].lbl+'</figcaption>'):'')+rptPhNote(p)+'</figure>'; }).join("");
     var notes=(j.comments||[]).filter(function(c){ return (c.text||"").trim(); })
       .map(function(c){ return '<p class="cmt"><b>'+rptEsc(c.by||"Marine HQ")+'</b> <i>'+rptEsc(dstr)+'</i><br>'+rptEsc(c.text)+'</p>'; }).join("");
     var who=(j.allocatedTo||"").split(",").map(function(s){return s.trim();}).filter(Boolean)
@@ -3250,6 +3342,8 @@ function buildReport(){
     'figcaption{position:absolute;top:6px;left:6px;font-size:9px;font-weight:800;letter-spacing:.4px;'+
       'text-transform:uppercase;color:#fff;border-radius:6px;padding:2px 6px}'+
     'figcaption.b{background:#B77410}figcaption.a{background:#1F7A54}'+
+    'figcaption.n{position:static;text-transform:none;letter-spacing:0;font-size:10.5px;font-weight:600;'+
+      'color:#3d4a5c;background:none;padding:5px 1px 0;line-height:1.4}'+
     '.ft{color:#6b7a8d;font-size:11px;text-align:center;margin-top:18px}'+
     '.topbar{position:sticky;top:0;display:flex;gap:8px;align-items:center;background:#fff;padding:10px 0;margin-bottom:6px;border-bottom:1px solid #e3e8ef;z-index:9}'+
     '.topbar .tbtn{border:0;border-radius:9px;padding:9px 15px;font-size:13px;font-weight:700;cursor:pointer}'+
@@ -3803,7 +3897,7 @@ function openWLJob(key){
   // Per ITEM, not per job: your own upload is yours to remove even after the
   // job has been shared with the owner, and someone else's never is (unless
   // you're a director). See wlMayDel above.
-  var phHTML=(j.photos&&j.photos.length ? j.photos.map(function(p,idx){return '<div class="ph"><img src="'+esc(driveImg(p.url))+'" alt="" loading="lazy" onerror="this.classList.add(\'imgerr\')" onclick="event.stopPropagation();openPhoto(\''+esc(key)+'\','+idx+')" style="cursor:pointer">'+(p.caption?'<span class="phcap" title="'+esc(p.caption)+'">💬</span>':'')+phTagPill(p)+'<small>'+esc(p.by?firstName(p.by):(phName(p)||"photo"))+(p.at?(' · '+relTime(p.at)):'')+'</small>'+(wlMayDel(p)?'<button class="attdel" title="Remove" onclick="event.stopPropagation();wlDelAtt(\''+esc(key)+'\',\''+esc(p.url)+'\',\'photo\')">✕</button>':'')+(isMgrRole()?lanePill(p.aud):'')+'</div>';}).join("") : '<div style="font-size:13px;color:var(--muted)">No photos yet.</div>')
+  var phHTML=(j.photos&&j.photos.length ? j.photos.map(function(p,idx){return '<div class="ph"><img src="'+esc(driveImg(p.url))+'" alt="" loading="lazy" onerror="this.classList.add(\'imgerr\')" onclick="event.stopPropagation();openPhoto(\''+esc(key)+'\','+idx+')" style="cursor:pointer">'+((phNoteCount(p)>1)?('<span class="phcap">💬 '+phNoteCount(p)+'</span>'):'')+phTagPill(p)+'<small>'+esc(p.by?firstName(p.by):(phName(p)||"photo"))+(p.at?(' · '+relTime(p.at)):'')+'</small>'+(phFirstNote(p)?('<span class="phnote">'+esc(phFirstNote(p))+'</span>'):'')+(wlMayDel(p)?'<button class="attdel" title="Remove" onclick="event.stopPropagation();wlDelAtt(\''+esc(key)+'\',\''+esc(p.url)+'\',\'photo\')">✕</button>':'')+(isMgrRole()?lanePill(p.aud):'')+'</div>';}).join("") : '<div style="font-size:13px;color:var(--muted)">No photos yet.</div>')
     +'<label class="addph" id="phAddLbl" for="wlPhotoInput" onclick="if(!laneReady())return event.preventDefault();">'+phAddLabel()+'</label><input id="wlPhotoInput" type="file" accept="image/*" multiple style="display:none" onchange="wlAddPhotos(\''+esc(key)+'\',this)">';
   // Images (even ones added via the 📎 button) show as thumbnails; real files (PDF/xls…) show as rows.
   var _docs=j.docs||[];
@@ -4297,8 +4391,10 @@ function uploadFiles(key, files, action, field, maxDim, quality, tag){
   if(job && field==="photos"){
     files.forEach(function(f){
       if(!/^image\//i.test(f.type||"")) return;
+      var _pn=(f._note||"").trim();
       pending.push({ name:phTagName(f.name||"photo", tag), url:URL.createObjectURL(f), by:(ME.name||""),
-                     at:Date.now(), aud:WLLANE||"crew", _uploading:true });
+                     at:Date.now(), aud:WLLANE||"crew", _uploading:true,
+                     notes:_pn?[{by:(ME.name||""),role:"",text:_pn,at:Date.now(),aud:WLLANE||"crew"}]:[] });
     });
     if(pending.length){ paint(); openWLJob(key); }
   }
@@ -4310,6 +4406,8 @@ function uploadFiles(key, files, action, field, maxDim, quality, tag){
     fileToUpload(f, maxDim, quality).then(function(p){
       if(!p){ finish(false); return; }
       if(tag && field==="photos") p.name=phTagName(p.name, tag);
+      // A note typed on the form travels with the file and starts its thread.
+      if(field==="photos" && f._note && f._note.trim()) p.note=f._note.trim();
       var body={action:action, email:ME.email, code:ME.code, jobKey:key, aud:WLLANE}; body[field]=[p];
       if(first){ body.batch=total; first=false; }   // tag first sent file → one ping per upload session
       apiPost(body).then(function(r){
@@ -5101,7 +5199,8 @@ function ofBuildReport(){
   /* --- what we found, split the same way the app groups it --- */
   function ofRepItem(it){
     var ph=(it.photos||[]).slice(0,8).map(function(p){
-      return '<figure><img src="'+esc(driveImg(p.url))+'" alt="">'+(p.caption?'<figcaption>'+esc(p.caption)+'</figcaption>':'')+'</figure>';
+      var _n=phFirstNote(p);
+      return '<figure><img src="'+esc(driveImg(p.url))+'" alt="">'+(_n?'<figcaption>'+esc(_n)+'</figcaption>':'')+'</figure>';
     }).join("");
     var d=(it.desc||"").split("\n").filter(String).map(function(l){return '<p>'+esc(l)+'</p>';}).join("");
     return '<div class="item">'+
@@ -5602,6 +5701,13 @@ function stagedFiles(b){ return (STAGED[b]||[]).slice(); }
    never going to fit. Before this the two forms had no tagging at all — the row
    only existed on a task card, so a photo attached while logging the work could
    never be a Before. Trish, 29 Aug 2026. */
+/* Type the note as you attach the photo, rather than uploading and then hunting
+   the photo down to say what it shows. It becomes the first note in that photo's
+   thread, in the crew lane like everything else crew add. */
+function stagedNote(b, i, el){
+  var f=(STAGED[b]||[])[i]; if(!f) return;
+  f._note=(el.value||"");
+}
 function stagedTag(b, i){
   var f=(STAGED[b]||[])[i]; if(!f) return;
   f._tag = (f._tag==="before") ? "after" : (f._tag==="after" ? "" : "before");
@@ -5619,11 +5725,14 @@ function stagedRender(b){
       ? ('<button type="button" class="phtag tapme '+(f._tag||"none")+'" title="Tag this photo Before or After" onclick="stagedTag(\''+b+'\','+i+')">'+
          (f._tag ? PH_TAGS[f._tag].lbl : "Tag") + '</button>')
       : '';
-    return '<div class="ph">'+face+tag+'<small>'+esc(f.name||(isDocs?"document":"photo"))+'</small>'+
+    var note = (!isDocs && img)
+      ? ('<input class="phnote-in" placeholder="✎ Note…" value="'+esc(f._note||"")+'" oninput="stagedNote(\''+b+'\','+i+',this)">')
+      : '';
+    return '<div class="ph">'+face+tag+'<small>'+esc(f.name||(isDocs?"document":"photo"))+'</small>'+note+
            '<button type="button" class="attdel" title="Remove" onclick="stagedDrop(\''+b+'\','+i+')">✕</button></div>';
   }).join("") +
   '<label class="addph" for="'+b+'In">'+(isDocs?'📎<span>Add</span>':'＋<span>Add photo</span>')+'</label>' +
-  ((!isDocs && a.length) ? '<div class="staged-hint">Tap <b>Tag</b> on a photo to mark it Before or After — a tagged pair prints side by side in the works report.</div>' : '');
+  ((!isDocs && a.length) ? '<div class="staged-hint">Tap <b>Tag</b> to mark a photo Before or After — a tagged pair prints side by side in the works report. The note says what it shows; you can add more later, and only Marine HQ decides if it goes to the owner.</div>' : '');
 }
 /* Photos go up one call per tag, so each batch carries its own Before/After. */
 function uploadStaged(key, files){
@@ -6742,6 +6851,19 @@ function phTagName(name, tag){
   return tag ? ("["+tag.toUpperCase()+"] "+base) : base;
 }
 function phTagPill(p){ var t=phTag(p); return t?('<span class="phtag '+t+'">'+PH_TAGS[t].lbl+'</span>'):''; }
+
+/* A photo carries a THREAD of notes, not one caption — see ccPhNotes_ on the
+   back end for the shape and the lane rule. A photo written before 30 Aug 2026
+   has a single `caption` string; it reads back here as the first note so nothing
+   old disappears while the two forms coexist. */
+function phNotes(p){
+  if(!p) return [];
+  if(Object.prototype.toString.call(p.notes)==="[object Array]") return p.notes;
+  var cap=((p.caption||"")+"").trim();
+  return cap ? [{ by:(p.by||""), role:"", text:cap, at:(parseInt(p.at,10)||0), aud:(p.aud||"crew") }] : [];
+}
+function phNoteCount(p){ return phNotes(p).length; }
+function phFirstNote(p){ var a=phNotes(p); return a.length?((a[0].text||"")+""):""; }
 
 /* The tag the NEXT upload on the open job card will carry. Reset every time a
    card is opened, so a Before left switched on last week never mislabels. */
