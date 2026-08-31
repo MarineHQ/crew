@@ -1233,7 +1233,7 @@
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-30·d</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-31·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -3191,6 +3191,7 @@ function wlGroupHTML(g, groups){
     var editMenu = (canEdit && WLEDIT[g]) ? ('<div class="wlmenu">'+
       '<button onclick="event.stopPropagation();setListNote(\''+esc(gJs)+'\')">🗓️ '+(note?'Edit':'Add')+' deadline / note</button>'+
       '<button onclick="event.stopPropagation();openAddTask(\''+esc(gJs)+'\',\''+esc(gVessel)+'\')">＋ Add task to this list</button>'+
+      '<button onclick="event.stopPropagation();shareListOwner(\''+esc(gJs)+'\')">👤 Share whole list with owner</button>'+
       '<button onclick="event.stopPropagation();renameList(\''+esc(gJs)+'\')">✎ Rename list</button></div>') : '';
     // Months and states are a director thing — crew keep the plain list, whatever
     // happens to be loaded in memory.
@@ -4356,6 +4357,20 @@ function wlSendWaitOwner(key, on, ask){
       openWLJob(key); loadJobs(); }
     else toast((r&&r.error)||"Couldn’t update");
   }).catch(function(){ toast("Couldn’t connect"); });
+}
+// Share (or approve) every task on a work list with the owner in one go, so a
+// director doesn't have to open each task. Loops the same per-task call.
+function shareListOwner(g){
+  var jobs=(CREWJOBS||[]).filter(function(j){ return (j.list||"")===g && (j.status||"").toLowerCase()!=="cancelled"; });
+  if(!jobs.length){ toast("Nothing on this list"); return; }
+  var todo=jobs.filter(function(j){ return !j.shared; });
+  if(!todo.length){ toast("Whole list is already shared"); return; }
+  if(!confirm("Share all "+todo.length+" task"+(todo.length>1?"s":"")+" on this list with the owner?\n\nThey'll see them in their MyYacht portal.")) return;
+  toast("Sharing "+todo.length+"…");
+  Promise.all(todo.map(function(j){
+    return apiPost({action:"crewJobApprove", email:ME.email, code:ME.code, jobKey:j.key, share:true})
+      .then(function(r){ if(r&&r.ok) j.shared=true; return r; }).catch(function(){});
+  })).then(function(){ toast("👤 Shared "+todo.length+" with the owner"); loadJobs(); });
 }
 function wlApprove(key, share){
   apiPost({action:"crewJobApprove", email:ME.email, code:ME.code, jobKey:key, share:share}).then(function(r){
