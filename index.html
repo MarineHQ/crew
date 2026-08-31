@@ -211,6 +211,8 @@
   .wlsecbody .wlacc .n{background:rgba(26,43,92,.10);color:var(--navy)}
   .wlsecbody .wlacc .n.newn{background:var(--orange)!important;color:#fff!important}
   .wlsecbody .wlacc .n.tosign{background:#fff!important;color:#8a5a12!important}
+  .wlacc .n.owned{background:#dbeafe;color:#1d4ed8}
+  .wlsecbody .wlacc .n.owned{background:#dbeafe!important;color:#1d4ed8!important}
   .wlsecbody .wlacc .car{color:var(--orange)}
   .wlsecbody .wlacc .lstate{background:rgba(26,43,92,.10)}
   .wlsecbody .wlacc .lstate.waiting{background:rgba(99,118,138,.16);color:var(--muted)}
@@ -453,6 +455,8 @@
   .acptchip.urgent{background:#fee2e2;color:#b91c1c;animation:acptpulse 1.6s ease-in-out infinite}
   /* The owner asked for this one. Solid brand orange — it has to win the card. */
   .acptchip.owner{background:#e87722;color:#fff}
+  /* The owner CAN SEE this task (shared). Soft blue — informational, not a call to action. */
+  .ownchip{display:inline-block;font-size:9.5px;font-weight:800;border-radius:8px;padding:1px 7px;vertical-align:middle;background:#dbeafe;color:#1d4ed8}
   @keyframes acptpulse{0%,100%{opacity:1}50%{opacity:.55}}
   .acceptcall{background:#fef2f2;border:1.5px solid #fca5a5;border-radius:12px;padding:13px 14px;box-shadow:0 2px 10px rgba(220,38,38,.12)}
   .acceptcall .ac-hd{font-size:15px;font-weight:800;color:#b91c1c;margin-bottom:4px}
@@ -1233,7 +1237,7 @@
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-31·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-08-31·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -3089,6 +3093,8 @@ function wlJobCard(j, idx, noNum){
     // The owner asked for this job. Flagged everywhere it appears, because "the
     // owner is waiting on this" is the one thing that should change what you pick up next.
     if(j.ownerReq){ codeChip += ' <span class="acptchip owner">👤 Owner asked</span>'; }
+    // At-a-glance: the owner can see this task in their MyYacht portal.
+    if(isMgrRole() && j.shared){ codeChip += ' <span class="ownchip" title="Shared with the owner">👤 Owner</span>'; }
     // came in from Zoho — directors see where it originated
     if(isMgrRole() && j.zoho){ codeChip += ' <span class="zchip" title="Zoho task '+esc(j.zoho)+'">🔗 Zoho</span>'; }
     // A Work Log entry never carries an accept chip — see openWLJob. Directors
@@ -3199,9 +3205,12 @@ function wlGroupHTML(g, groups){
     var stateTag = lst ? ('<span class="lstate '+lst+'">'+(lst==="live"?"Live":(lst==="waiting"?"Waiting":"Closed"))+'</span>') : '';
     // inside a month the heading already carries the boat and period
     var shown = (rec&&rec.sub&&wlSectionOf(g)==="current") ? rec.sub : g;
+    var _act=jobs.filter(function(j){ return (j.status||'').toLowerCase()!=='cancelled'; });
+    var _shared=_act.filter(function(j){ return j.shared; }).length;
+    var shareTag=(isMgrRole()&&_shared)?('<span class="n owned" title="Tasks the owner can see">👤 '+(_shared>=_act.length?'all shared':(_shared+' shared'))+'</span>'):'';
     return '<div class="wlacc'+collapsed+'" onclick="toggleWL(\''+esc(g)+'\')"><span class="car">▾</span>'+
       '<h3>'+esc(shown)+stateTag+'</h3>'+(newN?'<span class="n newn">'+newN+' new</span>':'')+'<span class="n">'+openN+' open</span>'+
-      ((isMgrRole()&&toSign.length)?('<span class="n tosign">'+toSign.length+' to sign off</span>'):'')+editIcon+'</div>'+
+      ((isMgrRole()&&toSign.length)?('<span class="n tosign">'+toSign.length+' to sign off</span>'):'')+shareTag+editIcon+'</div>'+
       noteRow+editMenu+
       '<div class="wlbody'+bodyC+'" data-g="'+esc(g)+'">'+cards+'</div>';
   }
