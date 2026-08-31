@@ -3577,17 +3577,22 @@ function renderOffer(){
   if(SCHEDVIEW || !CREWOPEN || !CREWOPEN.length) return "";
   var mgr=isMgrRole(), c=OFFERCLOSED?" closed":"";
   var openAll=CREWOPEN.filter(function(j){ return hubBucket(j.status)!=="Done"; });
+  // When a director has drilled into ONE yacht in the worklist, this section follows
+  // that boat: only her unassigned tasks, no pills, and nothing at all if she's clear.
+  // Fleet-wide (with pills) is kept for All Yachts, where approvals must not go missing.
+  var drilled = mgr && CURVESSEL && CURVESSEL!=="__all__";
+  if(drilled) openAll=openAll.filter(function(j){ return (j.vessel||"").toLowerCase()===CURVESSEL.toLowerCase(); });
   if(!openAll.length) return "";
   // Directors get their own vessel pills inside the section (fleet-wide).
   var pills="";
-  if(mgr){
+  if(mgr && !drilled){
     if(OFFERVESSEL!=="__all__" && !openAll.some(function(j){return (j.vessel||"").toLowerCase()===OFFERVESSEL.toLowerCase();})) OFFERVESSEL="__all__";
     var vs=[]; openAll.forEach(function(j){ if(vs.indexOf(j.vessel)<0) vs.push(j.vessel); }); vs.sort();
     pills='<div class="offpills"><div class="opill'+(OFFERVESSEL==="__all__"?" on":"")+'" onclick="event.stopPropagation();setOfferVessel(\'__all__\')">🚢 All yachts '+openAll.length+'</div>'+
       vs.map(function(v){ var n=openAll.filter(function(x){return x.vessel===v;}).length; return '<div class="opill'+(OFFERVESSEL===v?" on":"")+'" onclick="event.stopPropagation();setOfferVessel(\''+esc(v.replace(/'/g,"\\'"))+'\')">'+esc(v)+' '+n+'</div>'; }).join("")+'</div>';
   }
-  var allV = !mgr || (OFFERVESSEL==="__all__");
-  var open = allV ? openAll : openAll.filter(function(j){ return (j.vessel||"").toLowerCase()===OFFERVESSEL.toLowerCase(); });
+  var allV = !drilled && (!mgr || (OFFERVESSEL==="__all__"));
+  var open = (drilled || allV) ? openAll : openAll.filter(function(j){ return (j.vessel||"").toLowerCase()===OFFERVESSEL.toLowerCase(); });
   function offCard(j){
     var due=j.dueTs?('<span class="duechip'+dueCls(j.dueTs,false)+'">📅 '+esc(dayLabel(j.dueTs))+(j.dueTime?(' '+esc(fmtTime12(j.dueTime))):'')+'</span>'):'';
     var kJs=(j.key||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
@@ -3613,7 +3618,7 @@ function renderOffer(){
     ord.sort();
     body=ord.map(function(v){ return '<div class="offvessel">🛥 '+esc(v)+' <span>'+byV[v].length+'</span></div>'+byV[v].map(offCard).join(""); }).join("");
   } else { body=open.map(offCard).join(""); }
-  return '<div class="offacc'+c+'" onclick="OFFERCLOSED=!OFFERCLOSED;renderJobs()"><span class="car">▾</span><h3>🗂 Unassigned tasks</h3><span class="n newn">'+openAll.length+'</span></div>'+
+  return '<div class="offacc'+c+'" onclick="OFFERCLOSED=!OFFERCLOSED;renderJobs()"><span class="car">▾</span><h3>🗂 Unassigned tasks'+(drilled?(' · '+esc(CURVESSEL)):'')+'</h3><span class="n newn">'+openAll.length+'</span></div>'+
     '<div class="offbody'+c+'">'+pills+body+'</div>';
 }
 function crewClaim(key){
