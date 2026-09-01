@@ -106,8 +106,14 @@
   .jobbtn{width:100%;margin-top:11px;border:0;border-radius:10px;padding:12px;font-size:14px;font-weight:bold;cursor:pointer}
   .jobbtn.complete{background:var(--ok);color:#fff}
   .jobbtn.reopen{background:#fff;color:var(--muted);border:1px solid var(--line)!important}
-  .job.jobdone{opacity:.72;background:#f6f9f6}
-  .job.jobdone h3{text-decoration:line-through;color:var(--muted)}
+  /* A finished job is MARKED, never dimmed or struck out — Trish, 1 Sep 2026.
+     Fading it and ruling a line through the title make completed work harder to
+     read than the work still outstanding, which is backwards. Green wash, green
+     left border and a green "✓ Done" badge say it instead, at full strength.
+     Same rule as the owner app's task cards (see client-portal/task-card.js). */
+  .job.jobdone{background:#f1faf5;border-color:#cbe7d8;border-left-color:var(--ok)}
+  .job.jobdone h3{color:#123c28}
+  .job.jobdone .desc,.job.jobdone .meta{color:#5b7a69}
   .listhd{font-size:12px;font-weight:bold;letter-spacing:.5px;text-transform:uppercase;color:var(--orange);margin:6px 2px 9px;padding-top:2px}
   .jnum{color:var(--orange);font-weight:900}
   .jcode{display:inline-block;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px;font-weight:700;letter-spacing:.3px;color:var(--navy);background:#eef1f8;border:1px solid #dbe1f0;border-radius:5px;padding:1px 5px;vertical-align:middle}
@@ -812,7 +818,8 @@
   .cli .box{flex:0 0 auto;width:24px;height:24px;border-radius:7px;border:2px solid var(--line);background:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff;cursor:pointer;margin-top:1px}
   .cli.on .box{background:var(--ok);border-color:var(--ok)}
   .cli .lbl{flex:1;font-size:13.5px;line-height:1.4;padding-top:2px}
-  .cli.on .lbl{color:var(--muted);text-decoration:line-through}
+  /* ticked, not crossed out — see .job.jobdone above. The green box is the mark. */
+  .cli.on .lbl{color:#123c28;font-weight:600}
   .signoff{background:#f7f9fc;border:1px solid var(--line);border-radius:11px;padding:13px;margin:12px}
   .signoff.done{background:#e9f6f0;border-color:#bfe3d2}
   .signoff h4{margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
@@ -3164,7 +3171,7 @@ function wlJobCard(j, idx, noNum){
     var upd = jobRecent(j) ? '<span class="upd">● updated '+relTime(j.updated)+'</span>' : '';
     return '<div class="job brd-'+cls+(done?" jobdone":"")+(jobRecent(j)?" jobnew":"")+'" onclick="openWLJob(\''+esc(j.key)+'\')">'+
       '<div class="top"><div style="flex:1"><h3>'+(noNum?'':('<span class="jnum">'+(idx+1)+'.</span> '))+esc(j.task||j.desc||"(job)")+codeChip+'</h3></div>'+
-      '<span class="badge s-'+cls+'">'+esc(b)+'</span></div>'+
+      '<span class="badge s-'+cls+'">'+(done?"&#10003; ":"")+esc(b)+'</span></div>'+
       cardBody(j)+'</div>';
 }
 
@@ -3981,7 +3988,7 @@ function calShowDay(ts){
     return '<div class="job brd-'+cls+(_isDoneJob(j)?" jobdone":"")+'" onclick="openFromUpdate(\''+esc(j.key)+'\',\''+esc(j.vessel)+'\')">'+
       '<div class="top"><div style="flex:1"><h3>'+esc(j.task||j.title||"(job)")+(j.code?' <span class="jcode">'+esc(j.code)+'</span>':'')+'</h3>'+
       '<div style="font-size:12px;color:var(--muted);margin-top:2px">'+esc(j.vessel||"")+(j.allocatedTo?(" · "+esc(firstName(j.allocatedTo))):"")+'</div></div>'+
-      '<span class="badge s-'+cls+'">'+esc(j.status||b)+'</span></div></div>';
+      '<span class="badge s-'+cls+'">'+(_isDoneJob(j)?"&#10003; ":"")+esc(j.status||b)+'</span></div></div>';
   }).join("");
   $("calDay").innerHTML=html;
 }
