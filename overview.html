@@ -70,6 +70,9 @@
   .gate input{width:100%;border:1.5px solid var(--line);border-radius:11px;padding:14px;font-size:15px;text-align:center;font-family:inherit}
   .gate input:focus{outline:none;border-color:var(--orange)}
   .gate button{width:100%;margin-top:12px;border:0;background:var(--orange);color:#fff;font-weight:bold;font-size:15px;padding:14px;border-radius:11px;cursor:pointer}
+  .gate .gatehint{margin:14px 0 0;font-size:12.5px;color:var(--muted);line-height:1.5}
+  .gate .gateback{display:inline-block;margin-top:16px;color:var(--navy);font-weight:700;font-size:14px;text-decoration:none;border:1.5px solid var(--line);border-radius:11px;padding:11px 18px}
+  .gate .gateback:active{background:#f2f5f9}
   .gate .contact{margin-top:22px;font-size:12.5px;color:var(--muted);line-height:1.6}
   .gate .contact b{color:var(--orange)}
   .footer-banner{width:100%;background:#1B3A6B;line-height:0}
@@ -152,9 +155,11 @@
       <div class="eyebrow">MARINE HQ</div>
       <h3>Crew Command</h3>
       <p class="tagline">Everyone. Everything. Live.</p>
-      <div class="sub">Enter your passcode</div>
-      <input id="gk" type="password" placeholder="Passcode" onkeydown="if(event.key==='Enter')unlock()">
+      <div class="sub">Enter your access code</div>
+      <input id="gk" type="password" inputmode="numeric" placeholder="Access code" onkeydown="if(event.key==='Enter')unlock()">
       <button onclick="unlock()">Open the command centre</button>
+      <p class="gatehint">Directors and managers use the same 4-digit code they sign into the crew app with. Opening the Command Centre from inside the crew app skips this step.</p>
+      <a class="gateback" href="index.html">‹ Back to the crew app</a>
       <p class="contact">Need a hand? We're always here.<br><b>0439 748 387</b> · <b>yachtsupport@marinehq.com.au</b></p>
     </div>
   </div>
@@ -164,7 +169,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 var API="https://script.google.com/macros/s/AKfycbx5sC5b4rIF1tcMPWRdM9hpc8Lwj26TP7w8ikc0nR1KLyYNDv0CagCZYD3uBfmbQCxh/exec";
-var KEY=(function(){try{return localStorage.getItem("mhq_crew_key")||"";}catch(e){return "";}})();
+var KEY=(function(){try{return localStorage.getItem("mhq_crew_key")||localStorage.getItem("mhq_crew_code")||"";}catch(e){return "";}})();
 var TAB="now", DATA={ onShift:[], shifts:[], jobs:[], crew:[] }, jobCrewFilter="All", map=null, markers=[];
 function esc(s){return (s||"").toString().replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 function initials(n){var w=(n||"?").replace(/[^A-Za-z ]/g,"").trim().split(/\s+/).filter(Boolean);return ((w[0]||"?")[0]+((w[1]||"")[0]||"")).toUpperCase();}
@@ -179,11 +184,12 @@ function go(t){TAB=t;["now","shifts","jobs","crew","who","certs"].forEach(functi
   if(t==="now") setTimeout(function(){ if(map) map.invalidateSize(); },100);}
 
 function loadAll(){
-  if(!KEY){document.getElementById("gate").classList.add("show");return;}
+  if(!KEY){document.getElementById("gate").classList.add("show");try{document.getElementById("gk").focus();}catch(e){}return;}
   document.getElementById("v-now").innerHTML='<div class="spin">Loading…</div>';
   Promise.all([get("crewonshift"),get("crewallshifts"),get("hub"),get("crewlist"),get("crewcerts&all=1"),
                get("crewjobs&code="+encodeURIComponent(KEY)+"&all=1&mine=0")]).then(function(res){
     if((res[0]&&res[0].locked)||(res[3]&&res[3].locked)){KEY="";try{localStorage.removeItem("mhq_crew_key");}catch(e){}document.getElementById("gate").classList.add("show");return;}
+    document.getElementById("gate").classList.remove("show");   // the code worked — no need to ask
     DATA.onShift=(res[0]&&res[0].onShift)||[];
     DATA.shifts=(res[1]&&res[1].shifts)||[];
     DATA.jobs=(res[2]&&res[2].jobs)||[];
