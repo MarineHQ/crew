@@ -1303,7 +1303,7 @@
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-03·c</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-04·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2293,16 +2293,25 @@ function chElapsed(startHHMM){
 }
 /* Pull the running timer and today's entries. Called on load and after every
    start/stop so the screen never disagrees with the sheet. */
-function chLoad(){
+var _chLast=0, _chBusy=false;
+/* Throttled deliberately. This used to fire two requests every time a job was
+   opened, which is the single most common tap in the app — on a marina 4G signal
+   that is what makes a button feel slow. 25 s is fresh enough for a timer that
+   only changes when someone taps Start or Stop. */
+function chLoad(force){
   if(!ME) return Promise.resolve();
+  var now=Date.now();
+  if(!force && (_chBusy || now-_chLast < 25000)){ chPaint(); return Promise.resolve(); }
+  _chBusy=true; _chLast=now;
   var q="code="+encodeURIComponent(ME.code||"")+"&email="+encodeURIComponent(ME.email||"");
   return Promise.all([ apiGet("fn=crewtimer&"+q).catch(function(){return null;}),
                        apiGet("fn=crewday&"+q).catch(function(){return null;}) ])
     .then(function(r){
+      _chBusy=false;
       CHTIMER=(r[0]&&r[0].ok)?r[0]:null;
       CHDAY  =(r[1]&&r[1].ok)?r[1]:null;
       chPaint();
-    });
+    }).catch(function(){ _chBusy=false; });
 }
 function chPaint(){
   chBanner();
@@ -2359,8 +2368,16 @@ function chBoxHtml(key){
 }
 function chStart(key){
   if(!ME) return;
+  /* Show it as running the moment they tap. The request still has to land, and if
+     it fails chLoad puts the truth back — but a button that does nothing for two
+     seconds on marina signal is a button crew stop trusting. */
+  var j=wlFind(key);
+  CHTIMER={ running:true, jobKey:key, start:(function(){var d=new Date();
+            return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");})(),
+            task:(j&&j.task)||"", vessel:(j&&j.vessel)||"", code:(j&&j.code)||"", overlong:false };
+  chPaint();
   apiPost({action:"crewTaskStart", email:ME.email, code:ME.code, jobKey:key}).then(function(r){
-    if(!r||!r.ok){ toast((r&&r.error)||"Couldn\u2019t start"); return; }
+    if(!r||!r.ok){ toast((r&&r.error)||"Couldn\u2019t start"); CHTIMER=null; chLoad(true); return; }
     if(r.autoStopped) toast("Stopped "+(r.autoStopped.task||"the last job")+" \u2014 "+chFmt(r.autoStopped.hours));
     else toast("Started");
     chLoad();
@@ -2381,7 +2398,7 @@ function chStop(finish, brk, confirmLong){
     }
     if(!r||!r.ok){ toast((r&&r.error)||"Couldn\u2019t stop"); return; }
     toast("Logged "+chFmt(r.hours)+" \u00b7 "+r.start+"\u2013"+r.finish);
-    chLoad();
+    chLoad(true);
   });
 }
 /* The fallback. They will forget to tap Start — this has to exist or those
@@ -2393,7 +2410,7 @@ function chManual(key){
   apiPost({action:"crewHoursLog", email:ME.email, code:ME.code, jobKey:key,
            start:st.trim(), finish:fi.trim(), breakMins:(parseInt(br,10)||0)}).then(function(r){
     if(!r||!r.ok){ toast((r&&r.error)||"Couldn\u2019t save"); return; }
-    toast("Logged "+chFmt(r.hours)); chLoad();
+    toast("Logged "+chFmt(r.hours)); chLoad(true);
   });
 }
 /* End of day: everything logged today, editable, with the shift cross-check. */
@@ -2427,7 +2444,7 @@ function chEdit(entryId){
   apiPost({action:"crewHoursEdit", email:ME.email, code:ME.code, entryId:entryId,
            start:st.trim(), finish:fi.trim(), breakMins:(parseInt(br,10)||0)}).then(function(r){
     if(!r||!r.ok){ toast((r&&r.error)||"Couldn\u2019t save"); return; }
-    toast("Updated \u2014 "+chFmt(r.hours)); chLoad();
+    toast("Updated \u2014 "+chFmt(r.hours)); chLoad(true);
   });
 }
 /* A wrong tap shouldn't need a director. Crew can remove their own entry right
@@ -2438,7 +2455,7 @@ function chDel(entryId){
   if(!confirm("Delete "+what+"?")) return;
   apiPost({action:"crewHoursDelete", email:ME.email, code:ME.code, entryId:entryId}).then(function(r){
     if(!r||!r.ok){ toast((r&&r.error)||"Couldn\u2019t delete"); return; }
-    toast("Deleted"); chLoad();
+    toast("Deleted"); chLoad(true);
   });
 }
 /* A phone that slept, an app switched away from, a screen turned off — the timer
