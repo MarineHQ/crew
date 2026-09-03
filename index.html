@@ -1303,7 +1303,7 @@
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-04·c</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-04·d</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -5903,14 +5903,27 @@ function clockIn(){
     apiPost({action:"crewClockIn", email:ME.email, code:ME.code, vessel:v, other:other, lat:lat, lng:lng}).then(function(j){
       if(j&&j.ok){ var s=j.shift; c.in=true; c.at=s.inAt; c.vessel=s.vessel; c.loc=(lat!=null?"Location shared with Marine HQ":""); toast(other?("🟢 Clocked in — Marine HQ alerted about “"+v+"”"):("🟢 Clocked in at "+v+" — Marine HQ notified")); renderClock(); updateStrip(); loadShifts(); }
       else { toast((j&&j.error)||"Couldn’t clock in"); renderClock(); }
-    }).catch(function(){ toast("Couldn’t connect"); renderClock(); });
+    }).catch(function(){ toast("Couldn’t connect — not clocked in"); renderClock(); });
+  }
+  /* iOS does not always call either callback — a dismissed permission prompt or
+     the page losing focus and getCurrentPosition simply never returns. The button
+     then sits on "Getting location…" forever and NOTHING is sent, so the person
+     believes they clocked in when no row was ever written. Our own timer makes
+     sure the clock-in goes either way; a missing pin is a far smaller problem
+     than a missing shift. */
+  var sent=false;
+  function sendOnce(lat,lng,why){
+    if(sent) return; sent=true;
+    if(why) toast(why);
+    send(lat,lng);
   }
   if(navigator.geolocation){
+    var guard=setTimeout(function(){ sendOnce(null,null,"Clocked in without location"); }, 6000);
     navigator.geolocation.getCurrentPosition(
-      function(pos){ send(pos.coords.latitude, pos.coords.longitude); },
-      function(){ toast("Clocked in without location"); send(null,null); },
-      {enableHighAccuracy:true, timeout:8000, maximumAge:60000});
-  } else send(null,null);
+      function(pos){ clearTimeout(guard); sendOnce(pos.coords.latitude, pos.coords.longitude); },
+      function(){ clearTimeout(guard); sendOnce(null,null,"Clocked in without location"); },
+      {enableHighAccuracy:true, timeout:5000, maximumAge:60000});
+  } else sendOnce(null,null);
 }
 function clockOut(){
   apiPost({action:"crewClockOut", email:ME.email, code:ME.code}).then(function(j){
