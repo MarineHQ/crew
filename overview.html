@@ -155,6 +155,10 @@
 .totrow{display:flex;gap:10px;flex-wrap:wrap;margin:2px 0 10px}
 .tot{flex:1;min-width:96px;background:#eef3fa;border:1px solid #d8e2f0;border-radius:11px;padding:11px 13px}
 .tot.alt{background:#fff}
+.tot.live{background:#f2faf5;border-color:#cfe7d9}
+.tot.live b{color:#2e7d5b}
+.livetag{font-size:10.5px;font-weight:700;color:#2e7d5b;background:#e3f1ea;
+  border-radius:10px;padding:1px 7px;margin-left:5px;white-space:nowrap}
 .tot b{display:block;font-size:23px;color:#1A2B5C;font-variant-numeric:tabular-nums;line-height:1.1}
 .tot span{font-size:10.5px;color:#8a97ad;text-transform:uppercase;letter-spacing:.5px;font-weight:700}
 .roundnote{font-size:11.5px;color:#8a97ad;margin:0 0 14px;line-height:1.45}
@@ -289,7 +293,15 @@ var _hTick=null;
 function hTickAll(){
   var els=document.querySelectorAll("#v-hours .rel[data-start]");
   if(!els.length){ clearInterval(_hTick); _hTick=null; return; }
-  els.forEach(function(el){ el.firstChild.nodeValue = hElapsedFull(el.getAttribute("data-start")); });
+  var mins=0, now=new Date();
+  els.forEach(function(el){
+    var st=el.getAttribute("data-start");
+    el.firstChild.nodeValue = hElapsedFull(st);
+    var m=/^(\d{1,2}):(\d{2})$/.exec(st||"");
+    if(m){ var d=(now.getHours()*60+now.getMinutes())-((+m[1])*60+(+m[2])); if(d<0)d+=1440; mins+=d; }
+  });
+  var rt=document.querySelector("#v-hours .runtot");
+  if(rt) rt.textContent = hFmt(Math.round((mins/60)*100)/100);
 }
 function hStartTicking(){
   clearInterval(_hTick); _hTick=null;
@@ -340,17 +352,21 @@ function renderHours(){
     hStartTicking(); return;
   }
 
-  function tally(obj,total){
-    var ks=Object.keys(obj||{}).filter(function(k){return k&&obj[k];})
-             .sort(function(a,b){return obj[b]-obj[a];});
+  function tally(obj,total,live){
+    live=live||{};
+    var ks=Object.keys(obj||{}).filter(function(k){return k&&obj[k];});
+    Object.keys(live).forEach(function(k){ if(k && ks.indexOf(k)<0) ks.push(k); });
+    ks.sort(function(a,b){return (obj[b]||0)-(obj[a]||0);});
     if(!ks.length) return '<div class="muted">Nothing yet.</div>';
     var max=obj[ks[0]]||1;
     return ks.map(function(k){
       var pc=Math.round(100*obj[k]/max);
       var share=total?Math.round(100*obj[k]/total):0;
-      return '<div class="bar"><div class="blab">'+esc(k)+'</div>'+
+      var lv=live[k]||0;
+      return '<div class="bar"><div class="blab">'+esc(k)+
+          (lv?(' <span class="livetag">+'+hFmt(lv)+' running</span>'):'')+'</div>'+
         '<div class="btrack"><div class="bfill" style="width:'+pc+'%"></div></div>'+
-        '<div class="bval">'+hFmt(obj[k])+'<small>'+share+'%</small></div></div>';
+        '<div class="bval">'+hFmt(obj[k]||0)+'<small>'+share+'%</small></div></div>';
     }).join("");
   }
 
@@ -369,6 +385,15 @@ function renderHours(){
       '</div></div>';
   }).join("") || '<div class="muted">Nothing logged for this period.</div>';
 
+  /* Time still on the clock is real work but not earned hours — it changes every
+     second and nothing has been agreed. So it gets its own figure rather than
+     being folded into billable, and the crew running it are named. */
+  var runHrs=0, runBy={};
+  T.forEach(function(r){
+    if(HVESSEL && r.vessel!==HVESSEL) return;
+    if(HCREW && r.crew!==HCREW) return;
+    var h=(r.elapsedHours||0); runHrs+=h; runBy[r.crew]=(runBy[r.crew]||0)+h;
+  });
   var label = HPERIOD==="today" ? "Today" : (HPERIOD==="week" ? "This week" : esc(H.month));
   var diff = H.roundingDiff||0;
   var diffTxt = Math.abs(diff)<0.005 ? "no rounding difference"
@@ -383,10 +408,11 @@ function renderHours(){
         '<div class="tot"><b>'+hFmt(H.totalHours)+'</b><span>billable hrs</span></div>'+
         '<div class="tot alt"><b>'+hFmt(H.exactHours)+'</b><span>actual hrs</span></div>'+
         '<div class="tot alt"><b>'+H.count+'</b><span>entries</span></div>'+
+        (runHrs>0?('<div class="tot live"><b class="runtot">'+hFmt(runHrs)+'</b><span>still running</span></div>'):'')+
       '</div>'+
       '<div class="roundnote">Billable is rounded to the nearest quarter hour — '+diffTxt+' across this period.</div>'+
       '<div class="cols">'+
-        '<div><h4>By crew</h4>'+tally(H.byCrew,H.totalHours)+'</div>'+
+        '<div><h4>By crew</h4>'+tally(H.byCrew,H.totalHours,runBy)+'</div>'+
         '<div><h4>By yacht</h4>'+tally(H.byVessel,H.totalHours)+'</div>'+
         '<div><h4>By type</h4>'+tally(H.byCategory,H.totalHours)+'</div>'+
       '</div></div>'+
