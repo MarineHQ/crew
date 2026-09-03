@@ -125,6 +125,23 @@
   .wcode{font-family:ui-monospace,Menlo,monospace;font-size:10px;font-weight:700;background:#eef1f8;color:var(--navy);border:1px solid #dbe1f0;border-radius:5px;padding:0 4px;white-space:nowrap}
   .wnote{background:#fdf1de;border:1px solid #f0dcb8;color:#7a5410;border-radius:10px;padding:9px 12px;font-size:12.5px;margin-bottom:12px;line-height:1.45}
   .hidden{display:none!important}
+.cols{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));margin-top:4px}
+.cols h4{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#8a97ad;margin:0 0 8px;font-weight:700}
+.bar{display:grid;grid-template-columns:1fr 84px 54px;align-items:center;gap:9px;margin-bottom:7px}
+.blab{font-size:13px;color:#1A2B5C;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.btrack{background:#e8edf6;border-radius:4px;height:7px;overflow:hidden}
+.bfill{background:#497EA5;height:100%;border-radius:4px}
+.bval{font-size:12.5px;font-weight:700;color:#1A2B5C;text-align:right;font-variant-numeric:tabular-nums}
+.row{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid #e8edf6}
+.row:last-child{border-bottom:none}
+.row.warn{background:#fdf7ee;margin:0 -8px;padding:9px 8px;border-radius:8px}
+.rmain{flex:1;min-width:0}
+.rmain b{display:block;font-size:13.5px;color:#1A2B5C}
+.rmain span{display:block;font-size:12px;color:#5a6a84;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rmain span.sub{font-size:11px;color:#8a97ad}
+.rel{font-family:ui-monospace,Menlo,monospace;font-weight:700;font-size:15px;color:#c26a12;text-align:right;white-space:nowrap}
+.flag{display:block;font-family:inherit;font-size:10px;font-weight:700;color:#b5651d}
+.pipcount{background:#e87722;color:#fff;border-radius:20px;padding:1px 8px;font-size:12px;vertical-align:2px}
 </style>
 </head>
 <body>
@@ -136,6 +153,7 @@
   <button class="tab" data-t="jobs" onclick="go('jobs')">Jobs</button>
   <button class="tab" data-t="crew" onclick="go('crew')">By crew</button>
   <button class="tab" data-t="who" onclick="go('who')">Who's on what</button>
+  <button class="tab" data-t="hours" onclick="go('hours')">Hours</button>
   <button class="tab" data-t="certs" onclick="go('certs')">Certs</button>
 </div>
 <div class="wrap">
@@ -144,6 +162,7 @@
   <div id="v-jobs" class="hidden"></div>
   <div id="v-crew" class="hidden"></div>
   <div id="v-who" class="hidden"></div>
+  <div id="v-hours" class="hidden"></div>
   <div id="v-certs" class="hidden"></div>
 </div>
 <div class="footer-banner"><img src="footer-banner.jpg" alt="Marine HQ — 0439 748 387 · yachtsupport@marinehq.com.au"></div>
@@ -179,15 +198,84 @@ function dur(mins){var h=Math.floor(mins/60),m=mins%60;return (h?h+"h ":"")+m+"m
 function get(fn){return fetch(API+"?fn="+fn+"&key="+encodeURIComponent(KEY)+"&_="+Date.now()).then(function(r){return r.json();});}
 
 function unlock(){var v=(document.getElementById("gk").value||"").trim();if(!v)return;KEY=v;try{localStorage.setItem("mhq_crew_key",v);}catch(e){}document.getElementById("gate").classList.remove("show");loadAll();}
-function go(t){TAB=t;["now","shifts","jobs","crew","who","certs"].forEach(function(x){document.getElementById("v-"+x).classList.toggle("hidden",x!==t);});
+function go(t){TAB=t;["now","shifts","jobs","crew","who","hours","certs"].forEach(function(x){document.getElementById("v-"+x).classList.toggle("hidden",x!==t);});
   document.querySelectorAll(".tab").forEach(function(b){b.classList.toggle("on",b.dataset.t===t);});
   if(t==="now") setTimeout(function(){ if(map) map.invalidateSize(); },100);}
 
+/* ---------- HOURS: the director view of the crew hours ledger ----------
+   Three questions, in the order you'd actually ask them: who's on the clock
+   right this second, what has each person put down this month, and where did
+   it go. Everything comes from the one ledger, so these can't disagree. */
+function hoursMonth(){ var d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"); }
+function hFmt(h){ h=parseFloat(h)||0; return (Math.round(h*100)/100).toFixed(2).replace(/\.00$/,""); }
+function hElapsed(startHHMM){
+  var m=/^(\d{1,2}):(\d{2})$/.exec(startHHMM||""); if(!m) return "";
+  var now=new Date(), st=(+m[1])*60+(+m[2]), n=now.getHours()*60+now.getMinutes();
+  var d=n-st; if(d<0) d+=1440;
+  return Math.floor(d/60)+":"+String(d%60).padStart(2,"0");
+}
+function renderHours(){
+  var el=document.getElementById("v-hours"); if(!el) return;
+  var H=DATA.hours, T=DATA.timers||[];
+
+  /* running now — the bit that's only true for a moment, so it goes first */
+  var runHtml;
+  if(!T.length){
+    runHtml='<div class="muted" style="padding:10px 0">Nobody has a timer running.</div>';
+  } else {
+    runHtml=T.map(function(r){
+      return '<div class="row'+(r.overlong?' warn':'')+'">'+
+        '<div class="rmain"><b>'+esc(r.crew)+'</b>'+
+        '<span>'+(r.code?(esc(r.code)+' · '):'')+esc(r.task||'')+'</span>'+
+        '<span class="sub">'+esc(r.vessel||'')+' · since '+esc(r.start)+'</span></div>'+
+        '<div class="rel">'+hElapsed(r.start)+
+        (r.overlong?'<span class="flag">left running?</span>':'')+'</div></div>';
+    }).join("");
+  }
+
+  if(!H){
+    el.innerHTML='<div class="card"><h3>Running now</h3>'+runHtml+'</div>'+
+      '<div class="card"><h3>This month</h3><div class="muted">No hours logged yet this month.</div></div>';
+    return;
+  }
+
+  function tally(obj, unit){
+    var ks=Object.keys(obj||{}).filter(function(k){return k&&obj[k];})
+             .sort(function(a,b){return obj[b]-obj[a];});
+    if(!ks.length) return '<div class="muted">Nothing yet.</div>';
+    var max=obj[ks[0]]||1;
+    return ks.map(function(k){
+      var pc=Math.round(100*obj[k]/max);
+      return '<div class="bar"><div class="blab">'+esc(k)+'</div>'+
+        '<div class="btrack"><div class="bfill" style="width:'+pc+'%"></div></div>'+
+        '<div class="bval">'+hFmt(obj[k])+(unit||'')+'</div></div>';
+    }).join("");
+  }
+
+  var recent=(H.entries||[]).slice(0,25).map(function(e){
+    return '<div class="row"><div class="rmain"><b>'+esc(e.crew)+'</b>'+
+      '<span>'+(e.code?(esc(e.code)+' · '):'')+esc(e.task||'')+'</span>'+
+      '<span class="sub">'+esc(e.vessel||'')+' · '+esc(e.date)+
+      (e.start?(' · '+esc(e.start)+'–'+esc(e.finish||'…')):'')+'</span></div>'+
+      '<div class="rel">'+(e.finish?hFmt(e.hours):'—')+'</div></div>';
+  }).join("") || '<div class="muted">Nothing logged this month.</div>';
+
+  el.innerHTML=
+    '<div class="card"><h3>Running now'+(T.length?(' <span class="pipcount">'+T.length+'</span>'):'')+'</h3>'+runHtml+'</div>'+
+    '<div class="card"><h3>'+esc(H.month)+' — '+hFmt(H.totalHours)+' hrs across '+H.count+' entries</h3>'+
+    '<div class="cols">'+
+      '<div><h4>By crew</h4>'+tally(H.byCrew)+'</div>'+
+      '<div><h4>By vessel</h4>'+tally(H.byVessel)+'</div>'+
+      '<div><h4>By type</h4>'+tally(H.byCategory)+'</div>'+
+    '</div></div>'+
+    '<div class="card"><h3>Latest entries</h3>'+recent+'</div>';
+}
 function loadAll(){
   if(!KEY){document.getElementById("gate").classList.add("show");try{document.getElementById("gk").focus();}catch(e){}return;}
   document.getElementById("v-now").innerHTML='<div class="spin">Loading…</div>';
   Promise.all([get("crewonshift"),get("crewallshifts"),get("hub"),get("crewlist"),get("crewcerts&all=1"),
-               get("crewjobs&code="+encodeURIComponent(KEY)+"&all=1&mine=0")]).then(function(res){
+               get("crewjobs&code="+encodeURIComponent(KEY)+"&all=1&mine=0"),
+               get("crewhoursall&month="+hoursMonth()),get("crewtimersopen")]).then(function(res){
     if((res[0]&&res[0].locked)||(res[3]&&res[3].locked)){KEY="";try{localStorage.removeItem("mhq_crew_key");}catch(e){}document.getElementById("gate").classList.add("show");return;}
     document.getElementById("gate").classList.remove("show");   // the code worked — no need to ask
     DATA.onShift=(res[0]&&res[0].onShift)||[];
@@ -197,9 +285,11 @@ function loadAll(){
     DATA.certs=(res[4]&&res[4].certs)||[];
     DATA.certRoster=(res[4]&&res[4].roster)||[];
     DATA.wl=(res[5]&&res[5].jobs)||[];        // every boat's worklist — what crew are actually on
+    DATA.hours=(res[6]&&res[6].ok)?res[6]:null;      // this month's ledger, totalled
+    DATA.timers=(res[7]&&res[7].running)||[];        // timers running right now
     SHIFTC={};                                 // today moved on / data refreshed
     document.getElementById("refresh").textContent="Updated "+tclock(Date.now());
-    renderNow(); renderShifts(); renderJobs(); renderCrew(); renderWho(); renderCerts();
+    renderNow(); renderShifts(); renderJobs(); renderCrew(); renderWho(); renderCerts(); renderHours();
   }).catch(function(){document.getElementById("v-now").innerHTML='<div class="empty">Couldn’t load — check your connection.</div>';});
 }
 
