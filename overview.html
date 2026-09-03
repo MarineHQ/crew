@@ -13,7 +13,15 @@
 <style>
   :root{--navy:#1A2B5C;--navy2:#1B3A5C;--orange:#E87722;--ink:#22303f;--muted:#6b7a8d;--line:#e3e8ef;--bg:#f4f6f9;--card:#fff;--ok:#1F7A54;--amber:#B77410;--red:#C0472A;--blue:#2A5DB0;--grey:#7a869a;}
   *{box-sizing:border-box}
-  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--ink);-webkit-text-size-adjust:100%}
+  /* Sticky footer. The banner sits after the content, so on a short tab — Certs,
+     or Hours before anything is logged — it floated up into the middle of the
+     screen. Now the content column grows and the banner is pushed to the bottom
+     however little there is above it. dvh so an iPhone's address bar doesn't
+     leave a gap under it. */
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--ink);
+    -webkit-text-size-adjust:100%;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column}
+  body > .wrap{flex:1 0 auto}
+  body > .footer-banner{flex:none;margin-top:auto}
   header{background:linear-gradient(135deg,var(--navy),var(--navy2));color:#fff;padding:14px 16px;position:sticky;top:0;z-index:20}
   header .inner{max-width:940px;margin:0 auto;display:flex;align-items:center;gap:11px}
   .appbanner{width:100%;background:#1B3A6B;line-height:0}
