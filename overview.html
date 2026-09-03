@@ -22,8 +22,15 @@
   .logo{width:34px;height:34px;border-radius:9px;background:var(--orange);display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:14px;flex-shrink:0}
   header h1{font-size:16px;margin:0} header p{margin:2px 0 0;font-size:11px;opacity:.82}
   header .refresh{margin-left:auto;font-size:11px;opacity:.8}
-  .tabs{max-width:940px;margin:0 auto;display:flex;gap:6px;padding:12px 16px 0;overflow-x:auto}
+  /* Wrap rather than scroll sideways. With seven tabs the strip ran past a phone
+     screen and auto-scrolled itself to reach the active one, which reads as the
+     whole page having slid off to the left. */
+  .tabs{max-width:940px;margin:0 auto;display:flex;flex-wrap:wrap;gap:6px;padding:12px 16px 0}
   .tab{white-space:nowrap;border:0;background:#fff;border:1px solid var(--line);color:var(--muted);font-size:13px;font-weight:bold;padding:9px 15px;border-radius:22px;cursor:pointer}
+  @media (max-width:430px){
+    .tabs{gap:5px;padding:10px 12px 0}
+    .tab{font-size:12px;padding:8px 11px}
+  }
   .tab.on{background:var(--navy);color:#fff;border-color:var(--navy)}
   .wrap{max-width:940px;margin:0 auto;padding:14px 16px 60px}
   .kpis{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
