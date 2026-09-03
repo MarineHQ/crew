@@ -297,7 +297,7 @@
   .chban .cb-l b{display:block;font-size:12px;color:#c26a12;letter-spacing:.02em}
   .chban .cb-l span{display:block;font-size:12.5px;color:var(--navy);overflow:hidden;
     text-overflow:ellipsis;white-space:nowrap}
-  .chban .cb-t{font-family:ui-monospace,Menlo,monospace;font-size:19px;font-weight:800;color:#c26a12}
+  .chban .cb-t{font-family:ui-monospace,Menlo,monospace;font-size:17px;font-weight:800;color:#c26a12;font-variant-numeric:tabular-nums;letter-spacing:-.5px}
   .chban .cb-s{border:none;background:#c1443b;color:#fff;border-radius:9px;padding:9px 15px;
     font-size:13.5px;font-weight:800;font-family:inherit;cursor:pointer}
   .chbox{border:1.5px solid var(--line);border-radius:12px;padding:13px;background:#fff}
@@ -1303,7 +1303,7 @@
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-04·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-04·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2291,6 +2291,27 @@ function chElapsed(startHHMM){
   var d=n-s; if(d<0) d+=1440;
   return String(Math.floor(d/60))+":"+String(d%60).padStart(2,"0");
 }
+/* With seconds, so it visibly moves. A counter that sits still looks broken —
+   crew need to see at a glance that the thing is actually running. */
+function chElapsedFull(startHHMM){
+  var m=/^(\d{1,2}):(\d{2})$/.exec(startHHMM||""); if(!m) return "";
+  var now=new Date();
+  var startS=((+m[1])*60+(+m[2]))*60;
+  var nowS=now.getHours()*3600+now.getMinutes()*60+now.getSeconds();
+  var d=nowS-startS; if(d<0) d+=86400;
+  var h=Math.floor(d/3600), mi=Math.floor((d%3600)/60), se=d%60;
+  return h+":"+String(mi).padStart(2,"0")+":"+String(se).padStart(2,"0");
+}
+/* One ticker for every counter on screen. Stops itself when nothing is running
+   and when the app is in the background — no point burning a phone's battery
+   redrawing a screen nobody is looking at. */
+function chTickAll(){
+  if(!(CHTIMER&&CHTIMER.running)) return;
+  var t=chElapsedFull(CHTIMER.start);
+  var b=document.querySelector("#chBanner .cb-t"); if(b) b.textContent=t;
+  var x=document.querySelector("#chBox .el");      if(x) x.textContent=t;
+  var y=document.querySelector("#chDayBox .el");   if(y) y.textContent=t;
+}
 /* Pull the running timer and today's entries. Called on load and after every
    start/stop so the screen never disagrees with the sheet. */
 var _chLast=0, _chBusy=false;
@@ -2318,11 +2339,9 @@ function chPaint(){
   var b=$("chBox"); if(b&&openJobId) b.innerHTML=chBoxHtml(openJobId);
   var d=$("chDayBox"); if(d) d.innerHTML=chDayHtml();
   clearInterval(_chTick);
-  if(CHTIMER&&CHTIMER.running){
-    _chTick=setInterval(function(){
-      var el=document.querySelector("#chBox .el"); if(el&&CHTIMER) el.textContent=chElapsed(CHTIMER.start);
-      var e2=document.querySelector("#chDayBox .el"); if(e2&&CHTIMER) e2.textContent=chElapsed(CHTIMER.start);
-    },30000);
+  if(CHTIMER&&CHTIMER.running && document.visibilityState!=="hidden"){
+    chTickAll();
+    _chTick=setInterval(chTickAll,1000);
   }
 }
 /* The box inside a job. Three states: running on THIS job, running on another,
@@ -2341,7 +2360,7 @@ function chBanner(){
     el.className="chban";
     el.innerHTML='<div class="cb-l"><b>\u25cf Running</b><span>'+esc(CHTIMER.task||"a job")+
       (CHTIMER.vessel?(' \u00b7 '+esc(CHTIMER.vessel)):'')+'</span></div>'+
-      '<div class="cb-t el">'+chElapsed(CHTIMER.start)+'</div>'+
+      '<div class="cb-t el">'+chElapsedFull(CHTIMER.start)+'</div>'+
       '<button class="cb-s" onclick="chStop()">Stop</button>';
   } else { el.className="chban hidden"; el.innerHTML=""; }
 }
@@ -2354,7 +2373,7 @@ function chBoxHtml(key){
   var done = n ? ('<div class="chtot" style="margin-bottom:9px">\u2713 '+chFmt(todayHrs)+' logged today on this job</div>') : '';
   if(mine){
     return '<div class="chbox on">'+done+
-      '<div class="chrun"><div><div class="el">'+chElapsed(CHTIMER.start)+'</div>'+
+      '<div class="chrun"><div><div class="el">'+chElapsedFull(CHTIMER.start)+'</div>'+
       '<div class="lb">started '+esc(CHTIMER.start)+'</div></div></div>'+
       (CHTIMER.overlong?'<div class="chwarn">This has been running a long time \u2014 stop it and set the right finish time.</div>':'')+
       '<button class="chbtn stop" onclick="chStop()">\u25a0 Stop</button></div>';
@@ -2462,7 +2481,8 @@ function chDel(entryId){
    lives in the sheet, but the SCREEN has to go and ask again when it comes back or
    it will happily show "Start" on a job that is already running. */
 document.addEventListener("visibilitychange", function(){
-  if(document.visibilityState === "visible" && ME) chLoad();
+  if(document.visibilityState === "hidden"){ clearInterval(_chTick); return; }
+  if(ME){ chPaint(); chLoad(); }   // repaint instantly from what we know, then verify
 });
 window.addEventListener("focus", function(){ if(ME) chLoad(); });
 
