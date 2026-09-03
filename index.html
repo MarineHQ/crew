@@ -289,6 +289,28 @@
   .tbar.fill{background:var(--ok)}
 
   /* status control */
+  /* --- task timer --- */
+  .chbox{border:1.5px solid var(--line);border-radius:12px;padding:13px;background:#fff}
+  .chbox.on{border-color:#e8a05a;background:#fff8f0}
+  .chrun{display:flex;align-items:center;gap:12px}
+  .chrun .el{font-family:ui-monospace,Menlo,monospace;font-size:29px;font-weight:800;color:#c26a12;line-height:1;letter-spacing:-.5px}
+  .chrun .lb{font-size:11.5px;color:var(--muted);margin-top:3px}
+  .chbtn{width:100%;border:none;border-radius:11px;padding:14px;font-size:15.5px;font-weight:800;
+    color:#fff;font-family:inherit;margin-top:11px;cursor:pointer}
+  .chbtn.go{background:#2e7d5b}
+  .chbtn.stop{background:#c1443b}
+  .chbtn.sec{background:#fff;color:var(--navy);border:1.5px solid var(--line);font-weight:700}
+  .chtot{font-size:13px;color:var(--navy);font-weight:700}
+  .chwarn{font-size:12px;color:#8a5a12;background:#fdf3e3;border:1px solid #f0dcb8;
+    border-radius:8px;padding:8px 10px;margin-top:9px}
+  .chrow{display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:1px solid var(--line)}
+  .chrow:last-child{border-bottom:none}
+  .chrow .t{flex:1;min-width:0}
+  .chrow .t b{display:block;font-size:13.5px;color:var(--navy)}
+  .chrow .t span{font-size:11.5px;color:var(--muted);font-family:ui-monospace,Menlo,monospace}
+  .chrow .h{font-family:ui-monospace,Menlo,monospace;font-weight:700;font-size:14px;color:var(--navy)}
+  .chrow .ed{border:none;background:none;color:var(--muted);font-size:15px;cursor:pointer;padding:2px 4px}
+  .actbtn.hours{background:#fff;color:var(--navy);border:1.5px solid var(--line)}
   .statusrow{display:flex;align-items:center;gap:10px}
   .statusrow label{font-size:12px;font-weight:bold;color:var(--muted)}
   .statusrow select{flex:1;border:1px solid var(--line);border-radius:9px;padding:10px;font-size:13.5px;font-weight:bold;color:var(--navy);font-family:inherit;background:#fff}
@@ -1270,7 +1292,7 @@
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-01·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-03·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1280,6 +1302,7 @@
        so this space is free). The page gets padding underneath so it never covers
        content — unlike the floating buttons it replaces. -->
   <div class="actbar hidden" id="actBar">
+    <button class="actbtn hours" id="fabHours" onclick="openMyHours()">⏱ My hours <small>(today)</small></button>
     <button class="actbtn log" id="fabLog" onclick="openWorkLog()">✓ Log job <small>(already done)</small></button>
     <button class="actbtn raise" id="fab" onclick="openRaise()">＋ Raise a job <small>(to do)</small></button>
   </div>
@@ -1375,6 +1398,15 @@
   <input type="file" id="r_phIn" accept="image/*" multiple style="display:none" onchange="stagedAdd('r_ph',this)">
   <button class="go" onclick="submitRaise()">Send to Marine HQ</button>
   <button class="cancel" onclick="closeModal('raiseModal')">Cancel</button>
+</div></div>
+
+<!-- My hours — the end-of-day check. Everything logged today, editable, with
+     the shift cross-check so a missing job is obvious before the day is gone. -->
+<div class="modal" id="myHoursModal"><div class="card2">
+  <h3>⏱ My hours today</h3>
+  <p class="mhint">Tap ✎ to fix a start or finish time. Do it now while you remember — once the day is on a job card it needs a director.</p>
+  <div id="chDayBox"></div>
+  <button class="cancel" onclick="closeModal('myHoursModal')">Close</button>
 </div></div>
 
 <!-- Work Log — work already DONE that was never on a worklist. No approval step. -->
@@ -2032,6 +2064,7 @@ function enterReal(crew, shift){
   if(shift && shift.open){ ME.clock.in=true; ME.clock.at=shift.inAt; ME.clock.vessel=shift.vessel; ME.clock.loc=shift.loc||""; }
   $("signedInAs").textContent = "Signed in as " + ME.name;
   try{ MHQPush.signIn(ME.code); }catch(e){}      // tie push on this phone to this person
+  try{ chLoad(); }catch(e){}                     // running timer + today's hours
   $("login").classList.add("hidden"); $("app").classList.remove("hidden");
   go("jobs"); refreshAll();
   try{ MHQQ.refresh().then(function(){ MHQQ.drain(); }); }catch(e){}   // photos parked on this phone last time
@@ -2232,6 +2265,145 @@ function renderVesselBar(){
 }
 function pickVessel(v){ CURVESSEL=v; WLCLOSED={}; WLSEC={}; loadListInfo(v); renderVesselBar(); if(TAB==="maint"){ if(v==="__all__") loadFleetCare(); else loadCare(v); } else if(TAB==="induct") loadInduct(); else loadJobs(); }
 // Open the Command Centre, passing the director's code so it unlocks (no 2nd passcode).
+/* ============================================================
+   TASK TIMER — start / stop on a job, and the end-of-day check.
+   The clock the crew actually touch. Two taps replace the EOD form:
+   Start when they pick the job up, Stop when they put it down.
+   Everything else (code, vessel, category) rides along from the job.
+   ============================================================ */
+var CHTIMER=null, CHDAY=null, _chTick=null;
+
+function chFmt(h){ h=parseFloat(h)||0; return (Math.round(h*100)/100).toFixed(2).replace(/\.00$/,"")+" hrs"; }
+function chElapsed(startHHMM){
+  var m=/^(\d{1,2}):(\d{2})$/.exec(startHHMM||""); if(!m) return "";
+  var now=new Date(), s=(+m[1])*60+(+m[2]), n=now.getHours()*60+now.getMinutes();
+  var d=n-s; if(d<0) d+=1440;
+  return String(Math.floor(d/60))+":"+String(d%60).padStart(2,"0");
+}
+/* Pull the running timer and today's entries. Called on load and after every
+   start/stop so the screen never disagrees with the sheet. */
+function chLoad(){
+  if(!ME) return Promise.resolve();
+  var q="code="+encodeURIComponent(ME.code||"")+"&email="+encodeURIComponent(ME.email||"");
+  return Promise.all([ apiGet("fn=crewtimer&"+q).catch(function(){return null;}),
+                       apiGet("fn=crewday&"+q).catch(function(){return null;}) ])
+    .then(function(r){
+      CHTIMER=(r[0]&&r[0].ok)?r[0]:null;
+      CHDAY  =(r[1]&&r[1].ok)?r[1]:null;
+      chPaint();
+    });
+}
+function chPaint(){
+  var b=$("chBox"); if(b&&openJobId) b.innerHTML=chBoxHtml(openJobId);
+  var d=$("chDayBox"); if(d) d.innerHTML=chDayHtml();
+  clearInterval(_chTick);
+  if(CHTIMER&&CHTIMER.running){
+    _chTick=setInterval(function(){
+      var el=document.querySelector("#chBox .el"); if(el&&CHTIMER) el.textContent=chElapsed(CHTIMER.start);
+      var e2=document.querySelector("#chDayBox .el"); if(e2&&CHTIMER) e2.textContent=chElapsed(CHTIMER.start);
+    },30000);
+  }
+}
+/* The box inside a job. Three states: running on THIS job, running on another,
+   or not running — and the third is the one that has to be a single obvious tap. */
+function chBoxHtml(key){
+  var mine=(CHTIMER&&CHTIMER.running&&CHTIMER.jobKey===key);
+  var todayHrs=0, n=0;
+  if(CHDAY&&CHDAY.entries) CHDAY.entries.forEach(function(e){
+    if(e.jobKey===key&&!e.running){ todayHrs+=e.hours; n++; }
+  });
+  var done = n ? ('<div class="chtot" style="margin-bottom:9px">\u2713 '+chFmt(todayHrs)+' logged today on this job</div>') : '';
+  if(mine){
+    return '<div class="chbox on">'+done+
+      '<div class="chrun"><div><div class="el">'+chElapsed(CHTIMER.start)+'</div>'+
+      '<div class="lb">started '+esc(CHTIMER.start)+'</div></div></div>'+
+      (CHTIMER.overlong?'<div class="chwarn">This has been running a long time \u2014 stop it and set the right finish time.</div>':'')+
+      '<button class="chbtn stop" onclick="chStop()">\u25a0 Stop</button></div>';
+  }
+  var other = (CHTIMER&&CHTIMER.running)
+    ? ('<div class="chwarn">You\u2019re on <b>'+esc(CHTIMER.task||"another job")+'</b> since '+esc(CHTIMER.start)+
+       '. Starting here will stop that one.</div>') : '';
+  return '<div class="chbox">'+done+other+
+    '<button class="chbtn go" onclick="chStart(\''+esc(String(key).replace(/'/g,"\\'"))+'\')">\u25b6 Start</button>'+
+    '<button class="chbtn sec" onclick="chManual(\''+esc(String(key).replace(/'/g,"\\'"))+'\')">Enter times by hand</button></div>';
+}
+function chStart(key){
+  if(!ME) return;
+  apiPost({action:"crewTaskStart", email:ME.email, code:ME.code, jobKey:key}).then(function(r){
+    if(!r||!r.ok){ toast((r&&r.error)||"Couldn\u2019t start"); return; }
+    if(r.autoStopped) toast("Stopped "+(r.autoStopped.task||"the last job")+" \u2014 "+chFmt(r.autoStopped.hours));
+    else toast("Started");
+    chLoad();
+  });
+}
+function chStop(finish, brk, confirmLong){
+  if(!ME) return;
+  var body={action:"crewTaskStop", email:ME.email, code:ME.code};
+  if(finish) body.finish=finish;
+  if(brk!=null) body.breakMins=brk;
+  if(confirmLong) body.confirm=true;
+  apiPost(body).then(function(r){
+    if(r&&r.needsConfirm){
+      var t=prompt(r.message+"\n\nFinish time (24h, e.g. 15:30) \u2014 or OK to confirm "+r.hours+" hrs:", r.finish||"");
+      if(t===null) return;
+      if(t.trim()&&t.trim()!==r.finish) return chStop(t.trim(), brk, false);
+      return chStop(r.finish, brk, true);
+    }
+    if(!r||!r.ok){ toast((r&&r.error)||"Couldn\u2019t stop"); return; }
+    toast("Logged "+chFmt(r.hours)+" \u00b7 "+r.start+"\u2013"+r.finish);
+    chLoad();
+  });
+}
+/* The fallback. They will forget to tap Start — this has to exist or those
+   hours are simply lost, which is worse than a slightly rough number. */
+function chManual(key){
+  var st=prompt("Start time (24h, e.g. 07:00)",""); if(st===null||!st.trim()) return;
+  var fi=prompt("Finish time (24h, e.g. 13:00)",""); if(fi===null||!fi.trim()) return;
+  var br=prompt("Break in minutes (0 if none)","0"); if(br===null) return;
+  apiPost({action:"crewHoursLog", email:ME.email, code:ME.code, jobKey:key,
+           start:st.trim(), finish:fi.trim(), breakMins:(parseInt(br,10)||0)}).then(function(r){
+    if(!r||!r.ok){ toast((r&&r.error)||"Couldn\u2019t save"); return; }
+    toast("Logged "+chFmt(r.hours)); chLoad();
+  });
+}
+/* End of day: everything logged today, editable, with the shift cross-check. */
+function chDayHtml(){
+  if(!CHDAY) return '<div style="font-size:13px;color:var(--muted)">Loading\u2026</div>';
+  if(!CHDAY.entries.length) return '<div style="font-size:13px;color:var(--muted)">Nothing logged today yet.</div>';
+  var rows=CHDAY.entries.map(function(e){
+    var t = e.running ? ('<span class="el">'+chElapsed(e.start)+'</span> running')
+                      : (esc(e.start)+'\u2013'+esc(e.finish)+(e.breakMins?(' \u00b7 '+e.breakMins+'m break'):''));
+    return '<div class="chrow"><div class="t"><b>'+esc(e.task||"(job)")+'</b><span>'+
+      (e.code?(esc(e.code)+' \u00b7 '):'')+t+'</span></div>'+
+      '<div class="h">'+(e.running?'\u2014':chFmt(e.hours))+'</div>'+
+      (e.running?'':'<button class="ed" title="Fix times" onclick="chEdit(\''+esc(e.entryId)+'\')">\u270e</button>')+
+      '</div>';
+  }).join("");
+  var gap="";
+  if(CHDAY.shiftHours>0){
+    var u=CHDAY.unallocated;
+    gap = '<div class="chwarn" style="margin-top:10px;'+(Math.abs(u)<0.26?'background:#eaf5ee;border-color:#bfe0cc;color:#2e7d5b':'')+'">'+
+      'Clocked on the boat: <b>'+chFmt(CHDAY.shiftHours)+'</b> \u00b7 logged on jobs: <b>'+chFmt(CHDAY.loggedHours)+'</b>'+
+      (Math.abs(u)<0.26 ? ' \u2014 that ties up.' : (u>0 ? (' \u2014 <b>'+chFmt(u)+'</b> not on a job yet.') : ' \u2014 more on jobs than clocked.'))+'</div>';
+  }
+  return rows+'<div class="chtot" style="margin-top:11px">Today: '+chFmt(CHDAY.loggedHours)+' across '+CHDAY.count+' job'+(CHDAY.count===1?'':'s')+'</div>'+gap;
+}
+function chEdit(entryId){
+  var e=(CHDAY&&CHDAY.entries||[]).filter(function(x){return x.entryId===entryId;})[0]; if(!e) return;
+  var st=prompt("Start time",e.start||""); if(st===null) return;
+  var fi=prompt("Finish time",e.finish||""); if(fi===null) return;
+  var br=prompt("Break in minutes",String(e.breakMins||0)); if(br===null) return;
+  apiPost({action:"crewHoursEdit", email:ME.email, code:ME.code, entryId:entryId,
+           start:st.trim(), finish:fi.trim(), breakMins:(parseInt(br,10)||0)}).then(function(r){
+    if(!r||!r.ok){ toast((r&&r.error)||"Couldn\u2019t save"); return; }
+    toast("Updated \u2014 "+chFmt(r.hours)); chLoad();
+  });
+}
+function openMyHours(){
+  $("myHoursModal").classList.add("show");
+  var d=$("chDayBox"); if(d) d.innerHTML=chDayHtml();
+  chLoad();
+}
 function openCommand(){ try{ if(ME&&ME.code) localStorage.setItem("mhq_crew_key", ME.code); }catch(e){} location.href="overview.html"; }
 /* What's Due — scheduled maintenance from the maintenance schedule → add to a worklist */
 var DUE_ITEMS=[], DUE_ALL=[], DUE_VESSEL="__all__";
@@ -4218,6 +4390,7 @@ function openWLJob(key){
     reqBlock+
     acceptHTML+
     crewAssignHTML+
+    '<div class="sec"><h4>Time on this job</h4><div id="chBox">'+chBoxHtml(key)+'</div></div>'+
     '<div class="sec"><h4>Status</h4><div class="pillrow">'+pills+'</div>'+(j.completed?('<div class="apprOn" style="margin-top:8px">✓ Completed '+esc(j.completed)+' <span class="wlnote-ed" style="cursor:pointer" onclick="openCompleteModal(\''+esc(key)+'\')">✎ Edit date</span></div>'):'')+'</div>'+
     assignHTML+offerHTML+
     dueHTML+
