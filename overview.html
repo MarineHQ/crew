@@ -137,6 +137,30 @@
   .wcode{font-family:ui-monospace,Menlo,monospace;font-size:10px;font-weight:700;background:#eef1f8;color:var(--navy);border:1px solid #dbe1f0;border-radius:5px;padding:0 4px;white-space:nowrap}
   .wnote{background:#fdf1de;border:1px solid #f0dcb8;color:#7a5410;border-radius:10px;padding:9px 12px;font-size:12.5px;margin-bottom:12px;line-height:1.45}
   .hidden{display:none!important}
+/* --- hours view --- */
+.hchips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
+.hchips.sub{margin-bottom:8px}
+.hchip{border:1px solid var(--line);background:#fff;color:var(--muted);font-size:12.5px;
+  font-weight:700;padding:7px 13px;border-radius:20px;cursor:pointer;font-family:inherit}
+.hchips.sub .hchip{font-size:11.5px;padding:5px 11px}
+.hchip.on{background:#1A2B5C;color:#fff;border-color:#1A2B5C}
+.totrow{display:flex;gap:10px;flex-wrap:wrap;margin:2px 0 10px}
+.tot{flex:1;min-width:96px;background:#eef3fa;border:1px solid #d8e2f0;border-radius:11px;padding:11px 13px}
+.tot.alt{background:#fff}
+.tot b{display:block;font-size:23px;color:#1A2B5C;font-variant-numeric:tabular-nums;line-height:1.1}
+.tot span{font-size:10.5px;color:#8a97ad;text-transform:uppercase;letter-spacing:.5px;font-weight:700}
+.roundnote{font-size:11.5px;color:#8a97ad;margin:0 0 14px;line-height:1.45}
+.gdot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#2e7d5b;margin-right:7px;
+  box-shadow:0 0 0 3px rgba(46,125,91,.16);vertical-align:1px}
+.row.run{background:#f2faf5;margin:0 -8px;padding:10px 8px;border-radius:9px;border-bottom:none;
+  border:1px solid #cfe7d9;margin-bottom:7px}
+.row.run.warn{background:#fdf7ee;border-color:#f0dcb8}
+.row.run .gdot{flex:none;margin-right:2px}
+.hpair{text-align:right;white-space:nowrap;min-width:74px}
+.hpair b{display:block;font-family:ui-monospace,Menlo,monospace;font-size:15px;color:#1A2B5C;
+  font-variant-numeric:tabular-nums}
+.hpair small{display:block;font-size:10.5px;color:#8a97ad;margin-top:1px}
+.bval small{display:block;font-size:10px;color:#8a97ad;font-weight:600}
 .cols{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));margin-top:4px}
 .cols h4{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#8a97ad;margin:0 0 8px;font-weight:700}
 .bar{display:grid;grid-template-columns:1fr 84px 54px;align-items:center;gap:9px;margin-bottom:7px}
@@ -219,6 +243,22 @@ function go(t){TAB=t;["now","shifts","jobs","crew","who","hours","certs"].forEac
    right this second, what has each person put down this month, and where did
    it go. Everything comes from the one ledger, so these can't disagree. */
 function hoursMonth(){ var d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"); }
+function hDay(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+var HPERIOD="month", HVESSEL="", HCREW="";
+/* Week runs Monday to Sunday — the way a roster reads, not the way JS numbers days. */
+function hoursQuery(){
+  var q=[], now=new Date();
+  if(HPERIOD==="today"){ q.push("from="+hDay(now),"to="+hDay(now)); }
+  else if(HPERIOD==="week"){
+    var dow=(now.getDay()+6)%7, mon=new Date(now); mon.setDate(now.getDate()-dow);
+    var sun=new Date(mon); sun.setDate(mon.getDate()+6);
+    q.push("from="+hDay(mon),"to="+hDay(sun));
+  } else { q.push("month="+hoursMonth()); }
+  if(HVESSEL) q.push("vessel="+encodeURIComponent(HVESSEL));
+  if(HCREW)   q.push("crew="+encodeURIComponent(HCREW));
+  return q.join("&");
+}
+function hSet(k,v){ if(k==="p")HPERIOD=v; if(k==="v")HVESSEL=v; if(k==="c")HCREW=v; loadAll(); }
 function hFmt(h){ h=parseFloat(h)||0; return (Math.round(h*100)/100).toFixed(2).replace(/\.00$/,""); }
 function hElapsed(startHHMM){
   var m=/^(\d{1,2}):(\d{2})$/.exec(startHHMM||""); if(!m) return "";
@@ -257,58 +297,92 @@ function renderHours(){
   var el=document.getElementById("v-hours"); if(!el) return;
   var H=DATA.hours, T=DATA.timers||[];
 
-  /* running now — the bit that's only true for a moment, so it goes first */
-  var runHtml;
-  if(!T.length){
-    runHtml='<div class="muted" style="padding:10px 0">Nobody has a timer running.</div>';
-  } else {
-    runHtml=T.map(function(r){
-      return '<div class="row'+(r.overlong?' warn':'')+'">'+
-        '<div class="rmain"><b>'+esc(r.crew)+'</b>'+
-        '<span>'+(r.code?(esc(r.code)+' · '):'')+esc(r.task||'')+'</span>'+
-        '<span class="sub">'+esc(r.vessel||'')+' · since '+esc(r.start)+'</span></div>'+
-        '<div class="rel" data-start="'+esc(r.start)+'">'+hElapsedFull(r.start)+
-        (r.overlong?'<span class="flag">left running?</span>':'')+'</div></div>';
-    }).join("");
+  /* filters first — everything below answers "for which slice?" */
+  function chip(k,v,lab,on){
+    return '<button class="hchip'+(on?' on':'')+'" onclick="hSet(\''+k+'\',\''+
+      String(v).replace(/'/g,"\\'")+'\')">'+esc(lab)+'</button>';
   }
+  var periodBar='<div class="hchips">'+
+    chip("p","today","Today",HPERIOD==="today")+
+    chip("p","week","This week",HPERIOD==="week")+
+    chip("p","month","This month",HPERIOD==="month")+'</div>';
+  var vesselBar='', crewBar='';
+  if(H){
+    vesselBar='<div class="hchips sub">'+chip("v","","All yachts",!HVESSEL)+
+      (H.vessels||[]).map(function(v){return chip("v",v,v,HVESSEL===v);}).join("")+'</div>';
+    crewBar='<div class="hchips sub">'+chip("c","","All crew",!HCREW)+
+      (H.crewNames||[]).map(function(c){return chip("c",c,c,HCREW===c);}).join("")+'</div>';
+  }
+
+  var runHtml = !T.length
+    ? '<div class="muted" style="padding:10px 0">Nobody has a timer running.</div>'
+    : T.map(function(r){
+        return '<div class="row run'+(r.overlong?' warn':'')+'">'+
+          '<span class="gdot"></span>'+
+          '<div class="rmain"><b>'+esc(r.crew)+'</b>'+
+          '<span>'+(r.code?(esc(r.code)+' · '):'')+esc(r.task||'')+'</span>'+
+          '<span class="sub">'+esc(r.vessel||'')+' · started '+esc(r.start)+'</span></div>'+
+          '<div class="rel" data-start="'+esc(r.start)+'">'+hElapsedFull(r.start)+
+          (r.overlong?'<span class="flag">left running?</span>':'')+'</div></div>';
+      }).join("");
 
   if(!H){
-    el.innerHTML='<div class="card"><h3>Running now</h3>'+runHtml+'</div>'+
-      '<div class="card"><h3>This month</h3><div class="muted">No hours logged yet this month.</div></div>';
-    hStartTicking();
-    return;
+    el.innerHTML=periodBar+'<div class="card"><h3><span class="gdot"></span>Running now</h3>'+runHtml+'</div>'+
+      '<div class="card"><h3>Nothing logged for this period</h3></div>';
+    hStartTicking(); return;
   }
 
-  function tally(obj, unit){
+  function tally(obj,total){
     var ks=Object.keys(obj||{}).filter(function(k){return k&&obj[k];})
              .sort(function(a,b){return obj[b]-obj[a];});
     if(!ks.length) return '<div class="muted">Nothing yet.</div>';
     var max=obj[ks[0]]||1;
     return ks.map(function(k){
       var pc=Math.round(100*obj[k]/max);
+      var share=total?Math.round(100*obj[k]/total):0;
       return '<div class="bar"><div class="blab">'+esc(k)+'</div>'+
         '<div class="btrack"><div class="bfill" style="width:'+pc+'%"></div></div>'+
-        '<div class="bval">'+hFmt(obj[k])+(unit||'')+'</div></div>';
+        '<div class="bval">'+hFmt(obj[k])+'<small>'+share+'%</small></div></div>';
     }).join("");
   }
 
-  var recent=(H.entries||[]).slice(0,25).map(function(e){
+  var recent=(H.entries||[]).slice(0,30).map(function(e){
+    var exact=e.exactMins||0;
+    var eh=Math.floor(exact/60), em=exact%60;
+    var rounded=(e.finish && Math.abs(e.hours-(exact/60))>0.001);
     return '<div class="row"><div class="rmain"><b>'+esc(e.crew)+'</b>'+
       '<span>'+(e.code?(esc(e.code)+' · '):'')+esc(e.task||'')+'</span>'+
       '<span class="sub">'+esc(e.vessel||'')+' · '+esc(e.date)+
-      (e.start?(' · '+esc(e.start)+'–'+esc(e.finish||'…')):'')+'</span></div>'+
-      '<div class="rel">'+(e.finish?hFmt(e.hours):'—')+'</div></div>';
-  }).join("") || '<div class="muted">Nothing logged this month.</div>';
+      (e.start?(' · '+esc(e.start)+'–'+esc(e.finish||'…')):'')+
+      (e.breakMins?(' · '+e.breakMins+'m break'):'')+'</span></div>'+
+      '<div class="hpair">'+
+        (e.finish?('<b>'+hFmt(e.hours)+'</b><small>'+(eh?eh+'h ':'')+em+'m actual'+
+                   (rounded?' · rounded':'')+'</small>'):'<b>—</b><small>running</small>')+
+      '</div></div>';
+  }).join("") || '<div class="muted">Nothing logged for this period.</div>';
+
+  var label = HPERIOD==="today" ? "Today" : (HPERIOD==="week" ? "This week" : esc(H.month));
+  var diff = H.roundingDiff||0;
+  var diffTxt = Math.abs(diff)<0.005 ? "no rounding difference"
+    : ((diff>0?"+":"")+hFmt(diff)+" hrs from rounding");
 
   el.innerHTML=
-    '<div class="card"><h3>Running now'+(T.length?(' <span class="pipcount">'+T.length+'</span>'):'')+'</h3>'+runHtml+'</div>'+
-    '<div class="card"><h3>'+esc(H.month)+' — '+hFmt(H.totalHours)+' hrs across '+H.count+' entries</h3>'+
-    '<div class="cols">'+
-      '<div><h4>By crew</h4>'+tally(H.byCrew)+'</div>'+
-      '<div><h4>By vessel</h4>'+tally(H.byVessel)+'</div>'+
-      '<div><h4>By type</h4>'+tally(H.byCategory)+'</div>'+
-    '</div></div>'+
-    '<div class="card"><h3>Latest entries</h3>'+recent+'</div>';
+    periodBar+vesselBar+crewBar+
+    '<div class="card"><h3><span class="gdot"></span>Running now'+
+      (T.length?(' <span class="pipcount">'+T.length+'</span>'):'')+'</h3>'+runHtml+'</div>'+
+    '<div class="card"><h3>'+label+'</h3>'+
+      '<div class="totrow">'+
+        '<div class="tot"><b>'+hFmt(H.totalHours)+'</b><span>billable hrs</span></div>'+
+        '<div class="tot alt"><b>'+hFmt(H.exactHours)+'</b><span>actual hrs</span></div>'+
+        '<div class="tot alt"><b>'+H.count+'</b><span>entries</span></div>'+
+      '</div>'+
+      '<div class="roundnote">Billable is rounded to the nearest quarter hour — '+diffTxt+' across this period.</div>'+
+      '<div class="cols">'+
+        '<div><h4>By crew</h4>'+tally(H.byCrew,H.totalHours)+'</div>'+
+        '<div><h4>By yacht</h4>'+tally(H.byVessel,H.totalHours)+'</div>'+
+        '<div><h4>By type</h4>'+tally(H.byCategory,H.totalHours)+'</div>'+
+      '</div></div>'+
+    '<div class="card"><h3>Entries</h3>'+recent+'</div>';
   hStartTicking();
 }
 function loadAll(){
@@ -316,7 +390,7 @@ function loadAll(){
   document.getElementById("v-now").innerHTML='<div class="spin">Loading…</div>';
   Promise.all([get("crewonshift"),get("crewallshifts"),get("hub"),get("crewlist"),get("crewcerts&all=1"),
                get("crewjobs&code="+encodeURIComponent(KEY)+"&all=1&mine=0"),
-               get("crewhoursall&month="+hoursMonth()),get("crewtimersopen")]).then(function(res){
+               get("crewhoursall&"+hoursQuery()),get("crewtimersopen")]).then(function(res){
     if((res[0]&&res[0].locked)||(res[3]&&res[3].locked)){KEY="";try{localStorage.removeItem("mhq_crew_key");}catch(e){}document.getElementById("gate").classList.add("show");return;}
     document.getElementById("gate").classList.remove("show");   // the code worked — no need to ask
     DATA.onShift=(res[0]&&res[0].onShift)||[];
