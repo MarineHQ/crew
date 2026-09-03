@@ -322,6 +322,11 @@
   .chrow .ed{border:none;background:none;color:var(--muted);font-size:15px;cursor:pointer;padding:2px 4px}
   .chrow .ed.del{color:#c1443b}
   .actbtn.hours{background:#fff;color:var(--navy);border:1.5px solid var(--line)}
+  .clockerr{background:#fdecea;border:1.5px solid #e6a49d;border-radius:12px;padding:13px 15px;margin-bottom:12px}
+  .clockerr b{display:block;color:#a3352c;font-size:14px;margin-bottom:3px}
+  .clockerr span{display:block;color:#7a4a45;font-size:13px;line-height:1.45;margin-bottom:10px}
+  .clockerr button{border:none;background:#a3352c;color:#fff;border-radius:9px;padding:10px 16px;
+    font-size:14px;font-weight:800;font-family:inherit;cursor:pointer}
   .statusrow{display:flex;align-items:center;gap:10px}
   .statusrow label{font-size:12px;font-weight:bold;color:var(--muted)}
   .statusrow select{flex:1;border:1px solid var(--line);border-radius:9px;padding:10px;font-size:13.5px;font-weight:bold;color:var(--navy);font-family:inherit;background:#fff}
@@ -1303,7 +1308,7 @@
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-04·d</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-04·e</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -5895,15 +5900,17 @@ function fmtElapsed(ms){ var s=Math.max(0,Math.floor(ms/1000)); return pad2(Math
 function fmtClockTime(ms){ var d=new Date(ms), h=d.getHours(), m=d.getMinutes(), ap=h<12?"am":"pm", hh=h%12; if(hh===0)hh=12; return hh+":"+pad2(m)+" "+ap; }
 function shiftDur(mins){ var h=Math.floor(mins/60), m=mins%60; return (h?h+"h ":"")+m+"m"; }
 function clockIn(){
-  var sel=$("clockVessel").value, c=clk(), v, other=false;
+  var vsel=$("clockVessel");
+  if(!vsel){ clockFail("The boat picker isn't on screen — reload the app and try again."); return; }
+  var sel=vsel.value, c=clk(), v, other=false;
   if(sel==="__other__"){ v=($("clockOther").value||"").trim(); if(!v){ toast("Type the yacht name"); return; } other=true; }
   else { v=sel; }
   var btn=document.querySelector(".clockbtn.doin"); if(btn){ btn.textContent="📍 Getting location…"; btn.disabled=true; }
   function send(lat,lng){
     apiPost({action:"crewClockIn", email:ME.email, code:ME.code, vessel:v, other:other, lat:lat, lng:lng}).then(function(j){
       if(j&&j.ok){ var s=j.shift; c.in=true; c.at=s.inAt; c.vessel=s.vessel; c.loc=(lat!=null?"Location shared with Marine HQ":""); toast(other?("🟢 Clocked in — Marine HQ alerted about “"+v+"”"):("🟢 Clocked in at "+v+" — Marine HQ notified")); renderClock(); updateStrip(); loadShifts(); }
-      else { toast((j&&j.error)||"Couldn’t clock in"); renderClock(); }
-    }).catch(function(){ toast("Couldn’t connect — not clocked in"); renderClock(); });
+      else { clockFail((j&&j.error)||"The server refused it and didn’t say why."); }
+    }).catch(function(e){ clockFail("Couldn’t reach Marine HQ — check your signal."); });
   }
   /* iOS does not always call either callback — a dismissed permission prompt or
      the page losing focus and getCurrentPosition simply never returns. The button
@@ -5930,6 +5937,19 @@ function clockOut(){
     if(j&&j.ok){ var c=clk(), s=j.shift; c.in=false; toast("Clocked out — "+shiftDur(s.minutes)+" · add what you did below"); renderClock(); updateStrip(); loadShifts(); }
     else { toast((j&&j.error)||"Couldn’t clock out"); }
   }).catch(function(){ toast("Couldn’t connect"); });
+}
+/* A failed clock-in used to be a toast that slid away in three seconds. People
+   then went to work believing they were on the clock while nothing had been
+   written at all. It stays on screen now, says what actually went wrong, and
+   offers to try again. */
+function clockFail(msg){
+  var cc=$("clockCard"); if(!cc){ alert("Clock in failed: "+msg); return; }
+  renderClock();
+  var box=document.createElement("div");
+  box.className="clockerr";
+  box.innerHTML='<b>⚠️ Not clocked in</b><span>'+esc(msg)+'</span>'+
+    '<button onclick="clockIn()">Try again</button>';
+  cc.insertBefore(box, cc.firstChild);
 }
 function renderClock(){
   var c=clk();
