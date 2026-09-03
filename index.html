@@ -290,6 +290,16 @@
 
   /* status control */
   /* --- task timer --- */
+  .chban{display:flex;align-items:center;gap:11px;background:#fff4e6;border:1.5px solid #e8a05a;
+    border-radius:12px;padding:10px 12px;margin:0 4px 12px}
+  .chban.hidden{display:none}
+  .chban .cb-l{flex:1;min-width:0}
+  .chban .cb-l b{display:block;font-size:12px;color:#c26a12;letter-spacing:.02em}
+  .chban .cb-l span{display:block;font-size:12.5px;color:var(--navy);overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap}
+  .chban .cb-t{font-family:ui-monospace,Menlo,monospace;font-size:19px;font-weight:800;color:#c26a12}
+  .chban .cb-s{border:none;background:#c1443b;color:#fff;border-radius:9px;padding:9px 15px;
+    font-size:13.5px;font-weight:800;font-family:inherit;cursor:pointer}
   .chbox{border:1.5px solid var(--line);border-radius:12px;padding:13px;background:#fff}
   .chbox.on{border-color:#e8a05a;background:#fff8f0}
   .chrun{display:flex;align-items:center;gap:12px}
@@ -1293,7 +1303,7 @@
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-03·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-03·c</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2295,6 +2305,7 @@ function chLoad(){
     });
 }
 function chPaint(){
+  chBanner();
   var b=$("chBox"); if(b&&openJobId) b.innerHTML=chBoxHtml(openJobId);
   var d=$("chDayBox"); if(d) d.innerHTML=chDayHtml();
   clearInterval(_chTick);
@@ -2307,6 +2318,24 @@ function chPaint(){
 }
 /* The box inside a job. Three states: running on THIS job, running on another,
    or not running — and the third is the one that has to be a single obvious tap. */
+/* One line pinned above the worklist whenever something is running. Without it a
+   live timer is only visible inside the job it belongs to, which is exactly where
+   you don't look when you've forgotten about it. */
+function chBanner(){
+  var el=$("chBanner");
+  if(!el){
+    var host=$("tab-jobs"); if(!host) return;
+    el=document.createElement("div"); el.id="chBanner"; el.className="chban hidden";
+    host.insertBefore(el, host.firstChild);
+  }
+  if(CHTIMER && CHTIMER.running){
+    el.className="chban";
+    el.innerHTML='<div class="cb-l"><b>\u25cf Running</b><span>'+esc(CHTIMER.task||"a job")+
+      (CHTIMER.vessel?(' \u00b7 '+esc(CHTIMER.vessel)):'')+'</span></div>'+
+      '<div class="cb-t el">'+chElapsed(CHTIMER.start)+'</div>'+
+      '<button class="cb-s" onclick="chStop()">Stop</button>';
+  } else { el.className="chban hidden"; el.innerHTML=""; }
+}
 function chBoxHtml(key){
   var mine=(CHTIMER&&CHTIMER.running&&CHTIMER.jobKey===key);
   var todayHrs=0, n=0;
@@ -2412,6 +2441,14 @@ function chDel(entryId){
     toast("Deleted"); chLoad();
   });
 }
+/* A phone that slept, an app switched away from, a screen turned off — the timer
+   lives in the sheet, but the SCREEN has to go and ask again when it comes back or
+   it will happily show "Start" on a job that is already running. */
+document.addEventListener("visibilitychange", function(){
+  if(document.visibilityState === "visible" && ME) chLoad();
+});
+window.addEventListener("focus", function(){ if(ME) chLoad(); });
+
 function openMyHours(){
   $("myHoursModal").classList.add("show");
   var d=$("chDayBox"); if(d) d.innerHTML=chDayHtml();
@@ -4268,7 +4305,8 @@ var WLSTATUS=["To do","In hand","Complete"];
 function wlBucketToStatus(j){ var b=hubBucket(j.status); return b==="Done"?"Complete":(b==="In progress"?"In hand":"To do"); }
 function openWLJob(key){
   var j=wlFind(key); if(!j)return;
-  openJobId=key; WLMENTIONS=[]; WLLANE=""; PHTAG="";   // a Before left on last week must not mislabel today
+  openJobId=key; WLMENTIONS=[]; WLLANE=""; PHTAG="";
+  try{ chLoad(); }catch(e){}   // the box below must reflect the sheet, not a stale copy   // a Before left on last week must not mislabel today
   var pool=(j.oj && typeof OFITEMS!=="undefined" && OFITEMS.length) ? OFITEMS : CREWJOBS;
   var inList=pool.filter(function(x){return (x.list||"")===(j.list||"");}); var num=inList.indexOf(j)+1;
   var cur=wlBucketToStatus(j);
