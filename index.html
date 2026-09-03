@@ -1303,7 +1303,7 @@
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-04·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-04·c</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2883,7 +2883,7 @@ function checkPendingAccepts(){
 }
 // Tapping an OFFERED task in the approve pop-up: land on the Jobs tab where the
 // "Unassigned tasks" card carries the ✓ Accept button (crew accept from there).
-function welcomeGoOffers(){ closeWelcome(); OFFERCLOSED=false; go("jobs"); }
+function welcomeGoOffers(){ closeWelcome(); OFFERCLOSED=false; try{ localStorage.setItem("mhq_offers_open","1"); }catch(e){} go("jobs"); }
 function maybeWelcomePopup(evs){
   if(window._wpopLock) return;                                  // an urgent "please accept" prompt owns the pop-up
   if(!evs||!evs.length) return;
@@ -3911,7 +3911,19 @@ function cmGo(){
   }).catch(function(){ b.disabled=false; toast("Couldn’t connect"); });
 }
 /* ---- Jobs on offer (crew): unassigned jobs anyone can claim ---- */
-var OFFERCLOSED=false;
+/* Collapsed on open. It sits above the worklists and can run to dozens of rows,
+   so leaving it expanded means scrolling past it every single time to reach the
+   lists you actually came for. The count stays on the header, so nothing is
+   hidden — and whichever way you last left it is remembered per person. */
+var OFFERCLOSED=(function(){
+  try{ var v=localStorage.getItem("mhq_offers_open"); return v==="1" ? false : true; }
+  catch(e){ return true; }
+})();
+function offersToggle(){
+  OFFERCLOSED=!OFFERCLOSED;
+  try{ localStorage.setItem("mhq_offers_open", OFFERCLOSED?"0":"1"); }catch(e){}
+  renderJobs();
+}
 function renderOffer(){
   if(SCHEDVIEW || !CREWOPEN || !CREWOPEN.length) return "";
   var mgr=isMgrRole(), c=OFFERCLOSED?" closed":"";
@@ -3957,7 +3969,7 @@ function renderOffer(){
     ord.sort();
     body=ord.map(function(v){ return '<div class="offvessel">🛥 '+esc(v)+' <span>'+byV[v].length+'</span></div>'+byV[v].map(offCard).join(""); }).join("");
   } else { body=open.map(offCard).join(""); }
-  return '<div class="offacc'+c+'" onclick="OFFERCLOSED=!OFFERCLOSED;renderJobs()"><span class="car">▾</span><h3>🗂 Unassigned tasks'+(drilled?(' · '+esc(CURVESSEL)):'')+'</h3><span class="n newn">'+openAll.length+'</span></div>'+
+  return '<div class="offacc'+c+'" onclick="offersToggle()"><span class="car">▾</span><h3>🗂 Unassigned tasks'+(drilled?(' · '+esc(CURVESSEL)):'')+'</h3><span class="n newn">'+openAll.length+'</span></div>'+
     '<div class="offbody'+c+'">'+pills+body+'</div>';
 }
 function crewClaim(key){
