@@ -204,16 +204,22 @@
   .cmt{font-size:13px;font-weight:600;color:var(--ink);line-height:1.35}
   .cmcarry{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#8a5a12;background:#fdf1e3;border-radius:5px;padding:1px 6px;margin-left:7px;vertical-align:middle}
   .cmsegs{display:flex;gap:5px;margin:7px 0 5px}
-  .cmseg{flex:1;border:1.5px solid var(--line);background:#fff;color:var(--muted);border-radius:8px;padding:6px 4px;font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit}
+  .cmseg{flex:1;border:1.5px solid var(--line);background:#fff;color:var(--muted);border-radius:8px;padding:6px 2px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap}
   .cmseg.on{color:#fff;border-color:transparent}
   .cmseg.on.roll{background:var(--navy)}
   .cmseg.on.yard{background:#2C5273}
   .cmseg.on.close{background:#9a3b2a}
+  .cmseg.on.hold{background:#b7791f}
+  .cmseg.on.list{background:#0f766e}
+  .cmpick{display:flex;gap:6px;margin:0 0 6px}
+  .cmpick select,.cmpick input{flex:1;min-width:0;border:1.5px solid #0f766e;border-radius:8px;padding:7px 8px;font-size:12.5px;font-family:inherit;color:var(--ink);background:#fff}
+  .cmpick input{border-color:var(--line)}
   .cmto{font-size:11.5px;color:var(--muted)}
   .cmall{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:2px 0 10px}
   .cmalll{font-size:11.5px;color:var(--muted);font-weight:700}
   .cmallb{border:1.5px solid var(--line);background:#fff;color:var(--navy);border-radius:8px;padding:5px 11px;font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit}
   .cmallb:active{background:#eef4fb}
+  .cmallb.on{background:#0f766e;color:#fff;border-color:transparent}
   .cmlist{max-height:46vh;overflow-y:auto}
   .secstate{font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;background:rgba(255,255,255,.22);border-radius:5px;padding:2px 7px;margin-left:8px;vertical-align:middle}
   .wlsec.old .secstate{background:rgba(26,43,92,.10)}
@@ -1308,7 +1314,7 @@
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-04·f</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-04·g</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -3607,7 +3613,20 @@ function wlSections(order, groups){
     var wN=buckets.waiting.reduce(function(n,g){ return n+wlSplit(groups[g]).live.length; },0);
     html+=wlSection("wait", 'Waiting <span class="secstate waiting">Not live</span>', wN+' waiting', 'wait', draw(buckets.waiting), false);
   }
-  if(buckets.earlier.length) html+=wlSection("earl","Earlier months", buckets.earlier.length, 'old', draw(buckets.earlier), false);
+  // Each earlier month is its own heading with its own Report and Close month —
+  // a month doesn't stop being closable because a newer one was started first
+  // (Ara Roa 0826 was still live after her 0926 list was born, 4 Sep 2026).
+  if(buckets.earlier.length){
+    var byP={}, pOrder=[];
+    buckets.earlier.forEach(function(g){ var r=LISTINFO[(g||"").toLowerCase()], p=(r&&r.period)||""; if(!byP[p]){ byP[p]=[]; pOrder.push(p); } byP[p].push(g); });
+    pOrder.forEach(function(p, ix){
+      var ls=byP[p], eN=ls.reduce(function(n,g){ return n+wlSplit(groups[g]).live.length; },0);
+      var pj=esc(p.replace(/'/g,"\\'"));
+      var eb=p?('<button class="secbtn" onclick="event.stopPropagation();reportDlg(\''+pj+'\')">Report</button>'+
+                '<button class="secbtn" onclick="event.stopPropagation();closeMonthDlg(\''+pj+'\')">Close month</button>'):'';
+      html+=wlSection("earl"+(p||ix), esc(CURVESSEL)+(p?(' &middot; '+esc(p)):'')+' <span class="secstate earlier">Earlier</span>', eN+' open', 'old', draw(ls), false, eb);
+    });
+  }
   if(buckets.closed.length){
     var cP=(G.closed[0]&&G.closed[0].period)||"";
     var cBtn=cP?('<button class="secbtn dark" onclick="event.stopPropagation();reportDlg(\''+esc(cP.replace(/'/g,"\\'"))+'\')">Report</button>'):'';
@@ -3839,7 +3858,7 @@ function buildReport(){
    as not done with the reason. Always previewed before it writes. */
 var CM={period:"", dispo:"roll", reason:"", preview:null};
 function closeMonthDlg(period){
-  CM={period:period, dispo:"roll", reason:"", preview:null};
+  CM={period:period, dispo:"roll", reason:"", preview:null}; CMNEW={};
   $("closeMonthTitle").textContent = "Close "+CURVESSEL+" · "+period;
   $("cmBody").innerHTML='<div class="loadingbox"><span class="spin"></span> Working out what would happen…</div>';
   $("cmGo").style.display="none";
@@ -3865,39 +3884,85 @@ function cmPreview(){
     cmRender();
   }).catch(function(){ $("cmBody").innerHTML='<div class="empty">Couldn’t connect.</div>'; });
 }
-var CMLBL={roll:"Carry over", yard:"Shipyard", close:"Not doing"};
+/* Five honest answers for an unfinished job (Trish, 4 Sep 2026): carry it, send
+   it to the yard, park it On hold, move it onto ANY other list on the boat by
+   name, or close it as not done. A "list:" value carries the list name. */
+var CMWAYS=["roll","yard","hold","list","close"];
+var CMLBL={roll:"Carry over", yard:"Shipyard", hold:"On hold", list:"Other list", close:"Not doing"};
+var CMNEW={};                                    // job key (or "*") -> typing a new list name
+function cmWayOf(key){ var w=CMWAY[key]||"roll"; return w.indexOf("list:")===0?"list":w; }
+function cmListOf(key){ var w=CMWAY[key]||""; return w.indexOf("list:")===0?w.substring(5):""; }
+function cmJs(s){ return esc((s||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'")); }
+/* Where "Other list" can send a task: this boat's lists that aren't the month
+   being closed and aren't closed themselves. Shipyard and On hold have their
+   own buttons so they're left out here. */
+function cmLists(){
+  var out=[], seen={}, vlc=(CURVESSEL||"").toLowerCase();
+  var closing={}; ((CM.preview&&CM.preview.lists)||[]).forEach(function(l){ closing[(l||"").toLowerCase()]=1; });
+  Object.keys(LISTINFO||{}).forEach(function(k){
+    var r=LISTINFO[k]; if(!r||!r.list) return;
+    if(r.vessel && (r.vessel||"").toLowerCase()!==vlc) return;
+    if(r.state==="closed" || closing[k] || seen[k]) return;
+    if(/^(coming for shipyard|on hold)$/i.test((r.sub||r.list||"").trim())) return;
+    seen[k]=1; out.push(r.list);
+  });
+  out.sort(); return out;
+}
+function cmPickHTML(key){
+  var cur=cmListOf(key), ls=cmLists(), isNew=!!CMNEW[key] || (!!cur && ls.indexOf(cur)<0);   // a typed name that isn't a list yet stays visible
+  var opts='<option value="">Pick a list\u2026</option>'+ls.map(function(l){
+      return '<option value="'+esc(l)+'"'+((!isNew&&l===cur)?' selected':'')+'>'+esc(l)+'</option>'; }).join("")+
+    '<option value="__new"'+(isNew?' selected':'')+'>\uFF0B New list\u2026</option>';
+  return '<div class="cmpick"><select onchange="cmPickList(\''+cmJs(key)+'\',this.value)">'+opts+'</select>'+
+    (isNew?('<input placeholder="New list name" value="'+esc(cur)+'" onchange="cmNewList(\''+cmJs(key)+'\',this.value)">'):'')+'</div>';
+}
+function cmApply(key, w){
+  if(key==="*"){ Object.keys(CMWAY).forEach(function(k){ CMWAY[k]=w; }); } else CMWAY[key]=w;
+}
+function cmPickList(key, v){
+  if(v==="__new"){ CMNEW[key]=true; if(key==="*") CMWAY["*"]="list:"; cmApply(key, cmListOf(key)&&cmLists().indexOf(cmListOf(key))<0?CMWAY[key]:"list:"); cmRender(); return; }
+  delete CMNEW[key]; if(key==="*") CMWAY["*"]="list:"+v; cmApply(key, "list:"+v); cmRender();
+}
+function cmNewList(key, name){ name=(name||"").trim(); if(key==="*") CMWAY["*"]="list:"+name; cmApply(key, "list:"+name); cmRender(); }
 function cmDestText(x){
-  var w=CMWAY[x.key]||"roll";
+  var w=cmWayOf(x.key);
   if(w==="yard")  return "Coming for shipyard";
-  if(w==="close") return "closed — not done";
+  if(w==="hold")  return "On hold";
+  if(w==="list")  return cmListOf(x.key) || "pick a list";
+  if(w==="close") return "closed \u2014 not done";
   return x.to;
 }
 function cmTally(){
-  var t={roll:0,yard:0,close:0};
-  Object.keys(CMWAY).forEach(function(k){ t[CMWAY[k]]=(t[CMWAY[k]]||0)+1; });
+  var t={roll:0,yard:0,hold:0,list:0,close:0,unnamed:0};
+  Object.keys(CMWAY).forEach(function(k){ if(k==="*") return; var w=cmWayOf(k); t[w]=(t[w]||0)+1; if(w==="list"&&!cmListOf(k)) t.unnamed++; });
   return t;
 }
-function cmSetAll(w){ Object.keys(CMWAY).forEach(function(k){ CMWAY[k]=w; }); cmRender(); }
-function cmSet(key,w){ CMWAY[key]=w; cmRender(); }
+function cmSetAll(w){
+  if(w==="list"){ var all=CMWAY["*"]||"list:"; delete CMWAY["*"]; cmApply("*", all); CMWAY["*"]=all; cmRender(); return; }
+  delete CMWAY["*"]; delete CMNEW["*"]; cmApply("*", w); cmRender();
+}
+function cmSet(key,w){ delete CMNEW[key]; CMWAY[key]=(w==="list")?("list:"+(cmListOf(key)||"")):w; cmRender(); }
 function cmRender(){
   var r=CM.preview; if(!r) return;
   var jobs=r.rolled, moving=jobs.length, t=cmTally();
+  var allList = ("*" in CMWAY);
   var setAll='<div class="cmall"><span class="cmalll">Send all:</span>'+
-    ["roll","yard","close"].map(function(w){
-      return '<button class="cmallb" onclick="cmSetAll(\''+w+'\')">'+CMLBL[w]+'</button>';
-    }).join("")+'</div>';
+    CMWAYS.map(function(w){
+      return '<button class="cmallb'+((w==="list"&&allList)?' on':'')+'" onclick="cmSetAll(\''+w+'\')">'+CMLBL[w]+'</button>';
+    }).join("")+'</div>'+(allList?cmPickHTML("*"):"");
   var rows=jobs.map(function(x){
-    var w=CMWAY[x.key]||"roll";
-    var seg=["roll","yard","close"].map(function(o){
-      return '<button class="cmseg'+(w===o?" on "+o:"")+'" onclick="cmSet(\''+esc((x.key||"").replace(/'/g,"\\'"))+'\',\''+o+'\')">'+CMLBL[o]+'</button>';
+    var w=cmWayOf(x.key);
+    var seg=CMWAYS.map(function(o){
+      return '<button class="cmseg'+(w===o?" on "+o:"")+'" onclick="cmSet(\''+cmJs(x.key)+'\',\''+o+'\')">'+CMLBL[o]+'</button>';
     }).join("");
     var carried=(w==="roll"&&x.carried>1)?('<span class="cmcarry">carried '+x.carried+'×</span>'):'';
     return '<div class="cmrow2"><div class="cmt">'+esc(x.task)+carried+'</div>'+
-      '<div class="cmsegs">'+seg+'</div>'+
+      '<div class="cmsegs">'+seg+'</div>'+(w==="list"?cmPickHTML(x.key):"")+
       '<div class="cmto">→ '+esc(cmDestText(x))+'</div></div>';
   }).join("");
   var bits=[]; if(t.roll)bits.push(t.roll+' carrying into '+esc(r.nextPeriod||"next month"));
-  if(t.yard)bits.push(t.yard+' to shipyard'); if(t.close)bits.push(t.close+' closed');
+  if(t.yard)bits.push(t.yard+' to shipyard'); if(t.hold)bits.push(t.hold+' on hold');
+  if(t.list)bits.push(t.list+' to another list'); if(t.close)bits.push(t.close+' closed');
   $("cmBody").innerHTML=
     '<p class="mhint"><b>'+r.kept+'</b> finished — they stay on '+esc(CM.period)+' as the month’s record.<br>'+
     (moving?('<b>'+moving+'</b> unfinished — send each one where it belongs.'):'Nothing outstanding — the month is finished.')+'</p>'+
@@ -3905,16 +3970,22 @@ function cmRender(){
     (t.close ? ('<label class="fld">'+(t.close===1?'Why isn’t that one happening?':'Why aren’t those '+t.close+' happening?')+'</label>'+
        '<input class="fld-in" id="cmReason" placeholder="e.g. she went back in the water" value="'+esc(CM.reason)+'" oninput="CM.reason=this.value">') : '');
   $("cmGo").style.display="";
-  $("cmGo").textContent = moving ? ("Close "+CM.period+" · "+bits.join(", ")) : ("Close "+CM.period);
+  // A task sent to "Other list" with no list named has nowhere to go — hold the button.
+  $("cmGo").disabled = t.unnamed>0;
+  $("cmGo").textContent = t.unnamed ? ("Pick a list for "+t.unnamed+(t.unnamed===1?" task":" tasks"))
+                        : moving ? ("Close "+CM.period+" · "+bits.join(", ")) : ("Close "+CM.period);
 }
 function cmGo(){
   var b=$("cmGo"); b.disabled=true; b.textContent="Closing…";
+  var per={}; Object.keys(CMWAY).forEach(function(k){ if(k!=="*") per[k]=CMWAY[k]; });
   apiPost({action:"crewMonthClose", email:ME.email, code:ME.code, vessel:CURVESSEL,
-           period:CM.period, dispo:"roll", perTask:CMWAY, reason:CM.reason}).then(function(r){
+           period:CM.period, dispo:"roll", perTask:per, reason:CM.reason}).then(function(r){
     b.disabled=false;
     if(!r||!r.ok){ toast((r&&r.error)||"Couldn’t close the month"); b.textContent="Close "+CM.period; return; }
     closeModal("closeMonthModal");
-    toast("✓ "+CM.period+" closed — "+r.rolled.length+" carried, "+r.toYard.length+" to shipyard, "+r.closed.length+" closed");
+    var held=(r.held||[]).length, moved=(r.moved||[]).length;
+    toast("✓ "+CM.period+" closed — "+r.rolled.length+" carried, "+r.toYard.length+" to shipyard"+
+          (held?(", "+held+" on hold"):"")+(moved?(", "+moved+" moved"):"")+", "+r.closed.length+" closed");
     _liFor=""; loadListInfo(CURVESSEL); loadJobs();
   }).catch(function(){ b.disabled=false; toast("Couldn’t connect"); });
 }
