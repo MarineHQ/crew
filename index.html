@@ -310,6 +310,7 @@
   .chrow .t span{font-size:11.5px;color:var(--muted);font-family:ui-monospace,Menlo,monospace}
   .chrow .h{font-family:ui-monospace,Menlo,monospace;font-weight:700;font-size:14px;color:var(--navy)}
   .chrow .ed{border:none;background:none;color:var(--muted);font-size:15px;cursor:pointer;padding:2px 4px}
+  .chrow .ed.del{color:#c1443b}
   .actbtn.hours{background:#fff;color:var(--navy);border:1.5px solid var(--line)}
   .statusrow{display:flex;align-items:center;gap:10px}
   .statusrow label{font-size:12px;font-weight:bold;color:var(--muted)}
@@ -1292,7 +1293,7 @@
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-03·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-03·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2377,6 +2378,7 @@ function chDayHtml(){
       (e.code?(esc(e.code)+' \u00b7 '):'')+t+'</span></div>'+
       '<div class="h">'+(e.running?'\u2014':chFmt(e.hours))+'</div>'+
       (e.running?'':'<button class="ed" title="Fix times" onclick="chEdit(\''+esc(e.entryId)+'\')">\u270e</button>')+
+      (e.running?'':'<button class="ed del" title="Delete this entry" onclick="chDel(\''+esc(e.entryId)+'\')">\u2715</button>')+
       '</div>';
   }).join("");
   var gap="";
@@ -2397,6 +2399,17 @@ function chEdit(entryId){
            start:st.trim(), finish:fi.trim(), breakMins:(parseInt(br,10)||0)}).then(function(r){
     if(!r||!r.ok){ toast((r&&r.error)||"Couldn\u2019t save"); return; }
     toast("Updated \u2014 "+chFmt(r.hours)); chLoad();
+  });
+}
+/* A wrong tap shouldn't need a director. Crew can remove their own entry right
+   up until the day lands on a job card — after that it's a real record. */
+function chDel(entryId){
+  var e=(CHDAY&&CHDAY.entries||[]).filter(function(x){return x.entryId===entryId;})[0];
+  var what = e ? (chFmt(e.hours)+" on "+(e.task||"this job")) : "this entry";
+  if(!confirm("Delete "+what+"?")) return;
+  apiPost({action:"crewHoursDelete", email:ME.email, code:ME.code, entryId:entryId}).then(function(r){
+    if(!r||!r.ok){ toast((r&&r.error)||"Couldn\u2019t delete"); return; }
+    toast("Deleted"); chLoad();
   });
 }
 function openMyHours(){
