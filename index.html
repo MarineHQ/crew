@@ -1308,7 +1308,7 @@
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-04·e</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-04·f</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2403,8 +2403,11 @@ function chStart(key){
   apiPost({action:"crewTaskStart", email:ME.email, code:ME.code, jobKey:key}).then(function(r){
     if(!r||!r.ok){ toast((r&&r.error)||"Couldn\u2019t start"); CHTIMER=null; chLoad(true); return; }
     if(r.autoStopped) toast("Stopped "+(r.autoStopped.task||"the last job")+" \u2014 "+chFmt(r.autoStopped.hours));
+    else if(r.clockedIn) toast("Started \u2014 and clocked you in at "+(r.clockedIn.vessel||"the boat"));
     else toast("Started");
-    chLoad();
+    if(r.clockedIn){ var c=clk(); c.in=true; c.at=r.clockedIn.at||Date.now(); c.vessel=r.clockedIn.vessel;
+                     try{ renderClock(); updateStrip(); }catch(e){} }
+    chLoad(true);
   });
 }
 function chStop(finish, brk, confirmLong){
