@@ -144,7 +144,7 @@
 .rmain b{display:block;font-size:13.5px;color:#1A2B5C}
 .rmain span{display:block;font-size:12px;color:#5a6a84;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rmain span.sub{font-size:11px;color:#8a97ad}
-.rel{font-family:ui-monospace,Menlo,monospace;font-weight:700;font-size:15px;color:#c26a12;text-align:right;white-space:nowrap}
+.rel{font-family:ui-monospace,Menlo,monospace;font-weight:700;font-size:14.5px;color:#c26a12;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;letter-spacing:-.4px}
 .flag{display:block;font-family:inherit;font-size:10px;font-weight:700;color:#b5651d}
 .pipcount{background:#e87722;color:#fff;border-radius:20px;padding:1px 8px;font-size:12px;vertical-align:2px}
 </style>
@@ -219,6 +219,33 @@ function hElapsed(startHHMM){
   var d=n-st; if(d<0) d+=1440;
   return Math.floor(d/60)+":"+String(d%60).padStart(2,"0");
 }
+/* Same stopwatch as the crew app. Several people can be running at once, so each
+   row carries its own start and the one ticker updates them all. */
+function hElapsedFull(startHHMM){
+  var m=/^(\d{1,2}):(\d{2})$/.exec(startHHMM||""); if(!m) return "";
+  var now=new Date();
+  var startS=((+m[1])*60+(+m[2]))*60;
+  var nowS=now.getHours()*3600+now.getMinutes()*60+now.getSeconds();
+  var d=nowS-startS; if(d<0) d+=86400;
+  var h=Math.floor(d/3600), mi=Math.floor((d%3600)/60), se=d%60;
+  return h+":"+String(mi).padStart(2,"0")+":"+String(se).padStart(2,"0");
+}
+var _hTick=null;
+function hTickAll(){
+  var els=document.querySelectorAll("#v-hours .rel[data-start]");
+  if(!els.length){ clearInterval(_hTick); _hTick=null; return; }
+  els.forEach(function(el){ el.firstChild.nodeValue = hElapsedFull(el.getAttribute("data-start")); });
+}
+function hStartTicking(){
+  clearInterval(_hTick); _hTick=null;
+  if(document.visibilityState==="hidden") return;
+  if(!document.querySelectorAll("#v-hours .rel[data-start]").length) return;
+  hTickAll(); _hTick=setInterval(hTickAll,1000);
+}
+document.addEventListener("visibilitychange", function(){
+  if(document.visibilityState==="hidden"){ clearInterval(_hTick); _hTick=null; }
+  else hStartTicking();
+});
 function renderHours(){
   var el=document.getElementById("v-hours"); if(!el) return;
   var H=DATA.hours, T=DATA.timers||[];
@@ -233,7 +260,7 @@ function renderHours(){
         '<div class="rmain"><b>'+esc(r.crew)+'</b>'+
         '<span>'+(r.code?(esc(r.code)+' · '):'')+esc(r.task||'')+'</span>'+
         '<span class="sub">'+esc(r.vessel||'')+' · since '+esc(r.start)+'</span></div>'+
-        '<div class="rel">'+hElapsed(r.start)+
+        '<div class="rel" data-start="'+esc(r.start)+'">'+hElapsedFull(r.start)+
         (r.overlong?'<span class="flag">left running?</span>':'')+'</div></div>';
     }).join("");
   }
@@ -241,6 +268,7 @@ function renderHours(){
   if(!H){
     el.innerHTML='<div class="card"><h3>Running now</h3>'+runHtml+'</div>'+
       '<div class="card"><h3>This month</h3><div class="muted">No hours logged yet this month.</div></div>';
+    hStartTicking();
     return;
   }
 
@@ -274,6 +302,7 @@ function renderHours(){
       '<div><h4>By type</h4>'+tally(H.byCategory)+'</div>'+
     '</div></div>'+
     '<div class="card"><h3>Latest entries</h3>'+recent+'</div>';
+  hStartTicking();
 }
 function loadAll(){
   if(!KEY){document.getElementById("gate").classList.add("show");try{document.getElementById("gk").focus();}catch(e){}return;}
