@@ -328,6 +328,19 @@
   .sdt span{display:block;font-size:11.5px;color:var(--muted);font-family:ui-monospace,Menlo,monospace}
   .sdh{font-family:ui-monospace,Menlo,monospace;font-weight:700;font-size:14px;color:var(--navy)}
   .sdsent{font-size:10px;font-weight:800;color:#2e7d5b;background:#e3f1ea;border-radius:9px;padding:2px 7px}
+  /* Finished or not is the one thing only the person who did it knows, and the
+     moment they read the day back is the moment they know it. */
+  .sdask{display:flex;align-items:center;gap:7px;margin:0 0 10px;flex-wrap:wrap}
+  .sdask .q{font-size:11.5px;color:var(--muted);flex:0 0 auto}
+  .sdask button{flex:1 1 0;min-width:96px;border:1px solid var(--line);background:#fff;
+    color:var(--navy);font-size:12.5px;font-weight:700;padding:8px 6px;border-radius:9px;
+    cursor:pointer;touch-action:manipulation}
+  .sdask button:active{transform:scale(.98)}
+  .sdask button.on.done{background:var(--ok);border-color:var(--ok);color:#fff}
+  .sdask button.on.going{background:#1A2B5C;border-color:#1A2B5C;color:#fff}
+  .sdedit{border:1px solid var(--line);background:#fff;color:var(--navy);font-size:12px;
+    font-weight:700;padding:7px 11px;border-radius:9px;cursor:pointer;touch-action:manipulation}
+  .sdedit:active{background:#f4f7fc}
   .sdc{width:100%;border:1px solid var(--line);border-radius:9px;padding:9px 11px;font-size:13px;
     font-family:inherit;color:var(--navy);margin:0 0 8px}
   .sdtot{background:#eef3fa;border:1px solid #d8e2f0;border-radius:11px;padding:12px;text-align:center;margin-top:12px}
@@ -1408,7 +1421,7 @@ button:active{ filter: brightness(.93); }
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-05·g</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-05·h</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2618,6 +2631,10 @@ function ehOpen(entryId){
   var e=null;
   if(CHJOB) e=(CHJOB.entries||[]).filter(function(x){return x.entryId===entryId;})[0];
   if(!e && CHDAY) e=(CHDAY.entries||[]).filter(function(x){return x.entryId===entryId;})[0];
+  /* A past day is on SD and nowhere else — without this the pencil on the
+     submit screen silently does nothing, which is worse than not being there. */
+  if(!e && SD) e=(SD.entries||[]).filter(function(x){return x.entryId===entryId;})[0];
+  if(!e && MHDATA) e=(MHDATA.entries||[]).filter(function(x){return x.entryId===entryId;})[0];
   if(!e) return;
   EHID=entryId;
   $("ehWhat").innerHTML=esc(e.task||"this job")+" \u00b7 "+esc(e.crew||"")+" \u00b7 "+esc(e.date||"");
@@ -2648,6 +2665,10 @@ function ehSave(){
     toast("Updated \u2014 "+chFmt(r.hours));
     closeModal("editHoursModal");
     chLoad(true); if(openJobId) chJobLoad(openJobId, true);
+    // the submit screen is showing the numbers they just changed — reload it
+    if($("submitDayModal") && $("submitDayModal").classList.contains("show")) openSubmitDay(SDDATE);
+    else if(MHDATA) mhLoad();
+    chUnsubLoad();
   });
 }
 function chBoxHtml(key){
@@ -2950,11 +2971,17 @@ function mhOpenJob(jobKey){
 }
 var SD=null;
 var SDDATE="";
+var SDSTATUS={};                 // entryId -> "Complete" | "In Progress" | ""
+function sdPick(entryId,st){
+  SDSTATUS[entryId] = (SDSTATUS[entryId]===st) ? "" : st;
+  sdRender();
+}
 function sdToday(){ var d=new Date();
   return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
 /* Crew forget. A day that was worked on Thursday still has to reach the job
    card, so the screen has to be able to look back — not just at today. */
 function openSubmitDay(day){
+  if(day && day!==SDDATE) SDSTATUS={};
   SDDATE = day || SDDATE || sdToday();
   $("submitDayModal").classList.add("show");
   var di=$("sdDate"); if(di){ di.value=SDDATE; di.max=sdToday(); }
@@ -2971,6 +2998,10 @@ function sdRender(){
                  if(go) go.disabled=true; return; }
   var rows=SD.entries.map(function(e){
     var done=(e.pushed==="Yes");
+    var eid=esc(e.entryId);
+    var isDone=/complete|done/i.test(e.status||"");
+    if(!SDSTATUS.hasOwnProperty(e.entryId)) SDSTATUS[e.entryId]= isDone ? "Complete" : "";
+    var pick=SDSTATUS[e.entryId];
     return '<div class="sdrow'+(done?" sent":"")+'">'+
       '<div class="sdt"><b>'+esc(e.task||"(job)")+'</b>'+
       '<span>'+(e.code?(esc(e.code)+' \u00b7 '):'')+esc(e.vessel||'')+
@@ -2978,9 +3009,14 @@ function sdRender(){
         (e.breakMins?(' \u00b7 '+e.breakMins+'m break'):'')))+'</span></div>'+
       '<div class="sdh">'+(e.running?'\u2014':chFmt(e.hours))+'</div>'+
       (done?'<span class="sdsent">sent</span>'
-           :(e.running?'':'<button class="ed" onclick="ehOpen(\''+esc(e.entryId)+'\')">\u270e</button>'))+
+           :(e.running?'':'<button class="sdedit" onclick="ehOpen(\''+eid+'\')">\u270e Edit</button>'))+
       '</div>'+
-      (done?'':'<input class="sdc" id="sdc-'+esc(e.entryId)+'" placeholder="Anything worth noting about this one?" value="'+esc(e.note||'')+'">');
+      (done?'':
+        '<input class="sdc" id="sdc-'+eid+'" placeholder="Anything worth noting about this one?" value="'+esc(e.note||'')+'">'+
+        (e.jobKey?('<div class="sdask"><span class="q">Finished this job?</span>'+
+          '<button class="done'+(pick==="Complete"?" on":"")+'" onclick="sdPick(\''+eid+'\',\'Complete\')">\u2713 Yes \u2014 complete</button>'+
+          '<button class="going'+(pick==="In Progress"?" on":"")+'" onclick="sdPick(\''+eid+'\',\'In Progress\')">Still in hand</button>'+
+          '</div>'):''));
   }).join("");
   var gap="";
   if(SD.shiftHours>0){
@@ -3004,11 +3040,18 @@ function sdSubmit(){
     var i=document.getElementById("sdc-"+e.entryId);
     if(i && i.value.trim()) comments[e.entryId]=i.value.trim();
   });
+  var statuses={};
+  (SD.entries||[]).forEach(function(e){
+    if(e.pushed==="Yes" || !e.jobKey) return;
+    var st=SDSTATUS[e.entryId]; if(st) statuses[e.jobKey]=st;
+  });
   var go=$("sdGo"); if(go){ go.disabled=true; go.textContent="Sending\u2026"; }
   apiPost({action:"crewSubmitDay", email:ME.email, code:ME.code, date:SDDATE,
-           comments:comments, products:($("sdProducts").value||"").trim()}).then(function(r){
+           comments:comments, statuses:statuses,
+           products:($("sdProducts").value||"").trim()}).then(function(r){
     if(!r||!r.ok){ toast((r&&r.error)||"Couldn\u2019t submit"); sdRender(); return; }
-    toast("Day submitted \u2014 "+chFmt(r.hours)+" across "+r.jobs+" job"+(r.jobs===1?"":"s"));
+    toast("Day submitted \u2014 "+chFmt(r.hours)+" across "+r.jobs+" job"+(r.jobs===1?"":"s")+
+          (r.marked?(" \u00b7 "+r.marked+" marked complete"):""));
     closeModal("submitDayModal");
     chLoad(true); chUnsubLoad();
   }).catch(function(){ toast("Couldn\u2019t connect"); sdRender(); });
