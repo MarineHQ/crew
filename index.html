@@ -321,6 +321,8 @@
     font-family:ui-monospace,Menlo,monospace}
   .ehcalc{background:#eef3fa;border:1px solid #d8e2f0;border-radius:10px;padding:10px 12px;
     margin:12px 0 4px;font-size:13.5px;color:var(--navy);font-weight:700;text-align:center}
+  .chempty{margin-top:12px;padding:11px 12px;background:#f4f7fc;border:1px dashed var(--line);
+    border-radius:10px;font-size:12.5px;color:var(--muted);text-align:center}
   .chent{display:flex;align-items:center;gap:9px;padding:8px 0;border-top:1px solid var(--line)}
   .chent .w{flex:1;min-width:0}
   .chent .w b{display:block;font-size:12.5px;color:var(--navy)}
@@ -1365,7 +1367,7 @@
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-04·n</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-04·o</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2491,7 +2493,15 @@ function chJobLoad(key, force){
 }
 function chPaintJob(){ var b=$("chBox"); if(b&&openJobId) b.innerHTML=chBoxHtml(openJobId); }
 function chJobEntriesHtml(key){
-  if(!CHJOB || CHJOB.jobKey!==key || !CHJOB.entries.length) return "";
+  /* Never render nothing. A blank space here is indistinguishable from the
+     feature not existing, which is exactly how it read. */
+  if(!CHJOB || CHJOB.jobKey!==key)
+    return '<div class="chempty">Checking what\u2019s been logged on this job\u2026</div>';
+  if(!CHJOB.entries.length)
+    return '<div class="chempty">'+
+      (CHJOB.othersCount ? 'Nothing logged by you on this job yet.'
+                         : 'No time logged on this job yet.')+
+      '</div>';
   var rows=CHJOB.entries.map(function(e){
     var when = e.running ? "running since "+esc(e.start)
              : esc(e.start)+"\u2013"+esc(e.finish)+(e.breakMins?(" \u00b7 "+e.breakMins+"m break"):"");
