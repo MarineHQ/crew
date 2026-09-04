@@ -1393,7 +1393,7 @@ button:active{ filter: brightness(.93); }
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-05·c</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-05·d</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1505,8 +1505,10 @@ button:active{ filter: brightness(.93); }
      the person reads their own day back and confirms it. That confirmation is
      the point: they saw the hours, they agreed them, and there is a record. -->
 <div class="modal" id="submitDayModal"><div class="card2">
-  <h3>✅ Submit my day</h3>
+  <h3>✅ Submit a day</h3>
   <p class="mhint">Check it reads right, add anything worth knowing, then send it. Once it's in, only a director can change it.</p>
+  <label class="fld">Which day</label>
+  <input type="date" class="fld-in" id="sdDate" onchange="openSubmitDay($('sdDate').value)">
   <div id="sdBody"></div>
   <label class="fld">Anything used from stock? <span class="fldhint">(optional)</span></label>
   <input class="fld-in" id="sdProducts" placeholder="e.g. 2 × Semco, polish pads">
@@ -2875,11 +2877,18 @@ function mhOpenJob(jobKey){
                          else toast("That job isn\u2019t on your current lists"); }, 1200);
 }
 var SD=null;
-function openSubmitDay(){
+var SDDATE="";
+function sdToday(){ var d=new Date();
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+/* Crew forget. A day that was worked on Thursday still has to reach the job
+   card, so the screen has to be able to look back — not just at today. */
+function openSubmitDay(day){
+  SDDATE = day || SDDATE || sdToday();
   $("submitDayModal").classList.add("show");
-  $("sdBody").innerHTML='<div style="font-size:13px;color:var(--muted)">Loading your day\u2026</div>';
+  var di=$("sdDate"); if(di){ di.value=SDDATE; di.max=sdToday(); }
+  $("sdBody").innerHTML='<div style="font-size:13px;color:var(--muted)">Loading\u2026</div>';
   apiGet("fn=crewdaysummary&code="+encodeURIComponent(ME.code||"")+
-         "&email="+encodeURIComponent(ME.email||""))
+         "&email="+encodeURIComponent(ME.email||"")+"&date="+encodeURIComponent(SDDATE))
     .then(function(r){ SD=(r&&r.ok)?r:null; sdRender(); })
     .catch(function(){ $("sdBody").innerHTML='<div class="chempty">Couldn\u2019t load your day.</div>'; });
 }
@@ -2910,7 +2919,7 @@ function sdRender(){
   }
   el.innerHTML=rows+
     '<div class="sdtot"><b>'+chFmt(SD.loggedHours)+'</b><span>total across '+SD.count+
-      ' job'+(SD.count===1?'':'s')+'</span></div>'+gap+
+      ' job'+(SD.count===1?'':'s')+' on '+esc(SD.date)+'</span></div>'+gap+
     (SD.openTimers?'<div class="chwarn">Stop your running timer before submitting.</div>':'');
   if(go){ go.disabled=!SD.canSubmit;
           go.textContent = SD.openTimers ? "Stop the timer first"
@@ -2924,7 +2933,7 @@ function sdSubmit(){
     if(i && i.value.trim()) comments[e.entryId]=i.value.trim();
   });
   var go=$("sdGo"); if(go){ go.disabled=true; go.textContent="Sending\u2026"; }
-  apiPost({action:"crewSubmitDay", email:ME.email, code:ME.code,
+  apiPost({action:"crewSubmitDay", email:ME.email, code:ME.code, date:SDDATE,
            comments:comments, products:($("sdProducts").value||"").trim()}).then(function(r){
     if(!r||!r.ok){ toast((r&&r.error)||"Couldn\u2019t submit"); sdRender(); return; }
     toast("Day submitted \u2014 "+chFmt(r.hours)+" across "+r.jobs+" job"+(r.jobs===1?"":"s"));
