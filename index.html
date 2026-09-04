@@ -321,6 +321,9 @@
     font-family:ui-monospace,Menlo,monospace}
   .ehcalc{background:#eef3fa;border:1px solid #d8e2f0;border-radius:10px;padding:10px 12px;
     margin:12px 0 4px;font-size:13.5px;color:var(--navy);font-weight:700;text-align:center}
+  .chmonth{margin-top:10px;padding:9px 11px;background:#eef3fa;border:1px solid #d8e2f0;
+    border-radius:9px;font-size:12px;color:var(--navy)}
+  .chmonth b{font-family:ui-monospace,Menlo,monospace;font-size:13.5px}
   .chempty{margin-top:12px;padding:11px 12px;background:#f4f7fc;border:1px dashed var(--line);
     border-radius:10px;font-size:12.5px;color:var(--muted);text-align:center}
   .chent{display:flex;align-items:center;gap:9px;padding:8px 0;border-top:1px solid var(--line)}
@@ -1367,7 +1370,7 @@
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-04·o</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-05·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1502,7 +1505,7 @@
      have it in mind. -->
 <div class="modal" id="handoverModal"><div class="card2">
   <h3>Finished with this one?</h3>
-  <p class="mhint">You're about to start <b id="hoNext">another job</b>. That stops the one you're on:</p>
+  <p class="mhint" id="hoLead">You're about to start <b id="hoNext">another job</b>. That stops the one you're on:</p>
   <div class="hocur">
     <div class="hot" id="hoCurTask">—</div>
     <div class="hom"><span id="hoCurCode"></span><span id="hoCurTime"></span></div>
@@ -2476,7 +2479,7 @@ function chBanner(){
     el.innerHTML='<div class="cb-l"><b>\u25cf Running</b><span>'+esc(CHTIMER.task||"a job")+
       (CHTIMER.vessel?(' \u00b7 '+esc(CHTIMER.vessel)):'')+'</span></div>'+
       '<div class="cb-t el">'+chElapsedFull(CHTIMER.start)+'</div>'+
-      '<button class="cb-s" onclick="chStop()">Stop</button>';
+      '<button class="cb-s" onclick="chStopAsk()">Stop</button>';
   } else { el.className="chban hidden"; el.innerHTML=""; }
 }
 var CHJOB=null, CHJOBKEY=null;
@@ -2513,6 +2516,10 @@ function chJobEntriesHtml(key){
       '</div>';
   }).join("");
   var hdr = CHJOB.everyone ? "TIME ON THIS JOB \u00b7 EVERYONE" : "MY TIME ON THIS JOB";
+  var mth = (CHJOB.codeMonthHours && CHJOB.code)
+    ? ('<div class="chmonth"><b>'+chFmt(CHJOB.codeMonthHours)+'</b> on '+esc(CHJOB.code)+
+       ' this month, across '+CHJOB.codeMonthOccurrences+' time'+
+       (CHJOB.codeMonthOccurrences===1?'':'s')+' it\u2019s been done</div>') : '';
   var oth = (!CHJOB.everyone && CHJOB.othersCount)
     ? ('<div style="font-size:11px;color:var(--muted);margin-top:6px">Others have also logged time on this job.</div>') : '';
   return '<div style="margin-top:12px"><div class="chtothdr">'+
@@ -2565,7 +2572,7 @@ function chBoxHtml(key){
       '<div class="chrun"><div><div class="el">'+chElapsedFull(CHTIMER.start)+'</div>'+
       '<div class="lb">started '+esc(CHTIMER.start)+'</div></div></div>'+
       (CHTIMER.overlong?'<div class="chwarn">This has been running a long time \u2014 stop it and set the right finish time.</div>':'')+
-      '<button class="chbtn stop" onclick="chStop()">\u25a0 Stop</button>'+done+'</div>';
+      '<button class="chbtn stop" onclick="chStopAsk()">\u25a0 Stop</button>'+done+'</div>';
   }
   var other = (CHTIMER&&CHTIMER.running)
     ? ('<div class="chwarn">You\u2019re on <b>'+esc(CHTIMER.task||"another job")+'</b> since '+esc(CHTIMER.start)+
@@ -2583,7 +2590,8 @@ function chStart(key){
   if(CHTIMER && CHTIMER.running && CHTIMER.jobKey && CHTIMER.jobKey!==key){
     _hoNextKey=key;
     var nx=wlFind(key);
-    $("hoNext").textContent=(nx&&nx.task)||"another job";
+    $("hoLead").innerHTML='You\u2019re about to start <b id="hoNext">'+esc((nx&&nx.task)||"another job")+
+      '</b>. That stops the one you\u2019re on:';
     $("hoCurTask").textContent=CHTIMER.task||"the current job";
     $("hoCurCode").textContent=CHTIMER.code||"";
     $("hoCurTime").textContent="running "+chElapsedFull(CHTIMER.start);
@@ -2598,7 +2606,6 @@ function chStart(key){
 function handoverGo(status){
   var key=_hoNextKey, oldKey=CHTIMER&&CHTIMER.jobKey;
   closeModal('handoverModal');
-  if(!key) return;
   apiPost({action:"crewTaskStop", email:ME.email, code:ME.code, confirm:true}).then(function(r){
     if(r&&r.ok) toast("Logged "+chFmt(r.hours)+" \u00b7 "+r.start+"\u2013"+r.finish);
     if(oldKey && status){
@@ -2607,7 +2614,8 @@ function handoverGo(status){
     }
   }).then(function(){
     if(status==="Complete") toast("Marked it complete");
-    chStartNow(key);
+    if(key) chStartNow(key);       // only when handing over to another job
+    else { chLoad(true); if(openJobId) chJobLoad(openJobId,true); }
     try{ refreshAll(); }catch(e){}
   }).catch(function(){ toast("Couldn\u2019t switch jobs \u2014 check your signal"); });
 }
@@ -2625,13 +2633,30 @@ function chStartNow(key){
     if(!r||!r.ok){ toast((r&&r.error)||"Couldn\u2019t start"); CHTIMER=null; chLoad(true); return; }
     if(r.autoStopped) toast("Stopped "+(r.autoStopped.task||"the last job")+" \u2014 "+chFmt(r.autoStopped.hours));
     else if(r.clockedIn) toast("Started \u2014 and clocked you in at "+(r.clockedIn.vessel||"the boat"));
+    else if(r.newOccurrence) toast("That one was finished \u2014 started a new "+
+             (r.newOccurrence.task||"job"));
     else if(r.statusSet) toast("Started \u2014 marked in hand");
     else toast("Started");
+    // a new occurrence is a different job row — follow it, or the screen lies
+    if(r.newOccurrence && r.jobKey){ openJobId=r.jobKey; CHJOB=null; CHJOBKEY=null;
+      try{ refreshAll(); }catch(e){} chJobLoad(r.jobKey, true); }
     if(r.statusSet){ try{ var jj=wlFind(key); if(jj) jj.status=r.statusSet; refreshAll(); }catch(e){} }
     if(r.clockedIn){ var c=clk(); c.in=true; c.at=r.clockedIn.at||Date.now(); c.vessel=r.clockedIn.vessel;
                      try{ renderClock(); updateStrip(); }catch(e){} }
     chLoad(true);
   });
+}
+/* Stopping is the moment they know whether it is finished — so ask, rather than
+   leaving every job sitting In hand forever. Same three choices as switching
+   jobs, because it is the same question. */
+function chStopAsk(){
+  if(!(CHTIMER&&CHTIMER.running)) return chStop();
+  _hoNextKey=null;
+  $("hoNext").textContent="finishing for now";
+  $("hoCurTask").textContent=CHTIMER.task||"the current job";
+  $("hoCurCode").textContent=CHTIMER.code||"";
+  $("hoCurTime").textContent="running "+chElapsedFull(CHTIMER.start);
+  $("handoverModal").classList.add("show");
 }
 function chStop(finish, brk, confirmLong){
   if(!ME) return;
