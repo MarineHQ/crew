@@ -300,6 +300,22 @@
   /* Three across rather than stacked — it is a single choice, and reading them
      side by side is how a choice reads. Labels kept short so all three fit on a
      phone without wrapping. */
+  .mhchips{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px}
+  .mhchip{border:1px solid var(--line);background:#fff;color:var(--muted);font-size:12.5px;
+    font-weight:700;padding:7px 12px;border-radius:20px;font-family:inherit;cursor:pointer}
+  .mhchip.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+  .mhtot{background:#eef3fa;border:1px solid #d8e2f0;border-radius:12px;padding:13px;text-align:center;margin-bottom:12px}
+  .mhtot b{display:block;font-size:27px;color:var(--navy);line-height:1.1}
+  .mhtot span{font-size:11.5px;color:var(--muted)}
+  .mhsec{font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;
+    letter-spacing:.07em;margin:14px 0 7px}
+  .mhbar{display:grid;grid-template-columns:1fr 70px 46px;align-items:center;gap:8px;margin-bottom:6px}
+  .mhbar .l{font-size:12.5px;color:var(--navy);font-weight:600;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap}
+  .mhbar .t{background:#e8edf6;border-radius:4px;height:7px;overflow:hidden}
+  .mhbar .f{background:var(--navy);height:100%;border-radius:4px}
+  .mhbar .v{font-size:12px;font-weight:700;color:var(--navy);text-align:right;
+    font-family:ui-monospace,Menlo,monospace}
   .ehcalc{background:#eef3fa;border:1px solid #d8e2f0;border-radius:10px;padding:10px 12px;
     margin:12px 0 4px;font-size:13.5px;color:var(--navy);font-weight:700;text-align:center}
   .chent{display:flex;align-items:center;gap:9px;padding:8px 0;border-top:1px solid var(--line)}
@@ -1346,7 +1362,7 @@
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-04·j</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-04·k</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2421,7 +2437,7 @@ function chPaint(){
   chBanner();
   chFabLabel();
   var b=$("chBox"); if(b&&openJobId) b.innerHTML=chBoxHtml(openJobId);
-  var d=$("chDayBox"); if(d) d.innerHTML=chDayHtml();
+  var d=$("chDayBox"); if(d) renderMyHours();
   clearInterval(_chTick);
   if(CHTIMER&&CHTIMER.running && document.visibilityState!=="hidden"){
     chTickAll();
@@ -2483,8 +2499,11 @@ function chJobEntriesHtml(key){
                            '<button class="ed del" title="Delete" onclick="chDel(\''+esc(e.entryId)+'\',1)">\u2715</button>'):'')+
       '</div>';
   }).join("");
+  var hdr = CHJOB.everyone ? "TIME ON THIS JOB \u00b7 EVERYONE" : "MY TIME ON THIS JOB";
+  var oth = (!CHJOB.everyone && CHJOB.othersCount)
+    ? ('<div style="font-size:11px;color:var(--muted);margin-top:6px">Others have also logged time on this job.</div>') : '';
   return '<div style="margin-top:12px"><div class="chtothdr">'+
-    '<b style="font-size:12px;color:var(--muted)">TIME ON THIS JOB</b>'+
+    '<b style="font-size:12px;color:var(--muted)">'+hdr+'</b>'+
     '<b class="chtot">'+chFmt(CHJOB.totalHours)+' total</b></div>'+rows+'</div>';
 }
 /* Fix a logged time. Forgetting to stop is ordinary, so this is a form with the
@@ -2629,6 +2648,70 @@ function chManual(key){
     toast("Logged "+chFmt(r.hours)); chLoad(true);
   });
 }
+/* "Where did my week go" is the question, so My hours is a period not a day.
+   Today stays the default because that is the end-of-day check it was built for. */
+var MHPERIOD="today", MHDATA=null;
+function mhRange(p){
+  var now=new Date();
+  function d(x){ return x.getFullYear()+"-"+String(x.getMonth()+1).padStart(2,"0")+"-"+String(x.getDate()).padStart(2,"0"); }
+  if(p==="today")  return {from:d(now), to:d(now)};
+  if(p==="week"){                                   // Monday to Sunday, roster-style
+    var dow=(now.getDay()+6)%7, mon=new Date(now); mon.setDate(now.getDate()-dow);
+    var sun=new Date(mon); sun.setDate(mon.getDate()+6);
+    return {from:d(mon), to:d(sun)};
+  }
+  if(p==="month"){ var a=new Date(now.getFullYear(),now.getMonth(),1),
+                       b=new Date(now.getFullYear(),now.getMonth()+1,0); return {from:d(a),to:d(b)}; }
+  var a2=new Date(now.getFullYear(),now.getMonth()-1,1),
+      b2=new Date(now.getFullYear(),now.getMonth(),0);
+  return {from:d(a2), to:d(b2)};                     // last month
+}
+function mhSet(p){ MHPERIOD=p; MHDATA=null; renderMyHours(); mhLoad(); }
+function mhLoad(){
+  if(!ME) return;
+  var r=mhRange(MHPERIOD);
+  apiGet("fn=crewhours&code="+encodeURIComponent(ME.code||"")+
+         "&email="+encodeURIComponent(ME.email||"")+"&from="+r.from+"&to="+r.to)
+    .then(function(j){ MHDATA=(j&&j.ok)?j:null; renderMyHours(); })
+    .catch(function(){});
+}
+function renderMyHours(){
+  var el=$("chDayBox"); if(!el) return;
+  var chips='<div class="mhchips">'+
+    [["today","Today"],["week","This week"],["month","This month"],["last","Last month"]]
+      .map(function(o){ return '<button class="mhchip'+(MHPERIOD===o[0]?" on":"")+
+        '" onclick="mhSet(\''+o[0]+'\')">'+o[1]+'</button>'; }).join("")+'</div>';
+  el.innerHTML = chips + (MHPERIOD==="today" ? chDayHtml() : mhPeriodHtml());
+}
+function mhPeriodHtml(){
+  if(!MHDATA) return '<div style="font-size:13px;color:var(--muted)">Loading\u2026</div>';
+  if(!MHDATA.count) return '<div style="font-size:13px;color:var(--muted)">Nothing logged in this period.</div>';
+  function bars(obj){
+    var ks=Object.keys(obj||{}).filter(function(k){return obj[k];})
+             .sort(function(a,b){return obj[b]-obj[a];});
+    if(!ks.length) return '';
+    var max=obj[ks[0]]||1;
+    return ks.map(function(k){
+      return '<div class="mhbar"><div class="l">'+esc(k)+'</div>'+
+        '<div class="t"><div class="f" style="width:'+Math.round(100*obj[k]/max)+'%"></div></div>'+
+        '<div class="v">'+chFmt(obj[k])+'</div></div>';
+    }).join("");
+  }
+  var rows=MHDATA.entries.slice(0,40).map(function(e){
+    return '<div class="chrow"><div class="t"><b>'+esc(e.task||"(job)")+'</b><span>'+
+      esc(e.date)+' \u00b7 '+esc(e.vessel||'')+
+      (e.start?(' \u00b7 '+esc(e.start)+'\u2013'+esc(e.finish||'\u2026')):'')+'</span></div>'+
+      '<div class="h">'+(e.finish?chFmt(e.hours):'\u2014')+'</div>'+
+      (e.finish?('<button class="ed" onclick="ehOpen(\''+esc(e.entryId)+'\')">\u270e</button>'):'')+
+      '</div>';
+  }).join("");
+  return '<div class="mhtot"><b>'+chFmt(MHDATA.totalHours)+'</b>'+
+      '<span>across '+MHDATA.count+' entr'+(MHDATA.count===1?'y':'ies')+
+      ' on '+MHDATA.days+' day'+(MHDATA.days===1?'':'s')+'</span></div>'+
+    '<div class="mhsec">By yacht</div>'+bars(MHDATA.byVessel)+
+    '<div class="mhsec">By job</div>'+bars(MHDATA.byJob)+
+    '<div class="mhsec">Entries</div>'+rows;
+}
 /* End of day: everything logged today, editable, with the shift cross-check. */
 function chDayHtml(){
   if(!CHDAY) return '<div style="font-size:13px;color:var(--muted)">Loading\u2026</div>';
@@ -2685,8 +2768,7 @@ window.addEventListener("focus", function(){ if(ME) chLoad(); });
 
 function openMyHours(){
   $("myHoursModal").classList.add("show");
-  var d=$("chDayBox"); if(d) d.innerHTML=chDayHtml();
-  chLoad();
+  renderMyHours(); chLoad(true); if(MHPERIOD!=="today") mhLoad();
 }
 function openCommand(){ try{ if(ME&&ME.code) localStorage.setItem("mhq_crew_key", ME.code); }catch(e){} location.href="overview.html"; }
 /* What's Due — scheduled maintenance from the maintenance schedule → add to a worklist */
