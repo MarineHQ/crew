@@ -1394,7 +1394,7 @@ button:active{ filter: brightness(.93); }
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-05·e</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-05·f</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2773,9 +2773,32 @@ function renderMyHours(){
           esc(String(v).replace(/'/g,"\\'"))+'\')">'+esc(v)+'</button>'; }).join("")+'</div>';
   }
   el.innerHTML = chips + boats + (MHPERIOD==="today" ? chDayHtml() : mhPeriodHtml())
-    + (MHPERIOD==="today" && CHDAY && CHDAY.count
-        ? '<button class="go" style="margin-top:16px" onclick="closeModal(\'myHoursModal\');openSubmitDay()">\u2705 Submit my day</button>'
-        : '');
+    + mhSubmitBtn();
+}
+/* A day worked on Thursday still has to reach the job card, so the button has
+   to be reachable from any period \u2014 not only from Today. */
+function mhSubmitDate(){
+  if(MHPERIOD==="today") return (CHDAY && CHDAY.count) ? sdToday() : "";
+  var es=(MHDATA && MHDATA.entries) ? MHDATA.entries : [];
+  var open="", any="";
+  es.forEach(function(e){
+    var d=String(e.date||""); if(!d) return;
+    if(d>any) any=d;
+    if(e.pushed!=="Yes" && d>open) open=d;
+  });
+  return open||any||"";
+}
+function mhSubmitBtn(){
+  var d=mhSubmitDate(); if(!d) return '';
+  var lbl=(d===sdToday()) ? "\u2705 Submit my day"
+        : ("\u2705 Submit "+chNiceDate(d));
+  return '<button class="go" style="margin-top:16px" onclick="closeModal(\'myHoursModal\');openSubmitDay(\''+
+         d+'\')">'+lbl+'</button>';
+}
+function chNiceDate(d){
+  var p=String(d).split("-"); if(p.length!==3) return d;
+  var M=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  return String(Number(p[2]))+" "+(M[Number(p[1])-1]||p[1]);
 }
 function mhPeriodHtml(){
   if(!MHDATA) return '<div style="font-size:13px;color:var(--muted)">Loading\u2026</div>';
@@ -2897,7 +2920,7 @@ function openSubmitDay(day){
 function sdRender(){
   var el=$("sdBody"), go=$("sdGo"); if(!el) return;
   if(!SD){ el.innerHTML='<div class="chempty">Couldn\u2019t load your day.</div>'; return; }
-  if(!SD.count){ el.innerHTML='<div class="chempty">Nothing logged today yet.</div>';
+  if(!SD.count){ el.innerHTML='<div class="chempty">Nothing logged on '+esc(chNiceDate(SDDATE))+'.</div>';
                  if(go) go.disabled=true; return; }
   var rows=SD.entries.map(function(e){
     var done=(e.pushed==="Yes");
