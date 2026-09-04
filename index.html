@@ -1314,7 +1314,7 @@
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-04·g</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-04·h</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2234,6 +2234,7 @@ var CURVESSEL="", FLEETVESSELS=[];
 function notOffFleet(x){ return !(x && x.oj); }
 function loadJobs(){
   if(isMgrRole() && CURVESSEL && CURVESSEL!=="__all__") loadListInfo(CURVESSEL);
+  loadClosedLists();
   if(!ME) return;
   ofSync();          // an action on an off-fleet item refreshes that screen too
   if(isMgrRole() && !CURVESSEL) CURVESSEL="__all__";   // directors open on All Yachts, not their first boat
@@ -2285,7 +2286,7 @@ function renderVesselBar(){
   }
   hosts.forEach(function(h){ if(h) h.innerHTML=html; });
 }
-function pickVessel(v){ CURVESSEL=v; WLCLOSED={}; WLSEC={}; loadListInfo(v); renderVesselBar(); if(TAB==="maint"){ if(v==="__all__") loadFleetCare(); else loadCare(v); } else if(TAB==="induct") loadInduct(); else loadJobs(); }
+function pickVessel(v){ CURVESSEL=v; WLCLOSED={}; WLSEC={}; loadListInfo(v); loadClosedLists(); renderVesselBar(); if(TAB==="maint"){ if(v==="__all__") loadFleetCare(); else loadCare(v); } else if(TAB==="induct") loadInduct(); else loadJobs(); }
 // Open the Command Centre, passing the director's code so it unlocks (no 2nd passcode).
 /* ============================================================
    TASK TIMER — start / stop on a job, and the end-of-day check.
@@ -3584,7 +3585,7 @@ function wlSection(key, title, count, cls, inner, dfltOpen, btn){
 }
 function wlSections(order, groups){
   var single = isMgrRole() && CURVESSEL && CURVESSEL!=="__all__" && !SCHEDVIEW;
-  if(!single || !LISTGROUPS) return order.map(function(g){ return wlGroupHTML(g, groups); }).join("");
+  if(!single || !LISTGROUPS) return order.filter(function(g){ return !wlIsClosed(g, groups); }).map(function(g){ return wlGroupHTML(g, groups); }).join("");
   var buckets={current:[], waiting:[], earlier:[], closed:[], other:[], foreign:[]};
   var vlc=(CURVESSEL||"").toLowerCase();
   order.forEach(function(g){
@@ -3986,7 +3987,7 @@ function cmGo(){
     var held=(r.held||[]).length, moved=(r.moved||[]).length;
     toast("✓ "+CM.period+" closed — "+r.rolled.length+" carried, "+r.toYard.length+" to shipyard"+
           (held?(", "+held+" on hold"):"")+(moved?(", "+moved+" moved"):"")+", "+r.closed.length+" closed");
-    _liFor=""; loadListInfo(CURVESSEL); loadJobs();
+    _liFor=""; loadListInfo(CURVESSEL); loadClosedLists(); loadJobs();
   }).catch(function(){ b.disabled=false; toast("Couldn’t connect"); });
 }
 /* ---- Jobs on offer (crew): unassigned jobs anyone can claim ---- */
@@ -4079,6 +4080,25 @@ function loadListInfo(vessel){
       LISTGROUPS=j.groups||null;
       if(TAB==="jobs") renderJobs();
     }).catch(function(){});
+}
+/* Fleet-wide list states (fn=worklists with no vessel) so the All Yachts screen can
+   leave closed months out. Trish, 4 Sep 2026: only live worklists and unassigned
+   tasks on that screen — a closed month lives in its boat's Closed months fold. */
+var CLOSEDLISTS={};
+function loadClosedLists(){
+  if(!isMgrRole()) return;
+  apiGet("fn=worklists&code="+encodeURIComponent(ME.code||"")+"&email="+encodeURIComponent(ME.email||""))
+    .then(function(j){
+      if(!j||!j.ok) return;
+      var m={}; (j.lists||[]).forEach(function(r){ if((r.state||"")==="closed") m[((r.vessel||"")+"|"+(r.list||"")).toLowerCase()]=1; });
+      CLOSEDLISTS=m;
+      if(TAB==="jobs") renderJobs();
+    }).catch(function(){});
+}
+function wlIsClosed(g, groups){
+  var lc=(g||"").toLowerCase();
+  if(CLOSEDLISTS["|"+lc]) return true;
+  return (groups[g]||[]).some(function(j){ return !!CLOSEDLISTS[((j.vessel||"")+"|"+lc).toLowerCase()]; });
 }
 var LISTMETA={};
 function toggleWL(g){ WLCLOSED[g]=!WLCLOSED[g]; renderJobs(); }
