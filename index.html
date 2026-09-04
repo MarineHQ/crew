@@ -1362,7 +1362,7 @@
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-04·k</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-04·l</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2612,7 +2612,9 @@ function chStartNow(key){
     if(!r||!r.ok){ toast((r&&r.error)||"Couldn\u2019t start"); CHTIMER=null; chLoad(true); return; }
     if(r.autoStopped) toast("Stopped "+(r.autoStopped.task||"the last job")+" \u2014 "+chFmt(r.autoStopped.hours));
     else if(r.clockedIn) toast("Started \u2014 and clocked you in at "+(r.clockedIn.vessel||"the boat"));
+    else if(r.statusSet) toast("Started \u2014 marked in hand");
     else toast("Started");
+    if(r.statusSet){ try{ var jj=wlFind(key); if(jj) jj.status=r.statusSet; refreshAll(); }catch(e){} }
     if(r.clockedIn){ var c=clk(); c.in=true; c.at=r.clockedIn.at||Date.now(); c.vessel=r.clockedIn.vessel;
                      try{ renderClock(); updateStrip(); }catch(e){} }
     chLoad(true);
