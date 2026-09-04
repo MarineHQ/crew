@@ -393,6 +393,20 @@
   .chrow .t span{font-size:11.5px;color:var(--muted);font-family:ui-monospace,Menlo,monospace}
   .chrow .h{font-family:ui-monospace,Menlo,monospace;font-weight:700;font-size:14px;color:var(--navy)}
   .chrow .ed{border:none;background:none;color:var(--muted);font-size:15px;cursor:pointer;padding:2px 4px}
+  /* A day that never reached a job card is unpaid work. It has to look unfinished. */
+  .chpill{font-size:10px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;
+          padding:2px 7px;border-radius:999px;white-space:nowrap}
+  .chpill.open{background:#fdf3e3;color:#8a5a12;border:1px solid #f0dcb8}
+  .chpill.sent{background:#eaf5ee;color:#2e7d5b;border:1px solid #bfe0cc}
+  .chunsub{background:#fdf3e3;border:1px solid #f0dcb8;border-radius:12px;
+           padding:11px 13px;margin:12px 0 2px}
+  .chunsub h5{margin:0 0 3px;font-size:13.5px;color:#8a5a12;font-weight:800}
+  .chunsub p{margin:0 0 8px;font-size:12px;color:#8a5a12;opacity:.85}
+  .chunsub .days{display:flex;flex-wrap:wrap;gap:6px}
+  .chunsub .days button{border:1px solid #e0b96b;background:#fff;color:#8a5a12;
+    font-weight:700;font-size:12.5px;padding:7px 12px;border-radius:999px;cursor:pointer;
+    touch-action:manipulation}
+  .chunsub .days button:active{background:#f7ecd8}
   .chrow .ed.del{color:#c1443b}
   .actbtn.hours{background:#fff;color:var(--navy);border:1.5px solid var(--line)}
   .actbtn.hours.haslogged{border-color:#2e7d5b}
@@ -1394,7 +1408,7 @@ button:active{ filter: brightness(.93); }
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-05·f</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-05·g</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2479,7 +2493,39 @@ function chLoad(force){
       CHTIMER=(r[0]&&r[0].ok)?r[0]:null;
       CHDAY  =(r[1]&&r[1].ok)?r[1]:null;
       chPaint();
+      chUnsubLoad();
     }).catch(function(){ _chBusy=false; });
+}
+/* Days with hours on them that have never been submitted. Crew shouldn't have
+   to remember \u2014 the app tells them, on the home screen and in My hours. */
+var CHUNSUB=[];
+function chUnsubLoad(){
+  if(!ME) return;
+  var now=new Date(), back=new Date(now.getTime()-29*864e5);
+  function d(x){ return x.getFullYear()+"-"+String(x.getMonth()+1).padStart(2,"0")+"-"+String(x.getDate()).padStart(2,"0"); }
+  apiGet("fn=crewhours&code="+encodeURIComponent(ME.code||"")+
+         "&email="+encodeURIComponent(ME.email||"")+"&from="+d(back)+"&to="+d(now))
+    .then(function(j){
+      var seen={};
+      ((j&&j.ok&&j.entries)||[]).forEach(function(e){
+        if(!e.date || e.pushed==="Yes" || !e.finish) return;   // a running timer isn't a day yet
+        if(!seen[e.date]) seen[e.date]={date:e.date, hours:0, n:0};
+        seen[e.date].hours += (Number(e.hours)||0); seen[e.date].n++;
+      });
+      CHUNSUB=Object.keys(seen).sort().reverse().map(function(k){return seen[k];});
+      chPaint(); if($("jobsHello")) renderJobs();
+    }).catch(function(){});
+}
+function chUnsubHtml(compact){
+  if(!CHUNSUB.length) return '';
+  var n=CHUNSUB.length;
+  var btns=CHUNSUB.slice(0,7).map(function(u){
+    return '<button onclick="event.stopPropagation();closeModal(\'myHoursModal\');openSubmitDay(\''+
+      u.date+'\')">'+chNiceDate(u.date)+' \u00b7 '+chFmt(u.hours)+'</button>'; }).join("");
+  return '<div class="chunsub"><h5>\u23f3 '+n+' day'+(n===1?'':'s')+' not submitted yet</h5>'+
+    '<p>'+(compact?'Tap a day to send it through to the job card.'
+                  :'These hours haven\u2019t reached a job card. Tap a day to send it.')+'</p>'+
+    '<div class="days">'+btns+'</div></div>';
 }
 function chPaint(){
   chBanner();
@@ -2772,8 +2818,8 @@ function renderMyHours(){
         return '<button class="mhchip'+(MHVESSEL===v?" on":"")+'" onclick="mhBoat(\''+
           esc(String(v).replace(/'/g,"\\'"))+'\')">'+esc(v)+'</button>'; }).join("")+'</div>';
   }
-  el.innerHTML = chips + boats + (MHPERIOD==="today" ? chDayHtml() : mhPeriodHtml())
-    + mhSubmitBtn();
+  el.innerHTML = chUnsubHtml(false) + chips + boats +
+    (MHPERIOD==="today" ? chDayHtml() : mhPeriodHtml()) + mhSubmitBtn();
 }
 /* A day worked on Thursday still has to reach the job card, so the button has
    to be reachable from any period \u2014 not only from Today. */
@@ -2822,7 +2868,8 @@ function mhPeriodHtml(){
       esc(e.date)+' \u00b7 '+esc(e.vessel||'')+
       (e.start?(' \u00b7 '+esc(e.start)+'\u2013'+esc(e.finish||'\u2026')):'')+'</span></div>'+
       '<div class="h">'+(e.finish?chFmt(e.hours):'\u2014')+'</div>'+
-      (e.finish?('<button class="ed" onclick="event.stopPropagation();ehOpen(\''+esc(e.entryId)+'\')">\u270e</button>'):'')+
+      (e.finish?('<span class="chpill '+(e.pushed==="Yes"?'sent">sent':'open">not sent')+'</span>'):'')+
+      (e.finish&&e.pushed!=="Yes"?('<button class="ed" onclick="event.stopPropagation();ehOpen(\''+esc(e.entryId)+'\')">\u270e</button>'):'')+
       '</div>';
   }).join("");
   return '<div class="mhtot"><b>'+chFmt(MHDATA.totalHours)+'</b>'+
@@ -2963,7 +3010,7 @@ function sdSubmit(){
     if(!r||!r.ok){ toast((r&&r.error)||"Couldn\u2019t submit"); sdRender(); return; }
     toast("Day submitted \u2014 "+chFmt(r.hours)+" across "+r.jobs+" job"+(r.jobs===1?"":"s"));
     closeModal("submitDayModal");
-    chLoad(true);
+    chLoad(true); chUnsubLoad();
   }).catch(function(){ toast("Couldn\u2019t connect"); sdRender(); });
 }
 function openMyHours(){
@@ -3949,7 +3996,8 @@ function renderJobs(){
   var first=(ME.name||"").split(" ")[0].replace(/\(test\)/,"").trim();
   var openN=CREWJOBS.filter(function(j){return hubBucket(j.status)!=="Done";}).length;
   $("jobsHello").innerHTML="Hi <b>"+esc(first)+"</b> — <b>"+openN+"</b> open "+(openN===1?"job":"jobs")+(isMgrRole()?(" on <b>"+esc(JOBSVESSEL||"your vessel")+"</b>"):" assigned to you")+"."+
-    (ME.signedAt ? "" : '<div class="guideprompt" onclick="openGuide()">📋 Please read &amp; sign the Crew Onboarding Guide — tap here.</div>');
+    (ME.signedAt ? "" : '<div class="guideprompt" onclick="openGuide()">📋 Please read &amp; sign the Crew Onboarding Guide — tap here.</div>')
+    + chUnsubHtml(true);
   var _atb=$("addTaskBtn"); if(_atb) _atb.style.display=isMgrRole()?"":"none";
   var _agb=$("agentBtn"); if(_agb) _agb.style.display=(isMgrRole()&&AGENTREADY)?"":"none";
   if(isMgrRole()) checkAgent();
