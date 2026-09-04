@@ -1365,7 +1365,7 @@
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-04·m</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-04·n</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -4880,6 +4880,9 @@ function openWLJob(key){
       var b=j.desc?('<p class="body" id="wlDescText">'+esc(j.desc)+'</p>'):'<p class="body" id="wlDescText" style="color:var(--muted)">No description yet.</p>';
       var ed=wlCanFix(j)?' <span class="wlnote-ed" style="cursor:pointer" onclick="wlEditDesc(\''+esc(key)+'\')">✎ Edit</span>':'';
       return '<div class="sec" id="wlDescSec"><h4>The job'+ed+'</h4>'+b+'</div>'; })()+
+    // Straight under the job itself. Start/Stop is the main thing anyone does on
+    // this screen, and it was sitting below the notes where nobody scrolled to it.
+    '<div class="sec"><h4>Time on this job</h4><div id="chBox">'+chBoxHtml(key)+'</div></div>'+
     // where this job came from — the matched Zoho task, for traceability
     ((isMgrRole() && j.zoho)?('<div class="sec"><h4>Source</h4><div class="srcref">🔗 Matched to <b>Zoho '+esc(String(j.zoho).slice(-7))+'</b>'+(j.project?(' · '+esc(j.project)):'')+'<div class="srcsub">Zoho task id '+esc(j.zoho)+'</div></div></div>'):'')+
     ((isMgrRole() && j.zoho)?('<div class="sec"><h4>Send to Michael’s Zoho</h4><button onclick="zohoSendJob(\''+esc(key)+'\')" style="width:100%;border:0;background:#1a2b5c;color:#fff;font-weight:800;font-size:13px;padding:12px;border-radius:10px;cursor:pointer">📷 Send this job’s photos + note to his Zoho</button><div class="srcsub" style="margin-top:6px">Posts the photos (as links) and a note onto the matched Zoho task.</div></div>'):'')+
@@ -4890,7 +4893,6 @@ function openWLJob(key){
     reqBlock+
     acceptHTML+
     crewAssignHTML+
-    '<div class="sec"><h4>Time on this job</h4><div id="chBox">'+chBoxHtml(key)+'</div></div>'+
     '<div class="sec"><h4>Status</h4><div class="pillrow">'+pills+'</div>'+(j.completed?('<div class="apprOn" style="margin-top:8px">✓ Completed '+esc(j.completed)+' <span class="wlnote-ed" style="cursor:pointer" onclick="openCompleteModal(\''+esc(key)+'\')">✎ Edit date</span></div>'):'')+'</div>'+
     assignHTML+offerHTML+
     dueHTML+
