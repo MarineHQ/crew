@@ -300,6 +300,16 @@
   /* Three across rather than stacked — it is a single choice, and reading them
      side by side is how a choice reads. Labels kept short so all three fit on a
      phone without wrapping. */
+  .ehcalc{background:#eef3fa;border:1px solid #d8e2f0;border-radius:10px;padding:10px 12px;
+    margin:12px 0 4px;font-size:13.5px;color:var(--navy);font-weight:700;text-align:center}
+  .chent{display:flex;align-items:center;gap:9px;padding:8px 0;border-top:1px solid var(--line)}
+  .chent .w{flex:1;min-width:0}
+  .chent .w b{display:block;font-size:12.5px;color:var(--navy)}
+  .chent .w span{display:block;font-size:11px;color:var(--muted);font-family:ui-monospace,Menlo,monospace}
+  .chent .hh{font-family:ui-monospace,Menlo,monospace;font-weight:700;font-size:13.5px;color:var(--navy)}
+  .chent .ed{border:none;background:none;color:var(--muted);font-size:15px;cursor:pointer;padding:2px 3px}
+  .chent .ed.del{color:#c1443b}
+  .chtothdr{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px}
   .horow{display:flex;gap:8px;margin-top:16px}
   .hobtn{flex:1;min-width:0;border:1.5px solid var(--line);background:#fff;border-radius:12px;
     padding:12px 6px;font-family:inherit;cursor:pointer;text-align:center}
@@ -1444,6 +1454,27 @@
   <button class="cancel" onclick="closeModal('raiseModal')">Cancel</button>
 </div></div>
 
+<!-- Fixing a logged time. Forgetting to stop is the ordinary case, not the
+     exception, so correcting it has to be a proper form rather than a stack of
+     prompt boxes. -->
+<div class="modal" id="editHoursModal"><div class="card2">
+  <h3>Fix the times</h3>
+  <p class="mhint" id="ehWhat">—</p>
+  <div style="display:flex;gap:10px">
+    <div style="flex:1"><label class="fld">Started</label>
+      <input type="time" class="fld-in" id="ehStart"></div>
+    <div style="flex:1"><label class="fld">Finished</label>
+      <input type="time" class="fld-in" id="ehFinish"></div>
+  </div>
+  <label class="fld">Break <span class="fldhint">(minutes — 0 if none)</span></label>
+  <input type="number" min="0" step="5" class="fld-in" id="ehBreak" value="0">
+  <div class="ehcalc" id="ehCalc">—</div>
+  <label class="fld">Note <span class="fldhint">(optional)</span></label>
+  <input class="fld-in" id="ehNote" placeholder="e.g. port side only">
+  <button class="go" onclick="ehSave()">Save</button>
+  <button class="cancel" onclick="closeModal('editHoursModal')">Cancel</button>
+</div></div>
+
 <!-- Handing over from one job to the next. Starting a second task stops the
      first, and that used to happen silently — so the job you actually finished
      stayed "To do" forever and nobody set it. Ask once, here, while they still
@@ -2427,26 +2458,89 @@ function chBanner(){
       '<button class="cb-s" onclick="chStop()">Stop</button>';
   } else { el.className="chban hidden"; el.innerHTML=""; }
 }
+var CHJOB=null, CHJOBKEY=null;
+/* Every hour booked against this job, by anyone, on any day — because this is
+   what the job card gets built from, so it is what the job should show. */
+function chJobLoad(key, force){
+  if(!ME||!key) return;
+  if(!force && CHJOBKEY===key && CHJOB) { chPaintJob(); return; }
+  CHJOBKEY=key;
+  apiGet("fn=crewjobhours&code="+encodeURIComponent(ME.code||"")+
+         "&email="+encodeURIComponent(ME.email||"")+"&jobKey="+encodeURIComponent(key))
+    .then(function(r){ if(CHJOBKEY!==key) return; CHJOB=(r&&r.ok)?r:null; chPaintJob(); })
+    .catch(function(){});
+}
+function chPaintJob(){ var b=$("chBox"); if(b&&openJobId) b.innerHTML=chBoxHtml(openJobId); }
+function chJobEntriesHtml(key){
+  if(!CHJOB || CHJOB.jobKey!==key || !CHJOB.entries.length) return "";
+  var rows=CHJOB.entries.map(function(e){
+    var when = e.running ? "running since "+esc(e.start)
+             : esc(e.start)+"\u2013"+esc(e.finish)+(e.breakMins?(" \u00b7 "+e.breakMins+"m break"):"");
+    return '<div class="chent"><div class="w"><b>'+esc(e.crew)+'</b>'+
+      '<span>'+esc(e.date)+' \u00b7 '+when+'</span></div>'+
+      '<div class="hh">'+(e.running?"\u2014":chFmt(e.hours))+'</div>'+
+      (e.mine&&!e.running?('<button class="ed" title="Fix the times" onclick="ehOpen(\''+esc(e.entryId)+'\')">\u270e</button>'+
+                           '<button class="ed del" title="Delete" onclick="chDel(\''+esc(e.entryId)+'\',1)">\u2715</button>'):'')+
+      '</div>';
+  }).join("");
+  return '<div style="margin-top:12px"><div class="chtothdr">'+
+    '<b style="font-size:12px;color:var(--muted)">TIME ON THIS JOB</b>'+
+    '<b class="chtot">'+chFmt(CHJOB.totalHours)+' total</b></div>'+rows+'</div>';
+}
+/* Fix a logged time. Forgetting to stop is ordinary, so this is a form with the
+   arithmetic shown, not a run of prompt boxes. */
+function ehOpen(entryId){
+  var e=null;
+  if(CHJOB) e=(CHJOB.entries||[]).filter(function(x){return x.entryId===entryId;})[0];
+  if(!e && CHDAY) e=(CHDAY.entries||[]).filter(function(x){return x.entryId===entryId;})[0];
+  if(!e) return;
+  EHID=entryId;
+  $("ehWhat").innerHTML=esc(e.task||"this job")+" \u00b7 "+esc(e.crew||"")+" \u00b7 "+esc(e.date||"");
+  $("ehStart").value=e.start||""; $("ehFinish").value=e.finish||"";
+  $("ehBreak").value=String(e.breakMins||0); $("ehNote").value=e.note||"";
+  ehCalc();
+  $("editHoursModal").classList.add("show");
+}
+var EHID=null;
+function ehMins(v){ var m=/^(\d{1,2}):(\d{2})$/.exec((v||"").trim()); return m?((+m[1])*60+(+m[2])):-1; }
+function ehCalc(){
+  var a=ehMins($("ehStart").value), b=ehMins($("ehFinish").value);
+  var br=parseInt($("ehBreak").value,10)||0;
+  var el=$("ehCalc");
+  if(a<0||b<0){ el.textContent="\u2014"; return; }
+  var d=b-a; if(d<0) d+=1440; d-=br;
+  if(d<=0){ el.textContent="That gives no time worked"; return; }
+  var billable=Math.round((d/60)*4)/4;
+  el.textContent=Math.floor(d/60)+"h "+(d%60)+"m actual \u2192 "+chFmt(billable)+" billable"+
+    (d>=1440-60?"  (overnight)":"");
+}
+function ehSave(){
+  if(!EHID) return;
+  apiPost({action:"crewHoursEdit", email:ME.email, code:ME.code, entryId:EHID,
+           start:$("ehStart").value, finish:$("ehFinish").value,
+           breakMins:(parseInt($("ehBreak").value,10)||0), note:$("ehNote").value}).then(function(r){
+    if(!r||!r.ok){ toast((r&&r.error)||"Couldn\u2019t save"); return; }
+    toast("Updated \u2014 "+chFmt(r.hours));
+    closeModal("editHoursModal");
+    chLoad(true); if(openJobId) chJobLoad(openJobId, true);
+  });
+}
 function chBoxHtml(key){
   var mine=(CHTIMER&&CHTIMER.running&&CHTIMER.jobKey===key);
-  var todayHrs=0, n=0;
-  if(CHDAY&&CHDAY.entries) CHDAY.entries.forEach(function(e){
-    if(e.jobKey===key&&!e.running){ todayHrs+=e.hours; n++; }
-  });
-  var done = n ? ('<div class="chtot" style="margin-bottom:9px">\u2713 '+chFmt(todayHrs)+' logged today on this job</div>') : '';
+  var done = chJobEntriesHtml(key);
   if(mine){
-    return '<div class="chbox on">'+done+
+    return '<div class="chbox on">'+
       '<div class="chrun"><div><div class="el">'+chElapsedFull(CHTIMER.start)+'</div>'+
       '<div class="lb">started '+esc(CHTIMER.start)+'</div></div></div>'+
       (CHTIMER.overlong?'<div class="chwarn">This has been running a long time \u2014 stop it and set the right finish time.</div>':'')+
-      '<button class="chbtn stop" onclick="chStop()">\u25a0 Stop</button></div>';
+      '<button class="chbtn stop" onclick="chStop()">\u25a0 Stop</button>'+done+'</div>';
   }
   var other = (CHTIMER&&CHTIMER.running)
     ? ('<div class="chwarn">You\u2019re on <b>'+esc(CHTIMER.task||"another job")+'</b> since '+esc(CHTIMER.start)+
        '. Starting here will stop that one.</div>') : '';
-  return '<div class="chbox">'+done+other+
+  return '<div class="chbox">'+other+
     '<button class="chbtn go" onclick="chStart(\''+esc(String(key).replace(/'/g,"\\'"))+'\')">\u25b6 Start</button>'+
-    '<button class="chbtn sec" onclick="chManual(\''+esc(String(key).replace(/'/g,"\\'"))+'\')">Enter times by hand</button></div>';
+    '<button class="chbtn sec" onclick="chManual(\''+esc(String(key).replace(/'/g,"\\'"))+'\')">Enter times by hand</button>'+done+'</div>';
 }
 var _hoNextKey=null;
 /* Starting a second job stops the first. That has to be a decision, not a
@@ -2545,7 +2639,7 @@ function chDayHtml(){
     return '<div class="chrow"><div class="t"><b>'+esc(e.task||"(job)")+'</b><span>'+
       (e.code?(esc(e.code)+' \u00b7 '):'')+t+'</span></div>'+
       '<div class="h">'+(e.running?'\u2014':chFmt(e.hours))+'</div>'+
-      (e.running?'':'<button class="ed" title="Fix times" onclick="chEdit(\''+esc(e.entryId)+'\')">\u270e</button>')+
+      (e.running?'':'<button class="ed" title="Fix times" onclick="ehOpen(\''+esc(e.entryId)+'\')">\u270e</button>')+
       (e.running?'':'<button class="ed del" title="Delete this entry" onclick="chDel(\''+esc(e.entryId)+'\')">\u2715</button>')+
       '</div>';
   }).join("");
@@ -2571,13 +2665,13 @@ function chEdit(entryId){
 }
 /* A wrong tap shouldn't need a director. Crew can remove their own entry right
    up until the day lands on a job card — after that it's a real record. */
-function chDel(entryId){
+function chDel(entryId, fromJob){
   var e=(CHDAY&&CHDAY.entries||[]).filter(function(x){return x.entryId===entryId;})[0];
   var what = e ? (chFmt(e.hours)+" on "+(e.task||"this job")) : "this entry";
   if(!confirm("Delete "+what+"?")) return;
   apiPost({action:"crewHoursDelete", email:ME.email, code:ME.code, entryId:entryId}).then(function(r){
     if(!r||!r.ok){ toast((r&&r.error)||"Couldn\u2019t delete"); return; }
-    toast("Deleted"); chLoad(true);
+    toast("Deleted"); chLoad(true); if(fromJob&&openJobId) chJobLoad(openJobId,true);
   });
 }
 /* A phone that slept, an app switched away from, a screen turned off — the timer
@@ -4545,7 +4639,7 @@ function wlBucketToStatus(j){ var b=hubBucket(j.status); return b==="Done"?"Comp
 function openWLJob(key){
   var j=wlFind(key); if(!j)return;
   openJobId=key; WLMENTIONS=[]; WLLANE=""; PHTAG="";
-  try{ chLoad(); }catch(e){}   // the box below must reflect the sheet, not a stale copy   // a Before left on last week must not mislabel today
+  try{ chLoad(); chJobLoad(key, true); }catch(e){}   // the box below must reflect the sheet   // a Before left on last week must not mislabel today
   var pool=(j.oj && typeof OFITEMS!=="undefined" && OFITEMS.length) ? OFITEMS : CREWJOBS;
   var inList=pool.filter(function(x){return (x.list||"")===(j.list||"");}); var num=inList.indexOf(j)+1;
   var cur=wlBucketToStatus(j);
