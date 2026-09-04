@@ -1131,6 +1131,17 @@
   .sent .linkbtn{width:100%;margin-top:16px;border:0;background:var(--navy);color:#fff;font-weight:bold;font-size:14px;padding:14px;border-radius:11px;cursor:pointer}
   .sent .back{margin-top:10px;border:0;background:transparent;color:var(--muted);font-size:12.5px;cursor:pointer;width:100%}
   .hidden{display:none!important}
+
+/* --- taps register immediately -----------------------------------------
+   Without touch-action:manipulation a mobile browser waits ~300ms after every
+   tap to see whether a second one is coming (double-tap zoom). That wait is
+   most of why buttons felt sluggish. And a tap that shows nothing until the
+   server answers reads as a tap that did not land, so every button dims the
+   instant it is pressed. brightness/opacity only — nothing that moves layout. */
+button, a, select, input, textarea, label, [onclick]{ touch-action: manipulation; }
+button, [onclick]{ -webkit-tap-highlight-color: rgba(0,0,0,.04); }
+button:active{ filter: brightness(.93); }
+[onclick]:active{ opacity:.86; }
 </style>
 </head>
 <body>
@@ -1370,7 +1381,7 @@
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-05·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-05·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
