@@ -348,6 +348,8 @@
   .chrow .ed{border:none;background:none;color:var(--muted);font-size:15px;cursor:pointer;padding:2px 4px}
   .chrow .ed.del{color:#c1443b}
   .actbtn.hours{background:#fff;color:var(--navy);border:1.5px solid var(--line)}
+  .actbtn.hours.haslogged{border-color:#2e7d5b}
+  .actbtn.hours.haslogged small{color:#2e7d5b;font-weight:800}
   .clockerr{background:#fdecea;border:1.5px solid #e6a49d;border-radius:12px;padding:13px 15px;margin-bottom:12px}
   .clockerr b{display:block;color:#a3352c;font-size:14px;margin-bottom:3px}
   .clockerr span{display:block;color:#7a4a45;font-size:13px;line-height:1.45;margin-bottom:10px}
@@ -1344,7 +1346,7 @@
        so this space is free). The page gets padding underneath so it never covers
        content — unlike the floating buttons it replaces. -->
   <div class="actbar hidden" id="actBar">
-    <button class="actbtn hours" id="fabHours" onclick="openMyHours()">⏱ My hours <small>(today)</small></button>
+    <button class="actbtn hours" id="fabHours" onclick="openMyHours()">⏱ My hours <small>none yet</small></button>
     <button class="actbtn log" id="fabLog" onclick="openWorkLog()">✓ Log job <small>(already done)</small></button>
     <button class="actbtn raise" id="fab" onclick="openRaise()">＋ Raise a job <small>(to do)</small></button>
   </div>
@@ -2386,6 +2388,7 @@ function chLoad(force){
 }
 function chPaint(){
   chBanner();
+  chFabLabel();
   var b=$("chBox"); if(b&&openJobId) b.innerHTML=chBoxHtml(openJobId);
   var d=$("chDayBox"); if(d) d.innerHTML=chDayHtml();
   clearInterval(_chTick);
@@ -2399,6 +2402,16 @@ function chPaint(){
 /* One line pinned above the worklist whenever something is running. Without it a
    live timer is only visible inside the job it belongs to, which is exactly where
    you don't look when you've forgotten about it. */
+/* The button already sits there all day — it may as well carry the number
+   rather than the word "today". Seeing 6 hrs on it is what prompts someone to
+   notice when it says 2 and they have been at it since seven. */
+function chFabLabel(){
+  var el=document.querySelector("#fabHours small"); if(!el) return;
+  var t=(CHDAY && CHDAY.loggedHours) || 0;
+  var running=!!(CHTIMER && CHTIMER.running);
+  el.textContent = t ? (chFmt(t)+" today"+(running?" +":"")) : (running?"running…":"none yet");
+  var btn=$("fabHours"); if(btn) btn.classList.toggle("haslogged", !!t || running);
+}
 function chBanner(){
   var el=$("chBanner");
   if(!el){
