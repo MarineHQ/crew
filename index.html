@@ -297,6 +297,20 @@
 
   /* status control */
   /* --- task timer --- */
+  /* Three across rather than stacked — it is a single choice, and reading them
+     side by side is how a choice reads. Labels kept short so all three fit on a
+     phone without wrapping. */
+  .horow{display:flex;gap:8px;margin-top:16px}
+  .hobtn{flex:1;min-width:0;border:1.5px solid var(--line);background:#fff;border-radius:12px;
+    padding:12px 6px;font-family:inherit;cursor:pointer;text-align:center}
+  .hobtn b{display:block;font-size:14.5px;font-weight:800;color:var(--navy);white-space:nowrap}
+  .hobtn span{display:block;font-size:10.5px;color:var(--muted);margin-top:2px;white-space:nowrap}
+  .hobtn.done{background:#2e7d5b;border-color:#2e7d5b}
+  .hobtn.done b{color:#fff}
+  .hobtn.done span{color:#d3ece0}
+  .hobtn.hold{background:#fff8f0;border-color:#e8a05a}
+  .hobtn.hold b{color:#b5651d}
+  .hobtn.hold span{color:#b5651d;opacity:.75}
   .hocur{background:#fff8f0;border:1.5px solid #e8a05a;border-radius:11px;padding:12px 13px;margin:4px 0 14px}
   .hocur .hot{font-size:15px;font-weight:800;color:var(--navy);line-height:1.3}
   .hocur .hom{display:flex;gap:10px;margin-top:4px;font-size:12px;color:var(--muted);
@@ -1439,9 +1453,11 @@
     <div class="hot" id="hoCurTask">—</div>
     <div class="hom"><span id="hoCurCode"></span><span id="hoCurTime"></span></div>
   </div>
-  <button class="go" onclick="handoverGo('Complete')">✓ Yes — it's done</button>
-  <button class="go alt" onclick="handoverGo('In Progress')">↻ No — still in hand</button>
-  <button class="cancel" onclick="closeModal('handoverModal')">Stay on this job</button>
+  <div class="horow">
+    <button class="hobtn done" onclick="handoverGo('Complete')"><b>✓ Done</b><span>mark complete</span></button>
+    <button class="hobtn hold" onclick="handoverGo('In Progress')"><b>↻ In hand</b><span>leave it open</span></button>
+    <button class="hobtn stay" onclick="closeModal('handoverModal')"><b>Stay</b><span>don't switch</span></button>
+  </div>
 </div></div>
 
 <!-- My hours — the end-of-day check. Everything logged today, editable, with
