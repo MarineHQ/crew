@@ -362,6 +362,7 @@
   .hocur .hom{display:flex;gap:10px;margin-top:4px;font-size:12px;color:var(--muted);
     font-family:ui-monospace,Menlo,monospace}
   .go.alt{background:#fff;color:var(--navy);border:1.5px solid var(--line)}
+  .go.alt2{background:#2e7d5b;margin-top:8px}
   .chban{display:flex;align-items:center;gap:11px;background:#fff4e6;border:1.5px solid #e8a05a;
     border-radius:12px;padding:10px 12px;margin:0 4px 12px}
   .chban.hidden{display:none}
@@ -1393,7 +1394,7 @@ button:active{ filter: brightness(.93); }
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-05·d</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-05·e</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1594,6 +1595,7 @@ button:active{ filter: brightness(.93); }
   <div class="photos staged" id="wl_dcGrid"></div>
   <input type="file" id="wl_dcIn" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,image/*" multiple style="display:none" onchange="stagedAdd('wl_dc',this)">
   <button class="go" onclick="submitWorkLog()">✓ Log it</button>
+  <button class="go alt2" onclick="submitWorkLog(true)">▶ Log it &amp; start the timer</button>
   <button class="cancel" onclick="closeModal('workLogModal')">Cancel</button>
 </div></div>
 
@@ -6924,7 +6926,10 @@ function wlogOpenWhenReady(key, tries, then){
   if(tries>12){ if(then) then(); return; }               // ~6s then upload anyway — never lose a photo
   setTimeout(function(){ wlogOpenWhenReady(key, tries+1, then); }, 500);
 }
-function submitWorkLog(){
+/* Work that was never on a worklist still gets timed. Someone who starts an
+   unplanned job should not have to guess the hours afterwards — they log it and
+   the timer starts on the job that was just created. */
+function submitWorkLog(startTimer){
   var t=($("wl_title").value||"").trim(); if(!t){ toast("What did you do? Give it a short title"); return; }
   var vsel=$("wl_vessel").value, vessel;
   if(vsel==="__other__"){ vessel=($("wl_other").value||"").trim(); if(!vessel){ toast("Type the yacht name"); return; } vessel="Other — "+vessel; }
@@ -6933,8 +6938,10 @@ function submitWorkLog(){
   var docs=stagedFiles("wl_dc");
   toast("Logging…");
   apiPost({action:"crewWorkLog", email:ME.email, code:ME.code, vessel:vessel, title:t,
-           desc:($("wl_desc").value||"").trim(), status:WLOGSTAT,
-           doneOn:$("wl_done").value||"", hours:($("wl_hours").value||"")}).then(function(r){
+           desc:($("wl_desc").value||"").trim(),
+           doneOn:$("wl_done").value||"",
+           hours: startTimer ? "" : ($("wl_hours").value||""),
+           status: startTimer ? "In hand" : WLOGSTAT}).then(function(r){
     if(!r||!r.ok){ toast((r&&r.error)||"Couldn’t log it"); return; }
     closeModal("workLogModal");
     toast((r.status==="In hand"?"◐ Logged — still in hand":"✓ Logged")+(r.code?(" — "+r.code):""));
@@ -6942,6 +6949,7 @@ function submitWorkLog(){
     go("jobs");
     STAGED["wl_ph"]=[]; STAGED["wl_dc"]=[];            // handed to the upload — don't revoke the previews
     afterCreate(r.key, photos, docs);
+    if(startTimer && r.key){ chStart(r.key); }         // straight onto the clock
   }).catch(function(){ toast("Couldn’t connect"); });
 }
 
