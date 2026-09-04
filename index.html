@@ -300,6 +300,9 @@
   /* Three across rather than stacked — it is a single choice, and reading them
      side by side is how a choice reads. Labels kept short so all three fit on a
      phone without wrapping. */
+  .chrow.tap{cursor:pointer}
+  .chrow.tap:active{background:#f4f7fc}
+  .chrow.tap .t b::after{content:" \203a";color:var(--muted);font-weight:400}
   .mhchips{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px}
   .mhchip{border:1px solid var(--line);background:#fff;color:var(--muted);font-size:12.5px;
     font-weight:700;padding:7px 12px;border-radius:20px;font-family:inherit;cursor:pointer}
@@ -1362,7 +1365,7 @@
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-04·l</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-04·m</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2668,12 +2671,15 @@ function mhRange(p){
       b2=new Date(now.getFullYear(),now.getMonth(),0);
   return {from:d(a2), to:d(b2)};                     // last month
 }
-function mhSet(p){ MHPERIOD=p; MHDATA=null; renderMyHours(); mhLoad(); }
+var MHVESSEL="";
+function mhSet(p){ MHPERIOD=p; MHVESSEL=""; MHDATA=null; renderMyHours(); mhLoad(); }
+function mhBoat(v){ MHVESSEL=v; MHDATA=null; renderMyHours(); mhLoad(); }
 function mhLoad(){
   if(!ME) return;
   var r=mhRange(MHPERIOD);
   apiGet("fn=crewhours&code="+encodeURIComponent(ME.code||"")+
-         "&email="+encodeURIComponent(ME.email||"")+"&from="+r.from+"&to="+r.to)
+         "&email="+encodeURIComponent(ME.email||"")+"&from="+r.from+"&to="+r.to+
+         (MHVESSEL?("&vessel="+encodeURIComponent(MHVESSEL)):""))
     .then(function(j){ MHDATA=(j&&j.ok)?j:null; renderMyHours(); })
     .catch(function(){});
 }
@@ -2683,7 +2689,15 @@ function renderMyHours(){
     [["today","Today"],["week","This week"],["month","This month"],["last","Last month"]]
       .map(function(o){ return '<button class="mhchip'+(MHPERIOD===o[0]?" on":"")+
         '" onclick="mhSet(\''+o[0]+'\')">'+o[1]+'</button>'; }).join("")+'</div>';
-  el.innerHTML = chips + (MHPERIOD==="today" ? chDayHtml() : mhPeriodHtml());
+  var boats="";
+  if(MHDATA && (MHDATA.vessels||[]).length>1){
+    boats='<div class="mhchips sub">'+
+      '<button class="mhchip'+(MHVESSEL?"":" on")+'" onclick="mhBoat(\'\')">All boats</button>'+
+      MHDATA.vessels.map(function(v){
+        return '<button class="mhchip'+(MHVESSEL===v?" on":"")+'" onclick="mhBoat(\''+
+          esc(String(v).replace(/'/g,"\\'"))+'\')">'+esc(v)+'</button>'; }).join("")+'</div>';
+  }
+  el.innerHTML = chips + boats + (MHPERIOD==="today" ? chDayHtml() : mhPeriodHtml());
 }
 function mhPeriodHtml(){
   if(!MHDATA) return '<div style="font-size:13px;color:var(--muted)">Loading\u2026</div>';
@@ -2700,11 +2714,14 @@ function mhPeriodHtml(){
     }).join("");
   }
   var rows=MHDATA.entries.slice(0,40).map(function(e){
-    return '<div class="chrow"><div class="t"><b>'+esc(e.task||"(job)")+'</b><span>'+
+    var jk=String(e.jobKey||"").replace(/'/g,"\\'");
+    return '<div class="chrow'+(e.jobKey?" tap":"")+'"'+
+      (e.jobKey?(' onclick="mhOpenJob(\''+esc(jk)+'\')"'):'')+
+      '><div class="t"><b>'+esc(e.task||"(job)")+'</b><span>'+
       esc(e.date)+' \u00b7 '+esc(e.vessel||'')+
       (e.start?(' \u00b7 '+esc(e.start)+'\u2013'+esc(e.finish||'\u2026')):'')+'</span></div>'+
       '<div class="h">'+(e.finish?chFmt(e.hours):'\u2014')+'</div>'+
-      (e.finish?('<button class="ed" onclick="ehOpen(\''+esc(e.entryId)+'\')">\u270e</button>'):'')+
+      (e.finish?('<button class="ed" onclick="event.stopPropagation();ehOpen(\''+esc(e.entryId)+'\')">\u270e</button>'):'')+
       '</div>';
   }).join("");
   return '<div class="mhtot"><b>'+chFmt(MHDATA.totalHours)+'</b>'+
@@ -2721,11 +2738,14 @@ function chDayHtml(){
   var rows=CHDAY.entries.map(function(e){
     var t = e.running ? ('<span class="el">'+chElapsed(e.start)+'</span> running')
                       : (esc(e.start)+'\u2013'+esc(e.finish)+(e.breakMins?(' \u00b7 '+e.breakMins+'m break'):''));
-    return '<div class="chrow"><div class="t"><b>'+esc(e.task||"(job)")+'</b><span>'+
+    var jk2=String(e.jobKey||"").replace(/'/g,"\\'");
+    return '<div class="chrow'+(e.jobKey?" tap":"")+'"'+
+      (e.jobKey?(' onclick="mhOpenJob(\''+esc(jk2)+'\')"'):'')+
+      '><div class="t"><b>'+esc(e.task||"(job)")+'</b><span>'+
       (e.code?(esc(e.code)+' \u00b7 '):'')+t+'</span></div>'+
       '<div class="h">'+(e.running?'\u2014':chFmt(e.hours))+'</div>'+
-      (e.running?'':'<button class="ed" title="Fix times" onclick="ehOpen(\''+esc(e.entryId)+'\')">\u270e</button>')+
-      (e.running?'':'<button class="ed del" title="Delete this entry" onclick="chDel(\''+esc(e.entryId)+'\')">\u2715</button>')+
+      (e.running?'':'<button class="ed" title="Fix times" onclick="event.stopPropagation();ehOpen(\''+esc(e.entryId)+'\')">\u270e</button>')+
+      (e.running?'':'<button class="ed del" title="Delete this entry" onclick="event.stopPropagation();chDel(\''+esc(e.entryId)+'\')">\u2715</button>')+
       '</div>';
   }).join("");
   var gap="";
@@ -2768,6 +2788,18 @@ document.addEventListener("visibilitychange", function(){
 });
 window.addEventListener("focus", function(){ if(ME) chLoad(); });
 
+/* An hours row IS a job — so tapping it should go there. Without this, seeing
+   "6.75 hrs on Flags — bow pendant" and wanting the job itself means closing
+   this, finding the right worklist and hunting for it. */
+function mhOpenJob(jobKey){
+  if(!jobKey) return;
+  closeModal("myHoursModal");
+  if(wlFind(jobKey)) { openWLJob(jobKey); return; }
+  toast("Opening that job\u2026");
+  refreshAll();
+  setTimeout(function(){ if(wlFind(jobKey)) openWLJob(jobKey);
+                         else toast("That job isn\u2019t on your current lists"); }, 1200);
+}
 function openMyHours(){
   $("myHoursModal").classList.add("show");
   renderMyHours(); chLoad(true); if(MHPERIOD!=="today") mhLoad();
