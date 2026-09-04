@@ -204,8 +204,9 @@
   .cmt{font-size:13px;font-weight:600;color:var(--ink);line-height:1.35}
   .cmcarry{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#8a5a12;background:#fdf1e3;border-radius:5px;padding:1px 6px;margin-left:7px;vertical-align:middle}
   .cmsegs{display:flex;gap:5px;margin:7px 0 5px}
-  .cmseg{flex:1;border:1.5px solid var(--line);background:#fff;color:var(--muted);border-radius:8px;padding:6px 2px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap}
+  .cmseg{flex:1;border:1.5px solid var(--line);background:#fff;color:var(--muted);border-radius:8px;padding:6px 1px;font-size:10.5px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap}
   .cmseg.on{color:#fff;border-color:transparent}
+  .cmseg.on.done{background:var(--ok)}
   .cmseg.on.roll{background:var(--navy)}
   .cmseg.on.yard{background:#2C5273}
   .cmseg.on.close{background:#9a3b2a}
@@ -1314,7 +1315,7 @@
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-04·h</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-04·i</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -3888,8 +3889,10 @@ function cmPreview(){
 /* Five honest answers for an unfinished job (Trish, 4 Sep 2026): carry it, send
    it to the yard, park it On hold, move it onto ANY other list on the boat by
    name, or close it as not done. A "list:" value carries the list name. */
-var CMWAYS=["roll","yard","hold","list","close"];
-var CMLBL={roll:"Carry over", yard:"Shipyard", hold:"On hold", list:"Other list", close:"Not doing"};
+/* Plus Done (Trish, 4 Sep 2026): it got finished and nobody ticked it — mark it
+   Complete as part of the close so it stays on the month as finished work. */
+var CMWAYS=["done","roll","yard","hold","list","close"];
+var CMLBL={done:"Done", roll:"Carry over", yard:"Shipyard", hold:"On hold", list:"Other list", close:"Not doing"};
 var CMNEW={};                                    // job key (or "*") -> typing a new list name
 function cmWayOf(key){ var w=CMWAY[key]||"roll"; return w.indexOf("list:")===0?"list":w; }
 function cmListOf(key){ var w=CMWAY[key]||""; return w.indexOf("list:")===0?w.substring(5):""; }
@@ -3931,10 +3934,11 @@ function cmDestText(x){
   if(w==="hold")  return "On hold";
   if(w==="list")  return cmListOf(x.key) || "pick a list";
   if(w==="close") return "closed \u2014 not done";
+  if(w==="done")  return "marked Complete \u2014 stays on "+CM.period;
   return x.to;
 }
 function cmTally(){
-  var t={roll:0,yard:0,hold:0,list:0,close:0,unnamed:0};
+  var t={done:0,roll:0,yard:0,hold:0,list:0,close:0,unnamed:0};
   Object.keys(CMWAY).forEach(function(k){ if(k==="*") return; var w=cmWayOf(k); t[w]=(t[w]||0)+1; if(w==="list"&&!cmListOf(k)) t.unnamed++; });
   return t;
 }
@@ -3961,7 +3965,7 @@ function cmRender(){
       '<div class="cmsegs">'+seg+'</div>'+(w==="list"?cmPickHTML(x.key):"")+
       '<div class="cmto">→ '+esc(cmDestText(x))+'</div></div>';
   }).join("");
-  var bits=[]; if(t.roll)bits.push(t.roll+' carrying into '+esc(r.nextPeriod||"next month"));
+  var bits=[]; if(t.done)bits.push(t.done+' done'); if(t.roll)bits.push(t.roll+' carrying into '+esc(r.nextPeriod||"next month"));
   if(t.yard)bits.push(t.yard+' to shipyard'); if(t.hold)bits.push(t.hold+' on hold');
   if(t.list)bits.push(t.list+' to another list'); if(t.close)bits.push(t.close+' closed');
   $("cmBody").innerHTML=
@@ -3984,8 +3988,8 @@ function cmGo(){
     b.disabled=false;
     if(!r||!r.ok){ toast((r&&r.error)||"Couldn’t close the month"); b.textContent="Close "+CM.period; return; }
     closeModal("closeMonthModal");
-    var held=(r.held||[]).length, moved=(r.moved||[]).length;
-    toast("✓ "+CM.period+" closed — "+r.rolled.length+" carried, "+r.toYard.length+" to shipyard"+
+    var held=(r.held||[]).length, moved=(r.moved||[]).length, done=(r.done||[]).length;
+    toast("✓ "+CM.period+" closed — "+(done?(done+" done, "):"")+r.rolled.length+" carried, "+r.toYard.length+" to shipyard"+
           (held?(", "+held+" on hold"):"")+(moved?(", "+moved+" moved"):"")+", "+r.closed.length+" closed");
     _liFor=""; loadListInfo(CURVESSEL); loadClosedLists(); loadJobs();
   }).catch(function(){ b.disabled=false; toast("Couldn’t connect"); });
