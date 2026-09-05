@@ -343,6 +343,7 @@
   .ahdone,.ahhand{font-style:normal;font-size:9px;font-weight:800;letter-spacing:.05em;
     text-transform:uppercase;padding:2px 6px;border-radius:999px;margin-left:7px;vertical-align:1px}
   .ahdone{background:#eaf5ee;color:#2e7d5b}
+  .ahgot{font-style:normal;color:var(--navy);font-weight:700}
   .ahhand{background:#fdf3e3;color:#8a5a12}
   .ahrow{padding:10px 12px;border-bottom:1px solid var(--line);cursor:pointer;
     touch-action:manipulation}
@@ -1444,7 +1445,7 @@ button:active{ filter: brightness(.93); }
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-05·k</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-05·l</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2838,7 +2839,34 @@ function chStop(finish, brk, confirmLong){
 /* The fallback. They will forget to tap Start — this has to exist or those
    hours are simply lost, which is worse than a slightly rough number. And it
    has to carry a DATE: the job you forgot to clock onto was rarely today. */
-var AHKEY=null;
+var AHKEY=null, AHJOBS=null, AHLOG={};
+/* The worklist on screen is one boat at a time — and for a director it is that
+   boat's whole list, not their own work. Neither is the right list here, so the
+   picker asks for its own: MY jobs, on every boat. */
+function ahLoadJobs(){
+  return apiGet("fn=crewjobs&code="+encodeURIComponent(ME.code||"")+
+                "&email="+encodeURIComponent(ME.email||"")+"&mine=1")
+    .then(function(j){ AHJOBS=((j&&j.jobs)||[]); return AHJOBS; })
+    .catch(function(){ AHJOBS=(CREWJOBS||[]).slice(); return AHJOBS; });
+}
+/* What is already logged against each job, so nobody adds the same day twice. */
+function ahLoadLog(){
+  var to=new Date(), from=new Date(to.getTime()-89*864e5);
+  function d(x){ return x.getFullYear()+"-"+String(x.getMonth()+1).padStart(2,"0")+"-"+String(x.getDate()).padStart(2,"0"); }
+  return apiGet("fn=crewhours&code="+encodeURIComponent(ME.code||"")+
+                "&email="+encodeURIComponent(ME.email||"")+"&from="+d(from)+"&to="+d(to))
+    .then(function(j){
+      AHLOG={};
+      ((j&&j.ok&&j.entries)||[]).forEach(function(e){
+        if(!e.jobKey) return;
+        var a=AHLOG[e.jobKey]=AHLOG[e.jobKey]||{hrs:0,n:0,last:"",days:{},sent:0};
+        a.hrs+=(Number(e.hours)||0); a.n++;
+        if(e.date>a.last) a.last=e.date;
+        a.days[e.date]=(a.days[e.date]||0)+(Number(e.hours)||0);
+        if(e.pushed==="Yes") a.sent++;
+      });
+    }).catch(function(){});
+}
 function chManual(key){ ahOpen(key); }
 function ahOpen(key){
   AHKEY = key || null;
@@ -2851,7 +2879,10 @@ function ahOpen(key){
         esc([j.code,j.vessel].filter(Boolean).join(" \u00b7 "))) : "Pick the day and the times.";
   } else {
     $("ahWhat").textContent = "Which job were you on? Pick the boat, then the job.";
-    $("ahSearch").value=""; AHBOAT=""; ahFilter();
+    $("ahSearch").value=""; AHBOAT="";
+    $("ahList").innerHTML='<div class="ahrow" style="cursor:default"><span>Loading your jobs\u2026</span></div>';
+    Promise.all([ AHJOBS ? Promise.resolve(AHJOBS) : ahLoadJobs(), ahLoadLog() ])
+      .then(function(){ ahFilter(); });
   }
   var d=$("ahDate"); if(d){ d.value=sdToday(); d.max=sdToday(); }
   $("ahStart").value=""; $("ahFinish").value=""; $("ahBreak").value="0"; $("ahNote").value="";
@@ -2872,7 +2903,8 @@ var AHBOAT="";
 function ahBoat(v){ AHBOAT=v; ahFilter(); }
 function ahFilter(){
   var q=($("ahSearch").value||"").toLowerCase().trim();
-  var all=(CREWJOBS||[]).filter(function(j){
+  var src = AHJOBS || CREWJOBS || [];
+  var all=src.filter(function(j){
     if(AHBOAT && (j.vessel||"")!==AHBOAT) return false;
     if(!q) return true;
     var hay=((j.task||"")+" "+(j.vessel||"")+" "+(j.code||"")).toLowerCase();
@@ -2880,7 +2912,7 @@ function ahFilter(){
     return ahInitials(j.vessel).indexOf(q)>=0;             // AT3 → Abel Tasman III
   });
 
-  var counts={}; (CREWJOBS||[]).forEach(function(j){ counts[j.vessel||"—"]=(counts[j.vessel||"—"]||0)+1; });
+  var counts={}; src.forEach(function(j){ counts[j.vessel||"—"]=(counts[j.vessel||"—"]||0)+1; });
   var boats=Object.keys(counts).sort();
   var chips = boats.length>1 ? '<div class="ahchips">'+
     '<button class="ahchip'+(AHBOAT?"":" on")+'" onclick="ahBoat(\'\')">All</button>'+
@@ -2906,9 +2938,12 @@ function ahFilter(){
         var b=hubBucket(j.status);
         var pill = b==="Done" ? '<em class="ahdone">done</em>'
                  : (b==="In progress" ? '<em class="ahhand">in hand</em>' : '');
+        var lg=AHLOG[j.key];
+        var got = lg ? ('  \u00b7  <em class="ahgot">'+chFmt(lg.hrs)+' logged, last '+
+                        chNiceDate(lg.last)+(lg.sent<lg.n?' \u00b7 some not sent':'')+'</em>') : '';
         return '<div class="ahrow" onclick="ahChoose(\''+esc(k)+'\')">'+
           '<b>'+esc(j.task||"(job)")+pill+'</b>'+
-          '<span>'+esc(j.code||"no code yet")+'</span></div>';
+          '<span>'+esc(j.code||"no code yet")+got+'</span></div>';
       }).join("");
   }).join("");
   $("ahList").innerHTML = html;
@@ -2929,6 +2964,17 @@ function ahSave(){
   if(!AHKEY){ toast("Pick the job first"); return; }
   var st=($("ahStart").value||"").trim(), fi=($("ahFinish").value||"").trim();
   if(!st||!fi){ toast("Start and finish, please"); return; }
+  /* Adding hours never re-sends anything — it writes a NEW entry. Which is
+     right for a second day on the same job, and wrong for a day already
+     logged, so say which one this is before it happens. */
+  var day=($("ahDate").value||"");
+  var lg=AHLOG[AHKEY];
+  if(lg && lg.days[day]){
+    if(!confirm("You already have "+chFmt(lg.days[day])+" logged on this job for "+
+                chNiceDate(day)+".\n\nAdding these hours puts a SECOND entry on that day —"+
+                " it won't replace the first.\n\nIf you meant to change the times, close this"+
+                " and use \u270e Edit on that entry instead.\n\nAdd anyway?")) return;
+  }
   var go=$("ahGo"); go.disabled=true; go.textContent="Adding\u2026";
   apiPost({action:"crewHoursLog", email:ME.email, code:ME.code, jobKey:AHKEY,
            date:($("ahDate").value||""), start:st, finish:fi,
@@ -2938,7 +2984,7 @@ function ahSave(){
     if(!r||!r.ok){ toast((r&&r.error)||"Couldn\u2019t save"); return; }
     toast("Added "+chFmt(r.hours)+" on "+chNiceDate($("ahDate").value||sdToday()));
     closeModal("addHoursModal");
-    chLoad(true); chUnsubLoad();
+    chLoad(true); chUnsubLoad(); ahLoadLog();
     if(openJobId) chJobLoad(openJobId,true);
     if($("myHoursModal") && $("myHoursModal").classList.contains("show")) mhLoad();
   }).catch(function(){ go.disabled=false; go.textContent="Add these hours"; toast("Couldn\u2019t connect"); });
