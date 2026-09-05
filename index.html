@@ -1476,7 +1476,7 @@ button:active{ filter: brightness(.93); }
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-05·v</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-05·w</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -3038,7 +3038,14 @@ function ahFilter(){
   var by={}, IN_HAND="\u0000";
   all.forEach(function(j){
     var b=hubBucket(j.status);
-    var k=(b==="Done" && j.completed) ? ahIsoFrom(j.completed) : "";
+    /* Three dates, in order of what they actually tell you:
+       the day it was finished; failing that the last day hours were logged
+       against it — the same ledger the job card is built from, so the picker
+       and the client's card agree; failing that, nothing to go on. A job in
+       hand keeps its "in hand" pill either way: it is grouped under a day
+       worked, never presented as finished. */
+    var k = (b==="Done" && j.completed) ? ahIsoFrom(j.completed) : "";
+    if(!k){ var lg=AHLOG[j.key]; if(lg && lg.last) k=ahIsoFrom(lg.last); }
     if(!k) k=IN_HAND;
     (by[k]=by[k]||[]).push(j);
   });
@@ -3048,7 +3055,7 @@ function ahFilter(){
   });
   var busy = AHBUSY ? '<div class="ahbusy">checking your other boats\u2026</div>' : '';
   var html = chips + busy + keys.map(function(v){
-    var lbl = v===IN_HAND ? "Still in hand \u00b7 no finish date yet" : ahNiceDay(v);
+    var lbl = v===IN_HAND ? "No date yet \u2014 not finished, no hours logged" : ahNiceDay(v);
     return '<div class="ahhd">'+esc(lbl)+' <span>'+by[v].length+'</span></div>' +
       by[v].slice(0,60).map(function(j){
         var k=String(j.key).replace(/'/g,"\\'");
