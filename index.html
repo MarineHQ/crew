@@ -454,9 +454,8 @@
   .corow .jobbtn{flex:1;margin:0}
   .cofor{color:var(--muted)}
   .cofor:not(:empty)::before{content:" \2014 "}
-  #fabHours{position:relative}
-  #fabHours.duedot::after{content:"";position:absolute;top:7px;right:9px;width:9px;height:9px;
-    border-radius:50%;background:#d23b3b;box-shadow:0 0 0 2px #fff}
+  #fabHours{position:relative;overflow:visible}
+  #fabHours .tabbadge{top:-7px;right:-6px;z-index:3}
   .mhtabs{display:flex;gap:6px;margin:0 0 12px}
   .mhtab{flex:1;border:1px solid var(--line);background:#fff;color:var(--navy);font-size:13px;
     font-weight:800;padding:9px 8px;border-radius:10px;cursor:pointer;touch-action:manipulation}
@@ -1481,7 +1480,7 @@ button:active{ filter: brightness(.93); }
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-05·x</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-05·y</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2670,11 +2669,17 @@ function chFabLabel(){
   var running=!!(CHTIMER && CHTIMER.running);
   var due=CHUNSENT.length;
   el.textContent = due ? (due+" to submit")
-    : (t ? (chFmt(t)+" today"+(running?" +":"")) : (running?"running…":"none yet"));
+    : (t ? (chFmt(t)+" today"+(running?" +":"")) : (running?"running…":"none today"));
   var btn=$("fabHours");
   if(btn){
     btn.classList.toggle("haslogged", !!t || running);
-    btn.classList.toggle("duedot", !!due);          // the red dot
+    /* A 9px dot was too easy to miss on a phone. This is the same red count
+       badge the tabs already use, so it reads as the same kind of alert. */
+    var b=btn.querySelector(".tabbadge");
+    if(due){
+      if(!b){ b=document.createElement("span"); b.className="tabbadge"; btn.appendChild(b); }
+      b.textContent=due;
+    } else if(b){ b.remove(); }
   }
 }
 function chBanner(){
