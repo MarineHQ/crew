@@ -1431,7 +1431,7 @@ button:active{ filter: brightness(.93); }
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-05·i</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-05·j</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2845,18 +2845,30 @@ function ahOpen(key){
   ahCalc();
   m.classList.add("show");
 }
+/* Crew say AT3, the worklist says Abel Tasman III. Match the initials as well
+   as the words, or the search looks broken when it is only being literal. */
+function ahInitials(v){
+  return (v||"").toString().replace(/[^A-Za-z0-9 ]/g," ").split(/\s+/).filter(String)
+    .map(function(w){ return /^\d+$/.test(w) ? w : w[0]; }).join("").toLowerCase();
+}
 function ahFilter(){
   var q=($("ahSearch").value||"").toLowerCase().trim();
   var list=(CREWJOBS||[]).filter(function(j){
     if(hubBucket(j.status)==="Done" && !q) return false;   // finished work only when searched for
     if(!q) return true;
-    return ((j.task||"")+" "+(j.vessel||"")+" "+(j.code||"")).toLowerCase().indexOf(q)>=0;
+    var hay=((j.task||"")+" "+(j.vessel||"")+" "+(j.code||"")).toLowerCase();
+    if(hay.indexOf(q)>=0) return true;
+    return ahInitials(j.vessel).indexOf(q)>=0;             // AT3 → Abel Tasman III
   }).slice(0,40);
   $("ahList").innerHTML = list.length ? list.map(function(j){
     var k=String(j.key).replace(/'/g,"\\'");
     return '<div class="ahrow" onclick="ahChoose(\''+esc(k)+'\')"><b>'+esc(j.task||"(job)")+'</b>'+
       '<span>'+esc([j.code,j.vessel].filter(Boolean).join(" \u00b7 "))+'</span></div>';
-  }).join("") : '<div class="ahrow"><span>Nothing matches — try the boat name.</span></div>';
+  }).join("")
+  : '<div class="ahrow" style="cursor:default"><b>Nothing on your worklist matches</b>'+
+    '<span>This list is the jobs assigned to you. If the work was never on a list, '+
+    'close this and use <b>\u2713 Log job</b> instead \u2014 it creates the job, with the '+
+    'day and the hours.</span></div>';
 }
 function ahChoose(key){ ahOpen(key); }
 function ahCalc(){
