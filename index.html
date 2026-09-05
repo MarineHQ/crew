@@ -330,7 +330,20 @@
   .sdsent{font-size:10px;font-weight:800;color:#2e7d5b;background:#e3f1ea;border-radius:9px;padding:2px 7px}
   /* Finished or not is the one thing only the person who did it knows, and the
      moment they read the day back is the moment they know it. */
-  .ahlist{max-height:230px;overflow:auto;border:1px solid var(--line);border-radius:10px;margin-top:8px}
+  .ahlist{max-height:300px;overflow:auto;border:1px solid var(--line);border-radius:10px;margin-top:8px}
+  .ahchips{display:flex;gap:6px;flex-wrap:wrap;padding:9px 10px;border-bottom:1px solid var(--line);
+    position:sticky;top:0;background:#fff;z-index:1}
+  .ahchip{border:1px solid var(--line);background:#fff;color:var(--navy);font-size:12px;
+    font-weight:700;padding:6px 10px;border-radius:999px;cursor:pointer;touch-action:manipulation}
+  .ahchip.on{background:var(--navy);border-color:var(--navy);color:#fff}
+  .ahchip i{font-style:normal;opacity:.6;font-weight:600}
+  .ahhd{position:sticky;top:39px;background:#f4f7fc;padding:6px 12px;font-size:11px;font-weight:800;
+    letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line)}
+  .ahhd span{opacity:.6}
+  .ahdone,.ahhand{font-style:normal;font-size:9px;font-weight:800;letter-spacing:.05em;
+    text-transform:uppercase;padding:2px 6px;border-radius:999px;margin-left:7px;vertical-align:1px}
+  .ahdone{background:#eaf5ee;color:#2e7d5b}
+  .ahhand{background:#fdf3e3;color:#8a5a12}
   .ahrow{padding:10px 12px;border-bottom:1px solid var(--line);cursor:pointer;
     touch-action:manipulation}
   .ahrow:last-child{border-bottom:none}
@@ -1431,7 +1444,7 @@ button:active{ filter: brightness(.93); }
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-05·j</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-05·k</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2837,8 +2850,8 @@ function ahOpen(key){
     $("ahWhat").innerHTML = j ? ('<b>'+esc(j.task||"this job")+'</b><br>'+
         esc([j.code,j.vessel].filter(Boolean).join(" \u00b7 "))) : "Pick the day and the times.";
   } else {
-    $("ahWhat").textContent = "Which job were you on?";
-    $("ahSearch").value=""; ahFilter();
+    $("ahWhat").textContent = "Which job were you on? Pick the boat, then the job.";
+    $("ahSearch").value=""; AHBOAT=""; ahFilter();
   }
   var d=$("ahDate"); if(d){ d.value=sdToday(); d.max=sdToday(); }
   $("ahStart").value=""; $("ahFinish").value=""; $("ahBreak").value="0"; $("ahNote").value="";
@@ -2851,24 +2864,54 @@ function ahInitials(v){
   return (v||"").toString().replace(/[^A-Za-z0-9 ]/g," ").split(/\s+/).filter(String)
     .map(function(w){ return /^\d+$/.test(w) ? w : w[0]; }).join("").toLowerCase();
 }
+/* Looking back at last week, you don't remember the job's name — you remember
+   the boat. So this is a list to browse, grouped by boat, not a search box you
+   have to guess into. Finished jobs stay in it: adding the hours you forgot is
+   exactly the case where the job is already done. */
+var AHBOAT="";
+function ahBoat(v){ AHBOAT=v; ahFilter(); }
 function ahFilter(){
   var q=($("ahSearch").value||"").toLowerCase().trim();
-  var list=(CREWJOBS||[]).filter(function(j){
-    if(hubBucket(j.status)==="Done" && !q) return false;   // finished work only when searched for
+  var all=(CREWJOBS||[]).filter(function(j){
+    if(AHBOAT && (j.vessel||"")!==AHBOAT) return false;
     if(!q) return true;
     var hay=((j.task||"")+" "+(j.vessel||"")+" "+(j.code||"")).toLowerCase();
     if(hay.indexOf(q)>=0) return true;
     return ahInitials(j.vessel).indexOf(q)>=0;             // AT3 → Abel Tasman III
-  }).slice(0,40);
-  $("ahList").innerHTML = list.length ? list.map(function(j){
-    var k=String(j.key).replace(/'/g,"\\'");
-    return '<div class="ahrow" onclick="ahChoose(\''+esc(k)+'\')"><b>'+esc(j.task||"(job)")+'</b>'+
-      '<span>'+esc([j.code,j.vessel].filter(Boolean).join(" \u00b7 "))+'</span></div>';
-  }).join("")
-  : '<div class="ahrow" style="cursor:default"><b>Nothing on your worklist matches</b>'+
-    '<span>This list is the jobs assigned to you. If the work was never on a list, '+
-    'close this and use <b>\u2713 Log job</b> instead \u2014 it creates the job, with the '+
-    'day and the hours.</span></div>';
+  });
+
+  var counts={}; (CREWJOBS||[]).forEach(function(j){ counts[j.vessel||"—"]=(counts[j.vessel||"—"]||0)+1; });
+  var boats=Object.keys(counts).sort();
+  var chips = boats.length>1 ? '<div class="ahchips">'+
+    '<button class="ahchip'+(AHBOAT?"":" on")+'" onclick="ahBoat(\'\')">All</button>'+
+    boats.map(function(v){
+      return '<button class="ahchip'+(AHBOAT===v?" on":"")+'" onclick="ahBoat(\''+
+        esc(String(v).replace(/'/g,"\\'"))+'\')">'+esc(v)+' <i>'+counts[v]+'</i></button>';
+    }).join("")+'</div>' : '';
+
+  if(!all.length){
+    $("ahList").innerHTML = chips +
+      '<div class="ahrow" style="cursor:default"><b>Nothing here matches</b>'+
+      '<span>This list is the jobs assigned to you. If the work was never on a '+
+      'list, close this and use <b>\u2713 Log job</b> instead \u2014 it creates the job, '+
+      'with the day and the hours.</span></div>';
+    return;
+  }
+
+  var by={}; all.forEach(function(j){ (by[j.vessel||"—"]=by[j.vessel||"—"]||[]).push(j); });
+  var html = chips + Object.keys(by).sort().map(function(v){
+    return '<div class="ahhd">'+esc(v)+' <span>'+by[v].length+'</span></div>' +
+      by[v].slice(0,60).map(function(j){
+        var k=String(j.key).replace(/'/g,"\\'");
+        var b=hubBucket(j.status);
+        var pill = b==="Done" ? '<em class="ahdone">done</em>'
+                 : (b==="In progress" ? '<em class="ahhand">in hand</em>' : '');
+        return '<div class="ahrow" onclick="ahChoose(\''+esc(k)+'\')">'+
+          '<b>'+esc(j.task||"(job)")+pill+'</b>'+
+          '<span>'+esc(j.code||"no code yet")+'</span></div>';
+      }).join("");
+  }).join("");
+  $("ahList").innerHTML = html;
 }
 function ahChoose(key){ ahOpen(key); }
 function ahCalc(){
