@@ -1476,7 +1476,7 @@ button:active{ filter: brightness(.93); }
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-05·u</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-05·v</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -3048,7 +3048,7 @@ function ahFilter(){
   });
   var busy = AHBUSY ? '<div class="ahbusy">checking your other boats\u2026</div>' : '';
   var html = chips + busy + keys.map(function(v){
-    var lbl = v===IN_HAND ? "Still in hand \u00b7 no finish date yet" : chNiceDate(v);
+    var lbl = v===IN_HAND ? "Still in hand \u00b7 no finish date yet" : ahNiceDay(v);
     return '<div class="ahhd">'+esc(lbl)+' <span>'+by[v].length+'</span></div>' +
       by[v].slice(0,60).map(function(j){
         var k=String(j.key).replace(/'/g,"\\'");
@@ -3085,8 +3085,19 @@ function ahChoose(key){
   if(iso){ var d=$("ahDate"); if(d && iso<=sdToday()) d.value=iso; }
 }
 /* "4 Sep" / "04/09/2026" -> yyyy-mm-dd, or "" if it isn't a date we know. */
+/* "2026-07-31" -> "Fri 31 Jul". A bare date is harder to place than a day name
+   when you are trying to remember which shift it was. */
+function ahNiceDay(iso){
+  var p=(iso||"").split("-"); if(p.length!==3) return iso;
+  var d=new Date(+p[0], +p[1]-1, +p[2]); if(isNaN(d)) return iso;
+  var DOW=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  var M=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  return DOW[d.getDay()]+" "+d.getDate()+" "+M[d.getMonth()]+
+         (d.getFullYear()!==new Date().getFullYear()?(" "+d.getFullYear()):"");
+}
 function ahIsoFrom(v){
   v=(v||"").toString().trim(); if(!v) return "";
+  if(/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;      // already ISO — the usual case
   var m=/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(v);
   if(m) return m[3]+"-"+String(m[2]).padStart(2,"0")+"-"+String(m[1]).padStart(2,"0");
   var M=["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
