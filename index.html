@@ -449,6 +449,9 @@
   .corow .jobbtn{flex:1;margin:0}
   .cofor{color:var(--muted)}
   .cofor:not(:empty)::before{content:" \2014 "}
+  #fabHours{position:relative}
+  #fabHours.duedot::after{content:"";position:absolute;top:7px;right:9px;width:9px;height:9px;
+    border-radius:50%;background:#d23b3b;box-shadow:0 0 0 2px #fff}
   .mhtabs{display:flex;gap:6px;margin:0 0 12px}
   .mhtab{flex:1;border:1px solid var(--line);background:#fff;color:var(--navy);font-size:13px;
     font-weight:800;padding:9px 8px;border-radius:10px;cursor:pointer;touch-action:manipulation}
@@ -1473,7 +1476,7 @@ button:active{ filter: brightness(.93); }
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-05·t</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-05·u</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2660,8 +2663,14 @@ function chFabLabel(){
   var el=document.querySelector("#fabHours small"); if(!el) return;
   var t=(CHDAY && CHDAY.loggedHours) || 0;
   var running=!!(CHTIMER && CHTIMER.running);
-  el.textContent = t ? (chFmt(t)+" today"+(running?" +":"")) : (running?"running…":"none yet");
-  var btn=$("fabHours"); if(btn) btn.classList.toggle("haslogged", !!t || running);
+  var due=CHUNSENT.length;
+  el.textContent = due ? (due+" to submit")
+    : (t ? (chFmt(t)+" today"+(running?" +":"")) : (running?"running…":"none yet"));
+  var btn=$("fabHours");
+  if(btn){
+    btn.classList.toggle("haslogged", !!t || running);
+    btn.classList.toggle("duedot", !!due);          // the red dot
+  }
 }
 function chBanner(){
   var el=$("chBanner");
@@ -2993,6 +3002,10 @@ function ahFilter(){
   var src = (AHJOBS && AHJOBS.length) ? AHJOBS : (CREWJOBS || []);
   var all=src.filter(function(j){
     if(AHBOAT && (j.vessel||"")!==AHBOAT) return false;
+    /* You cannot have worked on something nobody has started. A job still To do
+       - a raised job, next month's list - is noise here, and picking one by
+       mistake puts hours on work that never happened. Searching still finds it. */
+    if(!q && hubBucket(j.status)==="To do") return false;
     if(!q) return true;
     var hay=((j.task||"")+" "+(j.vessel||"")+" "+(j.code||"")).toLowerCase();
     if(hay.indexOf(q)>=0) return true;
@@ -3019,18 +3032,31 @@ function ahFilter(){
     return;
   }
 
-  var by={}; all.forEach(function(j){ (by[j.vessel||"—"]=by[j.vessel||"—"]||[]).push(j); });
+  /* Grouped by the day the work was done, newest first — because that is the
+     question being asked: "what did I do on the Tuesday?" Anything still in
+     hand has no finish date yet, so it sits at the top under its own heading. */
+  var by={}, IN_HAND="\u0000";
+  all.forEach(function(j){
+    var b=hubBucket(j.status);
+    var k=(b==="Done" && j.completed) ? ahIsoFrom(j.completed) : "";
+    if(!k) k=IN_HAND;
+    (by[k]=by[k]||[]).push(j);
+  });
+  var keys=Object.keys(by).sort(function(a,b){
+    if(a===IN_HAND) return -1; if(b===IN_HAND) return 1;
+    return a<b?1:-1;                                   // newest day first
+  });
   var busy = AHBUSY ? '<div class="ahbusy">checking your other boats\u2026</div>' : '';
-  var html = chips + busy + Object.keys(by).sort().map(function(v){
-    return '<div class="ahhd">'+esc(v)+' <span>'+by[v].length+'</span></div>' +
+  var html = chips + busy + keys.map(function(v){
+    var lbl = v===IN_HAND ? "Still in hand \u00b7 no finish date yet" : chNiceDate(v);
+    return '<div class="ahhd">'+esc(lbl)+' <span>'+by[v].length+'</span></div>' +
       by[v].slice(0,60).map(function(j){
         var k=String(j.key).replace(/'/g,"\\'");
         var b=hubBucket(j.status);
         /* When it was done is the whole point of this list: it is the day the
            hours belong to. A job still open shows when it is due instead. */
         var when = b==="Done" ? (j.completed||"") : (j.due||"");
-        var pill = b==="Done"
-          ? '<em class="ahdone">done'+(when?(" "+esc(when)):"")+'</em>'
+        var pill = b==="Done" ? '<em class="ahdone">done</em>'
           : (b==="In progress" ? '<em class="ahhand">in hand</em>'
              : (when ? '<em class="ahdue">due '+esc(when)+'</em>' : ''));
         /* Say the state outright, both ways. "6 hrs logged" on its own reads as
@@ -3045,7 +3071,7 @@ function ahFilter(){
         }
         return '<div class="ahrow" onclick="ahChoose(\''+esc(k)+'\')">'+
           '<b>'+esc(j.task||"(job)")+pill+'</b>'+
-          '<span>'+esc(j.code||"no code yet")+got+'</span></div>';
+          '<span>'+esc(j.vessel||"")+' \u00b7 '+esc(j.code||"no code yet")+got+'</span></div>';
       }).join("");
   }).join("");
   $("ahList").innerHTML = html;
