@@ -443,6 +443,20 @@
           padding:2px 7px;border-radius:999px;white-space:nowrap}
   .chpill.open{background:#fdf3e3;color:#8a5a12;border:1px solid #f0dcb8}
   .chpill.sent{background:#eaf5ee;color:#2e7d5b;border:1px solid #bfe0cc}
+  .mhtabs{display:flex;gap:6px;margin:0 0 12px}
+  .mhtab{flex:1;border:1px solid var(--line);background:#fff;color:var(--navy);font-size:13px;
+    font-weight:800;padding:9px 8px;border-radius:10px;cursor:pointer;touch-action:manipulation}
+  .mhtab.on{background:var(--navy);border-color:var(--navy);color:#fff}
+  .mhtab i{font-style:normal;font-size:11px;opacity:.8}
+  .mhnote{font-size:12px;color:var(--muted);margin:0 0 10px}
+  .mhday{border:1px solid var(--line);border-radius:12px;padding:12px 13px;margin:0 0 12px}
+  .mhdayhd{display:flex;justify-content:space-between;align-items:baseline;gap:10px;
+    padding-bottom:7px;border-bottom:1px solid var(--line);margin-bottom:2px}
+  .mhdayhd b{font-size:15px;color:var(--navy)}
+  .mhdayhd span{font-size:12px;color:var(--muted);font-family:ui-monospace,Menlo,monospace}
+  .mhclear{background:#eaf5ee;border:1px solid #bfe0cc;border-radius:12px;padding:16px;text-align:center}
+  .mhclear b{display:block;font-size:15px;color:#2e7d5b}
+  .mhclear span{font-size:13px;color:#2e7d5b;opacity:.85}
   .chunsub{background:#fdf3e3;border:1px solid #f0dcb8;border-radius:12px;
            padding:11px 13px;margin:12px 0 2px}
   .chunsub h5{margin:0 0 3px;font-size:13.5px;color:#8a5a12;font-weight:800}
@@ -1453,7 +1467,7 @@ button:active{ filter: brightness(.93); }
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-05·n</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-05·o</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2572,7 +2586,7 @@ function chLoad(force){
 }
 /* Days with hours on them that have never been submitted. Crew shouldn't have
    to remember \u2014 the app tells them, on the home screen and in My hours. */
-var CHUNSUB=[];
+var CHUNSUB=[], CHUNSENT=[];
 function chUnsubLoad(){
   if(!ME) return;
   var now=new Date(), back=new Date(now.getTime()-29*864e5);
@@ -2580,12 +2594,17 @@ function chUnsubLoad(){
   apiGet("fn=crewhours&code="+encodeURIComponent(ME.code||"")+
          "&email="+encodeURIComponent(ME.email||"")+"&from="+d(back)+"&to="+d(now))
     .then(function(j){
-      var seen={};
+      var seen={}; CHUNSENT=[];
       ((j&&j.ok&&j.entries)||[]).forEach(function(e){
-        if(!e.date || e.pushed==="Yes" || !e.finish) return;   // a running timer isn't a day yet
+        if(!e.date || e.pushed==="Yes") return;
+        CHUNSENT.push(e);                                      // running ones included — they need stopping
+        if(!e.finish) return;                                  // a running timer isn't a day yet
         if(!seen[e.date]) seen[e.date]={date:e.date, hours:0, n:0};
         seen[e.date].hours += (Number(e.hours)||0); seen[e.date].n++;
       });
+      CHUNSENT.sort(function(a,b){
+        if(a.date!==b.date) return a.date<b.date?1:-1;
+        return (a.start||"")<(b.start||"")?-1:1; });
       CHUNSUB=Object.keys(seen).sort().reverse().map(function(k){return seen[k];});
       chPaint(); if($("jobsHello")) renderJobs();
     }).catch(function(){});
@@ -3060,8 +3079,20 @@ function mhLoad(){
     .then(function(j){ MHDATA=(j&&j.ok)?j:null; renderMyHours(); })
     .catch(function(){});
 }
+/* Two lists, because they answer different questions. "What still has to go"
+   is a job to finish; "what has gone" is a record to look back at. Mixing them
+   made the first one impossible to read. */
+var MHVIEW="todo";
+function mhView(v){ MHVIEW=v; renderMyHours(); if(v==="sent"&&!MHDATA) mhLoad(); }
 function renderMyHours(){
   var el=$("chDayBox"); if(!el) return;
+  var nTodo=CHUNSENT.length;
+  var tabs='<div class="mhtabs">'+
+    '<button class="mhtab'+(MHVIEW==="todo"?" on":"")+'" onclick="mhView(\'todo\')">'+
+      'To submit'+(nTodo?(' <i>'+nTodo+'</i>'):'')+'</button>'+
+    '<button class="mhtab'+(MHVIEW==="sent"?" on":"")+'" onclick="mhView(\'sent\')">Sent</button>'+
+    '</div>';
+  if(MHVIEW==="todo"){ el.innerHTML = tabs + mhTodoHtml(); return; }
   var chips='<div class="mhchips">'+
     [["today","Today"],["week","This week"],["month","This month"],["last","Last month"]]
       .map(function(o){ return '<button class="mhchip'+(MHPERIOD===o[0]?" on":"")+
@@ -3074,30 +3105,49 @@ function renderMyHours(){
         return '<button class="mhchip'+(MHVESSEL===v?" on":"")+'" onclick="mhBoat(\''+
           esc(String(v).replace(/'/g,"\\'"))+'\')">'+esc(v)+'</button>'; }).join("")+'</div>';
   }
-  el.innerHTML = chUnsubHtml(false) + chips + boats +
-    (MHPERIOD==="today" ? chDayHtml() : mhPeriodHtml()) +
-    '<button class="go alt2" style="margin-top:10px" onclick="closeModal(\'myHoursModal\');ahOpen()">'+
-    '\u2795 Add hours for another day</button>' + mhSubmitBtn();
+  el.innerHTML = tabs + chips + boats +
+    '<p class="mhnote">Everything already on a job card. Nothing here can be sent twice.</p>' +
+    (MHPERIOD==="today" ? chDayHtml() : mhPeriodHtml());
 }
-/* A day worked on Thursday still has to reach the job card, so the button has
-   to be reachable from any period \u2014 not only from Today. */
-function mhSubmitDate(){
-  if(MHPERIOD==="today") return (CHDAY && CHDAY.count) ? sdToday() : "";
-  var es=(MHDATA && MHDATA.entries) ? MHDATA.entries : [];
-  var open="", any="";
-  es.forEach(function(e){
-    var d=String(e.date||""); if(!d) return;
-    if(d>any) any=d;
-    if(e.pushed!=="Yes" && d>open) open=d;
-  });
-  return open||any||"";
-}
-function mhSubmitBtn(){
-  var d=mhSubmitDate(); if(!d) return '';
-  var lbl=(d===sdToday()) ? "\u2705 Submit my day"
-        : ("\u2705 Submit "+chNiceDate(d));
-  return '<button class="go" style="margin-top:16px" onclick="closeModal(\'myHoursModal\');openSubmitDay(\''+
-         d+'\')">'+lbl+'</button>';
+
+/* The working list: only what still has to reach a job card, newest day first,
+   one Submit button per day — because a day is what gets submitted. */
+function mhTodoHtml(){
+  var add='<button class="go alt2" style="margin-top:12px" onclick="closeModal(\'myHoursModal\');ahOpen()">'+
+          '\u2795 Add hours for another day</button>';
+  if(!CHUNSENT.length)
+    return '<div class="mhclear"><b>\u2713 All caught up</b>'+
+           '<span>Every hour you\u2019ve logged is on a job card.</span></div>'+add;
+
+  var by={}, order=[];
+  CHUNSENT.forEach(function(e){ if(!by[e.date]){ by[e.date]=[]; order.push(e.date); } by[e.date].push(e); });
+
+  return order.map(function(day){
+    var list=by[day], hrs=0, running=0;
+    list.forEach(function(e){ if(e.finish) hrs+=(Number(e.hours)||0); else running++; });
+    var rows=list.map(function(e){
+      var run=!e.finish;
+      return '<div class="chrow'+(e.jobKey?" tap":"")+'"'+
+        (e.jobKey?(' onclick="mhOpenJob(\''+esc(String(e.jobKey).replace(/'/g,"\\'"))+'\')"'):'')+'>'+
+        '<div class="t"><b>'+esc(e.task||"(job)")+'</b><span>'+
+        esc(e.code||"no code")+' \u00b7 '+esc(e.vessel||'')+
+        (run?' \u00b7 still running':(e.start?(' \u00b7 '+esc(e.start)+'\u2013'+esc(e.finish)):''))+
+        '</span></div>'+
+        '<div class="h">'+(run?'\u2014':chFmt(e.hours))+'</div>'+
+        (run?'<span class="chpill open">running</span>'
+            :'<button class="ed" onclick="event.stopPropagation();ehOpen(\''+esc(e.entryId)+'\')">\u270e</button>')+
+        '</div>';
+    }).join("");
+    return '<div class="mhday">'+
+      '<div class="mhdayhd"><b>'+esc(chNiceDate(day))+'</b>'+
+        '<span>'+chFmt(hrs)+' \u00b7 '+list.length+' job'+(list.length===1?'':'s')+'</span></div>'+
+      rows+
+      (running
+        ? '<div class="chwarn" style="margin:10px 0 0">Stop the running timer before this day can be sent.</div>'
+        : '<button class="go" style="margin-top:11px" onclick="closeModal(\'myHoursModal\');openSubmitDay(\''+
+          day+'\')">\u2705 Submit '+esc(chNiceDate(day))+'</button>')+
+      '</div>';
+  }).join("") + add;
 }
 function chNiceDate(d){
   var p=String(d).split("-"); if(p.length!==3) return d;
@@ -3295,7 +3345,9 @@ function sdSubmit(){
 }
 function openMyHours(){
   $("myHoursModal").classList.add("show");
-  renderMyHours(); chLoad(true); if(MHPERIOD!=="today") mhLoad();
+  MHVIEW = CHUNSENT.length ? "todo" : "sent";     // land on the job, not the archive
+  renderMyHours(); chLoad(true); chUnsubLoad();
+  if(MHVIEW==="sent") mhLoad();
 }
 function openCommand(){ try{ if(ME&&ME.code) localStorage.setItem("mhq_crew_key", ME.code); }catch(e){} location.href="overview.html"; }
 /* What's Due — scheduled maintenance from the maintenance schedule → add to a worklist */
