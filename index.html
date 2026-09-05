@@ -1471,7 +1471,7 @@ button:active{ filter: brightness(.93); }
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-05·p</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-05·q</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -3068,7 +3068,13 @@ function ahSave(){
                 " and use \u270e Edit on that entry instead.\n\nAdd anyway?")) return;
   }
   var go=$("ahGo"); go.disabled=true; go.textContent="Adding\u2026";
+  /* Send what we already have on screen. A job from the Works Register has no
+     row in the Crew Worklist tab, so the server cannot look it up — without
+     this the request comes back "job not found" and the hours are lost. */
+  var jj=(AHJOBS||CREWJOBS||[]).filter(function(x){return x.key===AHKEY;})[0]||{};
   apiPost({action:"crewHoursLog", email:ME.email, code:ME.code, jobKey:AHKEY,
+           vessel:(jj.vessel||""), task:(jj.task||""), jobCode:(jj.code||""),
+           cat:(jj.category||jj.cat||""),
            date:($("ahDate").value||""), start:st, finish:fi,
            breakMins:(parseInt($("ahBreak").value,10)||0),
            note:($("ahNote").value||"").trim()}).then(function(r){
