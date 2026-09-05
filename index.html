@@ -354,6 +354,11 @@
     white-space:nowrap;vertical-align:1px}
   .ahsent{background:#eaf5ee;color:#2e7d5b}
   .ahunsent{background:#fdf3e3;color:#8a5a12}
+  .ahnone{font-style:normal;font-size:9px;font-weight:800;letter-spacing:.05em;
+    text-transform:uppercase;padding:2px 6px;border-radius:999px;margin-left:5px;
+    background:#f1f4f9;color:var(--muted);vertical-align:1px}
+  .ahchip.due{border-color:#e0b96b;color:#8a5a12}
+  .ahchip.due.on{background:#8a5a12;border-color:#8a5a12;color:#fff}
   .ahhand{background:#fdf3e3;color:#8a5a12}
   .ahrow{padding:10px 12px;border-bottom:1px solid var(--line);cursor:pointer;
     touch-action:manipulation}
@@ -1476,7 +1481,7 @@ button:active{ filter: brightness(.93); }
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-05·w</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-05·x</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2995,13 +3000,15 @@ function ahInitials(v){
    the boat. So this is a list to browse, grouped by boat, not a search box you
    have to guess into. Finished jobs stay in it: adding the hours you forgot is
    exactly the case where the job is already done. */
-var AHBOAT="";
+var AHBOAT="", AHONLYDUE=false;
 function ahBoat(v){ AHBOAT=v; ahFilter(); }
+function ahDueOnly(){ AHONLYDUE=!AHONLYDUE; ahFilter(); }
 function ahFilter(){
   var q=($("ahSearch").value||"").toLowerCase().trim();
   var src = (AHJOBS && AHJOBS.length) ? AHJOBS : (CREWJOBS || []);
   var all=src.filter(function(j){
     if(AHBOAT && (j.vessel||"")!==AHBOAT) return false;
+    if(AHONLYDUE){ var l0=AHLOG[j.key]; if(!l0 || l0.sent>=l0.n) return false; }
     /* You cannot have worked on something nobody has started. A job still To do
        - a raised job, next month's list - is noise here, and picking one by
        mistake puts hours on work that never happened. Searching still finds it. */
@@ -3014,17 +3021,21 @@ function ahFilter(){
 
   var counts={}; src.forEach(function(j){ counts[j.vessel||"—"]=(counts[j.vessel||"—"]||0)+1; });
   var boats=Object.keys(counts).sort();
-  var chips = boats.length>1 ? '<div class="ahchips">'+
-    '<button class="ahchip'+(AHBOAT?"":" on")+'" onclick="ahBoat(\'\')">All</button>'+
-    boats.map(function(v){
+  var due=0; src.forEach(function(j){ var l1=AHLOG[j.key]; if(l1 && l1.sent<l1.n) due++; });
+  var chips = '<div class="ahchips">'+
+    '<button class="ahchip'+(AHBOAT||AHONLYDUE?"":" on")+'" onclick="AHONLYDUE=false;ahBoat(\'\')">All</button>'+
+    (due?('<button class="ahchip due'+(AHONLYDUE?" on":"")+'" onclick="ahDueOnly()">'+
+          '\u25cf To send <i>'+due+'</i></button>'):'')+
+    (boats.length>1 ? boats.map(function(v){
       return '<button class="ahchip'+(AHBOAT===v?" on":"")+'" onclick="ahBoat(\''+
         esc(String(v).replace(/'/g,"\\'"))+'\')">'+esc(v)+' <i>'+counts[v]+'</i></button>';
-    }).join("")+'</div>' : '';
+    }).join("") : '')+'</div>';
 
   if(!all.length){
     $("ahList").innerHTML = chips +
       (AHBUSY ? '<div class="ahbusy">looking up your jobs\u2026</div>' : '')+
-      '<div class="ahrow" style="cursor:default"><b>'+(AHBUSY?"One moment":"Nothing here matches")+'</b>'+
+      '<div class="ahrow" style="cursor:default"><b>'+
+      (AHBUSY ? "One moment" : (AHONLYDUE ? "\u2713 Nothing waiting to be sent" : "Nothing here matches"))+'</b>'+
       '<span>This list is the jobs assigned to you'+
       (AHNOTE?(" \u2014 "+esc(AHNOTE)):"")+'. If the work was never on a '+
       'list, close this and use <b>\u2713 Log job</b> instead \u2014 it creates the job, '+
@@ -3068,13 +3079,18 @@ function ahFilter(){
              : (when ? '<em class="ahdue">due '+esc(when)+'</em>' : ''));
         /* Say the state outright, both ways. "6 hrs logged" on its own reads as
            an open tally when it is actually work already on a job card. */
+        /* Two states, and they are independent: whether the JOB is finished,
+           and whether its HOURS have reached a job card. Done and not sent is
+           the common case and the one that costs money. */
         var lg=AHLOG[j.key], got='';
         if(lg){
-          var state = lg.sent===lg.n ? '<em class="ahsent">sent</em>'
-                    : (lg.sent ? '<em class="ahunsent">'+(lg.n-lg.sent)+' not sent</em>'
-                               : '<em class="ahunsent">not sent</em>');
+          var state = lg.sent===lg.n ? '<em class="ahsent">\u2713 sent</em>'
+                    : (lg.sent ? '<em class="ahunsent">'+(lg.n-lg.sent)+' to send</em>'
+                               : '<em class="ahunsent">to send</em>');
           got = '  \u00b7  <em class="ahgot">'+chFmt(lg.hrs)+' logged, last '+
                 chNiceDate(lg.last)+'</em> '+state;
+        } else {
+          got = '  \u00b7  <em class="ahnone">no hours yet</em>';
         }
         return '<div class="ahrow" onclick="ahChoose(\''+esc(k)+'\')">'+
           '<b>'+esc(j.task||"(job)")+pill+'</b>'+
