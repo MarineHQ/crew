@@ -1471,7 +1471,7 @@ button:active{ filter: brightness(.93); }
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-05·q</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-05·r</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2902,11 +2902,26 @@ var AHKEY=null, AHJOBS=null, AHLOG={};
 /* The worklist on screen is one boat at a time — and for a director it is that
    boat's whole list, not their own work. Neither is the right list here, so the
    picker asks for its own: MY jobs, on every boat. */
+var AHNOTE="";
 function ahLoadJobs(){
+  /* Merge, never replace. The fleet-wide call is the richer list, but if it
+     comes back thin — a slow reply, a role the server scoped differently — the
+     worklist already on screen is real and must not disappear behind it. An
+     empty picker is indistinguishable from "you have no jobs", which is what
+     sent us hunting last time. */
   return apiGet("fn=crewjobs&code="+encodeURIComponent(ME.code||"")+
                 "&email="+encodeURIComponent(ME.email||"")+"&mine=1")
-    .then(function(j){ AHJOBS=((j&&j.jobs)||[]); return AHJOBS; })
-    .catch(function(){ AHJOBS=(CREWJOBS||[]).slice(); return AHJOBS; });
+    .then(function(j){ return ((j&&j.jobs)||[]); })
+    .catch(function(){ return []; })
+    .then(function(fetched){
+      var seen={}, out=[];
+      fetched.concat(CREWJOBS||[], CREWOPEN||[]).forEach(function(x){
+        if(!x || !x.key || seen[x.key]) return; seen[x.key]=1; out.push(x); });
+      AHJOBS=out;
+      AHNOTE = out.length ? "" : ("nothing came back \u2014 fleet list "+fetched.length+
+               ", worklist "+((CREWJOBS||[]).length));
+      return AHJOBS;
+    });
 }
 /* What is already logged against each job, so nobody adds the same day twice. */
 function ahLoadLog(){
@@ -2983,7 +2998,8 @@ function ahFilter(){
   if(!all.length){
     $("ahList").innerHTML = chips +
       '<div class="ahrow" style="cursor:default"><b>Nothing here matches</b>'+
-      '<span>This list is the jobs assigned to you. If the work was never on a '+
+      '<span>This list is the jobs assigned to you'+
+      (AHNOTE?(" \u2014 "+esc(AHNOTE)):"")+'. If the work was never on a '+
       'list, close this and use <b>\u2713 Log job</b> instead \u2014 it creates the job, '+
       'with the day and the hours.</span></div>';
     return;
