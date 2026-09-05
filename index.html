@@ -443,6 +443,10 @@
           padding:2px 7px;border-radius:999px;white-space:nowrap}
   .chpill.open{background:#fdf3e3;color:#8a5a12;border:1px solid #f0dcb8}
   .chpill.sent{background:#eaf5ee;color:#2e7d5b;border:1px solid #bfe0cc}
+  .corow{display:flex;gap:8px;margin-top:14px}
+  .corow .jobbtn{flex:1;margin:0}
+  .cofor{color:var(--muted)}
+  .cofor:not(:empty)::before{content:" \2014 "}
   .mhtabs{display:flex;gap:6px;margin:0 0 12px}
   .mhtab{flex:1;border:1px solid var(--line);background:#fff;color:var(--navy);font-size:13px;
     font-weight:800;padding:9px 8px;border-radius:10px;cursor:pointer;touch-action:manipulation}
@@ -1467,7 +1471,7 @@ button:active{ filter: brightness(.93); }
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-05·o</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-05·p</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1573,6 +1577,17 @@ button:active{ filter: brightness(.93); }
   <input type="file" id="r_phIn" accept="image/*" multiple style="display:none" onchange="stagedAdd('r_ph',this)">
   <button class="go" onclick="submitRaise()">Send to Marine HQ</button>
   <button class="cancel" onclick="closeModal('raiseModal')">Cancel</button>
+</div></div>
+
+<!-- Stopped your last job — are you leaving the boat, or moving to the next one? -->
+<div class="modal" id="clockOffModal"><div class="card2">
+  <h3>\ud83d\udd53 Finished on board?</h3>
+  <p class="mhint">That was your last running job. You\u2019re still clocked on at
+    <b id="coWhere">the boat</b><span id="coFor" class="cofor"></span>.</p>
+  <div class="corow">
+    <button class="jobbtn complete" onclick="coGo()">\u2713 Clock off</button>
+    <button class="jobbtn" onclick="coStay()">Still on board</button>
+  </div>
 </div></div>
 
 <!-- Add hours for a day already gone. The timer is the happy path; this is for
@@ -2802,7 +2817,7 @@ function handoverGo(status){
   }).then(function(){
     if(status==="Complete") toast("Marked it complete");
     if(key) chStartNow(key);       // only when handing over to another job
-    else { chLoad(true); if(openJobId) chJobLoad(openJobId,true); }
+    else { chLoad(true); if(openJobId) chJobLoad(openJobId,true); askClockOff(); }
     try{ refreshAll(); }catch(e){}
   }).catch(function(){ toast("Couldn\u2019t switch jobs \u2014 check your signal"); });
 }
@@ -2861,8 +2876,25 @@ function chStop(finish, brk, confirmLong){
     if(!r||!r.ok){ toast((r&&r.error)||"Couldn\u2019t stop"); return; }
     toast("Logged "+chFmt(r.hours)+" \u00b7 "+r.start+"\u2013"+r.finish);
     chLoad(true);
+    askClockOff();
   });
 }
+/* Starting a job clocks you on. Nothing clocked you off, so a shift ran for
+   28 hours after the task was stopped. Asking here closes the loop without
+   assuming — crew often stop one job and stay aboard for the next. */
+function askClockOff(){
+  setTimeout(function(){
+    var c=clk();
+    if(!c.in) return;                                   // not on the clock anyway
+    if(CHTIMER && CHTIMER.running) return;              // straight onto another job
+    var m=$("clockOffModal"); if(!m) return;
+    $("coWhere").textContent = c.vessel || "the boat";
+    $("coFor").textContent = c.at ? shiftDur(Math.round((Date.now()-c.at)/60000)) : "";
+    m.classList.add("show");
+  }, 700);
+}
+function coGo(){ closeModal("clockOffModal"); clockOut(); }
+function coStay(){ closeModal("clockOffModal"); toast("Still on the clock \u2014 remember to clock off"); }
 /* The fallback. They will forget to tap Start — this has to exist or those
    hours are simply lost, which is worse than a slightly rough number. And it
    has to carry a DATE: the job you forgot to clock onto was rarely today. */
