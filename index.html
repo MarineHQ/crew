@@ -1480,7 +1480,7 @@ button:active{ filter: brightness(.93); }
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-05·y</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-05·z</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2610,7 +2610,7 @@ function chLoad(force){
 }
 /* Days with hours on them that have never been submitted. Crew shouldn't have
    to remember \u2014 the app tells them, on the home screen and in My hours. */
-var CHUNSUB=[], CHUNSENT=[];
+var CHUNSUB=[], CHUNSENT=[], CHUNSUBREAD=false, CHHASHRS={};
 function chUnsubLoad(){
   if(!ME) return;
   var now=new Date(), back=new Date(now.getTime()-29*864e5);
@@ -2618,8 +2618,9 @@ function chUnsubLoad(){
   apiGet("fn=crewhours&code="+encodeURIComponent(ME.code||"")+
          "&email="+encodeURIComponent(ME.email||"")+"&from="+d(back)+"&to="+d(now))
     .then(function(j){
-      var seen={}; CHUNSENT=[];
+      var seen={}; CHUNSENT=[]; CHHASHRS={};
       ((j&&j.ok&&j.entries)||[]).forEach(function(e){
+        if(e.jobKey) CHHASHRS[e.jobKey]=1;             // this job has hours on it somewhere
         if(!e.date || e.pushed==="Yes") return;
         CHUNSENT.push(e);                                      // running ones included — they need stopping
         if(!e.finish) return;                                  // a running timer isn't a day yet
@@ -2630,8 +2631,19 @@ function chUnsubLoad(){
         if(a.date!==b.date) return a.date<b.date?1:-1;
         return (a.start||"")<(b.start||"")?-1:1; });
       CHUNSUB=Object.keys(seen).sort().reverse().map(function(k){return seen[k];});
+      CHUNSUBREAD=true;
       chPaint(); if($("jobsHello")) renderJobs();
     }).catch(function(){});
+}
+/* Finished work with no hours on it never reaches a job card, so it is never
+   invoiced — and nothing said so. The crew member sees a tidy list of completed
+   jobs and reasonably assumes that is the end of it. */
+function chNoHoursJobs(){
+  if(!CHUNSUBREAD) return [];
+  var src=(AHJOBS && AHJOBS.length) ? AHJOBS : (CREWJOBS||[]);
+  return src.filter(function(j){
+    return j.key && hubBucket(j.status)==="Done" && !CHHASHRS[j.key];
+  });
 }
 function chUnsubHtml(compact){
   if(!CHUNSUB.length) return '';
@@ -2667,9 +2679,11 @@ function chFabLabel(){
   var el=document.querySelector("#fabHours small"); if(!el) return;
   var t=(CHDAY && CHDAY.loggedHours) || 0;
   var running=!!(CHTIMER && CHTIMER.running);
-  var due=CHUNSENT.length;
+  var due=CHUNSENT.length, nohrs=chNoHoursJobs().length;
   el.textContent = due ? (due+" to submit")
-    : (t ? (chFmt(t)+" today"+(running?" +":"")) : (running?"running…":"none today"));
+    : (nohrs ? (nohrs+" need hours")
+    : (t ? (chFmt(t)+" today"+(running?" +":"")) : (running?"running…":"none today")));
+  due = due || nohrs;
   var btn=$("fabHours");
   if(btn){
     btn.classList.toggle("haslogged", !!t || running);
@@ -2974,7 +2988,7 @@ function ahOpen(key){
         esc([j.code,j.vessel].filter(Boolean).join(" \u00b7 "))) : "Pick the day and the times.";
   } else {
     $("ahWhat").textContent = "Which job were you on? Pick the boat, then the job.";
-    $("ahSearch").value=""; AHBOAT="";
+    $("ahSearch").value=""; AHBOAT=""; AHNOHRS=false; AHONLYDUE=false;
     /* Paint from what is already in memory FIRST. The fleet-wide call takes the
        best part of ten seconds on a marina connection, and a spinner that long
        is indistinguishable from broken — which is exactly how it was read. The
@@ -3005,7 +3019,7 @@ function ahInitials(v){
    the boat. So this is a list to browse, grouped by boat, not a search box you
    have to guess into. Finished jobs stay in it: adding the hours you forgot is
    exactly the case where the job is already done. */
-var AHBOAT="", AHONLYDUE=false;
+var AHBOAT="", AHONLYDUE=false, AHNOHRS=false;
 function ahBoat(v){ AHBOAT=v; ahFilter(); }
 function ahDueOnly(){ AHONLYDUE=!AHONLYDUE; ahFilter(); }
 function ahFilter(){
@@ -3014,6 +3028,7 @@ function ahFilter(){
   var all=src.filter(function(j){
     if(AHBOAT && (j.vessel||"")!==AHBOAT) return false;
     if(AHONLYDUE){ var l0=AHLOG[j.key]; if(!l0 || l0.sent>=l0.n) return false; }
+    if(AHNOHRS){ if(AHLOG[j.key] || hubBucket(j.status)!=="Done") return false; }
     /* You cannot have worked on something nobody has started. A job still To do
        - a raised job, next month's list - is noise here, and picking one by
        mistake puts hours on work that never happened. Searching still finds it. */
@@ -3028,7 +3043,9 @@ function ahFilter(){
   var boats=Object.keys(counts).sort();
   var due=0; src.forEach(function(j){ var l1=AHLOG[j.key]; if(l1 && l1.sent<l1.n) due++; });
   var chips = '<div class="ahchips">'+
-    '<button class="ahchip'+(AHBOAT||AHONLYDUE?"":" on")+'" onclick="AHONLYDUE=false;ahBoat(\'\')">All</button>'+
+    '<button class="ahchip'+(AHBOAT||AHONLYDUE||AHNOHRS?"":" on")+
+      '" onclick="AHONLYDUE=false;AHNOHRS=false;ahBoat(\'\')">All</button>'+
+    (AHNOHRS?'<button class="ahchip due on" onclick="AHNOHRS=false;ahFilter()">\u26a0\ufe0f No hours yet</button>':'')+
     (due?('<button class="ahchip due'+(AHONLYDUE?" on":"")+'" onclick="ahDueOnly()">'+
           '\u25cf To send <i>'+due+'</i></button>'):'')+
     (boats.length>1 ? boats.map(function(v){
@@ -3104,6 +3121,7 @@ function ahFilter(){
   }).join("");
   $("ahList").innerHTML = html;
 }
+function ahOpenNoHours(){ ahOpen(); AHNOHRS=true; AHONLYDUE=false; AHBOAT=""; ahFilter(); }
 function ahChoose(key){
   ahOpen(key);
   /* Start on the day the job was marked finished — nine times in ten that is
@@ -3249,14 +3267,31 @@ function renderMyHours(){
 function mhTodoHtml(){
   var add='<button class="go alt2" style="margin-top:12px" onclick="closeModal(\'myHoursModal\');ahOpen()">'+
           '\u2795 Add hours for another day</button>';
-  if(!CHUNSENT.length)
-    return '<div class="mhclear"><b>\u2713 All caught up</b>'+
+  var nh=chNoHoursJobs(), nhBox='';
+  if(nh.length){
+    var boats={}; nh.forEach(function(j){ boats[j.vessel||"\u2014"]=(boats[j.vessel||"\u2014"]||0)+1; });
+    nhBox='<div class="chunsub" style="margin:0 0 14px"><h5>\u26a0\ufe0f '+nh.length+
+      ' finished job'+(nh.length===1?'':'s')+' with no hours on them</h5>'+
+      '<p>These never reach a job card, so they are never invoiced. '+
+      Object.keys(boats).sort().map(function(v){ return esc(v)+" ("+boats[v]+")"; }).join(" \u00b7 ")+
+      '</p><div class="days"><button onclick="closeModal(\'myHoursModal\');ahOpenNoHours()">'+
+      'Add hours to them</button></div></div>';
+  }
+  if(!CHUNSENT.length){
+    /* Saying "all caught up" before we have looked is a lie that lasts just
+       long enough to be believed, and it lands the moment the panel opens. */
+    if(!CHUNSUBREAD)
+      return '<div class="mhclear" style="background:#f4f7fc;border-color:var(--line)">'+
+             '<b style="color:var(--navy)">Checking\u2026</b>'+
+             '<span style="color:var(--muted)">Looking for anything not yet on a job card.</span></div>';
+    return nhBox+'<div class="mhclear"><b>\u2713 Nothing waiting to be sent</b>'+
            '<span>Every hour you\u2019ve logged is on a job card.</span></div>'+add;
+  }
 
   var by={}, order=[];
   CHUNSENT.forEach(function(e){ if(!by[e.date]){ by[e.date]=[]; order.push(e.date); } by[e.date].push(e); });
 
-  return order.map(function(day){
+  return nhBox + order.map(function(day){
     var list=by[day], hrs=0, running=0;
     list.forEach(function(e){ if(e.finish) hrs+=(Number(e.hours)||0); else running++; });
     var rows=list.map(function(e){
@@ -3479,7 +3514,8 @@ function sdSubmit(){
 }
 function openMyHours(){
   $("myHoursModal").classList.add("show");
-  MHVIEW = CHUNSENT.length ? "todo" : "sent";     // land on the job, not the archive
+  // Land on the job, not the archive — and stay there until we know there is none.
+  MHVIEW = (CHUNSENT.length || !CHUNSUBREAD || chNoHoursJobs().length) ? "todo" : "sent";
   renderMyHours(); chLoad(true); chUnsubLoad();
   if(MHVIEW==="sent") mhLoad();
 }
