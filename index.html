@@ -330,6 +330,16 @@
   .sdsent{font-size:10px;font-weight:800;color:#2e7d5b;background:#e3f1ea;border-radius:9px;padding:2px 7px}
   /* Finished or not is the one thing only the person who did it knows, and the
      moment they read the day back is the moment they know it. */
+  .ahlist{max-height:230px;overflow:auto;border:1px solid var(--line);border-radius:10px;margin-top:8px}
+  .ahrow{padding:10px 12px;border-bottom:1px solid var(--line);cursor:pointer;
+    touch-action:manipulation}
+  .ahrow:last-child{border-bottom:none}
+  .ahrow:active{background:#f4f7fc}
+  .ahrow b{display:block;font-size:13.5px;color:var(--navy)}
+  .ahrow span{font-size:11.5px;color:var(--muted)}
+  .ahsum{background:#eef3fa;border:1px solid #d8e2f0;border-radius:10px;padding:10px;
+    text-align:center;font-weight:700;font-size:15px;color:var(--navy);margin:10px 0 2px;
+    font-family:ui-monospace,Menlo,monospace}
   .sdask{display:flex;align-items:center;gap:7px;margin:0 0 10px;flex-wrap:wrap}
   .sdask .q{font-size:11.5px;color:var(--muted);flex:0 0 auto}
   .sdask button{flex:1 1 0;min-width:96px;border:1px solid var(--line);background:#fff;
@@ -1421,7 +1431,7 @@ button:active{ filter: brightness(.93); }
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-05·h</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-05·i</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1527,6 +1537,35 @@ button:active{ filter: brightness(.93); }
   <input type="file" id="r_phIn" accept="image/*" multiple style="display:none" onchange="stagedAdd('r_ph',this)">
   <button class="go" onclick="submitRaise()">Send to Marine HQ</button>
   <button class="cancel" onclick="closeModal('raiseModal')">Cancel</button>
+</div></div>
+
+<!-- Add hours for a day already gone. The timer is the happy path; this is for
+     the job done last Tuesday on a boat nobody clocked onto. -->
+<div class="modal" id="addHoursModal"><div class="card2">
+  <h3>➕ Add hours</h3>
+  <p class="mhint" id="ahWhat">Pick the job, the day and the times.</p>
+  <div id="ahPick" style="display:none">
+    <label class="fld">Which job?</label>
+    <input class="fld-in" id="ahSearch" placeholder="Start typing — boat or job" oninput="ahFilter()" autocomplete="off">
+    <div class="ahlist" id="ahList"></div>
+  </div>
+  <div id="ahForm" style="display:none">
+    <label class="fld">Day you did it</label>
+    <input type="date" class="fld-in" id="ahDate">
+    <div style="display:flex;gap:8px">
+      <div style="flex:1"><label class="fld">Start</label>
+        <input type="time" class="fld-in" id="ahStart" onchange="ahCalc()"></div>
+      <div style="flex:1"><label class="fld">Finish</label>
+        <input type="time" class="fld-in" id="ahFinish" onchange="ahCalc()"></div>
+      <div style="max-width:96px"><label class="fld">Break</label>
+        <input type="number" min="0" step="5" class="fld-in" id="ahBreak" value="0" onchange="ahCalc()"></div>
+    </div>
+    <div class="ahsum" id="ahSum">—</div>
+    <label class="fld">Note <span class="fldhint">(optional)</span></label>
+    <input class="fld-in" id="ahNote" placeholder="Anything worth noting about this one?">
+    <button class="go" id="ahGo" onclick="ahSave()">Add these hours</button>
+  </div>
+  <button class="cancel" onclick="closeModal('addHoursModal')">Cancel</button>
 </div></div>
 
 <!-- Submit my day. The timer captures all day but nothing leaves the app until
@@ -2784,16 +2823,70 @@ function chStop(finish, brk, confirmLong){
   });
 }
 /* The fallback. They will forget to tap Start — this has to exist or those
-   hours are simply lost, which is worse than a slightly rough number. */
-function chManual(key){
-  var st=prompt("Start time (24h, e.g. 07:00)",""); if(st===null||!st.trim()) return;
-  var fi=prompt("Finish time (24h, e.g. 13:00)",""); if(fi===null||!fi.trim()) return;
-  var br=prompt("Break in minutes (0 if none)","0"); if(br===null) return;
-  apiPost({action:"crewHoursLog", email:ME.email, code:ME.code, jobKey:key,
-           start:st.trim(), finish:fi.trim(), breakMins:(parseInt(br,10)||0)}).then(function(r){
+   hours are simply lost, which is worse than a slightly rough number. And it
+   has to carry a DATE: the job you forgot to clock onto was rarely today. */
+var AHKEY=null;
+function chManual(key){ ahOpen(key); }
+function ahOpen(key){
+  AHKEY = key || null;
+  var m=$("addHoursModal"); if(!m) return;
+  $("ahPick").style.display = AHKEY ? "none" : "";
+  $("ahForm").style.display = AHKEY ? "" : "none";
+  if(AHKEY){
+    var j=wlFind(AHKEY);
+    $("ahWhat").innerHTML = j ? ('<b>'+esc(j.task||"this job")+'</b><br>'+
+        esc([j.code,j.vessel].filter(Boolean).join(" \u00b7 "))) : "Pick the day and the times.";
+  } else {
+    $("ahWhat").textContent = "Which job were you on?";
+    $("ahSearch").value=""; ahFilter();
+  }
+  var d=$("ahDate"); if(d){ d.value=sdToday(); d.max=sdToday(); }
+  $("ahStart").value=""; $("ahFinish").value=""; $("ahBreak").value="0"; $("ahNote").value="";
+  ahCalc();
+  m.classList.add("show");
+}
+function ahFilter(){
+  var q=($("ahSearch").value||"").toLowerCase().trim();
+  var list=(CREWJOBS||[]).filter(function(j){
+    if(hubBucket(j.status)==="Done" && !q) return false;   // finished work only when searched for
+    if(!q) return true;
+    return ((j.task||"")+" "+(j.vessel||"")+" "+(j.code||"")).toLowerCase().indexOf(q)>=0;
+  }).slice(0,40);
+  $("ahList").innerHTML = list.length ? list.map(function(j){
+    var k=String(j.key).replace(/'/g,"\\'");
+    return '<div class="ahrow" onclick="ahChoose(\''+esc(k)+'\')"><b>'+esc(j.task||"(job)")+'</b>'+
+      '<span>'+esc([j.code,j.vessel].filter(Boolean).join(" \u00b7 "))+'</span></div>';
+  }).join("") : '<div class="ahrow"><span>Nothing matches — try the boat name.</span></div>';
+}
+function ahChoose(key){ ahOpen(key); }
+function ahCalc(){
+  var el=$("ahSum"); if(!el) return;
+  function m(v){ var p=(v||"").split(":"); if(p.length<2) return -1;
+    return (parseInt(p[0],10)||0)*60+(parseInt(p[1],10)||0); }
+  var a=m($("ahStart").value), b=m($("ahFinish").value), br=parseInt($("ahBreak").value,10)||0;
+  if(a<0||b<0){ el.textContent="—"; return; }
+  var mins=b-a; if(mins<0) mins+=1440;                  // finished after midnight
+  mins-=br;
+  el.textContent = mins>0 ? (chFmt(Math.round(mins/0.6)/100)+"  \u00b7  "+
+      Math.floor(mins/60)+"h "+(mins%60)+"m") : "that gives no time worked";
+}
+function ahSave(){
+  if(!AHKEY){ toast("Pick the job first"); return; }
+  var st=($("ahStart").value||"").trim(), fi=($("ahFinish").value||"").trim();
+  if(!st||!fi){ toast("Start and finish, please"); return; }
+  var go=$("ahGo"); go.disabled=true; go.textContent="Adding\u2026";
+  apiPost({action:"crewHoursLog", email:ME.email, code:ME.code, jobKey:AHKEY,
+           date:($("ahDate").value||""), start:st, finish:fi,
+           breakMins:(parseInt($("ahBreak").value,10)||0),
+           note:($("ahNote").value||"").trim()}).then(function(r){
+    go.disabled=false; go.textContent="Add these hours";
     if(!r||!r.ok){ toast((r&&r.error)||"Couldn\u2019t save"); return; }
-    toast("Logged "+chFmt(r.hours)); chLoad(true);
-  });
+    toast("Added "+chFmt(r.hours)+" on "+chNiceDate($("ahDate").value||sdToday()));
+    closeModal("addHoursModal");
+    chLoad(true); chUnsubLoad();
+    if(openJobId) chJobLoad(openJobId,true);
+    if($("myHoursModal") && $("myHoursModal").classList.contains("show")) mhLoad();
+  }).catch(function(){ go.disabled=false; go.textContent="Add these hours"; toast("Couldn\u2019t connect"); });
 }
 /* "Where did my week go" is the question, so My hours is a period not a day.
    Today stays the default because that is the end-of-day check it was built for. */
@@ -2840,7 +2933,9 @@ function renderMyHours(){
           esc(String(v).replace(/'/g,"\\'"))+'\')">'+esc(v)+'</button>'; }).join("")+'</div>';
   }
   el.innerHTML = chUnsubHtml(false) + chips + boats +
-    (MHPERIOD==="today" ? chDayHtml() : mhPeriodHtml()) + mhSubmitBtn();
+    (MHPERIOD==="today" ? chDayHtml() : mhPeriodHtml()) +
+    '<button class="go alt2" style="margin-top:10px" onclick="closeModal(\'myHoursModal\');ahOpen()">'+
+    '\u2795 Add hours for another day</button>' + mhSubmitBtn();
 }
 /* A day worked on Thursday still has to reach the job card, so the button has
    to be reachable from any period \u2014 not only from Today. */
