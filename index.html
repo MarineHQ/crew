@@ -1471,7 +1471,7 @@ button:active{ filter: brightness(.93); }
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-05·r</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-05·s</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2917,10 +2917,10 @@ function ahLoadJobs(){
       var seen={}, out=[];
       fetched.concat(CREWJOBS||[], CREWOPEN||[]).forEach(function(x){
         if(!x || !x.key || seen[x.key]) return; seen[x.key]=1; out.push(x); });
-      AHJOBS=out;
+      AHJOBS = out.length ? out : null;          // never cache an empty answer
       AHNOTE = out.length ? "" : ("nothing came back \u2014 fleet list "+fetched.length+
                ", worklist "+((CREWJOBS||[]).length));
-      return AHJOBS;
+      return out;
     });
 }
 /* What is already logged against each job, so nobody adds the same day twice. */
@@ -2955,8 +2955,14 @@ function ahOpen(key){
     $("ahWhat").textContent = "Which job were you on? Pick the boat, then the job.";
     $("ahSearch").value=""; AHBOAT="";
     $("ahList").innerHTML='<div class="ahrow" style="cursor:default"><span>Loading your jobs\u2026</span></div>';
-    Promise.all([ AHJOBS ? Promise.resolve(AHJOBS) : ahLoadJobs(), ahLoadLog() ])
-      .then(function(){ ahFilter(); });
+    /* [] is truthy. Caching an empty result behind a plain truthiness check
+       meant one bad fetch — the app opened before the worklist had loaded —
+       stuck permanently, and every open afterwards reused the empty list
+       without ever asking again. Only a list with something in it is a cache. */
+    Promise.all([ (AHJOBS && AHJOBS.length) ? Promise.resolve(AHJOBS) : ahLoadJobs(),
+                  ahLoadLog() ])
+      .then(function(){ ahFilter(); })
+      .catch(function(){ AHJOBS=null; ahFilter(); });
   }
   var d=$("ahDate"); if(d){ d.value=sdToday(); d.max=sdToday(); }
   $("ahStart").value=""; $("ahFinish").value=""; $("ahBreak").value="0"; $("ahNote").value="";
@@ -2977,7 +2983,7 @@ var AHBOAT="";
 function ahBoat(v){ AHBOAT=v; ahFilter(); }
 function ahFilter(){
   var q=($("ahSearch").value||"").toLowerCase().trim();
-  var src = AHJOBS || CREWJOBS || [];
+  var src = (AHJOBS && AHJOBS.length) ? AHJOBS : (CREWJOBS || []);
   var all=src.filter(function(j){
     if(AHBOAT && (j.vessel||"")!==AHBOAT) return false;
     if(!q) return true;
@@ -3039,7 +3045,7 @@ function ahChoose(key){
   ahOpen(key);
   /* Start on the day the job was marked finished — nine times in ten that is
      the day being logged, and it saves scrolling a date picker back a week. */
-  var j=(AHJOBS||CREWJOBS||[]).filter(function(x){return x.key===key;})[0];
+  var j=((AHJOBS&&AHJOBS.length?AHJOBS:CREWJOBS)||[]).filter(function(x){return x.key===key;})[0];
   var iso=j && hubBucket(j.status)==="Done" ? ahIsoFrom(j.completed) : "";
   if(iso){ var d=$("ahDate"); if(d && iso<=sdToday()) d.value=iso; }
 }
@@ -3087,7 +3093,7 @@ function ahSave(){
   /* Send what we already have on screen. A job from the Works Register has no
      row in the Crew Worklist tab, so the server cannot look it up — without
      this the request comes back "job not found" and the hours are lost. */
-  var jj=(AHJOBS||CREWJOBS||[]).filter(function(x){return x.key===AHKEY;})[0]||{};
+  var jj=((AHJOBS&&AHJOBS.length?AHJOBS:CREWJOBS)||[]).filter(function(x){return x.key===AHKEY;})[0]||{};
   apiPost({action:"crewHoursLog", email:ME.email, code:ME.code, jobKey:AHKEY,
            vessel:(jj.vessel||""), task:(jj.task||""), jobCode:(jj.code||""),
            cat:(jj.category||jj.cat||""),
