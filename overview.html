@@ -579,12 +579,56 @@ function renderCrewDetail(){
   html+= shifts.length? '<div class="card">'+shifts.map(function(s){
     return '<div class="shift"><span class="v">'+esc(s.vessel)+'</span><span class="d">'+tclock(s.inAt)+(s.outAt?(' – '+tclock(s.outAt)):' – now')+(s.desc?(' · '+esc(s.desc)):'')+'</span><span class="h">'+dur(s.minutes)+'</span></div>';
   }).join("")+'</div>' : '<div class="empty">No shifts today.</div>';
+  /* The hours ledger, beside the jobs. A director asking "what has Eric got"
+     means both — what he is on, and what he has logged against it — and the
+     part nobody can see anywhere else is what he has logged but never sent. */
+  var H=DATA.hours, mine=[], hTot=0, hUnsent=0, hBoats={};
+  if(H && H.entries){
+    mine=H.entries.filter(function(e){
+      var n=(e.crew||"").toLowerCase();
+      return n===name.toLowerCase() || n.indexOf(name.toLowerCase())===0;
+    });
+    mine.forEach(function(e){
+      hTot+=(Number(e.hours)||0);
+      hBoats[e.vessel||"—"]=(hBoats[e.vessel||"—"]||0)+(Number(e.hours)||0);
+      if(e.pushed!=="Yes") hUnsent++;
+    });
+  }
+  html+='<h2 class="sec">Hours logged — '+esc(H&&H.month?H.month:"this period")+'</h2>';
+  if(!mine.length){
+    html+='<div class="empty">Nothing logged against a job in this period.</div>';
+  } else {
+    html+='<div class="card"><div class="totrow">'+
+      '<div class="tot"><b>'+hFmt(hTot)+'</b><span>hrs on jobs</span></div>'+
+      '<div class="tot alt"><b>'+mine.length+'</b><span>entries</span></div>'+
+      (hUnsent?('<div class="tot live"><b>'+hUnsent+'</b><span>not sent yet</span></div>'):
+               '<div class="tot alt"><b>\u2713</b><span>all sent</span></div>')+
+      '</div>'+
+      Object.keys(hBoats).sort(function(a,b){return hBoats[b]-hBoats[a];}).map(function(v){
+        return '<div class="shift"><span class="v">'+esc(v)+'</span>'+
+               '<span class="d"></span><span class="h">'+hFmt(hBoats[v])+'</span></div>';
+      }).join("")+
+      '</div>';
+    html+='<div class="card">'+mine.slice(0,20).map(function(e){
+      return '<div class="shift"><span class="v">'+esc(e.code||e.vessel||"")+'</span>'+
+        '<span class="d">'+esc(e.date)+' \u00b7 '+esc(e.task||"")+
+        (e.start?(' \u00b7 '+esc(e.start)+'\u2013'+esc(e.finish||"\u2026")):'')+
+        (e.pushed==="Yes"?'':' \u00b7 NOT SENT')+'</span>'+
+        '<span class="h">'+hFmt(e.hours)+'</span></div>';
+    }).join("")+(mine.length>20?('<div class="empty" style="padding:10px">... and '+(mine.length-20)+' more</div>'):'')+'</div>';
+  }
+
   var buckets={todo:[],prog:[],done:[]}; jobs.forEach(function(j){buckets[jobBucket(j.status)].push(j);});
+  var jBoats={}; jobs.forEach(function(j){ jBoats[j.vessel||"—"]=(jBoats[j.vessel||"—"]||0)+1; });
   html+='<h2 class="sec">Allocated jobs ('+jobs.length+')</h2>';
+  if(jobs.length) html+='<p class="muted" style="font-size:12px;margin:-6px 0 10px">'+
+    Object.keys(jBoats).sort().map(function(v){ return esc(v)+" ("+jBoats[v]+")"; }).join(" \u00b7 ")+
+    ' \u2014 this is exactly what their app offers them to log against.</p>';
   html+='<div class="jobcols">'+["todo","prog","done"].map(function(k){
     var lbl={todo:"To do",prog:"In progress",done:"Done"}[k]; var arr=buckets[k];
     return '<div class="jobcol '+k+'"><h3>'+lbl+' <span class="n">'+arr.length+'</span></h3>'+(arr.length?arr.slice(0,40).map(function(j){
-      return '<div class="job '+k+'"><div class="jv">'+esc(j.vessel)+'</div><div class="jt">'+esc(j.task||j.desc||"(job)")+'</div></div>';
+      return '<div class="job '+k+'"><div class="jv">'+esc(j.vessel)+
+        (j.code?(' \u00b7 '+esc(j.code)):'')+'</div><div class="jt">'+esc(j.task||j.desc||"(job)")+'</div></div>';
     }).join(""):'<div class="empty" style="padding:14px">None</div>')+'</div>';
   }).join("")+'</div>';
   d.innerHTML=html;
