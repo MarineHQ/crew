@@ -343,6 +343,9 @@
   .ahdone,.ahhand{font-style:normal;font-size:9px;font-weight:800;letter-spacing:.05em;
     text-transform:uppercase;padding:2px 6px;border-radius:999px;margin-left:7px;vertical-align:1px}
   .ahdone{background:#eaf5ee;color:#2e7d5b}
+  .ahdue{font-style:normal;font-size:9px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;
+    padding:2px 6px;border-radius:999px;margin-left:7px;vertical-align:1px;
+    background:#eef3fa;color:#3d5a8a}
   .ahgot{font-style:normal;color:var(--navy);font-weight:700}
   .ahsent,.ahunsent{font-style:normal;font-size:9px;font-weight:800;letter-spacing:.05em;
     text-transform:uppercase;padding:2px 6px;border-radius:999px;margin-left:5px;
@@ -1450,7 +1453,7 @@ button:active{ filter: brightness(.93); }
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-05·m</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-05·n</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2941,8 +2944,13 @@ function ahFilter(){
       by[v].slice(0,60).map(function(j){
         var k=String(j.key).replace(/'/g,"\\'");
         var b=hubBucket(j.status);
-        var pill = b==="Done" ? '<em class="ahdone">done</em>'
-                 : (b==="In progress" ? '<em class="ahhand">in hand</em>' : '');
+        /* When it was done is the whole point of this list: it is the day the
+           hours belong to. A job still open shows when it is due instead. */
+        var when = b==="Done" ? (j.completed||"") : (j.due||"");
+        var pill = b==="Done"
+          ? '<em class="ahdone">done'+(when?(" "+esc(when)):"")+'</em>'
+          : (b==="In progress" ? '<em class="ahhand">in hand</em>'
+             : (when ? '<em class="ahdue">due '+esc(when)+'</em>' : ''));
         /* Say the state outright, both ways. "6 hrs logged" on its own reads as
            an open tally when it is actually work already on a job card. */
         var lg=AHLOG[j.key], got='';
@@ -2960,7 +2968,28 @@ function ahFilter(){
   }).join("");
   $("ahList").innerHTML = html;
 }
-function ahChoose(key){ ahOpen(key); }
+function ahChoose(key){
+  ahOpen(key);
+  /* Start on the day the job was marked finished — nine times in ten that is
+     the day being logged, and it saves scrolling a date picker back a week. */
+  var j=(AHJOBS||CREWJOBS||[]).filter(function(x){return x.key===key;})[0];
+  var iso=j && hubBucket(j.status)==="Done" ? ahIsoFrom(j.completed) : "";
+  if(iso){ var d=$("ahDate"); if(d && iso<=sdToday()) d.value=iso; }
+}
+/* "4 Sep" / "04/09/2026" -> yyyy-mm-dd, or "" if it isn't a date we know. */
+function ahIsoFrom(v){
+  v=(v||"").toString().trim(); if(!v) return "";
+  var m=/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(v);
+  if(m) return m[3]+"-"+String(m[2]).padStart(2,"0")+"-"+String(m[1]).padStart(2,"0");
+  var M=["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
+  var n=/^(\d{1,2})\s+([A-Za-z]{3})[a-z]*\s*(\d{4})?$/.exec(v);
+  if(n){
+    var mi=M.indexOf(n[2].toLowerCase()); if(mi<0) return "";
+    var yr=n[3]||String(new Date().getFullYear());
+    return yr+"-"+String(mi+1).padStart(2,"0")+"-"+String(n[1]).padStart(2,"0");
+  }
+  return "";
+}
 function ahCalc(){
   var el=$("ahSum"); if(!el) return;
   function m(v){ var p=(v||"").split(":"); if(p.length<2) return -1;
