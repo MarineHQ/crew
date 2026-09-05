@@ -340,6 +340,8 @@
   .ahhd{position:sticky;top:39px;background:#f4f7fc;padding:6px 12px;font-size:11px;font-weight:800;
     letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line)}
   .ahhd span{opacity:.6}
+  .ahbusy{padding:7px 12px;font-size:11.5px;color:var(--muted);background:#f7f9fc;
+    border-bottom:1px solid var(--line)}
   .ahdone,.ahhand{font-style:normal;font-size:9px;font-weight:800;letter-spacing:.05em;
     text-transform:uppercase;padding:2px 6px;border-radius:999px;margin-left:7px;vertical-align:1px}
   .ahdone{background:#eaf5ee;color:#2e7d5b}
@@ -1471,7 +1473,7 @@ button:active{ filter: brightness(.93); }
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-05·s</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-05·t</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2902,7 +2904,7 @@ var AHKEY=null, AHJOBS=null, AHLOG={};
 /* The worklist on screen is one boat at a time — and for a director it is that
    boat's whole list, not their own work. Neither is the right list here, so the
    picker asks for its own: MY jobs, on every boat. */
-var AHNOTE="";
+var AHNOTE="", AHBUSY=false;
 function ahLoadJobs(){
   /* Merge, never replace. The fleet-wide call is the richer list, but if it
      comes back thin — a slow reply, a role the server scoped differently — the
@@ -2954,15 +2956,20 @@ function ahOpen(key){
   } else {
     $("ahWhat").textContent = "Which job were you on? Pick the boat, then the job.";
     $("ahSearch").value=""; AHBOAT="";
-    $("ahList").innerHTML='<div class="ahrow" style="cursor:default"><span>Loading your jobs\u2026</span></div>';
+    /* Paint from what is already in memory FIRST. The fleet-wide call takes the
+       best part of ten seconds on a marina connection, and a spinner that long
+       is indistinguishable from broken — which is exactly how it was read. The
+       worklist on screen is real jobs; show them, then quietly upgrade. */
+    AHBUSY = true;
+    ahFilter();
     /* [] is truthy. Caching an empty result behind a plain truthiness check
-       meant one bad fetch — the app opened before the worklist had loaded —
+       meant one bad fetch — the panel opened before the worklist had loaded —
        stuck permanently, and every open afterwards reused the empty list
        without ever asking again. Only a list with something in it is a cache. */
     Promise.all([ (AHJOBS && AHJOBS.length) ? Promise.resolve(AHJOBS) : ahLoadJobs(),
                   ahLoadLog() ])
-      .then(function(){ ahFilter(); })
-      .catch(function(){ AHJOBS=null; ahFilter(); });
+      .then(function(){ AHBUSY=false; ahFilter(); })
+      .catch(function(){ AHBUSY=false; AHJOBS=null; ahFilter(); });
   }
   var d=$("ahDate"); if(d){ d.value=sdToday(); d.max=sdToday(); }
   $("ahStart").value=""; $("ahFinish").value=""; $("ahBreak").value="0"; $("ahNote").value="";
@@ -3003,7 +3010,8 @@ function ahFilter(){
 
   if(!all.length){
     $("ahList").innerHTML = chips +
-      '<div class="ahrow" style="cursor:default"><b>Nothing here matches</b>'+
+      (AHBUSY ? '<div class="ahbusy">looking up your jobs\u2026</div>' : '')+
+      '<div class="ahrow" style="cursor:default"><b>'+(AHBUSY?"One moment":"Nothing here matches")+'</b>'+
       '<span>This list is the jobs assigned to you'+
       (AHNOTE?(" \u2014 "+esc(AHNOTE)):"")+'. If the work was never on a '+
       'list, close this and use <b>\u2713 Log job</b> instead \u2014 it creates the job, '+
@@ -3012,7 +3020,8 @@ function ahFilter(){
   }
 
   var by={}; all.forEach(function(j){ (by[j.vessel||"—"]=by[j.vessel||"—"]||[]).push(j); });
-  var html = chips + Object.keys(by).sort().map(function(v){
+  var busy = AHBUSY ? '<div class="ahbusy">checking your other boats\u2026</div>' : '';
+  var html = chips + busy + Object.keys(by).sort().map(function(v){
     return '<div class="ahhd">'+esc(v)+' <span>'+by[v].length+'</span></div>' +
       by[v].slice(0,60).map(function(j){
         var k=String(j.key).replace(/'/g,"\\'");
