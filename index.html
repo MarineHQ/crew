@@ -1480,7 +1480,7 @@ button:active{ filter: brightness(.93); }
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-05·z</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-06·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1614,9 +1614,9 @@ button:active{ filter: brightness(.93); }
     <input type="date" class="fld-in" id="ahDate">
     <div style="display:flex;gap:8px">
       <div style="flex:1"><label class="fld">Start</label>
-        <input type="time" class="fld-in" id="ahStart" onchange="ahCalc()"></div>
+        <input type="time" step="900" class="fld-in" id="ahStart" onchange="ahCalc()"></div>
       <div style="flex:1"><label class="fld">Finish</label>
-        <input type="time" class="fld-in" id="ahFinish" onchange="ahCalc()"></div>
+        <input type="time" step="900" class="fld-in" id="ahFinish" onchange="ahCalc()"></div>
       <div style="max-width:96px"><label class="fld">Break</label>
         <input type="number" min="0" step="5" class="fld-in" id="ahBreak" value="0" onchange="ahCalc()"></div>
     </div>
@@ -1651,9 +1651,9 @@ button:active{ filter: brightness(.93); }
   <p class="mhint" id="ehWhat">—</p>
   <div style="display:flex;gap:10px">
     <div style="flex:1"><label class="fld">Started</label>
-      <input type="time" class="fld-in" id="ehStart"></div>
+      <input type="time" step="900" class="fld-in" id="ehStart"></div>
     <div style="flex:1"><label class="fld">Finished</label>
-      <input type="time" class="fld-in" id="ehFinish"></div>
+      <input type="time" step="900" class="fld-in" id="ehFinish"></div>
   </div>
   <label class="fld">Break <span class="fldhint">(minutes — 0 if none)</span></label>
   <input type="number" min="0" step="5" class="fld-in" id="ehBreak" value="0">
