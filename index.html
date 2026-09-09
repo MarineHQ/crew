@@ -1241,6 +1241,19 @@ button, a, select, input, textarea, label, [onclick]{ touch-action: manipulation
 button, [onclick]{ -webkit-tap-highlight-color: rgba(0,0,0,.04); }
 button:active{ filter: brightness(.93); }
 [onclick]:active{ opacity:.86; }
+  /* Where she is & getting aboard — strip under a worklist header, block on a job page, card on the Vessel tab */
+  .wlwhere{margin:-7px 0 11px;padding:8px 13px;background:#eef4fb;border:1px solid #cfdcec;border-top:none;border-radius:0 0 11px 11px;font-size:12.5px;font-weight:700;color:#1a2b5c;cursor:pointer}
+  .wlnote.hasw{border-radius:0;margin-bottom:0}
+  .wlnote.hasw+.wlwhere{border-top:1px solid #f0d3ad;margin-top:0}
+  .wherebox{background:#f4f8fd;border:1px solid #cfdcec;border-radius:11px;padding:11px 13px;font-size:13px;color:#33415a}
+  .wherebox .wherehd{font-size:15px;font-weight:800;color:#1a2b5c;margin-bottom:4px}
+  .wherebox .whererow{margin-top:8px;white-space:pre-wrap;line-height:1.45}
+  .wherebox .whererow b{display:block;font-size:11px;letter-spacing:.3px;text-transform:uppercase;color:#6b7a90;margin-bottom:1px}
+  .wherebox a{color:#1a2b5c;font-weight:700}
+  .wherebox .wheremap{display:inline-block;margin-top:10px;padding:8px 12px;background:#1a2b5c;color:#fff;border-radius:9px;text-decoration:none;font-size:12.5px;font-weight:700}
+  .wherebox .wherefoot{font-size:11px;color:var(--muted);margin-top:8px}
+  .wherebox.empty{color:var(--muted);font-weight:600;cursor:pointer}
+  #whereCard .sec{margin:12px 0}
 </style>
 </head>
 <body>
@@ -1439,6 +1452,7 @@ button:active{ filter: brightness(.93); }
     <!-- ENGINE HOURS & SPARES -->
     <div id="tab-vessel" class="hidden">
       <div id="vesselBarH"></div>
+      <div id="whereCard"></div>
 
       <div class="subbar"><h2>Engine hours</h2><span class="count" id="hoursCount"></span></div>
       <p class="hello" style="padding-top:0">Read the hour meter, tap it in. Services that fall due on hours run — engine oils, filters, genset services — come off these readings.</p>
@@ -1480,7 +1494,7 @@ button:active{ filter: brightness(.93); }
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-06·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-09·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2497,6 +2511,7 @@ function loadJobs(){
   if(isMgrRole() && CURVESSEL && CURVESSEL!=="__all__") loadListInfo(CURVESSEL);
   loadClosedLists();
   if(!ME) return;
+  loadWhere();       // where each boat is + how to get aboard, for the list strips and job pages
   ofSync();          // an action on an off-fleet item refreshes that screen too
   if(isMgrRole() && !CURVESSEL) CURVESSEL="__all__";   // directors open on All Yachts, not their first boat
   var allBoats = (CURVESSEL==="__all__" && isMgrRole());
@@ -4548,6 +4563,12 @@ function wlGroupHTML(g, groups){
     var canEdit = isMgrRole() && !SCHEDVIEW;
     // Deadline/note banner shows to EVERYONE when set (it's info for crew); directors tap it to edit.
     var noteRow = note ? ('<div class="wlnote"'+(canEdit?(' onclick="event.stopPropagation();setListNote(\''+esc(gJs)+'\')"'):'')+'>'+esc(note)+(canEdit?' <span class="wlnote-ed">✎</span>':'')+'</div>') : '';
+    // Where the boat is — under every list header, so whoever picks up a job on
+    // this list knows where to go before they even open it. Tap for the access
+    // notes. Not in Schedule view: those groups are days, and mix boats.
+    var gV=(jobs[0]&&jobs[0].vessel)||"", whereTxt=(SCHEDVIEW||!gV)?"":whereLine(gV);
+    var whereRow = whereTxt ? ('<div class="wlwhere" onclick="event.stopPropagation();openWhere(\''+esc(gVessel)+'\')">📍 '+esc(whereTxt)+'</div>') : '';
+    if(whereRow && noteRow) noteRow=noteRow.replace('class="wlnote"','class="wlnote hasw"');
     // Directors: an ✎ icon on the header drops down the edit menu (note / add task / rename),
     // so by default the list headers sit neatly under each other.
     var editIcon = canEdit ? ('<span class="wledit'+(WLEDIT[g]?' on':'')+'" onclick="event.stopPropagation();toggleWlEdit(\''+esc(gJs)+'\')" title="Edit list">✎</span>') : '';
@@ -4569,7 +4590,7 @@ function wlGroupHTML(g, groups){
     return '<div class="wlacc'+collapsed+'" onclick="toggleWL(\''+esc(g)+'\')"><span class="car">▾</span>'+
       '<h3>'+esc(shown)+stateTag+'</h3>'+(newN?'<span class="n newn">'+newN+' new</span>':'')+'<span class="n">'+openN+' open</span>'+
       ((isMgrRole()&&toSign.length)?('<span class="n tosign">'+toSign.length+' to sign off</span>'):'')+shareTag+editIcon+'</div>'+
-      noteRow+editMenu+
+      noteRow+whereRow+editMenu+
       '<div class="wlbody'+bodyC+'" data-g="'+esc(g)+'">'+cards+'</div>';
   }
 }
@@ -5470,7 +5491,7 @@ var WLSTATUS=["To do","In hand","Complete"];
 function wlBucketToStatus(j){ var b=hubBucket(j.status); return b==="Done"?"Complete":(b==="In progress"?"In hand":"To do"); }
 function openWLJob(key){
   var j=wlFind(key); if(!j)return;
-  openJobId=key; WLMENTIONS=[]; WLLANE=""; PHTAG="";
+  openJobId=key; WLMENTIONS=[]; WLLANE=""; PHTAG=""; WHERE_OPEN="";
   try{ chLoad(); chJobLoad(key, true); }catch(e){}   // the box below must reflect the sheet   // a Before left on last week must not mislabel today
   var pool=(j.oj && typeof OFITEMS!=="undefined" && OFITEMS.length) ? OFITEMS : CREWJOBS;
   var inList=pool.filter(function(x){return (x.list||"")===(j.list||"");}); var num=inList.indexOf(j)+1;
@@ -5596,6 +5617,10 @@ function openWLJob(key){
       var b=j.desc?('<p class="body" id="wlDescText">'+esc(j.desc)+'</p>'):'<p class="body" id="wlDescText" style="color:var(--muted)">No description yet.</p>';
       var ed=wlCanFix(j)?' <span class="wlnote-ed" style="cursor:pointer" onclick="wlEditDesc(\''+esc(key)+'\')">✎ Edit</span>':'';
       return '<div class="sec" id="wlDescSec"><h4>The job'+ed+'</h4>'+b+'</div>'; })()+
+    // Where she is + how to get aboard — the first thing someone allocated a job
+    // on a boat they don't know needs. Hidden for crew when nothing is set;
+    // directors get a "tap to add" prompt instead.
+    whereBlockHtml(j.vessel)+
     // Straight under the job itself. Start/Stop is the main thing anyone does on
     // this screen, and it was sitting below the notes where nobody scrolled to it.
     '<div class="sec"><h4>Time on this job</h4><div id="chBox">'+chBoxHtml(key)+'</div></div>'+
@@ -5645,8 +5670,78 @@ function loadZohoInbound(task){
   }).catch(function(){ box.innerHTML="Couldn’t load his Zoho comments."; });
 }
 function zinWhen(w){ try{ var d=new Date(w); if(!isNaN(d)) return d.toLocaleDateString(); }catch(e){} return (w||"").toString().slice(0,15); }
+/* ===== Where she is & getting aboard ========================================
+   Crew get allocated work on boats they have never set foot on. Every job for a
+   vessel therefore carries where she is right now — the Fleet Data "Current
+   Location" cell, the same one the owner sees in MyYacht — plus the berth, how
+   to get aboard, who to ring at the marina and how to get there, which the
+   directors keep on the Induction tab. Fetched once for the whole fleet (it is a
+   handful of lines), cached, refreshed quietly in the background. */
+var WHERE={}, WHERE_AT=0, WHERE_OPEN="";
+function whereFor(v){ return WHERE[(v||"").toString().trim().toLowerCase()]||null; }
+function whereLine(v){ var w=whereFor(v); if(!w) return ""; return [w.where,w.berthNo].filter(function(x){return x&&x.trim();}).join(" · "); }
+function whereHas(w){ return !!(w && (w.where||w.berthNo||w.access||w.marinaContact||w.getThere)); }
+function loadWhere(force){
+  if(!ME) return Promise.resolve();
+  if(!WHERE_AT){ var c=_cGet(_ck("where")); if(c&&c.map){ WHERE=c.map; WHERE_AT=c.at||0; } }
+  if(!force && WHERE_AT && (Date.now()-WHERE_AT)<10*60*1000) return Promise.resolve();
+  return apiGet("fn=vesselaccess&code="+encodeURIComponent(ME.code||"")).then(function(j){
+    if(!(j&&j.ok)) return;
+    var m={}; (j.vessels||[]).forEach(function(r){ m[(r.vessel||"").toLowerCase()]=r; });
+    WHERE=m; WHERE_AT=Date.now(); _cSet(_ck("where"),{map:m,at:WHERE_AT});
+    try{
+      if(TAB==="jobs") renderJobs();
+      var wb=$("whereBlock");
+      if(wb){ var ov=WHERE_OPEN; if(!ov && openJobId){ var oj=wlFind(openJobId); ov=oj?oj.vessel:""; } if(ov) wb.outerHTML=whereBlockHtml(ov); }
+      var wc=$("whereCard"); if(wc && TAB==="vessel") wc.innerHTML=whereCardHtml(curVesselH());
+    }catch(e){}
+  }).catch(function(){});
+}
+// Phone numbers become tap-to-call, web addresses become links; everything else is escaped text.
+function whereRich(s){
+  var h=esc((s||"").toString());
+  h=h.replace(/(https?:\/\/[^\s<]+)/g, function(u){ return '<a href="'+u+'" target="_blank" rel="noopener">'+u+'</a>'; });
+  h=h.replace(/(^|[^\d\w\/=])((?:\+61|0)\d[\d\s\-]{7,}\d)/g, function(m,pre,num){ return pre+'<a href="tel:'+num.replace(/[\s\-]/g,"")+'">'+num+'</a>'; });
+  return h;
+}
+function whereBlockHtml(v){
+  var w=whereFor(v), mgr=isMgrRole(), vJs=esc((v||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'"));
+  if(!whereHas(w)){
+    if(!mgr) return '';
+    return '<div class="sec" id="whereBlock"><h4>📍 Where she is</h4><div class="wherebox empty" onclick="whereEdit(\''+vJs+'\')">No location or access notes for '+esc(v)+' yet — tap to add them, so crew allocated a job here know where to go and how to get aboard.</div></div>';
+  }
+  var edit = mgr ? ('<span class="wlnote-ed" style="cursor:pointer;float:right;text-transform:none;letter-spacing:0" onclick="whereEdit(\''+vJs+'\')">✎ Update</span>') : '';
+  var hd=[w.where,w.berthNo].filter(function(x){return x&&x.trim();}).join(' · ');
+  var q=encodeURIComponent([w.berthNo,w.where].filter(function(x){return x&&x.trim();}).join(", "));
+  var upd = w.updated ? ('Updated '+esc(dayLabel(w.updated))+(w.by?(' · '+esc(firstName(w.by))):'')) : '';
+  return '<div class="sec" id="whereBlock"><h4>📍 Where she is'+edit+'</h4><div class="wherebox">'+
+    (hd?('<div class="wherehd">'+esc(hd)+'</div>'):'')+
+    (w.access?('<div class="whererow"><b>Getting aboard</b>'+whereRich(w.access)+'</div>'):'')+
+    (w.marinaContact?('<div class="whererow"><b>Marina / contact</b>'+whereRich(w.marinaContact)+'</div>'):'')+
+    (w.getThere?('<div class="whererow"><b>Getting there</b>'+whereRich(w.getThere)+'</div>'):'')+
+    (w.where?('<a class="wheremap" href="https://www.google.com/maps/search/?api=1&query='+q+'" target="_blank" rel="noopener">🗺 Open in Maps</a>'):'')+
+    (upd?('<div class="wherefoot">'+upd+'</div>'):'')+'</div></div>';
+}
+// Same block on the Vessel tab (no id — the job sheet owns "whereBlock").
+function whereCardHtml(v){ var b=whereBlockHtml(v); return b ? b.replace(' id="whereBlock"','') : ''; }
+// Tap the strip under a worklist header → the full notes in a sheet.
+function openWhere(v){
+  WHERE_OPEN=v||"";
+  $("sheet").innerHTML='<div class="sheet-hd"><div style="flex:1"><div style="font-size:11px;font-weight:bold;letter-spacing:.4px;color:#ffd7b0">'+esc(v)+'</div><h3>Where she is</h3></div><button class="closeb" onclick="closeSheet()">✕</button></div>'+
+    whereBlockHtml(v)+'<div style="height:16px"></div>';
+  showSheet();
+}
+// Directors: jump to this boat's Induction tab with the location field in focus.
+function whereEdit(v){
+  if(!isMgrRole()) return;
+  try{ closeSheet(); }catch(e){}
+  if(v) CURVESSEL=v;
+  VI_FOCUS="currentLocation";
+  go("induct");
+}
 /* ===== Vessel Induction (directors): particulars + specialised gear per boat ===== */
 var VI_SECTIONS=[
+  {h:"📍 Where she is & getting aboard", note:"Shows under every worklist and on every job page for this boat, so whoever is allocated the work knows where to go and how to get on. Current location is the same cell the owner sees in MyYacht and the fleet dashboard.", f:[["currentLocation","Current location — marina / port (e.g. Coral Sea Marina, Airlie Beach)"],["berthNo","Berth / pen (e.g. Berth 022, C-arm)"],["access","How to get aboard — gate, keys, codes, who to call",1],["marinaContact","Marina office / contact (name + phone)"],["getThere","Getting there — parking, trolley, tender, tips",1]]},
   {h:"Particulars", f:[["owner","Owner"],["make","Make / model"],["year","Year built"],["builder","Builder"],["loa","Length (LOA)"],["beam","Beam"],["draft","Draft"],["hull","Hull material"],["flag","Flag"],["mmsi","MMSI"],["callsign","Call sign"],["berth","Home berth / marina"]]},
   {h:"Machinery", f:[["engines","Main engines (make/model × no.)"],["enghrs","Engine hours"],["generator","Generator(s)"],["thruster","Bow / stern thruster"]]},
   {h:"Systems & equipment", f:[["watermaker","Watermaker (brand)"],["aircon","Air-conditioning"],["divecomp","Dive compressor"],["tender","Tender (make · own insurance?)"],["electronics","Electronics / nav"],["comms","Comms / Starlink"],["stabilisers","Stabilisers"]]},
@@ -5654,7 +5749,7 @@ var VI_SECTIONS=[
   {h:"Key dates", f:[["coc","Survey / CoC expiry"],["insurance","Insurance expiry"],["antifoulLast","Antifoul last done"],["antifoulInt","Antifoul interval"]]},
   {h:"Operating", f:[["profile","Private / charter · cruising area"],["notes","Notes",1]]}
 ];
-var VI_DATA={}, VI_LOADED_V="";
+var VI_DATA={}, VI_LOADED_V="", VI_FOCUS="";
 function loadInduct(){
   if(!isMgrRole()){ go("jobs"); return; }
   loadFleetVessels();
@@ -5687,13 +5782,14 @@ function renderInduct(){
   host.innerHTML=html+
     '<button class="jobbtn complete" style="background:var(--navy)" onclick="saveInduct()">✓ Save '+esc(v)+'’s induction</button>'+
     '<p class="body" style="font-size:12px;color:var(--muted);text-align:center;margin:8px 0 16px">Only you &amp; Jack can edit this. Specialised items here become '+esc(v)+'’s boat-specific maintenance tasks.</p>';
+  if(VI_FOCUS){ var fk=VI_FOCUS; VI_FOCUS=""; setTimeout(function(){ try{ var el=$("vi_"+fk); if(el){ el.scrollIntoView({behavior:"smooth",block:"center"}); el.focus(); } }catch(e){} },60); }
 }
 function saveInduct(){
   var v=CURVESSEL, data={};
   VI_SECTIONS.forEach(function(s){ s.f.forEach(function(f){ var el=$("vi_"+f[0]); if(el) data[f[0]]=(el.value||"").trim(); }); });
   toast("Saving…");
   apiPost({action:"crewVesselInd", email:ME.email, code:ME.code, vessel:v, data:data}).then(function(r){
-    if(r&&r.ok){ VI_DATA=data; toast("✓ "+esc(v)+"’s induction saved"); renderInduct(); }
+    if(r&&r.ok){ VI_DATA=data; toast("✓ "+esc(v)+"’s induction saved"); renderInduct(); loadWhere(true); }
     else toast((r&&r.error)||"Couldn’t save");
   }).catch(function(){ toast("Couldn’t connect"); });
 }
@@ -7866,6 +7962,8 @@ function loadVessel(){
   if(isMgrRole()) loadFleetVessels();
   renderVesselBarH();
   var v=curVesselH();
+  var wc=$("whereCard"); if(wc) wc.innerHTML=whereCardHtml(v);
+  loadWhere();
   $("hoursWrap").innerHTML='<p class="hello">Loading…</p>';
   apiGet("fn=hours&vessel="+encodeURIComponent(v))
     .then(function(j){ if(j&&j.ok){ HOURS=j; renderMeters(); } else $("hoursWrap").innerHTML='<p class="hello">Couldn\u2019t load readings.</p>'; })

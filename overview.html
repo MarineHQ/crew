@@ -74,6 +74,10 @@
   .job .jt{font-weight:bold;margin:2px 0} .job .jd{color:var(--muted);line-height:1.35}
   .job .ja{margin-top:5px;font-size:11px;color:var(--navy);font-weight:bold}
   .empty{text-align:center;color:var(--muted);font-size:13px;padding:34px 20px;line-height:1.5}
+  .whererow{display:flex;gap:12px;justify-content:space-between;align-items:baseline;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px}
+  .whererow:last-child{border-bottom:0}
+  .whererow b{color:var(--navy);white-space:nowrap}
+  .whererow span{color:var(--muted);text-align:right}
   .spin{text-align:center;color:var(--muted);padding:40px;font-size:13px}
   select.crewsel{border:1px solid var(--line);border-radius:9px;padding:9px 11px;font-size:14px;font-family:inherit;background:#fff;margin-bottom:12px;width:100%;max-width:320px}
   /* branded gate — same family as the MyYacht owner login */
@@ -463,7 +467,7 @@ function loadAll(){
   document.getElementById("v-now").innerHTML='<div class="spin">Loading…</div>';
   Promise.all([get("crewonshift"),get("crewallshifts"),get("hub"),get("crewlist"),get("crewcerts&all=1"),
                get("crewjobs&code="+encodeURIComponent(KEY)+"&all=1&mine=0"),
-               get("crewhoursall&"+hoursQuery()),get("crewtimersopen")]).then(function(res){
+               get("crewhoursall&"+hoursQuery()),get("crewtimersopen"),get("vesselaccess")]).then(function(res){
     if((res[0]&&res[0].locked)||(res[3]&&res[3].locked)){KEY="";try{localStorage.removeItem("mhq_crew_key");}catch(e){}document.getElementById("gate").classList.add("show");return;}
     document.getElementById("gate").classList.remove("show");   // the code worked — no need to ask
     DATA.onShift=(res[0]&&res[0].onShift)||[];
@@ -475,6 +479,7 @@ function loadAll(){
     DATA.wl=(res[5]&&res[5].jobs)||[];        // every boat's worklist — what crew are actually on
     DATA.hours=(res[6]&&res[6].ok)?res[6]:null;      // this month's ledger, totalled
     DATA.timers=(res[7]&&res[7].running)||[];        // timers running right now
+    DATA.where=(res[8]&&res[8].vessels)||[];         // where each boat is + whether access notes are on file
     SHIFTC={};                                 // today moved on / data refreshed
     document.getElementById("refresh").textContent="Updated "+tclock(Date.now());
     renderNow(); renderShifts(); renderJobs(); renderCrew(); renderWho(); renderCerts(); renderHours();
@@ -501,6 +506,14 @@ function renderNow(){
       '<div class="tot">'+dur(s.minutes)+'</div></div></div>';
   }).join("");
   html+='</div></div>';
+  // Where the fleet is — one line per boat: Fleet Data's Current Location plus the
+  // berth from the Induction tab. Edited in the crew app (Induction → Where she is).
+  if(DATA.where&&DATA.where.length){
+    html+='<h2 class="sec">Where the fleet is</h2><div class="card">'+DATA.where.map(function(w){
+      var hd=[w.where,w.berthNo].filter(function(x){return x&&x.trim();}).join(' · ');
+      return '<div class="whererow"><b>'+esc(w.vessel)+'</b><span>'+(hd?esc(hd):'<i>no location set</i>')+(w.access?' · access notes on file':'')+'</span></div>';
+    }).join('')+'</div>';
+  }
   document.getElementById("v-now").innerHTML=html;
   drawMap();
 }
