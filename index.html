@@ -1290,6 +1290,10 @@ button:active{ filter: brightness(.93); }
 .catedit label{font:600 10px/1.6 ui-monospace,Menlo,monospace;letter-spacing:.08em;text-transform:uppercase;color:#7d8b96}
 .catedit input,.catedit select{padding:9px 10px;border:1px solid #cfd8e0;border-radius:6px;font-size:14px;background:#fff;width:100%}
 .cathint{font-size:12px;color:#7d8b96;line-height:1.5;margin:2px 0 0}
+/* slim orange bar at the very top while the app is actually waiting on Google */
+#apiBar{position:fixed;top:0;left:0;height:3px;width:0;background:var(--orange);z-index:99999;opacity:0;pointer-events:none;transition:width .5s ease,opacity .3s}
+#apiBar.on{opacity:1;width:72%}
+#apiBar.done{width:100%;opacity:0;transition:width .15s ease,opacity .4s ease .15s}
 </style>
 </head>
 <body>
@@ -1553,7 +1557,8 @@ button:active{ filter: brightness(.93); }
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-09·d</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="apiBar"></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-09·e</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2243,8 +2248,81 @@ var TODAY = "2026-07-19";
 /* ---- live backend (Marine HQ Apps Script web app) ---- */
 var API = "https://script.google.com/macros/s/AKfycbx5sC5b4rIF1tcMPWRdM9hpc8Lwj26TP7w8ikc0nR1KLyYNDv0CagCZYD3uBfmbQCxh/exec";
 var TEST_EMAIL = "trishkperez@gmail.com";
-function apiGet(params){ return fetch(API + "?" + params + "&_=" + Date.now()).then(function(r){return r.json();}); }
-function apiPost(body){ return fetch(API, {method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body:JSON.stringify(body)}).then(function(r){return r.json();}); }
+/* ── reads are answered from this phone first ──────────────────────────
+   Every call to Google takes 3–7 s whatever it does (that is the platform,
+   not the sheet), so a screen that waited for the network felt stuck. Now a
+   read-only fn is answered instantly from the last copy kept on this phone and
+   the network answer lands underneath it: if anything changed, the screen
+   redraws itself (apiFresh). A copy fetched in the last 20 s is reused outright
+   — no call at all. Any write (apiPost) throws every cached copy away, so a
+   screen can never show a state older than the last thing you did. */
+var API_CACHE_FNS={crewjobs:1,worklists:1,worklist:1,vesselind:1,vesselaccess:1,trips:1,spares:1,maintlog:1,maintenance:1,hoursdue:1,hours:1,
+  crewtimer:1,crewday:1,crewdaysummary:1,crewjobhours:1,crewhours:1,crewshifts:1,crewchecklists:1,crewactivity:1,crewnames:1,crewlist:1,
+  careschedule:1,bundles:1,oneoffs:1,onerofftemplates:1,catalogue:1,crewcerts:1};
+var API_FRESH_MS=20000, _apiInflight={};
+var _apiWriteAt=0; try{ _apiWriteAt=parseInt(localStorage.getItem("mhqc_writeat"),10)||0; }catch(e){}
+function _apiWrote(){ _apiWriteAt=Date.now(); try{ localStorage.setItem("mhqc_writeat", String(_apiWriteAt)); }catch(e){} }
+function _apiBar(on){
+  var b=document.getElementById("apiBar"); if(!b) return;
+  _apiBar.n=Math.max(0,(_apiBar.n||0)+(on?1:-1));
+  if(_apiBar.n>0){ clearTimeout(_apiBar._t); b.classList.remove("done"); b.classList.add("on"); }
+  else { b.classList.remove("on"); b.classList.add("done"); clearTimeout(_apiBar._t); _apiBar._t=setTimeout(function(){ b.classList.remove("done"); },700); }
+}
+function _apiRaw(url, show){
+  if(show) _apiBar(true);
+  return fetch(url + "&_=" + Date.now()).then(function(r){ return r.json(); })
+    .then(function(d){ if(show) _apiBar(false); return d; }, function(e){ if(show) _apiBar(false); throw e; });
+}
+function _apiPurge(){ try{ var ks=[]; for(var i=0;i<localStorage.length;i++){ var k=localStorage.key(i); if(k&&k.indexOf("mhqc_api_")===0) ks.push(k); } ks.forEach(function(k){ localStorage.removeItem(k); }); }catch(e){} }
+function apiGet(params){
+  var url=API+"?"+params;
+  var fn=(/(?:^|&)fn=([a-z]+)/.exec(params)||[])[1]||"";
+  if(!API_CACHE_FNS[fn] || !ME) return _apiRaw(url, true);
+  var key="mhqc_api_"+params;
+  var ent=_cGet(key);
+  var usable=!!(ent && ent.d && ent.t>_apiWriteAt);
+  if(usable && Date.now()-ent.t<API_FRESH_MS) return Promise.resolve(ent.d);   // fetched moments ago — reuse, no call
+  var p=_apiInflight[key];
+  if(!p){
+    var t0=Date.now();
+    p=_apiRaw(url, !usable).then(function(d){
+      delete _apiInflight[key];
+      if(d && d.ok!==false){
+        var str=""; try{ str=JSON.stringify({t:t0,d:d}); }catch(e){}
+        if(str && str.length<1500000){ try{ localStorage.setItem(key,str); }catch(e){ _apiPurge(); try{ localStorage.setItem(key,str); }catch(e2){} } }
+      }
+      return d;
+    }, function(e){ delete _apiInflight[key]; throw e; });
+    _apiInflight[key]=p;
+  }
+  if(!usable) return p;                                   // nothing on the phone yet — wait for Google (bar shows)
+  var entStr=""; try{ entStr=JSON.stringify(ent.d); }catch(e){}
+  p.then(function(d){ var s=""; try{ s=JSON.stringify(d); }catch(e){} if(d && d.ok!==false && s!==entStr) apiFresh(fn); }).catch(function(){});
+  return Promise.resolve(ent.d);                           // instant: last copy, fresh one lands underneath
+}
+function apiPost(body){
+  _apiWrote(); _apiBar(true);
+  return fetch(API, {method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body:JSON.stringify(body)}).then(function(r){return r.json();})
+    .then(function(d){ _apiWrote(); _apiBar(false); return d; }, function(e){ _apiBar(false); throw e; });
+}
+/* Fresh data landed for the screen you're on — redraw it. List screens only:
+   a form (Induction, Profile, Engine & parts) is never redrawn under someone,
+   and nothing is redrawn while a field has focus. */
+var TAB_REFRESH={ jobs:function(){ loadJobs(); }, mine:function(){ renderMine(); loadJobs(); }, photos:function(){ loadGallery(); },
+  updates:function(){ renderUpdates(); }, cal:function(){ loadCal(); }, maint:function(){ loadMaint(); },
+  hours:function(){ renderClock(); loadShifts(); }, check:function(){ loadChecklists(); }, off:function(){ loadOffFleet(); }, trip:function(){ loadTrips(); } };
+function apiFresh(fn){
+  apiFresh._fns=apiFresh._fns||{}; apiFresh._fns[fn]=1;
+  clearTimeout(apiFresh._t);
+  apiFresh._t=setTimeout(function(){
+    var fns=apiFresh._fns||{}; apiFresh._fns={};
+    if(!ME) return;
+    var a=document.activeElement, tag=a?(a.tagName||"").toLowerCase():"";
+    if(tag==="input"||tag==="textarea"||tag==="select"||(a&&a.isContentEditable)) return;
+    if(fns.crewtimer||fns.crewday){ try{ chLoad(true); }catch(e){} }
+    var f=TAB_REFRESH[TAB]; if(f){ try{ f(); }catch(e){} }
+  },200);
+}
 var ADMIN_CREW = [], CREW_KEY = "";
 
 /* ---- crew (from the Rates Table) ---- */
@@ -2382,8 +2460,9 @@ function resendLink(){
 }
 function doLoginCode(code, silent){
   apiGet("fn=crewlogin&code=" + encodeURIComponent(code)).then(function(j){
-    if(j && j.ok){ try{localStorage.setItem("mhq_crew_code", code); localStorage.removeItem("mhq_crew_email");}catch(_){} enterReal(j.crew, j.shift); }
-    else if(!silent){ toast("That access code isn’t recognised — check with Marine HQ."); }
+    if(j && j.ok){ try{localStorage.setItem("mhq_crew_code", code); localStorage.removeItem("mhq_crew_email");}catch(_){} enterReal(j.crew, j.shift, true); }
+    else if(silent){ if(ME) bootExpired(); }
+    else { toast("That access code isn’t recognised — check with Marine HQ."); }
   }).catch(function(){ if(!silent) toast("Couldn’t connect — check your signal and try again."); });
 }
 function backToLogin(){ $("sentStep").classList.add("hidden"); $("loginStep").classList.remove("hidden"); }
@@ -2399,18 +2478,31 @@ function addToPhone(){
 function testAccount(){ doLogin(TEST_EMAIL); }
 function doLogin(email, silent){
   apiGet("fn=crewlogin&email=" + encodeURIComponent(email)).then(function(j){
-    if(j && j.ok){ try{localStorage.setItem("mhq_crew_email", email);}catch(_){} enterReal(j.crew, j.shift); }
-    else if(!silent){ toast("We don’t recognise that email — ask Marine HQ to add you in Crew Setup."); backToLogin(); }
+    if(j && j.ok){ try{localStorage.setItem("mhq_crew_email", email);}catch(_){} enterReal(j.crew, j.shift, true); }
+    else if(silent){ if(ME) bootExpired(); }
+    else { toast("We don’t recognise that email — ask Marine HQ to add you in Crew Setup."); backToLogin(); }
   }).catch(function(){ if(!silent) toast("Couldn’t connect — check your signal and try again."); });
 }
 function signOut(){
   try{ MHQPush.signOut(); }catch(e){}            // stop this phone getting the last person's alerts
   var s=crewSess();
   if(s){ setCrewSess(""); try{ fetch(API + "?fn=signout&session=" + encodeURIComponent(s) + "&_=" + Date.now()); }catch(e){} }
-  try{localStorage.removeItem("mhq_crew_email");localStorage.removeItem("mhq_crew_code");}catch(_){}
+  try{localStorage.removeItem("mhq_crew_email");localStorage.removeItem("mhq_crew_code");localStorage.removeItem("mhqc_me");}catch(_){}
+  try{ var ks=[]; for(var i=0;i<localStorage.length;i++){ var k=localStorage.key(i); if(k&&k.indexOf("mhqc_")===0) ks.push(k); } ks.forEach(function(k){ localStorage.removeItem(k); }); }catch(_){}
   location.reload();
 }
-function enterReal(crew, shift){
+function enterReal(crew, shift, quiet){
+  try{ _cSet("mhqc_me", {crew:crew, shift:shift||null, t:Date.now()}); }catch(e){}   // next open goes straight in from this
+  if(quiet && ME && ME.id===crew.id){
+    // Already inside from this phone's copy — take the fresh details without resetting the screen.
+    ME.name=crew.name; ME.role=crew.role; ME.email=crew.email; ME.code=crew.code||""; ME.vessels=crew.vessels||[]; ME.eod=crew.eod||"";
+    ME.signedAt=crew.signedAt||""; ME.signature=crew.signature||""; ME.photo=crew.photo||"";
+    if(shift && shift.open){ ME.clock.in=true; ME.clock.at=shift.inAt; ME.clock.vessel=shift.vessel; ME.clock.loc=shift.loc||""; }
+    else { ME.clock.in=false; }
+    $("signedInAs").textContent = "Signed in as " + ME.name;
+    try{ setHdrAv(); renderNav(); renderClock(); updateStrip(); }catch(e){}
+    return;
+  }
   // Wipe the previous session's lists. REQJOBS is director-only data — never let it
   // survive into a crew session — and the sub-tab choice shouldn't carry over either.
   REQJOBS=[]; CREWRAISED=[]; JOBSEG="all"; MINESEG="mine";
@@ -2444,10 +2536,11 @@ function enterReal(crew, shift){
     // 2. Already signed in on this device (90-day session).
     var s=crewSess();
     if(s){
+      setTimeout(enterCached, 0);   // in at once (after this script has finished loading); the check below runs underneath
       apiGet("fn=session&session=" + encodeURIComponent(s)).then(function(j){
-        if(j && j.ok && j.crew){ enterReal(j.crew, j.shift); }
-        else { setCrewSess(""); legacySession(); }
-      }).catch(function(){ legacySession(); });
+        if(j && j.ok && j.crew){ enterReal(j.crew, j.shift, true); }
+        else { setCrewSess(""); if(ME) bootExpired(); else legacySession(); }
+      }).catch(function(){ if(!ME) legacySession(); });
       return;
     }
     legacySession();
@@ -2456,9 +2549,29 @@ function enterReal(crew, shift){
 // Crew already signed in the old way (access code / remembered email) stay signed in.
 function legacySession(){
   try{
-    var c=localStorage.getItem("mhq_crew_code"); if(c){ doLoginCode(c, true); return; }
-    var e=localStorage.getItem("mhq_crew_email"); if(e) doLogin(e, true);
+    var c=localStorage.getItem("mhq_crew_code"), e=localStorage.getItem("mhq_crew_email");
+    if(!c && !e) return;
+    setTimeout(enterCached, 0);   // in at once; the sign-in below refreshes it
+    if(c){ doLoginCode(c, true); return; }
+    if(e) doLogin(e, true);
   }catch(_){}
+}
+/* Straight in from the copy this phone kept of who's signed in. Deferred with
+   setTimeout(0) on purpose: it must run after the whole script has loaded (the
+   lists it fills are declared further down), and only if the network check
+   hasn't already let them in. */
+function enterCached(){
+  if(ME) return;
+  var me=_cGet("mhqc_me");
+  if(me && me.crew && me.crew.id) enterReal(me.crew, me.shift);
+}
+/* The remembered sign-in is no longer good (session expired, code changed) while
+   they're already inside from the phone's copy — back to the login screen. */
+function bootExpired(){
+  try{ localStorage.removeItem("mhqc_me"); }catch(_){}
+  _apiPurge();
+  toast("Your sign-in has expired — please sign in again.");
+  setTimeout(function(){ location.reload(); }, 1800);
 }
 
 /* ================= tabs =================
@@ -2582,8 +2695,11 @@ function loadJobs(){
     (allBoats ? "&all=1&mine=0" : ("&vessel="+encodeURIComponent(v)+"&mine="+mine));
   var lbl = allBoats ? "all yachts" : (v||"jobs");
   // INSTANT: render last-known jobs from cache immediately; else a spinner
-  var cached=_cGet(_ck("jobs",vk));
-  if(cached && cached.length){ CREWJOBS=cached; JOBSVESSEL=allBoats?"all yachts":vk; renderJobs(); updateJobsBadge(); }
+  var viewKey=allBoats?"all yachts":vk;
+  var onScreen=(JOBSVESSEL===viewKey && CREWJOBS.length>0);
+  var cached=onScreen?null:_cGet(_ck("jobs",vk)), cachedAt=_cGet(_ck("jobsat",vk))||0;
+  if(onScreen){ /* already showing this list — leave it; the fresh copy lands underneath */ }
+  else if(cached && cached.length && cachedAt>_apiWriteAt){ CREWJOBS=cached; JOBSVESSEL=viewKey; renderJobs(); updateJobsBadge(); }
   else {
     if($("jobList")) $("jobList").innerHTML='<div class="loadingbox"><span class="spin"></span> Loading '+esc(lbl)+'…</div>';
     if($("jobsCount")) $("jobsCount").textContent="";
@@ -2591,7 +2707,7 @@ function loadJobs(){
   }
   startActivityWatch();   // fire the activity fetch in PARALLEL with jobs (not after)
   apiGet(url)
-    .then(function(j){ CREWJOBS=((j&&j.jobs)||[]).filter(notOffFleet); if(!isMgrRole() || allBoats) CREWOPEN=((j&&j.openJobs)||[]).filter(notOffFleet); if(j&&j.listMeta)LISTMETA=j.listMeta; JOBSVESSEL=allBoats?"all yachts":((j&&j.vessel)||v); if(j&&j.raisedJobs) CREWRAISED=j.raisedJobs.filter(notOffFleet); _cSet(_ck("jobs",vk), CREWJOBS); if(allBoats) setRequests(CREWJOBS); renderJobs(); updateJobsBadge(); renderVesselBar(); renderMine(); checkPendingAccepts(); }).catch(function(){});
+    .then(function(j){ CREWJOBS=((j&&j.jobs)||[]).filter(notOffFleet); if(!isMgrRole() || allBoats) CREWOPEN=((j&&j.openJobs)||[]).filter(notOffFleet); if(j&&j.listMeta)LISTMETA=j.listMeta; JOBSVESSEL=allBoats?"all yachts":((j&&j.vessel)||v); if(j&&j.raisedJobs) CREWRAISED=j.raisedJobs.filter(notOffFleet); _cSet(_ck("jobs",vk), CREWJOBS); _cSet(_ck("jobsat",vk), Date.now()); if(allBoats) setRequests(CREWJOBS); renderJobs(); updateJobsBadge(); renderVesselBar(); renderMine(); checkPendingAccepts(); }).catch(function(){});
   loadFleetVessels();
   // On All Yachts the main fetch already returns fleet-wide unassigned — only fetch
   // separately when a director has drilled into ONE boat (so the section stays fleet-wide).
