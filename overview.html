@@ -515,8 +515,8 @@ function renderNow(){
   // berth from the Induction tab. Edited in the crew app (Induction → Where she is).
   if(DATA.where&&DATA.where.length){
     var cell=function(v){ return v&&v.trim() ? esc(v) : '<span class="wf-dash">—</span>'; };
-    html+='<h2 class="sec">Where &amp; access — the fleet</h2><div class="card" style="padding:0;overflow-x:auto"><table class="wftable"><thead><tr><th>Yacht</th><th>Where</th><th>Berth</th><th>Address (Maps)</th><th>Code</th><th>Lock box</th><th>Contact</th><th>Getting there</th></tr></thead><tbody>'+
-      DATA.where.map(function(w){ return '<tr><th>'+esc(w.vessel)+'</th><td>'+cell(w.where)+'</td><td>'+cell(w.berthNo)+'</td><td>'+cell(w.mapAddress)+'</td><td>'+cell(w.gateCode)+'</td><td>'+cell(w.keyLoc)+'</td><td>'+cell(w.marinaContact)+'</td><td>'+cell(w.getThere)+'</td></tr>'; }).join('')+
+    html+='<h2 class="sec">Where &amp; access — the fleet</h2><div class="card" style="padding:0;overflow-x:auto"><table class="wftable"><thead><tr><th>Yacht</th><th>Where</th><th>Berth</th><th>Address (Maps)</th><th>Security</th><th>Lock box code</th><th>Lock box</th><th>Contact</th><th>Getting there</th></tr></thead><tbody>'+
+      DATA.where.map(function(w){ return '<tr><th>'+esc(w.vessel)+'</th><td>'+cell(w.where)+'</td><td>'+cell(w.berthNo)+'</td><td>'+cell(w.mapAddress)+'</td><td>'+cell(w.securityCode)+'</td><td>'+cell(w.gateCode)+'</td><td>'+cell(w.keyLoc)+'</td><td>'+cell(w.marinaContact)+'</td><td>'+cell(w.getThere)+'</td></tr>'; }).join('')+
       '</tbody></table></div>';
   }
   document.getElementById("v-now").innerHTML=html;

@@ -1489,7 +1489,7 @@ button:active{ filter: brightness(.93); }
     <div id="tab-induct" class="hidden">
       <div class="hello" id="inductHello"></div>
       <div id="vesselBarI" class="vesselbar"></div>
-      <div class="subbar"><h2>Vessel induction</h2><span class="count" id="inductStatus"></span></div>
+      <div class="subbar"><h2>Vessel induction</h2><span class="count" id="inductStatus"></span><button class="closeb" style="margin-left:auto" title="Close" onclick="inductClose()">✕</button></div>
       <div id="inductForm"></div>
     </div>
 
@@ -1573,7 +1573,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-09·h</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-09·i</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -6122,8 +6122,8 @@ function zinWhen(w){ try{ var d=new Date(w); if(!isNaN(d)) return d.toLocaleDate
 var WHERE={}, WHERE_AT=0, WHERE_OPEN="";
 function whereFor(v){ return WHERE[(v||"").toString().trim().toLowerCase()]||null; }
 function whereLine(v){ var w=whereFor(v); if(!w) return ""; return [w.where,w.berthNo].filter(function(x){return x&&x.trim();}).join(" · "); }
-function whereHas(w){ return !!(w && (w.where||w.berthNo||w.mapAddress||w.gateCode||w.keyLoc||w.access||w.marinaContact||w.getThere)); }
-function whereDetails(w){ return !!(w && (w.mapAddress||w.gateCode||w.keyLoc||w.access||w.marinaContact||w.getThere)); }
+function whereHas(w){ return !!(w && (w.where||w.berthNo||w.mapAddress||w.securityCode||w.gateCode||w.keyLoc||w.access||w.marinaContact||w.getThere)); }
+function whereDetails(w){ return !!(w && (w.mapAddress||w.securityCode||w.gateCode||w.keyLoc||w.access||w.marinaContact||w.getThere)); }
 var WHERE_EXP={};   // which blocks are expanded this session, by block id
 function whereToggle(id, v){ WHERE_EXP[id]=!WHERE_EXP[id]; var el=$(id); if(el) el.outerHTML=whereBlockHtml(v, id); }
 function loadWhere(force){
@@ -6175,7 +6175,8 @@ function whereBlockHtml(v, id, forceOpen){
   return '<div class="sec" id="'+id+'"><h4>📍 Where & access'+edit+'</h4><div class="wherebox">'+
     (hd?('<div class="wherehd">'+esc(hd)+'</div>'):'')+
     (w.mapAddress?('<div class="whererow"><b>Address</b>'+esc(w.mapAddress)+'</div>'):'')+
-    (w.gateCode?('<div class="whererow"><b>Gate / lock box code</b><span class="wherecode">'+esc(w.gateCode)+'</span></div>'):'')+
+    (w.securityCode?('<div class="whererow"><b>Marina security / gate code</b><span class="wherecode">'+esc(w.securityCode)+'</span></div>'):'')+
+    (w.gateCode?('<div class="whererow"><b>Lock box code</b><span class="wherecode">'+esc(w.gateCode)+'</span></div>'):'')+
     (w.keyLoc?('<div class="whererow"><b>Lock box / keys</b>'+whereRich(w.keyLoc)+'</div>'):'')+
     (w.access?('<div class="whererow"><b>Access notes</b>'+whereRich(w.access)+'</div>'):'')+
     (w.marinaContact?('<div class="whererow"><b>Marina / contact</b>'+whereRich(w.marinaContact)+'</div>'):'')+
@@ -6194,9 +6195,9 @@ function renderWhereFleet(){
   if(!rows.length){ host.innerHTML='<div class="sec" style="margin:12px 0"><h4>📍 Where &amp; access — the fleet</h4><div class="loadingbox"><span class="spin"></span> Loading…</div></div>'; return; }
   var cell=function(v){ return v&&v.trim() ? esc(v) : '<span class="wf-dash">—</span>'; };
   host.innerHTML='<div class="sec" style="margin:12px 0"><h4>📍 Where &amp; access — the fleet <span style="font-size:11px;font-weight:600;color:var(--muted);text-transform:none;letter-spacing:0">· tap a boat to edit · scroll sideways</span></h4>'+
-    '<div class="wfwrap"><table class="wftable"><thead><tr><th>Yacht</th><th>Where</th><th>Berth</th><th>Address (Maps)</th><th>Code</th><th>Lock box</th><th>Contact</th></tr></thead><tbody>'+
+    '<div class="wfwrap"><table class="wftable"><thead><tr><th>Yacht</th><th>Where</th><th>Berth</th><th>Address (Maps)</th><th>Security</th><th>Lock box code</th><th>Lock box</th><th>Contact</th></tr></thead><tbody>'+
     rows.map(function(w){ var vJs=esc((w.vessel||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'"));
-      return '<tr onclick="whereEdit(\''+vJs+'\')"><th>'+esc(w.vessel)+'</th><td>'+cell(w.where)+'</td><td>'+cell(w.berthNo)+'</td><td>'+cell(w.mapAddress)+'</td><td>'+(w.gateCode?('<span class="wherecode" style="font-size:13px;padding:2px 7px">'+esc(w.gateCode)+'</span>'):'<span class="wf-dash">—</span>')+'</td><td>'+cell(w.keyLoc)+'</td><td>'+cell(w.marinaContact)+'</td></tr>'; }).join("")+
+      return '<tr onclick="whereEdit(\''+vJs+'\')"><th>'+esc(w.vessel)+'</th><td>'+cell(w.where)+'</td><td>'+cell(w.berthNo)+'</td><td>'+cell(w.mapAddress)+'</td><td>'+(w.securityCode?('<span class="wherecode" style="font-size:13px;padding:2px 7px">'+esc(w.securityCode)+'</span>'):'<span class="wf-dash">—</span>')+'</td><td>'+(w.gateCode?('<span class="wherecode" style="font-size:13px;padding:2px 7px">'+esc(w.gateCode)+'</span>'):'<span class="wf-dash">—</span>')+'</td><td>'+cell(w.keyLoc)+'</td><td>'+cell(w.marinaContact)+'</td></tr>'; }).join("")+
     '</tbody></table></div></div>';
 }
 // Same block on the Vessel tab (no id — the job sheet owns "whereBlock").
@@ -6211,6 +6212,7 @@ function openWhere(v){
 // Directors: jump to this boat's Induction tab with the location field in focus.
 function whereEdit(v){
   if(!isMgrRole()) return;
+  VI_BACK=(TAB&&TAB!=="induct")?TAB:"fleet";
   try{ closeSheet(); }catch(e){}
   if(v) CURVESSEL=v;
   VI_FOCUS="currentLocation";
@@ -6218,7 +6220,7 @@ function whereEdit(v){
 }
 /* ===== Vessel Induction (directors): particulars + specialised gear per boat ===== */
 var VI_SECTIONS=[
-  {h:"📍 Where & access", note:"Shows under every worklist and on every job page for this boat, so whoever is allocated the work knows where to go and how to get on. Current location is the same cell the owner sees in MyYacht and the fleet dashboard.", f:[["currentLocation","Current location — marina / port (e.g. Coral Sea Marina, Airlie Beach)"],["berthNo","Berth / pen (e.g. Berth 022, C-arm)"],["mapAddress","Street address for Maps — exact (e.g. 7402 Marine Drive East, Sanctuary Cove)"],["gateCode","Gate / lock box code"],["keyLoc","Lock box / keys — where exactly (e.g. aft deck, port side, behind the fender)"],["access","Other access notes — alarms, shore power, who to call",1],["marinaContact","Marina office / contact (name + phone)"],["getThere","Getting there — parking, trolley, tender, tips",1]]},
+  {h:"📍 Where & access", note:"Shows under every worklist and on every job page for this boat, so whoever is allocated the work knows where to go and how to get on. Current location is the same cell the owner sees in MyYacht and the fleet dashboard.", f:[["currentLocation","Current location — marina / port (e.g. Coral Sea Marina, Airlie Beach)"],["berthNo","Berth / pen (e.g. Berth 022, C-arm)"],["mapAddress","Street address for Maps — exact (e.g. 7402 Marine Drive East, Sanctuary Cove)"],["securityCode","Marina security / gate code (if the marina has one)"],["gateCode","Lock box code"],["keyLoc","Lock box / keys — where exactly (e.g. aft deck, port side, behind the fender)"],["access","Other access notes — alarms, shore power, who to call",1],["marinaContact","Marina office / contact (name + phone)"],["getThere","Getting there — parking, trolley, tender, tips",1]]},
   {h:"Particulars", f:[["owner","Owner"],["make","Make / model"],["year","Year built"],["builder","Builder"],["loa","Length (LOA)"],["beam","Beam"],["draft","Draft"],["hull","Hull material"],["flag","Flag"],["mmsi","MMSI"],["callsign","Call sign"],["berth","Home berth / marina"]]},
   {h:"Machinery", f:[["engines","Main engines (make/model × no.)"],["enghrs","Engine hours"],["generator","Generator(s)"],["thruster","Bow / stern thruster"]]},
   {h:"Systems & equipment", f:[["watermaker","Watermaker (brand)"],["aircon","Air-conditioning"],["divecomp","Dive compressor"],["tender","Tender (make · own insurance?)"],["electronics","Electronics / nav"],["comms","Comms / Starlink"],["stabilisers","Stabilisers"]]},
@@ -6226,7 +6228,9 @@ var VI_SECTIONS=[
   {h:"Key dates", f:[["coc","Survey / CoC expiry"],["insurance","Insurance expiry"],["antifoulLast","Antifoul last done"],["antifoulInt","Antifoul interval"]]},
   {h:"Operating", f:[["profile","Private / charter · cruising area"],["notes","Notes",1]]}
 ];
-var VI_DATA={}, VI_LOADED_V="", VI_FOCUS="", VI_FROM=[];
+var VI_DATA={}, VI_LOADED_V="", VI_FOCUS="", VI_FROM=[], VI_BACK="fleet";
+// ✕ on the induction page — back to wherever you came from (a job, the Fleet table, or the Fleet tab).
+function inductClose(){ var b=VI_BACK||"fleet"; VI_BACK="fleet"; go(b); }
 function loadInduct(){
   if(!isMgrRole()){ go("jobs"); return; }
   loadFleetVessels();
@@ -6267,7 +6271,7 @@ function saveInduct(){
   VI_SECTIONS.forEach(function(s){ s.f.forEach(function(f){ var el=$("vi_"+f[0]); if(el) data[f[0]]=(el.value||"").trim(); }); });
   toast("Saving…");
   apiPost({action:"crewVesselInd", email:ME.email, code:ME.code, vessel:v, data:data}).then(function(r){
-    if(r&&r.ok){ VI_DATA=data; toast("✓ "+esc(v)+"’s induction saved"); renderInduct(); loadWhere(true); }
+    if(r&&r.ok){ VI_DATA=data; toast("✓ "+esc(v)+"’s induction saved — tap ✕ to go back"); renderInduct(); loadWhere(true); }
     else toast((r&&r.error)||"Couldn’t save");
   }).catch(function(){ toast("Couldn’t connect"); });
 }
