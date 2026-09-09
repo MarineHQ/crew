@@ -1254,6 +1254,7 @@ button:active{ filter: brightness(.93); }
   .wherebox .wherefoot{font-size:11px;color:var(--muted);margin-top:8px}
   .wherebox.empty{color:var(--muted);font-weight:600;cursor:pointer}
   #whereCard .sec{margin:12px 0}
+  .vifrom{font-weight:600;color:#6b7a90;font-size:11px;margin-left:6px;text-transform:none;letter-spacing:0}
 </style>
 </head>
 <body>
@@ -1494,7 +1495,7 @@ button:active{ filter: brightness(.93); }
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-09·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-09·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -5749,19 +5750,19 @@ var VI_SECTIONS=[
   {h:"Key dates", f:[["coc","Survey / CoC expiry"],["insurance","Insurance expiry"],["antifoulLast","Antifoul last done"],["antifoulInt","Antifoul interval"]]},
   {h:"Operating", f:[["profile","Private / charter · cruising area"],["notes","Notes",1]]}
 ];
-var VI_DATA={}, VI_LOADED_V="", VI_FOCUS="";
+var VI_DATA={}, VI_LOADED_V="", VI_FOCUS="", VI_FROM=[];
 function loadInduct(){
   if(!isMgrRole()){ go("jobs"); return; }
   loadFleetVessels();
   if(!CURVESSEL || CURVESSEL==="__all__"){ CURVESSEL=(FLEETVESSELS&&FLEETVESSELS[0]) || (ME.vessels&&ME.vessels[0]) || CURVESSEL; }
   renderVesselBar();
-  $("inductHello").innerHTML="🛥 <b>Vessel induction</b> — the boat's particulars &amp; specialised gear. Feeds the Overview and sets up the boat-specific maintenance.";
+  $("inductHello").innerHTML="🛥 <b>Vessel induction</b> — the boat's particulars &amp; specialised gear. Feeds the Overview and sets up the boat-specific maintenance.<br><span style=\"font-size:12px;color:var(--muted)\">Anything Fleet Data already knows is filled in for you (marked <i>from Fleet Data</i>) — check it, fix it, add the rest.</span>";
   var v=CURVESSEL;
   $("inductForm").innerHTML='<div class="loadingbox"><span class="spin"></span> Loading '+esc(v)+'…</div>';
   $("inductStatus").textContent="";
   apiGet("fn=vesselind&code="+encodeURIComponent(ME.code||"")+"&vessel="+encodeURIComponent(v)).then(function(j){
     if(TAB!=="induct" || CURVESSEL!==v) return;
-    VI_DATA=(j&&j.ok&&j.data)||{}; VI_LOADED_V=v;
+    VI_DATA=(j&&j.ok&&j.data)||{}; VI_LOADED_V=v; VI_FROM=(j&&j.prefilled)||[];
     if(!VI_DATA.owner && ME && v){ /* pre-fill nothing risky; leave blank for director to confirm */ }
     renderInduct();
   }).catch(function(){ $("inductForm").innerHTML='<div class="empty">Couldn’t load. Try again.</div>'; });
@@ -5774,7 +5775,8 @@ function renderInduct(){
   var html=VI_SECTIONS.map(function(s){
     return '<div class="visec"><h4>'+esc(s.h)+'</h4>'+(s.note?('<p class="vinote">'+esc(s.note)+'</p>'):'')+
       s.f.map(function(f){ var key=f[0], lbl=f[1], ta=f[2], val=(VI_DATA[key]||"").toString();
-        return '<label class="vifld"><span>'+esc(lbl)+'</span>'+
+        var from=(VI_FROM.indexOf(key)>=0 && val)?'<em class="vifrom">from Fleet Data</em>':'';
+        return '<label class="vifld"><span>'+esc(lbl)+from+'</span>'+
           (ta ? ('<textarea class="fld-ta" id="vi_'+key+'">'+esc(val)+'</textarea>')
               : ('<input class="fld-in" id="vi_'+key+'" value="'+esc(val)+'">'))+'</label>';
       }).join("")+'</div>';
