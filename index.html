@@ -1261,6 +1261,10 @@ button:active{ filter: brightness(.93); }
   .vifrom{font-weight:600;color:#6b7a90;font-size:11px;margin-left:6px;text-transform:none;letter-spacing:0}
 
 /* ---- The catalogue (director) ---- */
+.catadd{background:#fff;border:1px solid #cfd8e0;border-radius:8px;padding:12px;margin-bottom:10px}
+.catadd h4{margin:0 0 8px;font-size:14px;color:#1A3A5C}
+.catnewno{background:#eef1f5;border-radius:6px;padding:8px 10px;font-size:12px;color:#54646f;margin:0 0 9px;line-height:1.5}
+.catnewno b{color:#1A3A5C;font-family:ui-monospace,Menlo,monospace}
 #catPanel{margin:2px 0 12px}
 .catbar{display:flex;gap:8px;align-items:center;margin:6px 0 4px}
 .catbar input{flex:1;padding:11px 12px;border:1px solid #cfd8e0;border-radius:8px;font-size:15px;background:#fff}
@@ -1437,6 +1441,8 @@ button:active{ filter: brightness(.93); }
           <input id="catQ" type="search" placeholder="wax · interior · AC · teak · hull · 19" oninput="catType()" autocomplete="off">
           <span id="catCount" class="catcount"></span>
         </div>
+        <button class="jobbtn" style="width:100%;margin:0 0 10px" onclick="catToggleAdd()">＋ Add a job to the catalogue</button>
+        <div id="catAddBox"></div>
         <div class="catchips">
           <span class="catchip" onclick="catGo('wax')">wax</span>
           <span class="catchip" onclick="catGo('polish')">polish</span>
@@ -1449,6 +1455,7 @@ button:active{ filter: brightness(.93); }
           <span class="catchip" onclick="catGo('safety')">safety</span>
         </div>
         <div id="catList"></div>
+        <datalist id="catAllSubs"></datalist>
       </div>
       <div class="fleetlink" onclick="toggleOwnerPreview()">
         <div class="fl-ic">👁️</div>
@@ -1558,7 +1565,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-09·e</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-09·f</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -3726,10 +3733,84 @@ function _parseDMY(s){ var m=/^(\d{2})\/(\d{2})\/(\d{4})$/.exec(s||""); return m
    ============================================================ */
 var CATROWS = [], CATOPEN = "", CAT_T = null, CATBUSY = false;
 
+/* ---- adding a new job -------------------------------------------------------
+   The number is never typed. Either the job stands on its own and takes the
+   next free whole number, or it's a lighter version of an existing job and
+   takes that job's next free decimal — 1 wash down, 1.1 rinse, 1.2 spot wash. */
+var CATGROUPS = null;
+
+function catFillSubs(){
+  var el=$("catAllSubs"); if(!el) return;
+  var seen={}; (CATGROUPS||[]).forEach(function(g){ if(g.sub) seen[g.sub]=1; });
+  el.innerHTML = Object.keys(seen).sort().map(function(x){
+    return '<option value="'+esc(x)+'">'; }).join("");
+}
+function catLoadGroups(){
+  if(CATGROUPS) return;
+  apiGet("fn=catgroups&code="+encodeURIComponent(ME.code||"")+"&email="+encodeURIComponent(ME.email||""))
+    .then(function(j){ CATGROUPS=(j&&j.groups)||[]; catFillSubs(); }).catch(function(){});
+}
+
+function catToggleAdd(){
+  var b=$("catAddBox"); if(!b) return;
+  if(b.innerHTML){ b.innerHTML=""; return; }
+  b.innerHTML='<div class="catadd"><h4>Add a job to the catalogue</h4>'+
+    '<div class="empty">Loading…</div></div>';
+  if(CATGROUPS){ catAddForm(); return; }
+  apiGet("fn=catgroups&code="+encodeURIComponent(ME.code||"")+"&email="+encodeURIComponent(ME.email||""))
+    .then(function(j){ CATGROUPS=(j&&j.groups)||[]; catAddForm(); })
+    .catch(function(){ CATGROUPS=[]; catAddForm(); });
+}
+
+function catAddForm(){
+  var heads=["Scheduled Maintenance","Unscheduled Maintenance","Vessel Upgrades","Operations","Charter / Delivery"];
+  var freqs=["Weekly","Fortnightly","Monthly","3–6 monthly","Annually","As required","One-off"];
+  var syss=["","DECK","HULL","RUN","INT","ENG","ELEC","PLUMB","TOYS","SAFE","OPS"];
+  catFillSubs();
+
+  $("catAddBox").innerHTML='<div class="catadd">'+
+    '<h4>Add a job to the catalogue</h4>'+
+    '<p class="catnewno">The number is worked out for you and can never be reused. '+
+      'Leave the last box empty for a job in its own right; put a number in it to make this a '+
+      '<b>lighter version</b> of that job — 1 full wash down → 1.1 rinse → 1.2 spot wash.</p>'+
+    '<div class="catedit">'+
+      '<div><label>Job / task</label><input id="ca-job" placeholder="e.g. Sunroof — open, air out &amp; wipe"></div>'+
+      '<div><label>Category</label><select id="ca-cat">'+
+        heads.map(function(h){ return '<option>'+esc(h)+'</option>'; }).join("")+'</select></div>'+
+      '<div><label>Sub-category</label><input id="ca-sub" list="ca-subs" placeholder="e.g. Wash down &amp; detailing">'+
+        '<datalist id="ca-subs">'+Object.keys(subs).sort().map(function(x){
+          return '<option value="'+esc(x)+'">'; }).join("")+'</datalist></div>'+
+      '<div><label>Frequency</label><select id="ca-freq">'+
+        freqs.map(function(f){ return '<option'+(f==="As required"?' selected':'')+'>'+esc(f)+'</option>'; }).join("")+
+        '</select></div>'+
+      '<div><label>System</label><select id="ca-sys">'+
+        syss.map(function(v){ return '<option value="'+esc(v)+'">'+esc(v||"— none —")+'</option>'; }).join("")+
+        '</select></div>'+
+      '<div><label>Keywords — what a crew might type</label><input id="ca-kw" placeholder="sunroof, sun roof, open, air out, wipe"></div>'+
+      '<div><label>A lighter version of… (optional)</label><input id="ca-parent" inputmode="decimal" placeholder="e.g. 1 — leave empty for its own job"></div>'+
+      '<div class="catacts">'+
+        '<button class="jobbtn" style="flex:1" onclick="catAddSave()">Add it</button>'+
+        '<button class="catbtn" onclick="catToggleAdd()">Cancel</button>'+
+      '</div>'+
+    '</div></div>';
+}
+
+function catAddSave(){
+  var job=($("ca-job")||{}).value||"";
+  if(!job.trim()){ toast("What is the job called?"); return; }
+  catPost({action:"catAdd", job:job, category:$("ca-cat").value, sub:$("ca-sub").value,
+           freq:$("ca-freq").value, system:$("ca-sys").value,
+           keywords:$("ca-kw").value, parent:$("ca-parent").value}, function(j){
+    toast("Added as No. "+j.no+" · codes as "+j.example);
+    catToggleAdd(); $("catQ").value=job.trim(); catRun();
+  });
+}
+
 function toggleCatPanel(){
   var p=$("catPanel"); if(!p) return;
   p.classList.toggle("hidden");
   if(!p.classList.contains("hidden")){
+    catLoadGroups();
     var q=$("catQ"); if(q){ q.focus(); }
     if(!CATROWS.length && q && !q.value) catRender(null, "Type a word — “wax”, “interior”, “AC” — or a task number.");
   }
@@ -3801,8 +3882,12 @@ function catEditHtml(m){
       return '<option value="'+esc(v)+'"'+(v===cur?' selected':'')+'>'+esc(v||"— none —")+'</option>';
     }).join("");
   }
+  var heads=["Scheduled Maintenance","Unscheduled Maintenance","Vessel Upgrades","Operations","Charter / Delivery"];
   return '<div class="catedit">'+
     '<div><label>Job / task</label><input id="ce-job-'+esc(no)+'" value="'+esc(m.job)+'"></div>'+
+    '<div><label>Category</label><select id="ce-cat-'+esc(no)+'">'+opts(heads, m.category)+'</select></div>'+
+    '<div><label>Group — the sub-category it sits under</label>'+
+      '<input id="ce-sub-'+esc(no)+'" list="catAllSubs" value="'+esc(m.sub||"")+'"></div>'+
     '<div><label>Frequency</label><select id="ce-freq-'+esc(no)+'">'+opts(freqs, m.freq)+'</select></div>'+
     '<div><label>System</label><select id="ce-sys-'+esc(no)+'">'+opts(syss, m.system)+'</select></div>'+
     '<div><label>Keywords — what a crew might type</label><input id="ce-kw-'+esc(no)+'" value="'+esc(m.keywords||"")+'"></div>'+
@@ -3833,9 +3918,11 @@ function catPost(body, done){
 function catSave(no){
   var m=catFind(no); if(!m) return;
   var job=($("ce-job-"+no)||{}).value, freq=($("ce-freq-"+no)||{}).value,
-      sys=($("ce-sys-"+no)||{}).value, kw=($("ce-kw-"+no)||{}).value;
+      sys=($("ce-sys-"+no)||{}).value, kw=($("ce-kw-"+no)||{}).value,
+      cat=($("ce-cat-"+no)||{}).value, sub=($("ce-sub-"+no)||{}).value;
   if(!(job||"").trim()){ toast("It needs a name"); return; }
-  catPost({action:"catSave", no:no, job:job, freq:freq, system:sys, keywords:kw}, function(j){
+  catPost({action:"catSave", no:no, job:job, category:cat, sub:sub,
+           freq:freq, system:sys, keywords:kw}, function(j){
     var msg = (j.changed && j.changed.length) ? ("Saved — "+j.changed.join(", ")) : "Nothing to change";
     if(j.worklistRenamed) msg += " · renamed on "+j.worklistRenamed+" live task"+(j.worklistRenamed>1?"s":"");
     toast(msg);
