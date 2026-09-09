@@ -1259,6 +1259,37 @@ button:active{ filter: brightness(.93); }
   .wherecode{display:inline-block;font-family:ui-monospace,Menlo,monospace;font-size:16px;font-weight:800;background:#fff;border:1px dashed #cfdcec;border-radius:8px;padding:4px 10px;letter-spacing:1px}
   #whereCard .sec{margin:12px 0}
   .vifrom{font-weight:600;color:#6b7a90;font-size:11px;margin-left:6px;text-transform:none;letter-spacing:0}
+
+/* ---- The catalogue (director) ---- */
+#catPanel{margin:2px 0 12px}
+.catbar{display:flex;gap:8px;align-items:center;margin:6px 0 4px}
+.catbar input{flex:1;padding:11px 12px;border:1px solid #cfd8e0;border-radius:8px;font-size:15px;background:#fff}
+.catchips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
+.catchip{font-size:12px;padding:5px 10px;border:1px solid #cfd8e0;border-radius:20px;background:#fff;color:#41525f;cursor:pointer}
+.catchip:hover{border-color:#1A3A5C;color:#1A3A5C}
+.catcount{font-size:12px;color:#7d8b96;white-space:nowrap}
+.catrow{background:#fff;border:1px solid #e2e8ee;border-radius:8px;padding:10px 12px;margin-bottom:7px}
+.catrow.off{background:#f6f7f9;border-style:dashed}
+.cattop{display:flex;gap:9px;align-items:flex-start}
+.catno{font:600 12px/1.5 ui-monospace,Menlo,monospace;color:#7d8b96;flex:none;min-width:38px;padding-top:1px}
+.catmain{flex:1;min-width:0}
+.catjob{font-weight:600;font-size:14.5px;line-height:1.3}
+.catrow.off .catjob{color:#7d8b96}
+.catmeta{font-size:12px;color:#7d8b96;margin-top:2px;line-height:1.45}
+.catflags{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.catflag{font:600 10px/1.6 ui-monospace,Menlo,monospace;letter-spacing:.05em;padding:1px 7px;border-radius:3px}
+.cf-off{background:#f3e6d5;color:#8a5a12}
+.cf-used{background:#e3eaf1;color:#1A3A5C}
+.cf-free{background:#e6f0ec;color:#1F6F66}
+.catacts{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+.catbtn{font-size:12.5px;padding:6px 11px;border:1px solid #cfd8e0;border-radius:6px;background:#fff;color:#41525f;cursor:pointer}
+.catbtn:hover{border-color:#1A3A5C;color:#1A3A5C}
+.catbtn.warn{border-color:#c9a06a;color:#8a5a12}
+.catbtn.danger{border-color:#d4a09a;color:#a1372a}
+.catedit{margin-top:10px;padding-top:10px;border-top:1px solid #eef1f4;display:flex;flex-direction:column;gap:7px}
+.catedit label{font:600 10px/1.6 ui-monospace,Menlo,monospace;letter-spacing:.08em;text-transform:uppercase;color:#7d8b96}
+.catedit input,.catedit select{padding:9px 10px;border:1px solid #cfd8e0;border-radius:6px;font-size:14px;background:#fff;width:100%}
+.cathint{font-size:12px;color:#7d8b96;line-height:1.5;margin:2px 0 0}
 </style>
 </head>
 <body>
@@ -1392,6 +1423,29 @@ button:active{ filter: brightness(.93); }
         <div class="fl-go">›</div>
       </div>
       <div id="duePanel" class="hidden"><div id="dueList"></div></div>
+      <div class="fleetlink" onclick="toggleCatPanel()">
+        <div class="fl-ic">📚</div>
+        <div class="fl-main"><div class="fl-t">The catalogue</div><div class="fl-sub">Every standard job — search, edit, retire, delete or merge duplicates</div></div>
+        <div class="fl-go">›</div>
+      </div>
+      <div id="catPanel" class="hidden">
+        <div class="catbar">
+          <input id="catQ" type="search" placeholder="wax · interior · AC · teak · hull · 19" oninput="catType()" autocomplete="off">
+          <span id="catCount" class="catcount"></span>
+        </div>
+        <div class="catchips">
+          <span class="catchip" onclick="catGo('wax')">wax</span>
+          <span class="catchip" onclick="catGo('polish')">polish</span>
+          <span class="catchip" onclick="catGo('teak')">teak</span>
+          <span class="catchip" onclick="catGo('interior')">interior</span>
+          <span class="catchip" onclick="catGo('AC')">A/C</span>
+          <span class="catchip" onclick="catGo('hull')">hull</span>
+          <span class="catchip" onclick="catGo('wash')">wash</span>
+          <span class="catchip" onclick="catGo('engine')">engine</span>
+          <span class="catchip" onclick="catGo('safety')">safety</span>
+        </div>
+        <div id="catList"></div>
+      </div>
       <div class="fleetlink" onclick="toggleOwnerPreview()">
         <div class="fl-ic">👁️</div>
         <div class="fl-main"><div class="fl-t">View as owner</div><div class="fl-sub">See each client's MyYacht portal exactly as they see it</div></div>
@@ -1499,7 +1553,7 @@ button:active{ filter: brightness(.93); }
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-09·c</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-09·d</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -3543,6 +3597,177 @@ function openCommand(){ try{ if(ME&&ME.code) localStorage.setItem("mhq_crew_key"
 /* What's Due — scheduled maintenance from the maintenance schedule → add to a worklist */
 var DUE_ITEMS=[], DUE_ALL=[], DUE_VESSEL="__all__";
 function _parseDMY(s){ var m=/^(\d{2})\/(\d{2})\/(\d{4})$/.exec(s||""); return m?new Date(+m[3],+m[2]-1,+m[1]):null; }
+/* ============================================================
+   THE CATALOGUE (director) — the Master Job List, weedable.
+
+   Same search the ＋Add task form uses, except this one RETURNS RETIRED JOBS
+   TOO: finding them is the point. Four things you can do to what comes back —
+   edit the wording, retire it, delete it, or merge a duplicate into the job it
+   duplicates.
+
+   The number is never editable. Every code on every boat points at it, so a
+   number can't be reused or reassigned — which is exactly why merge exists.
+   ============================================================ */
+var CATROWS = [], CATOPEN = "", CAT_T = null, CATBUSY = false;
+
+function toggleCatPanel(){
+  var p=$("catPanel"); if(!p) return;
+  p.classList.toggle("hidden");
+  if(!p.classList.contains("hidden")){
+    var q=$("catQ"); if(q){ q.focus(); }
+    if(!CATROWS.length && q && !q.value) catRender(null, "Type a word — “wax”, “interior”, “AC” — or a task number.");
+  }
+}
+function catGo(q){ var i=$("catQ"); if(!i) return; i.value=q; catRun(); }
+function catType(){ clearTimeout(CAT_T); CAT_T=setTimeout(catRun, 260); }
+
+function catRun(){
+  var i=$("catQ"), el=$("catList"); if(!i||!el) return;
+  var q=(i.value||"").trim();
+  CATOPEN="";
+  if(q.length<2){ CATROWS=[]; $("catCount").textContent=""; catRender(null, "Type a word — “wax”, “interior”, “AC” — or a task number."); return; }
+  el.innerHTML='<div class="loadingbox"><span class="spin"></span> Searching the catalogue…</div>';
+  apiGet("fn=catalogue&code="+encodeURIComponent(ME.code||"")+"&email="+encodeURIComponent(ME.email||"")+
+         "&q="+encodeURIComponent(q))
+    .then(function(r){
+      if(!r||!r.ok){ el.innerHTML='<div class="empty">'+esc((r&&r.error)||"Couldn’t search the catalogue.")+'</div>'; return; }
+      CATROWS=r.results||[];
+      $("catCount").textContent = CATROWS.length + " of " + (r.total||0);
+      catRender(CATROWS, "Nothing matched “"+q+"”.");
+    })
+    .catch(function(){ el.innerHTML='<div class="empty">Couldn’t reach the catalogue.</div>'; });
+}
+
+function catRender(rows, emptyMsg){
+  var el=$("catList"); if(!el) return;
+  if(!rows || !rows.length){ el.innerHTML='<div class="empty">'+esc(emptyMsg||"Nothing here.")+'</div>'; return; }
+  el.innerHTML = rows.map(catRowHtml).join("");
+}
+
+function catRowHtml(m){
+  var no = String(m.no);
+  var meta = [m.sub, m.freq, m.system].filter(Boolean).join(" · ");
+  var flags = [];
+  if(!m.active) flags.push('<span class="catflag cf-off">RETIRED</span>');
+  if(m.used) flags.push('<span class="catflag cf-used">ON '+m.used+' TASK'+(m.used>1?'S':'')+
+                        (m.vessels && m.vessels.length ? ' · '+esc(m.vessels.join(", ")) : '')+'</span>');
+  else flags.push('<span class="catflag cf-free">NEVER USED</span>');
+
+  var acts = [
+    '<button class="catbtn" onclick="catEdit(\''+no+'\')">✎ Edit</button>',
+    m.active
+      ? '<button class="catbtn warn" onclick="catActive(\''+no+'\',false)">⏸ Retire</button>'
+      : '<button class="catbtn" onclick="catActive(\''+no+'\',true)">▶ Switch back on</button>',
+    '<button class="catbtn" onclick="catMerge(\''+no+'\')">⇄ Merge into…</button>'
+  ];
+  if(!m.used) acts.push('<button class="catbtn danger" onclick="catDelete(\''+no+'\')">🗑 Delete</button>');
+
+  return '<div class="catrow'+(m.active?'':' off')+'" id="catrow-'+esc(no)+'">'+
+    '<div class="cattop">'+
+      '<div class="catno">'+esc(no)+'</div>'+
+      '<div class="catmain">'+
+        '<div class="catjob">'+esc(m.job)+'</div>'+
+        '<div class="catmeta">'+esc(meta)+'</div>'+
+        '<div class="catflags">'+flags.join("")+'</div>'+
+        '<div class="catacts">'+acts.join("")+'</div>'+
+        (CATOPEN===no ? catEditHtml(m) : '')+
+      '</div>'+
+    '</div>'+
+  '</div>';
+}
+
+function catEditHtml(m){
+  var no=String(m.no);
+  var freqs=["Weekly","Fortnightly","Monthly","3–6 monthly","Annually","As required","One-off"];
+  var syss=["","DECK","HULL","RUN","INT","ENG","ELEC","PLUMB","TOYS","SAFE","OPS"];
+  function opts(list, cur){
+    return list.map(function(v){
+      return '<option value="'+esc(v)+'"'+(v===cur?' selected':'')+'>'+esc(v||"— none —")+'</option>';
+    }).join("");
+  }
+  return '<div class="catedit">'+
+    '<div><label>Job / task</label><input id="ce-job-'+esc(no)+'" value="'+esc(m.job)+'"></div>'+
+    '<div><label>Frequency</label><select id="ce-freq-'+esc(no)+'">'+opts(freqs, m.freq)+'</select></div>'+
+    '<div><label>System</label><select id="ce-sys-'+esc(no)+'">'+opts(syss, m.system)+'</select></div>'+
+    '<div><label>Keywords — what a crew might type</label><input id="ce-kw-'+esc(no)+'" value="'+esc(m.keywords||"")+'"></div>'+
+    '<p class="cathint">Number '+esc(no)+' can’t change — every code on every boat points at it. '+
+      'A new wording reaches jobs already out on boats, except any a crew member has reworded for their own yacht.</p>'+
+    '<div class="catacts">'+
+      '<button class="jobbtn" style="flex:1" onclick="catSave(\''+esc(no)+'\')">Save</button>'+
+      '<button class="catbtn" onclick="catEdit(\'\')">Cancel</button>'+
+    '</div>'+
+  '</div>';
+}
+
+function catEdit(no){ CATOPEN = (CATOPEN===no ? "" : no); catRender(CATROWS); }
+
+function catFind(no){ for(var i=0;i<CATROWS.length;i++) if(String(CATROWS[i].no)===String(no)) return CATROWS[i]; return null; }
+
+function catPost(body, done){
+  if(CATBUSY) return;
+  CATBUSY = true;
+  body.code = ME.code; body.email = ME.email;
+  apiPost(body).then(function(j){
+    CATBUSY = false;
+    if(!j || !j.ok){ toast((j&&j.error)||"Couldn’t do that"); return; }
+    done(j);
+  }).catch(function(){ CATBUSY=false; toast("Couldn’t reach the catalogue"); });
+}
+
+function catSave(no){
+  var m=catFind(no); if(!m) return;
+  var job=($("ce-job-"+no)||{}).value, freq=($("ce-freq-"+no)||{}).value,
+      sys=($("ce-sys-"+no)||{}).value, kw=($("ce-kw-"+no)||{}).value;
+  if(!(job||"").trim()){ toast("It needs a name"); return; }
+  catPost({action:"catSave", no:no, job:job, freq:freq, system:sys, keywords:kw}, function(j){
+    var msg = (j.changed && j.changed.length) ? ("Saved — "+j.changed.join(", ")) : "Nothing to change";
+    if(j.worklistRenamed) msg += " · renamed on "+j.worklistRenamed+" live task"+(j.worklistRenamed>1?"s":"");
+    toast(msg);
+    CATOPEN=""; catRun();
+  });
+}
+
+function catActive(no, on){
+  var m=catFind(no); if(!m) return;
+  if(!on && !confirm("Retire “"+m.job+"”?\n\nIt stops being offered anywhere, but the number stays so old job cards still read right. You can switch it back on any time."))
+    return;
+  catPost({action:"catSave", no:no, active:!!on}, function(){
+    toast(on ? "Switched back on" : "Retired"); catRun();
+  });
+}
+
+function catDelete(no){
+  var m=catFind(no); if(!m) return;
+  if(m.used){ toast("It’s in use — merge it instead"); return; }
+  if(!confirm("Delete “"+m.job+"” (No. "+no+") for good?\n\nNothing has ever used it, so nothing breaks. The number is retired with it — it will never be given to another job."))
+    return;
+  catPost({action:"catDelete", no:no}, function(j){
+    toast("Deleted — "+j.deleted); catRun();
+  });
+}
+
+/* Merge folds a duplicate into the job it duplicates. Live worklist tasks are
+   repointed onto the surviving code; job cards already printed keep what they
+   said on the day, which is history and stays put. */
+function catMerge(no){
+  var m=catFind(no); if(!m) return;
+  var into = prompt(
+    "Merge “"+m.job+"” (No. "+no+") into which job?\n\n"+
+    "Type the number of the one that SURVIVES. This one disappears.\n"+
+    (m.used ? ("Its "+m.used+" live task(s) move across.\n") : "")+
+    "\nJob cards already printed keep what they said.", "");
+  if(into===null) return;
+  into=(into||"").trim(); if(!into) return;
+  if(into===String(no)){ toast("That’s the same job"); return; }
+  var b = catFind(into);
+  if(!confirm("Merge No. "+no+" into No. "+into+(b?(" — “"+b.job+"”"):"")+"?\n\n"+
+              "“"+m.job+"” is removed from the catalogue for good."))
+    return;
+  catPost({action:"catMerge", from:no, into:into}, function(j){
+    toast("Merged into "+j.intoJob+(j.moved?(" · "+j.moved+" task(s) moved"):""));
+    catRun();
+  });
+}
 function toggleDuePanel(){ var p=$("duePanel"); if(!p)return; p.classList.toggle("hidden"); if(!p.classList.contains("hidden")){ if(DUE_ALL.length) renderDueList(); else loadDuePanel(); } }
 function loadDuePanel(){
   var el=$("dueList"); if(!el)return;
