@@ -1257,6 +1257,14 @@ button:active{ filter: brightness(.93); }
   .wherebox:not(.wherecollapsed) .wheremore{margin-top:10px;text-align:center}
   .wherecode{display:inline-block;font-family:ui-monospace,Menlo,monospace;font-size:16px;font-weight:800;background:#fff;border:1px dashed #cfdcec;border-radius:8px;padding:4px 10px;letter-spacing:1px}
   #whereCard .sec{margin:12px 0}
+  .wfwrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -6px}
+  .wftable{border-collapse:collapse;font-size:12.5px;min-width:640px;width:100%}
+  .wftable th,.wftable td{text-align:left;padding:8px 9px;border-bottom:1px solid var(--line);vertical-align:top;white-space:nowrap;max-width:220px;overflow:hidden;text-overflow:ellipsis}
+  .wftable thead th{font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);background:#f6f9fc;position:sticky;top:0}
+  .wftable tbody th{font-weight:800;color:#1a2b5c;position:sticky;left:0;background:#fff;z-index:1}
+  .wftable tbody tr{cursor:pointer}
+  .wftable tbody tr:active{background:#eef4fb}
+  .wf-dash{color:#b7c0cc}
   .vifrom{font-weight:600;color:#6b7a90;font-size:11px;margin-left:6px;text-transform:none;letter-spacing:0}
 
 /* ---- The catalogue (director) ---- */
@@ -1414,6 +1422,7 @@ button:active{ filter: brightness(.93); }
     <div id="tab-fleet" class="hidden">
       <div class="subbar"><h2>Fleet</h2></div>
       <p class="hello">Your director view across the whole operation.</p>
+      <div id="whereFleet"></div>
       <div class="fleetlink" onclick="openCommand()">
         <div class="fl-ic">🎛️</div>
         <div class="fl-main"><div class="fl-t">Command Centre</div><div class="fl-sub">Who's on now · live crew map · today's shifts · all jobs by status</div></div>
@@ -1564,7 +1573,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-09·g</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-09·h</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2640,6 +2649,7 @@ function go(tab){
   if(tab==="updates") renderUpdates();
   if(tab==="cal") loadCal();
   if(tab==="maint") loadMaint();
+  if(tab==="fleet"){ renderWhereFleet(); loadWhere(); }
   if(tab==="induct") loadInduct();
   if(tab==="hours"){ renderClock(); loadShifts(); }
   if(tab==="check") loadChecklists();
@@ -6126,6 +6136,7 @@ function loadWhere(force){
     WHERE=m; WHERE_AT=Date.now(); _cSet(_ck("where"),{map:m,at:WHERE_AT});
     try{
       if(TAB==="jobs") renderJobs();
+      if(TAB==="fleet") renderWhereFleet();
       var wb=$("whereBlock");
       if(wb){ var ov=WHERE_OPEN; if(!ov && openJobId){ var oj=wlFind(openJobId); ov=oj?oj.vessel:""; } if(ov) wb.outerHTML=whereBlockHtml(ov); }
       var wc=$("whereCard"); if(wc && TAB==="vessel") wc.innerHTML=whereCardHtml(curVesselH());
@@ -6173,6 +6184,20 @@ function whereBlockHtml(v, id, forceOpen){
     (upd?('<div class="wherefoot">'+upd+'</div>'):'')+
     (forceOpen?'':('<div class="wheremore" onclick="whereToggle(\''+id+'\',\''+vJs+'\')">▴ Hide access details</div>'))+
     '</div></div>';
+}
+// Directors: the whole fleet at a glance — one row per boat, tap a row to edit.
+function renderWhereFleet(){
+  var host=$("whereFleet"); if(!host) return;
+  if(!isMgrRole()){ host.innerHTML=""; return; }
+  var rows=Object.keys(WHERE).map(function(k){return WHERE[k];}).filter(function(w){return w&&w.vessel;})
+    .sort(function(a,b){return a.vessel.localeCompare(b.vessel);});
+  if(!rows.length){ host.innerHTML='<div class="sec" style="margin:12px 0"><h4>📍 Where &amp; access — the fleet</h4><div class="loadingbox"><span class="spin"></span> Loading…</div></div>'; return; }
+  var cell=function(v){ return v&&v.trim() ? esc(v) : '<span class="wf-dash">—</span>'; };
+  host.innerHTML='<div class="sec" style="margin:12px 0"><h4>📍 Where &amp; access — the fleet <span style="font-size:11px;font-weight:600;color:var(--muted);text-transform:none;letter-spacing:0">· tap a boat to edit · scroll sideways</span></h4>'+
+    '<div class="wfwrap"><table class="wftable"><thead><tr><th>Yacht</th><th>Where</th><th>Berth</th><th>Address (Maps)</th><th>Code</th><th>Lock box</th><th>Contact</th></tr></thead><tbody>'+
+    rows.map(function(w){ var vJs=esc((w.vessel||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'"));
+      return '<tr onclick="whereEdit(\''+vJs+'\')"><th>'+esc(w.vessel)+'</th><td>'+cell(w.where)+'</td><td>'+cell(w.berthNo)+'</td><td>'+cell(w.mapAddress)+'</td><td>'+(w.gateCode?('<span class="wherecode" style="font-size:13px;padding:2px 7px">'+esc(w.gateCode)+'</span>'):'<span class="wf-dash">—</span>')+'</td><td>'+cell(w.keyLoc)+'</td><td>'+cell(w.marinaContact)+'</td></tr>'; }).join("")+
+    '</tbody></table></div></div>';
 }
 // Same block on the Vessel tab (no id — the job sheet owns "whereBlock").
 function whereCardHtml(v){ return whereBlockHtml(v, "whereCardBlock"); }

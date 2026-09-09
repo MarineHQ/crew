@@ -75,6 +75,11 @@
   .job .ja{margin-top:5px;font-size:11px;color:var(--navy);font-weight:bold}
   .empty{text-align:center;color:var(--muted);font-size:13px;padding:34px 20px;line-height:1.5}
   .whererow{display:flex;gap:12px;justify-content:space-between;align-items:baseline;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px}
+  .wftable{border-collapse:collapse;font-size:12.5px;width:100%;min-width:900px}
+  .wftable th,.wftable td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top;max-width:260px}
+  .wftable thead th{font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);background:#f6f9fc}
+  .wftable tbody th{font-weight:800;color:var(--navy);white-space:nowrap}
+  .wf-dash{color:#b7c0cc}
   .whererow:last-child{border-bottom:0}
   .whererow b{color:var(--navy);white-space:nowrap}
   .whererow span{color:var(--muted);text-align:right}
@@ -509,10 +514,10 @@ function renderNow(){
   // Where the fleet is — one line per boat: Fleet Data's Current Location plus the
   // berth from the Induction tab. Edited in the crew app (Induction → Where she is).
   if(DATA.where&&DATA.where.length){
-    html+='<h2 class="sec">Where &amp; access — the fleet</h2><div class="card">'+DATA.where.map(function(w){
-      var hd=[w.where,w.berthNo].filter(function(x){return x&&x.trim();}).join(' · ');
-      return '<div class="whererow"><b>'+esc(w.vessel)+'</b><span>'+(hd?esc(hd):'<i>no location set</i>')+(w.access?' · access notes on file':'')+'</span></div>';
-    }).join('')+'</div>';
+    var cell=function(v){ return v&&v.trim() ? esc(v) : '<span class="wf-dash">—</span>'; };
+    html+='<h2 class="sec">Where &amp; access — the fleet</h2><div class="card" style="padding:0;overflow-x:auto"><table class="wftable"><thead><tr><th>Yacht</th><th>Where</th><th>Berth</th><th>Address (Maps)</th><th>Code</th><th>Lock box</th><th>Contact</th><th>Getting there</th></tr></thead><tbody>'+
+      DATA.where.map(function(w){ return '<tr><th>'+esc(w.vessel)+'</th><td>'+cell(w.where)+'</td><td>'+cell(w.berthNo)+'</td><td>'+cell(w.mapAddress)+'</td><td>'+cell(w.gateCode)+'</td><td>'+cell(w.keyLoc)+'</td><td>'+cell(w.marinaContact)+'</td><td>'+cell(w.getThere)+'</td></tr>'; }).join('')+
+      '</tbody></table></div>';
   }
   document.getElementById("v-now").innerHTML=html;
   drawMap();
