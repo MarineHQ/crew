@@ -509,7 +509,7 @@ function renderNow(){
   // Where the fleet is — one line per boat: Fleet Data's Current Location plus the
   // berth from the Induction tab. Edited in the crew app (Induction → Where she is).
   if(DATA.where&&DATA.where.length){
-    html+='<h2 class="sec">Where the fleet is</h2><div class="card">'+DATA.where.map(function(w){
+    html+='<h2 class="sec">Where &amp; access — the fleet</h2><div class="card">'+DATA.where.map(function(w){
       var hd=[w.where,w.berthNo].filter(function(x){return x&&x.trim();}).join(' · ');
       return '<div class="whererow"><b>'+esc(w.vessel)+'</b><span>'+(hd?esc(hd):'<i>no location set</i>')+(w.access?' · access notes on file':'')+'</span></div>';
     }).join('')+'</div>';

@@ -6146,7 +6146,7 @@ function whereBlockHtml(v, id, forceOpen){
   var w=whereFor(v), mgr=isMgrRole(), vJs=esc((v||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'"));
   if(!whereHas(w)){
     if(!mgr) return '';
-    return '<div class="sec" id="'+id+'"><h4>📍 Where she is</h4><div class="wherebox empty" onclick="whereEdit(\''+vJs+'\')">No location or access notes for '+esc(v)+' yet — tap to add them, so crew allocated a job here know where to go and how to get aboard.</div></div>';
+    return '<div class="sec" id="'+id+'"><h4>📍 Where & access</h4><div class="wherebox empty" onclick="whereEdit(\''+vJs+'\')">No location or access notes for '+esc(v)+' yet — tap to add them, so crew allocated a job here know where to go and how to get aboard.</div></div>';
   }
   var edit = mgr ? ('<span class="wlnote-ed" style="cursor:pointer;float:right;text-transform:none;letter-spacing:0" onclick="whereEdit(\''+vJs+'\')">✎ Update</span>') : '';
   var hd=[w.where,w.berthNo].filter(function(x){return x&&x.trim();}).join(' · ');
@@ -6156,12 +6156,12 @@ function whereBlockHtml(v, id, forceOpen){
   if(!open){
     var more = det ? '▸ Show access details' : (mgr ? '▸ Add access details' : '');
     var tap = det ? (' onclick="whereToggle(\''+id+'\',\''+vJs+'\')"') : (mgr ? (' onclick="whereEdit(\''+vJs+'\')"') : '');
-    return '<div class="sec" id="'+id+'"><h4>📍 Where she is'+edit+'</h4><div class="wherebox wherecollapsed"'+tap+'>'+
+    return '<div class="sec" id="'+id+'"><h4>📍 Where & access'+edit+'</h4><div class="wherebox wherecollapsed"'+tap+'>'+
       '<div class="wherehd" style="margin:0">'+esc(hd||"—")+'</div>'+(more?('<div class="wheremore">'+more+'</div>'):'')+'</div></div>';
   }
   var q=encodeURIComponent([w.berthNo,w.where].filter(function(x){return x&&x.trim();}).join(", "));
   var upd = w.updated ? ('Updated '+esc(dayLabel(w.updated))+(w.by?(' · '+esc(firstName(w.by))):'')) : '';
-  return '<div class="sec" id="'+id+'"><h4>📍 Where she is'+edit+'</h4><div class="wherebox">'+
+  return '<div class="sec" id="'+id+'"><h4>📍 Where & access'+edit+'</h4><div class="wherebox">'+
     (hd?('<div class="wherehd">'+esc(hd)+'</div>'):'')+
     (w.gateCode?('<div class="whererow"><b>Gate / lock box code</b><span class="wherecode">'+esc(w.gateCode)+'</span></div>'):'')+
     (w.keyLoc?('<div class="whererow"><b>Lock box / keys</b>'+whereRich(w.keyLoc)+'</div>'):'')+
@@ -6178,7 +6178,7 @@ function whereCardHtml(v){ return whereBlockHtml(v, "whereCardBlock"); }
 // Tap the strip under a worklist header → the full notes in a sheet.
 function openWhere(v){
   WHERE_OPEN=v||"";
-  $("sheet").innerHTML='<div class="sheet-hd"><div style="flex:1"><div style="font-size:11px;font-weight:bold;letter-spacing:.4px;color:#ffd7b0">'+esc(v)+'</div><h3>Where she is</h3></div><button class="closeb" onclick="closeSheet()">✕</button></div>'+
+  $("sheet").innerHTML='<div class="sheet-hd"><div style="flex:1"><div style="font-size:11px;font-weight:bold;letter-spacing:.4px;color:#ffd7b0">'+esc(v)+'</div><h3>Where &amp; access</h3></div><button class="closeb" onclick="closeSheet()">✕</button></div>'+
     whereBlockHtml(v, "whereBlock", true)+'<div style="height:16px"></div>';
   showSheet();
 }
@@ -6192,7 +6192,7 @@ function whereEdit(v){
 }
 /* ===== Vessel Induction (directors): particulars + specialised gear per boat ===== */
 var VI_SECTIONS=[
-  {h:"📍 Where she is & getting aboard", note:"Shows under every worklist and on every job page for this boat, so whoever is allocated the work knows where to go and how to get on. Current location is the same cell the owner sees in MyYacht and the fleet dashboard.", f:[["currentLocation","Current location — marina / port (e.g. Coral Sea Marina, Airlie Beach)"],["berthNo","Berth / pen (e.g. Berth 022, C-arm)"],["gateCode","Gate / lock box code"],["keyLoc","Lock box / keys — where exactly (e.g. aft deck, port side, behind the fender)"],["access","Other access notes — alarms, shore power, who to call",1],["marinaContact","Marina office / contact (name + phone)"],["getThere","Getting there — parking, trolley, tender, tips",1]]},
+  {h:"📍 Where & access", note:"Shows under every worklist and on every job page for this boat, so whoever is allocated the work knows where to go and how to get on. Current location is the same cell the owner sees in MyYacht and the fleet dashboard.", f:[["currentLocation","Current location — marina / port (e.g. Coral Sea Marina, Airlie Beach)"],["berthNo","Berth / pen (e.g. Berth 022, C-arm)"],["gateCode","Gate / lock box code"],["keyLoc","Lock box / keys — where exactly (e.g. aft deck, port side, behind the fender)"],["access","Other access notes — alarms, shore power, who to call",1],["marinaContact","Marina office / contact (name + phone)"],["getThere","Getting there — parking, trolley, tender, tips",1]]},
   {h:"Particulars", f:[["owner","Owner"],["make","Make / model"],["year","Year built"],["builder","Builder"],["loa","Length (LOA)"],["beam","Beam"],["draft","Draft"],["hull","Hull material"],["flag","Flag"],["mmsi","MMSI"],["callsign","Call sign"],["berth","Home berth / marina"]]},
   {h:"Machinery", f:[["engines","Main engines (make/model × no.)"],["enghrs","Engine hours"],["generator","Generator(s)"],["thruster","Bow / stern thruster"]]},
   {h:"Systems & equipment", f:[["watermaker","Watermaker (brand)"],["aircon","Air-conditioning"],["divecomp","Dive compressor"],["tender","Tender (make · own insurance?)"],["electronics","Electronics / nav"],["comms","Comms / Starlink"],["stabilisers","Stabilisers"]]},
