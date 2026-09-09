@@ -1242,9 +1242,8 @@ button, [onclick]{ -webkit-tap-highlight-color: rgba(0,0,0,.04); }
 button:active{ filter: brightness(.93); }
 [onclick]:active{ opacity:.86; }
   /* Where she is & getting aboard — strip under a worklist header, block on a job page, card on the Vessel tab */
-  .wlwhere{margin:-7px 0 11px;padding:8px 13px;background:#eef4fb;border:1px solid #cfdcec;border-top:none;border-radius:0 0 11px 11px;font-size:12.5px;font-weight:700;color:#1a2b5c;cursor:pointer}
-  .wlnote.hasw{border-radius:0;margin-bottom:0}
-  .wlnote.hasw+.wlwhere{border-top:1px solid #f0d3ad;margin-top:0}
+  .wlwhere{margin:0 0 10px;padding:9px 13px;background:#eef4fb;border:1px solid #cfdcec;border-radius:10px;font-size:12.5px;font-weight:700;color:#1a2b5c;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .wlwhere .wheremore{margin:0}
   .wherebox{background:#f4f8fd;border:1px solid #cfdcec;border-radius:11px;padding:11px 13px;font-size:13px;color:#33415a}
   .wherebox .wherehd{font-size:15px;font-weight:800;color:#1a2b5c;margin-bottom:4px}
   .wherebox .whererow{margin-top:8px;white-space:pre-wrap;line-height:1.45}
@@ -1565,7 +1564,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-09·f</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-09·g</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -5000,8 +4999,8 @@ function wlGroupHTML(g, groups){
     // this list knows where to go before they even open it. Tap for the access
     // notes. Not in Schedule view: those groups are days, and mix boats.
     var gV=(jobs[0]&&jobs[0].vessel)||"", whereTxt=(SCHEDVIEW||!gV)?"":whereLine(gV);
-    var whereRow = whereTxt ? ('<div class="wlwhere" onclick="event.stopPropagation();openWhere(\''+esc(gVessel)+'\')">📍 '+esc(whereTxt)+'</div>') : '';
-    if(whereRow && noteRow) noteRow=noteRow.replace('class="wlnote"','class="wlnote hasw"');
+    // Inside the body, so it only shows once the list is opened (Trish, 9 Sep 2026).
+    var whereRow = whereTxt ? ('<div class="wlwhere" onclick="event.stopPropagation();openWhere(\''+esc(gVessel)+'\')">📍 '+esc(whereTxt)+' <span class="wheremore">Where &amp; access ▸</span></div>') : '';
     // Directors: an ✎ icon on the header drops down the edit menu (note / add task / rename),
     // so by default the list headers sit neatly under each other.
     var editIcon = canEdit ? ('<span class="wledit'+(WLEDIT[g]?' on':'')+'" onclick="event.stopPropagation();toggleWlEdit(\''+esc(gJs)+'\')" title="Edit list">✎</span>') : '';
@@ -5023,8 +5022,8 @@ function wlGroupHTML(g, groups){
     return '<div class="wlacc'+collapsed+'" onclick="toggleWL(\''+esc(g)+'\')"><span class="car">▾</span>'+
       '<h3>'+esc(shown)+stateTag+'</h3>'+(newN?'<span class="n newn">'+newN+' new</span>':'')+'<span class="n">'+openN+' open</span>'+
       ((isMgrRole()&&toSign.length)?('<span class="n tosign">'+toSign.length+' to sign off</span>'):'')+shareTag+editIcon+'</div>'+
-      noteRow+whereRow+editMenu+
-      '<div class="wlbody'+bodyC+'" data-g="'+esc(g)+'">'+cards+'</div>';
+      noteRow+editMenu+
+      '<div class="wlbody'+bodyC+'" data-g="'+esc(g)+'">'+whereRow+cards+'</div>';
   }
 }
 
@@ -6113,8 +6112,8 @@ function zinWhen(w){ try{ var d=new Date(w); if(!isNaN(d)) return d.toLocaleDate
 var WHERE={}, WHERE_AT=0, WHERE_OPEN="";
 function whereFor(v){ return WHERE[(v||"").toString().trim().toLowerCase()]||null; }
 function whereLine(v){ var w=whereFor(v); if(!w) return ""; return [w.where,w.berthNo].filter(function(x){return x&&x.trim();}).join(" · "); }
-function whereHas(w){ return !!(w && (w.where||w.berthNo||w.gateCode||w.keyLoc||w.access||w.marinaContact||w.getThere)); }
-function whereDetails(w){ return !!(w && (w.gateCode||w.keyLoc||w.access||w.marinaContact||w.getThere)); }
+function whereHas(w){ return !!(w && (w.where||w.berthNo||w.mapAddress||w.gateCode||w.keyLoc||w.access||w.marinaContact||w.getThere)); }
+function whereDetails(w){ return !!(w && (w.mapAddress||w.gateCode||w.keyLoc||w.access||w.marinaContact||w.getThere)); }
 var WHERE_EXP={};   // which blocks are expanded this session, by block id
 function whereToggle(id, v){ WHERE_EXP[id]=!WHERE_EXP[id]; var el=$(id); if(el) el.outerHTML=whereBlockHtml(v, id); }
 function loadWhere(force){
@@ -6159,16 +6158,18 @@ function whereBlockHtml(v, id, forceOpen){
     return '<div class="sec" id="'+id+'"><h4>📍 Where & access'+edit+'</h4><div class="wherebox wherecollapsed"'+tap+'>'+
       '<div class="wherehd" style="margin:0">'+esc(hd||"—")+'</div>'+(more?('<div class="wheremore">'+more+'</div>'):'')+'</div></div>';
   }
-  var q=encodeURIComponent([w.berthNo,w.where].filter(function(x){return x&&x.trim();}).join(", "));
+  // Maps opens the EXACT street address when one is set; otherwise berth + marina.
+  var q=encodeURIComponent(w.mapAddress ? w.mapAddress : [w.berthNo,w.where].filter(function(x){return x&&x.trim();}).join(", "));
   var upd = w.updated ? ('Updated '+esc(dayLabel(w.updated))+(w.by?(' · '+esc(firstName(w.by))):'')) : '';
   return '<div class="sec" id="'+id+'"><h4>📍 Where & access'+edit+'</h4><div class="wherebox">'+
     (hd?('<div class="wherehd">'+esc(hd)+'</div>'):'')+
+    (w.mapAddress?('<div class="whererow"><b>Address</b>'+esc(w.mapAddress)+'</div>'):'')+
     (w.gateCode?('<div class="whererow"><b>Gate / lock box code</b><span class="wherecode">'+esc(w.gateCode)+'</span></div>'):'')+
     (w.keyLoc?('<div class="whererow"><b>Lock box / keys</b>'+whereRich(w.keyLoc)+'</div>'):'')+
     (w.access?('<div class="whererow"><b>Access notes</b>'+whereRich(w.access)+'</div>'):'')+
     (w.marinaContact?('<div class="whererow"><b>Marina / contact</b>'+whereRich(w.marinaContact)+'</div>'):'')+
     (w.getThere?('<div class="whererow"><b>Getting there</b>'+whereRich(w.getThere)+'</div>'):'')+
-    (w.where?('<a class="wheremap" href="https://www.google.com/maps/search/?api=1&query='+q+'" target="_blank" rel="noopener">🗺 Open in Maps</a>'):'')+
+    ((w.where||w.mapAddress)?('<a class="wheremap" href="https://www.google.com/maps/search/?api=1&query='+q+'" target="_blank" rel="noopener">🗺 Open in Maps</a>'):'')+
     (upd?('<div class="wherefoot">'+upd+'</div>'):'')+
     (forceOpen?'':('<div class="wheremore" onclick="whereToggle(\''+id+'\',\''+vJs+'\')">▴ Hide access details</div>'))+
     '</div></div>';
@@ -6192,7 +6193,7 @@ function whereEdit(v){
 }
 /* ===== Vessel Induction (directors): particulars + specialised gear per boat ===== */
 var VI_SECTIONS=[
-  {h:"📍 Where & access", note:"Shows under every worklist and on every job page for this boat, so whoever is allocated the work knows where to go and how to get on. Current location is the same cell the owner sees in MyYacht and the fleet dashboard.", f:[["currentLocation","Current location — marina / port (e.g. Coral Sea Marina, Airlie Beach)"],["berthNo","Berth / pen (e.g. Berth 022, C-arm)"],["gateCode","Gate / lock box code"],["keyLoc","Lock box / keys — where exactly (e.g. aft deck, port side, behind the fender)"],["access","Other access notes — alarms, shore power, who to call",1],["marinaContact","Marina office / contact (name + phone)"],["getThere","Getting there — parking, trolley, tender, tips",1]]},
+  {h:"📍 Where & access", note:"Shows under every worklist and on every job page for this boat, so whoever is allocated the work knows where to go and how to get on. Current location is the same cell the owner sees in MyYacht and the fleet dashboard.", f:[["currentLocation","Current location — marina / port (e.g. Coral Sea Marina, Airlie Beach)"],["berthNo","Berth / pen (e.g. Berth 022, C-arm)"],["mapAddress","Street address for Maps — exact (e.g. 7402 Marine Drive East, Sanctuary Cove)"],["gateCode","Gate / lock box code"],["keyLoc","Lock box / keys — where exactly (e.g. aft deck, port side, behind the fender)"],["access","Other access notes — alarms, shore power, who to call",1],["marinaContact","Marina office / contact (name + phone)"],["getThere","Getting there — parking, trolley, tender, tips",1]]},
   {h:"Particulars", f:[["owner","Owner"],["make","Make / model"],["year","Year built"],["builder","Builder"],["loa","Length (LOA)"],["beam","Beam"],["draft","Draft"],["hull","Hull material"],["flag","Flag"],["mmsi","MMSI"],["callsign","Call sign"],["berth","Home berth / marina"]]},
   {h:"Machinery", f:[["engines","Main engines (make/model × no.)"],["enghrs","Engine hours"],["generator","Generator(s)"],["thruster","Bow / stern thruster"]]},
   {h:"Systems & equipment", f:[["watermaker","Watermaker (brand)"],["aircon","Air-conditioning"],["divecomp","Dive compressor"],["tender","Tender (make · own insurance?)"],["electronics","Electronics / nav"],["comms","Comms / Starlink"],["stabilisers","Stabilisers"]]},
