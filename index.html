@@ -1253,6 +1253,10 @@ button:active{ filter: brightness(.93); }
   .wherebox .wheremap{display:inline-block;margin-top:10px;padding:8px 12px;background:#1a2b5c;color:#fff;border-radius:9px;text-decoration:none;font-size:12.5px;font-weight:700}
   .wherebox .wherefoot{font-size:11px;color:var(--muted);margin-top:8px}
   .wherebox.empty{color:var(--muted);font-weight:600;cursor:pointer}
+  .wherebox.wherecollapsed{cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .wheremore{font-size:12px;font-weight:800;color:#1a2b5c;white-space:nowrap;cursor:pointer;margin-top:0}
+  .wherebox:not(.wherecollapsed) .wheremore{margin-top:10px;text-align:center}
+  .wherecode{display:inline-block;font-family:ui-monospace,Menlo,monospace;font-size:16px;font-weight:800;background:#fff;border:1px dashed #cfdcec;border-radius:8px;padding:4px 10px;letter-spacing:1px}
   #whereCard .sec{margin:12px 0}
   .vifrom{font-weight:600;color:#6b7a90;font-size:11px;margin-left:6px;text-transform:none;letter-spacing:0}
 </style>
@@ -1495,7 +1499,7 @@ button:active{ filter: brightness(.93); }
       <div id="teamCerts"></div>
     </div>
 
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-09·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-09·c</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -5681,7 +5685,10 @@ function zinWhen(w){ try{ var d=new Date(w); if(!isNaN(d)) return d.toLocaleDate
 var WHERE={}, WHERE_AT=0, WHERE_OPEN="";
 function whereFor(v){ return WHERE[(v||"").toString().trim().toLowerCase()]||null; }
 function whereLine(v){ var w=whereFor(v); if(!w) return ""; return [w.where,w.berthNo].filter(function(x){return x&&x.trim();}).join(" · "); }
-function whereHas(w){ return !!(w && (w.where||w.berthNo||w.access||w.marinaContact||w.getThere)); }
+function whereHas(w){ return !!(w && (w.where||w.berthNo||w.gateCode||w.keyLoc||w.access||w.marinaContact||w.getThere)); }
+function whereDetails(w){ return !!(w && (w.gateCode||w.keyLoc||w.access||w.marinaContact||w.getThere)); }
+var WHERE_EXP={};   // which blocks are expanded this session, by block id
+function whereToggle(id, v){ WHERE_EXP[id]=!WHERE_EXP[id]; var el=$(id); if(el) el.outerHTML=whereBlockHtml(v, id); }
 function loadWhere(force){
   if(!ME) return Promise.resolve();
   if(!WHERE_AT){ var c=_cGet(_ck("where")); if(c&&c.map){ WHERE=c.map; WHERE_AT=c.at||0; } }
@@ -5695,6 +5702,7 @@ function loadWhere(force){
       var wb=$("whereBlock");
       if(wb){ var ov=WHERE_OPEN; if(!ov && openJobId){ var oj=wlFind(openJobId); ov=oj?oj.vessel:""; } if(ov) wb.outerHTML=whereBlockHtml(ov); }
       var wc=$("whereCard"); if(wc && TAB==="vessel") wc.innerHTML=whereCardHtml(curVesselH());
+      var ws=$("whereBlock"); if(ws && WHERE_OPEN) ws.outerHTML=whereBlockHtml(WHERE_OPEN,"whereBlock",true);
     }catch(e){}
   }).catch(function(){});
 }
@@ -5705,31 +5713,45 @@ function whereRich(s){
   h=h.replace(/(^|[^\d\w\/=])((?:\+61|0)\d[\d\s\-]{7,}\d)/g, function(m,pre,num){ return pre+'<a href="tel:'+num.replace(/[\s\-]/g,"")+'">'+num+'</a>'; });
   return h;
 }
-function whereBlockHtml(v){
+function whereBlockHtml(v, id, forceOpen){
+  id=id||"whereBlock";
   var w=whereFor(v), mgr=isMgrRole(), vJs=esc((v||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'"));
   if(!whereHas(w)){
     if(!mgr) return '';
-    return '<div class="sec" id="whereBlock"><h4>📍 Where she is</h4><div class="wherebox empty" onclick="whereEdit(\''+vJs+'\')">No location or access notes for '+esc(v)+' yet — tap to add them, so crew allocated a job here know where to go and how to get aboard.</div></div>';
+    return '<div class="sec" id="'+id+'"><h4>📍 Where she is</h4><div class="wherebox empty" onclick="whereEdit(\''+vJs+'\')">No location or access notes for '+esc(v)+' yet — tap to add them, so crew allocated a job here know where to go and how to get aboard.</div></div>';
   }
   var edit = mgr ? ('<span class="wlnote-ed" style="cursor:pointer;float:right;text-transform:none;letter-spacing:0" onclick="whereEdit(\''+vJs+'\')">✎ Update</span>') : '';
   var hd=[w.where,w.berthNo].filter(function(x){return x&&x.trim();}).join(' · ');
+  var open=forceOpen||!!WHERE_EXP[id], det=whereDetails(w);
+  // Collapsed: one line — where she is and the berth — plus a tap to open the
+  // rest. Gate codes and where the keys are stay hidden until someone asks.
+  if(!open){
+    var more = det ? '▸ Show access details' : (mgr ? '▸ Add access details' : '');
+    var tap = det ? (' onclick="whereToggle(\''+id+'\',\''+vJs+'\')"') : (mgr ? (' onclick="whereEdit(\''+vJs+'\')"') : '');
+    return '<div class="sec" id="'+id+'"><h4>📍 Where she is'+edit+'</h4><div class="wherebox wherecollapsed"'+tap+'>'+
+      '<div class="wherehd" style="margin:0">'+esc(hd||"—")+'</div>'+(more?('<div class="wheremore">'+more+'</div>'):'')+'</div></div>';
+  }
   var q=encodeURIComponent([w.berthNo,w.where].filter(function(x){return x&&x.trim();}).join(", "));
   var upd = w.updated ? ('Updated '+esc(dayLabel(w.updated))+(w.by?(' · '+esc(firstName(w.by))):'')) : '';
-  return '<div class="sec" id="whereBlock"><h4>📍 Where she is'+edit+'</h4><div class="wherebox">'+
+  return '<div class="sec" id="'+id+'"><h4>📍 Where she is'+edit+'</h4><div class="wherebox">'+
     (hd?('<div class="wherehd">'+esc(hd)+'</div>'):'')+
-    (w.access?('<div class="whererow"><b>Getting aboard</b>'+whereRich(w.access)+'</div>'):'')+
+    (w.gateCode?('<div class="whererow"><b>Gate / lock box code</b><span class="wherecode">'+esc(w.gateCode)+'</span></div>'):'')+
+    (w.keyLoc?('<div class="whererow"><b>Lock box / keys</b>'+whereRich(w.keyLoc)+'</div>'):'')+
+    (w.access?('<div class="whererow"><b>Access notes</b>'+whereRich(w.access)+'</div>'):'')+
     (w.marinaContact?('<div class="whererow"><b>Marina / contact</b>'+whereRich(w.marinaContact)+'</div>'):'')+
     (w.getThere?('<div class="whererow"><b>Getting there</b>'+whereRich(w.getThere)+'</div>'):'')+
     (w.where?('<a class="wheremap" href="https://www.google.com/maps/search/?api=1&query='+q+'" target="_blank" rel="noopener">🗺 Open in Maps</a>'):'')+
-    (upd?('<div class="wherefoot">'+upd+'</div>'):'')+'</div></div>';
+    (upd?('<div class="wherefoot">'+upd+'</div>'):'')+
+    (forceOpen?'':('<div class="wheremore" onclick="whereToggle(\''+id+'\',\''+vJs+'\')">▴ Hide access details</div>'))+
+    '</div></div>';
 }
 // Same block on the Vessel tab (no id — the job sheet owns "whereBlock").
-function whereCardHtml(v){ var b=whereBlockHtml(v); return b ? b.replace(' id="whereBlock"','') : ''; }
+function whereCardHtml(v){ return whereBlockHtml(v, "whereCardBlock"); }
 // Tap the strip under a worklist header → the full notes in a sheet.
 function openWhere(v){
   WHERE_OPEN=v||"";
   $("sheet").innerHTML='<div class="sheet-hd"><div style="flex:1"><div style="font-size:11px;font-weight:bold;letter-spacing:.4px;color:#ffd7b0">'+esc(v)+'</div><h3>Where she is</h3></div><button class="closeb" onclick="closeSheet()">✕</button></div>'+
-    whereBlockHtml(v)+'<div style="height:16px"></div>';
+    whereBlockHtml(v, "whereBlock", true)+'<div style="height:16px"></div>';
   showSheet();
 }
 // Directors: jump to this boat's Induction tab with the location field in focus.
@@ -5742,7 +5764,7 @@ function whereEdit(v){
 }
 /* ===== Vessel Induction (directors): particulars + specialised gear per boat ===== */
 var VI_SECTIONS=[
-  {h:"📍 Where she is & getting aboard", note:"Shows under every worklist and on every job page for this boat, so whoever is allocated the work knows where to go and how to get on. Current location is the same cell the owner sees in MyYacht and the fleet dashboard.", f:[["currentLocation","Current location — marina / port (e.g. Coral Sea Marina, Airlie Beach)"],["berthNo","Berth / pen (e.g. Berth 022, C-arm)"],["access","How to get aboard — gate, keys, codes, who to call",1],["marinaContact","Marina office / contact (name + phone)"],["getThere","Getting there — parking, trolley, tender, tips",1]]},
+  {h:"📍 Where she is & getting aboard", note:"Shows under every worklist and on every job page for this boat, so whoever is allocated the work knows where to go and how to get on. Current location is the same cell the owner sees in MyYacht and the fleet dashboard.", f:[["currentLocation","Current location — marina / port (e.g. Coral Sea Marina, Airlie Beach)"],["berthNo","Berth / pen (e.g. Berth 022, C-arm)"],["gateCode","Gate / lock box code"],["keyLoc","Lock box / keys — where exactly (e.g. aft deck, port side, behind the fender)"],["access","Other access notes — alarms, shore power, who to call",1],["marinaContact","Marina office / contact (name + phone)"],["getThere","Getting there — parking, trolley, tender, tips",1]]},
   {h:"Particulars", f:[["owner","Owner"],["make","Make / model"],["year","Year built"],["builder","Builder"],["loa","Length (LOA)"],["beam","Beam"],["draft","Draft"],["hull","Hull material"],["flag","Flag"],["mmsi","MMSI"],["callsign","Call sign"],["berth","Home berth / marina"]]},
   {h:"Machinery", f:[["engines","Main engines (make/model × no.)"],["enghrs","Engine hours"],["generator","Generator(s)"],["thruster","Bow / stern thruster"]]},
   {h:"Systems & equipment", f:[["watermaker","Watermaker (brand)"],["aircon","Air-conditioning"],["divecomp","Dive compressor"],["tender","Tender (make · own insurance?)"],["electronics","Electronics / nav"],["comms","Comms / Starlink"],["stabilisers","Stabilisers"]]},
