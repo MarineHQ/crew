@@ -1626,7 +1626,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-11·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-11·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2914,11 +2914,21 @@ function chUnsubLoad(){
 /* Finished work with no hours on it never reaches a job card, so it is never
    invoiced — and nothing said so. The crew member sees a tidy list of completed
    jobs and reasonably assumes that is the end of it. */
+/* Finished jobs nobody logged hours against — they never reach a job card, so
+   they are never invoiced. Limited to the last 60 days: Andiamo alone carries
+   twenty from the Zoho backlog, work done long before any of this existed, and
+   a warning that never goes down stops being a warning (Trish, 11 Sep 2026). */
+var NOHRS_DAYS = 60;
 function chNoHoursJobs(){
   if(!CHUNSUBREAD) return [];
   var src=(AHJOBS && AHJOBS.length) ? AHJOBS : (CREWJOBS||[]);
+  var cutoff = Date.now() - NOHRS_DAYS*86400000;
   return src.filter(function(j){
-    return j.key && hubBucket(j.status)==="Done" && !CHHASHRS[j.key];
+    if(!(j.key && hubBucket(j.status)==="Done" && !CHHASHRS[j.key])) return false;
+    var iso = ahIsoFrom(j.completed);
+    if(!iso) return false;                       // no finish date — can't say it's recent
+    var t = Date.parse(iso + "T12:00:00");
+    return !isNaN(t) && t >= cutoff;
   });
 }
 function chUnsubHtml(compact){
@@ -3258,7 +3268,7 @@ function coStay(){ closeModal("clockOffModal"); toast("Still on the clock \u2014
 /* The fallback. They will forget to tap Start — this has to exist or those
    hours are simply lost, which is worse than a slightly rough number. And it
    has to carry a DATE: the job you forgot to clock onto was rarely today. */
-var AHKEY=null, AHJOBS=null, AHLOG={};
+var AHKEY=null, AHJOBS=null, AHLOG={}, AHSHOWSENT=false;
 /* The worklist on screen is one boat at a time — and for a director it is that
    boat's whole list, not their own work. Neither is the right list here, so the
    picker asks for its own: MY jobs, on every boat. */
@@ -3401,7 +3411,7 @@ function ahOpen(key){
     ahRenderBundle();
   } else {
     $("ahWhat").textContent = "Which job were you on? Pick the boat, then the job.";
-    $("ahSearch").value=""; AHBOAT=""; AHNOHRS=false; AHONLYDUE=false;
+    $("ahSearch").value=""; AHBOAT=""; AHNOHRS=false; AHONLYDUE=false; AHSHOWSENT=false;
     /* Paint from what is already in memory FIRST. The fleet-wide call takes the
        best part of ten seconds on a marina connection, and a spinner that long
        is indistinguishable from broken — which is exactly how it was read. The
@@ -3446,6 +3456,11 @@ function ahFilter(){
        - a raised job, next month's list - is noise here, and picking one by
        mistake puts hours on work that never happened. Searching still finds it. */
     if(!q && hubBucket(j.status)==="To do") return false;
+    /* A job whose hours are ALL on a job card already is not what you came here
+       for, and there were dozens of them burying the two that mattered. Hidden
+       unless you ask, because a multi-day job legitimately needs more hours
+       after some have gone — and searching always finds it. */
+    if(!q && !AHSHOWSENT){ var ls=AHLOG[j.key]; if(ls && ls.n && ls.sent>=ls.n) return false; }
     if(!q) return true;
     var hay=((j.task||"")+" "+(j.vessel||"")+" "+(j.code||"")).toLowerCase();
     if(hay.indexOf(q)>=0) return true;
@@ -3454,13 +3469,20 @@ function ahFilter(){
 
   var counts={}; src.forEach(function(j){ counts[j.vessel||"—"]=(counts[j.vessel||"—"]||0)+1; });
   var boats=Object.keys(counts).sort();
-  var due=0; src.forEach(function(j){ var l1=AHLOG[j.key]; if(l1 && l1.sent<l1.n) due++; });
+  var due=0, sentN=0;
+  src.forEach(function(j){
+    var l1=AHLOG[j.key];
+    if(l1 && l1.sent<l1.n) due++;
+    if(l1 && l1.n && l1.sent>=l1.n) sentN++;
+  });
   var chips = '<div class="ahchips">'+
     '<button class="ahchip'+(AHBOAT||AHONLYDUE||AHNOHRS?"":" on")+
       '" onclick="AHONLYDUE=false;AHNOHRS=false;ahBoat(\'\')">All</button>'+
     (AHNOHRS?'<button class="ahchip due on" onclick="AHNOHRS=false;ahFilter()">\u26a0\ufe0f No hours yet</button>':'')+
     (due?('<button class="ahchip due'+(AHONLYDUE?" on":"")+'" onclick="ahDueOnly()">'+
           '\u25cf To send <i>'+due+'</i></button>'):'')+
+    (sentN?('<button class="ahchip'+(AHSHOWSENT?" on":"")+'" onclick="ahShowSent()">'+
+            '\u2713 already sent <i>'+sentN+'</i></button>'):'')+
     (boats.length>1 ? boats.map(function(v){
       return '<button class="ahchip'+(AHBOAT===v?" on":"")+'" onclick="ahBoat(\''+
         esc(String(v).replace(/'/g,"\\'"))+'\')">'+esc(v)+' <i>'+counts[v]+'</i></button>';
@@ -3534,6 +3556,7 @@ function ahFilter(){
   }).join("");
   $("ahList").innerHTML = html;
 }
+function ahShowSent(){ AHSHOWSENT=!AHSHOWSENT; ahFilter(); }
 function ahOpenNoHours(){ ahOpen(); AHNOHRS=true; AHONLYDUE=false; AHBOAT=""; ahFilter(); }
 function ahChoose(key){
   if(AHADDING){ ahAlsoChoose(key); return; }   // second job for the same block
@@ -3729,7 +3752,9 @@ function mhTodoHtml(){
     var boats={}; nh.forEach(function(j){ boats[j.vessel||"\u2014"]=(boats[j.vessel||"\u2014"]||0)+1; });
     nhBox='<div class="chunsub" style="margin:0 0 14px"><h5>\u26a0\ufe0f '+nh.length+
       ' finished job'+(nh.length===1?'':'s')+' with no hours on them</h5>'+
-      '<p>These never reach a job card, so they are never invoiced. '+
+      '<p>Different thing from the days above \u2014 these are jobs ticked off in the '+
+      'last '+NOHRS_DAYS+' days that nobody logged time against, so they never reach '+
+      'a job card and are never invoiced. '+
       Object.keys(boats).sort().map(function(v){ return esc(v)+" ("+boats[v]+")"; }).join(" \u00b7 ")+
       '</p><div class="days"><button onclick="closeModal(\'myHoursModal\');ahOpenNoHours()">'+
       'Add hours to them</button></div></div>';
