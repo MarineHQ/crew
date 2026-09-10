@@ -1302,6 +1302,11 @@ button:active{ filter: brightness(.93); }
   .wf-dash{color:#b7c0cc}
   .vifrom{font-weight:600;color:#6b7a90;font-size:11px;margin-left:6px;text-transform:none;letter-spacing:0}
 
+/* ---- Start & finish, or just hours ---- */
+.ahmode{display:flex;gap:0;margin:2px 0 10px;border:1px solid #cfd8e0;border-radius:8px;overflow:hidden}
+.ahmode button{flex:1;border:0;background:#fff;color:#54646f;font-size:12.5px;font-weight:700;padding:9px;cursor:pointer;font-family:inherit}
+.ahmode button.on{background:#1A3A5C;color:#fff}
+
 /* ---- My log: one heading per day ---- */
 /* NOT .mhday — that name was already the day CARD in the To submit list, and
    reusing it stripped those cards of their border and padding. */
@@ -1628,7 +1633,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-11·c</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-11·d</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1761,13 +1766,24 @@ button:active{ filter: brightness(.93); }
     <div id="ahBundle"></div>
     <label class="fld">Day you did it</label>
     <input type="date" class="fld-in" id="ahDate">
-    <div style="display:flex;gap:8px">
+    <div class="ahmode">
+      <button type="button" id="ahModeTimes" class="on" onclick="ahMode(false)">Start &amp; finish</button>
+      <button type="button" id="ahModeHours" onclick="ahMode(true)">Just hours</button>
+    </div>
+    <div id="ahTimes" style="display:flex;gap:8px">
       <div style="flex:1"><label class="fld">Start</label>
         <input type="time" step="1800" class="fld-in" id="ahStart" onchange="snapHalf(this); ahCalc()"></div>
       <div style="flex:1"><label class="fld">Finish</label>
         <input type="time" step="1800" class="fld-in" id="ahFinish" onchange="snapHalf(this); ahCalc()"></div>
       <div style="max-width:96px"><label class="fld">Break</label>
         <input type="number" min="0" step="5" class="fld-in" id="ahBreak" value="0" onchange="ahCalc()"></div>
+    </div>
+    <div id="ahJustHours" style="display:none">
+      <label class="fld">How many hours?</label>
+      <input type="number" min="0.25" max="18" step="0.25" inputmode="decimal" class="fld-in"
+             id="ahHours" placeholder="e.g. 4" onchange="ahCalc()" oninput="ahCalc()">
+      <p class="mhint" style="margin:6px 0 0">No times recorded — just the hours. Use this when
+        nobody wrote down when they started, rather than inventing a time that then reads as fact.</p>
     </div>
     <div class="ahsum" id="ahSum">—</div>
     <label class="fld">Note <span class="fldhint">(optional)</span></label>
@@ -3403,6 +3419,7 @@ function ahSetWhat(){
 function ahOpen(key){
   AHKEY = key || null;
   AHALSO = []; AHADDING = false;
+  try{ ahMode(false); var hh=$("ahHours"); if(hh) hh.value=""; }catch(_){}
   var m=$("addHoursModal"); if(!m) return;
   $("ahPick").style.display = AHKEY ? "none" : "";
   $("ahForm").style.display = AHKEY ? "" : "none";
@@ -3630,8 +3647,30 @@ function ahOvernightOk(st, fi, label){
     chFmt(o.hours)+" hours.\n\nIf you meant "+o.suggest+" the same afternoon, tap Cancel and change the finish.\n\nSave it as an overnight?");
 }
 
+/* Two ways to say how long something took. Times when they are known, and just
+   the hours when they are not — half a day is half a day, and making someone
+   invent an 08:00 to make the form happy puts a fiction on a job card that
+   nobody can tell from a fact later (Trish, 11 Sep 2026). */
+var AHHOURSONLY = false;
+function ahMode(on){
+  AHHOURSONLY = !!on;
+  $("ahModeTimes").className = on ? "" : "on";
+  $("ahModeHours").className = on ? "on" : "";
+  $("ahTimes").style.display = on ? "none" : "flex";
+  $("ahJustHours").style.display = on ? "" : "none";
+  if(on){ var h=$("ahHours"); if(h) h.focus(); }
+  ahCalc();
+}
+
 function ahCalc(){
   var el=$("ahSum"); if(!el) return;
+  if(AHHOURSONLY){
+    var hv=parseFloat(($("ahHours")||{}).value);
+    hv = Math.round((hv||0)*4)/4;
+    el.style.color="";
+    el.textContent = hv>0 ? (chFmt(hv)+"  ·  no times recorded") : "—";
+    return;
+  }
   function m(v){ var p=(v||"").split(":"); if(p.length<2) return -1;
     return (parseInt(p[0],10)||0)*60+(parseInt(p[1],10)||0); }
   var a=m($("ahStart").value), b=m($("ahFinish").value), br=parseInt($("ahBreak").value,10)||0;
@@ -3647,8 +3686,14 @@ function ahCalc(){
 function ahSave(){
   if(!AHKEY){ toast("Pick the job first"); return; }
   var st=($("ahStart").value||"").trim(), fi=($("ahFinish").value||"").trim();
-  if(!st||!fi){ toast("Start and finish, please"); return; }
-  if(!ahOvernightOk(st, fi, "This")) return;
+  var justHrs = AHHOURSONLY ? (Math.round((parseFloat(($("ahHours")||{}).value)||0)*4)/4) : 0;
+  if(AHHOURSONLY){
+    if(!(justHrs>0)){ toast("How many hours?"); return; }
+    st=""; fi="";
+  } else {
+    if(!st||!fi){ toast("Start and finish, please"); return; }
+    if(!ahOvernightOk(st, fi, "This")) return;
+  }
   /* Adding hours never re-sends anything — it writes a NEW entry. Which is
      right for a second day on the same job, and wrong for a day already
      logged, so say which one this is before it happens. */
@@ -3671,7 +3716,8 @@ function ahSave(){
            also:AHALSO.map(function(a){ return { jobKey:a.key, task:a.task,
                     jobCode:a.code, cat:a.cat }; }),
            date:($("ahDate").value||""), start:st, finish:fi,
-           breakMins:(parseInt($("ahBreak").value,10)||0),
+           hours:(AHHOURSONLY ? justHrs : ""),
+           breakMins:(AHHOURSONLY ? 0 : (parseInt($("ahBreak").value,10)||0)),
            note:($("ahNote").value||"").trim()}).then(function(r){
     go.disabled=false; go.textContent="Add these hours";
     if(!r||!r.ok){ toast((r&&r.error)||"Couldn\u2019t save"); return; }
