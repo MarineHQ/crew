@@ -279,8 +279,24 @@
   .hd-save{flex:1;border:0;border-radius:9px;background:#0f766e;color:#fff;font-weight:800;font-size:13px;padding:9px;cursor:pointer;font-family:inherit}
   .hd-cancel{border:0;border-radius:9px;background:rgba(255,255,255,.16);color:#fff;font-weight:700;font-size:13px;padding:9px 14px;cursor:pointer;font-family:inherit}
   .closeb{margin-left:auto;background:rgba(255,255,255,.15);border:0;color:#fff;width:30px;height:30px;border-radius:50%;font-size:16px;cursor:pointer;flex-shrink:0}
-  .sec{background:#fff;margin:12px;border:1px solid var(--line);border-radius:12px;padding:14px}
-  .sec h4{margin:0 0 10px;font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
+  /* Ten of these stacked at 12px margin + 14px padding is a lot of scrolling for
+     a screen you open to check one fact. Tightened 10 Sep 2026. */
+  .sec{background:#fff;margin:8px 10px;border:1px solid var(--line);border-radius:10px;padding:11px 13px}
+  .sec h4{margin:0 0 7px;font-size:11.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
+  .sec .body{margin:0}
+  .sec + .sec{margin-top:8px}
+
+  /* At a glance — the facts you open a job to check, before any scrolling. */
+  .jfacts{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:1px;
+          background:var(--line);border:1px solid var(--line);border-radius:10px;
+          overflow:hidden;margin:8px 10px}
+  .jfact{background:#fff;padding:8px 11px;min-width:0}
+  .jfact .k{display:block;font-size:9.5px;font-weight:800;letter-spacing:.6px;
+            text-transform:uppercase;color:var(--muted);margin-bottom:2px}
+  .jfact .v{font-size:13px;font-weight:700;color:var(--navy);overflow:hidden;
+            text-overflow:ellipsis;white-space:nowrap;display:block}
+  .jfact .v.soft{font-weight:600;color:var(--muted)}
+  .jfact .v.late{color:#C0472A}
   .sec p.body{font-size:13.5px;line-height:1.5;margin:0}
 
   /* progress tracker */
@@ -1585,7 +1601,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-10·c</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-10·d</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -6068,6 +6084,29 @@ function wlSaveDesc(key){
 /* ---- worklist job detail: status · notes · photos ---- */
 var WLSTATUS=["To do","In hand","Complete"];
 function wlBucketToStatus(j){ var b=hubBucket(j.status); return b==="Done"?"Complete":(b==="In progress"?"In hand":"To do"); }
+/* The five things you open a job to check, in one strip at the top: what state
+   it's in, when it's due, whose it is, which list it belongs to, and when it
+   last moved. They were spread over four separate cards further down, so
+   checking one meant scrolling past everything else. */
+function wlFactsHtml(j){
+  function cell(k, v, cls){
+    return '<div class="jfact"><span class="k">'+k+'</span>'+
+           '<span class="v'+(cls?(" "+cls):"")+'" title="'+esc(v)+'">'+esc(v)+'</span></div>';
+  }
+  var out = "";
+  out += cell("Status", wlBucketToStatus(j) || "To do");
+  if(j.dueTs){
+    var late = j.dueTs < Date.now() && hubBucket(j.status)!=="Done";
+    out += cell("Due", dayLabel(j.dueTs)+(j.dueTime?(" "+fmtTime12(j.dueTime)):""), late?"late":"");
+  } else {
+    out += cell("Due", "no date", "soft");
+  }
+  out += j.allocatedTo ? cell("On", firstNames(j.allocatedTo)) : cell("On", "nobody yet", "soft");
+  if(isMgrRole()) out += j.list ? cell("Worklist", j.list) : cell("Worklist", "not on a list", "soft");
+  if(j.updated) out += cell("Last moved", relTime(j.updated), "soft");
+  return '<div class="jfacts">'+out+'</div>';
+}
+
 function openWLJob(key){
   var j=wlFind(key); if(!j)return;
   openJobId=key; WLMENTIONS=[]; WLLANE=""; PHTAG=""; WHERE_OPEN="";
@@ -6192,6 +6231,7 @@ function openWLJob(key){
   $("sheet").innerHTML=
     '<div class="sheet-hd"><div style="flex:1"><div style="font-size:11px;font-weight:bold;letter-spacing:.4px;color:#ffd7b0">'+esc(j.vessel)+(j.list?(" · "+esc(j.list)):"")+(j.code?(' &nbsp;<span class="jcode">'+esc(j.code)+'</span>'):'')+catChip(j.category)+'</div>'+
       '<h3 id="wlTitleH">'+num+'. '+esc(j.task||"(job)")+(wlCanFix(j)?(' <span class="hd-ed" title="Edit the task name" onclick="wlEditTitle(\''+esc(key)+'\')">✎</span>'):'')+'</h3></div><button class="closeb" onclick="closeSheet()">✕</button></div>'+
+    wlFactsHtml(j)+
     (function(){ if(!j.desc && !wlCanFix(j)) return '';
       var b=j.desc?('<p class="body" id="wlDescText">'+esc(j.desc)+'</p>'):'<p class="body" id="wlDescText" style="color:var(--muted)">No description yet.</p>';
       var ed=wlCanFix(j)?' <span class="wlnote-ed" style="cursor:pointer" onclick="wlEditDesc(\''+esc(key)+'\')">✎ Edit</span>':'';
@@ -6208,7 +6248,8 @@ function openWLJob(key){
     ((isMgrRole() && j.zoho)?('<div class="sec"><h4>Send to Michael’s Zoho</h4><button onclick="zohoSendJob(\''+esc(key)+'\')" style="width:100%;border:0;background:#1a2b5c;color:#fff;font-weight:800;font-size:13px;padding:12px;border-radius:10px;cursor:pointer">📷 Send this job’s photos + note to his Zoho</button><div class="srcsub" style="margin-top:6px">Posts the photos (as links) and a note onto the matched Zoho task.</div></div>'):'')+
     ((isMgrRole() && j.zoho)?('<div class="sec"><h4>From Michael’s Zoho <span style="font-size:10px;color:#9aa7b4;font-weight:700">directors only</span></h4><div id="zinbox" style="font-size:12.5px;color:var(--muted)">Loading his Zoho comments…</div></div>'):'')+
     ((j.reqOk&&j.reqOk.by)?('<div class="sec"><h4>Approved</h4><div class="body" style="font-size:13px">\u2713 Approved by <b>'+esc(j.reqOk.by)+'</b>'+(j.reqOk.at?(' \u00b7 '+esc(dayLabel(j.reqOk.at))):'')+(j.raisedBy?('<br><span style="color:var(--muted)">Raised by '+esc(j.raisedBy)+'</span>'):'')+'</div></div>'):'')+
-    (isMgrRole()?('<div class="sec"><h4>Worklist</h4><div class="subnote-box" onclick="wlMoveList(\''+esc(key)+'\')">\ud83d\udccb '+esc(j.list||"\u2014 not on a worklist \u2014")+' <span class="wlnote-ed">\u270e</span></div></div>'):'')+
+    // The list itself is in the facts strip now; this stays as the way to MOVE it.
+    (isMgrRole()?('<div class="sec"><h4>Move to another worklist</h4><div class="subnote-box" onclick="wlMoveList(\''+esc(key)+'\')">\ud83d\udccb '+esc(j.list||"\u2014 not on a worklist \u2014")+' <span class="wlnote-ed">\u270e</span></div></div>'):'')+
     ((j.subNote||wlCanFix(j))?('<div class="sec"><h4>Sub note</h4><div class="subnote-box'+(j.subNote?"":" empty")+'"'+(wlCanFix(j)?(' onclick="wlSetSubNote(\''+esc(key)+'\')"'):'')+'>'+(j.subNote?('📌 '+esc(j.subNote)):'＋ add a quick note')+(wlCanFix(j)?' <span class="wlnote-ed">✎</span>':'')+'</div></div>'):'')+
     reqBlock+
     acceptHTML+
