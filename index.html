@@ -353,6 +353,10 @@
   .sdh{font-family:ui-monospace,Menlo,monospace;font-weight:800;font-size:19px;color:var(--navy);
        line-height:1.1;text-align:right;flex:none}
   .sdh small{display:block;font-size:9.5px;font-weight:700;letter-spacing:.5px;color:var(--muted);text-transform:uppercase}
+  .chsend{width:100%;margin-top:9px;border:1px solid #cfe0d6;background:#eef7f2;color:#2e7d5b;
+          font-weight:800;font-size:13px;border-radius:10px;padding:11px;cursor:pointer}
+  .chsend:active{transform:scale(.99)}
+  .chsend[disabled]{opacity:.5}
   .sdone{width:100%;margin-top:8px;border:1px solid #cfe0d6;background:#eef7f2;color:#2e7d5b;
          font-weight:800;font-size:12px;border-radius:9px;padding:9px;cursor:pointer}
   .sdone:active{transform:scale(.99)}
@@ -1616,7 +1620,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-10·g</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-10·h</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -3010,6 +3014,16 @@ function chJobEntriesHtml(key){
                            '<button class="ed del" title="Delete" onclick="chDel(\''+esc(e.entryId)+'\',1)">\u2715</button>'):'')+
       '</div>';
   }).join("");
+  /* Send it from here rather than remembering to do the whole day later. Only
+     your own finished, unsent entries — someone else's time is theirs to send. */
+  var unsent = CHJOB.entries.filter(function(e){
+    return e.mine && !e.running && e.pushed!=="Yes";
+  });
+  var sendBtn = unsent.length
+    ? ('<button class="chsend" onclick="chSubmitJobNow(\''+esc(String(key).replace(/'/g,"\\'"))+'\')">'+
+       '\u2705 Submit this job now \u00b7 '+chFmt(unsent.reduce(function(a,e){return a+(parseFloat(e.hours)||0);},0))+
+       ' hrs'+(unsent.length>1?(" over "+unsent.length+" days"):"")+'</button>')
+    : '';
   var hdr = CHJOB.everyone ? "TIME ON THIS JOB \u00b7 EVERYONE" : "MY TIME ON THIS JOB";
   var mth = (CHJOB.codeMonthHours && CHJOB.code)
     ? ('<div class="chmonth"><b>'+chFmt(CHJOB.codeMonthHours)+'</b> on '+esc(CHJOB.code)+
@@ -3019,7 +3033,45 @@ function chJobEntriesHtml(key){
     ? ('<div style="font-size:11px;color:var(--muted);margin-top:6px">Others have also logged time on this job.</div>') : '';
   return '<div style="margin-top:12px"><div class="chtothdr">'+
     '<b style="font-size:12px;color:var(--muted)">'+hdr+'</b>'+
-    '<b class="chtot">'+chFmt(CHJOB.totalHours)+' total</b></div>'+rows+'</div>';
+    '<b class="chtot">'+chFmt(CHJOB.totalHours)+' total</b></div>'+rows+mth+oth+sendBtn+'</div>';
+}
+
+/* Send this job's hours without waiting for the end of the day. Stop the clock,
+   press this, done. It submits YOUR unsent entries on this job — one call per
+   day they fall on, because the sheet files an end-of-day per date. */
+function chSubmitJobNow(key){
+  if(!CHJOB || CHJOB.jobKey!==key) return;
+  var unsent=CHJOB.entries.filter(function(e){ return e.mine && !e.running && e.pushed!=="Yes"; });
+  if(!unsent.length){ toast("Nothing left to send on this job"); return; }
+
+  var j=wlFind(key), name=(j&&j.task)||CHJOB.task||"this job";
+  var hrs=unsent.reduce(function(a,e){ return a+(parseFloat(e.hours)||0); },0);
+  var days={}; unsent.forEach(function(e){ (days[e.date]=days[e.date]||[]).push(e.entryId); });
+  var dayList=Object.keys(days).sort();
+
+  var fin=confirm("Send "+chFmt(hrs)+" hrs on “"+name+"”"+
+    (dayList.length>1?(" across "+dayList.length+" days"):(" on "+chNiceDate(dayList[0])))+".\n\n"+
+    "OK = the job is FINISHED.\nCancel = still in hand (it still gets sent).");
+  var statuses={}; statuses[key] = fin ? "Complete" : "In Progress";
+
+  var btns=document.querySelectorAll(".chsend");
+  for(var b=0;b<btns.length;b++){ btns[b].disabled=true; btns[b].textContent="Sending\u2026"; }
+
+  var i=0, sent=0, failed="";
+  (function next(){
+    if(i>=dayList.length){
+      if(failed) toast(failed);
+      else toast("Sent \u2014 "+chFmt(hrs)+" hrs on "+name+(fin?" \u00b7 marked complete":""));
+      chJobLoad(key, true); chLoad(true); chUnsubLoad();
+      return;
+    }
+    var d=dayList[i++];
+    apiPost({action:"crewSubmitDay", email:ME.email, code:ME.code, date:d,
+             entryIds:days[d], statuses:statuses}).then(function(r){
+      if(r&&r.ok) sent++; else failed=(r&&r.error)||"Couldn\u2019t submit "+chNiceDate(d);
+      next();
+    }).catch(function(){ failed="Couldn\u2019t connect"; next(); });
+  })();
 }
 /* Fix a logged time. Forgetting to stop is ordinary, so this is a form with the
    arithmetic shown, not a run of prompt boxes. */
