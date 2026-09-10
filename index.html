@@ -337,12 +337,27 @@
     font-family:ui-monospace,Menlo,monospace}
   .ehcalc{background:#eef3fa;border:1px solid #d8e2f0;border-radius:10px;padding:10px 12px;
     margin:12px 0 4px;font-size:13.5px;color:var(--navy);font-weight:700;text-align:center}
-  .sdrow{display:flex;align-items:center;gap:9px;padding:10px 0 6px;border-top:1px solid var(--line)}
-  .sdrow.sent{opacity:.55}
+  /* One card per job rather than a flat run of rows: at a glance you want the
+     boat, the job and the hours, and to be able to send one without sending the
+     whole day. Reworked 10 Sep 2026. */
+  .sdboat{display:flex;align-items:baseline;gap:8px;margin:14px 0 6px}
+  .sdboat b{font-size:12px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--navy)}
+  .sdboat i{flex:1;height:1px;background:var(--line)}
+  .sdboat span{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;color:var(--muted)}
+  .sdjob{border:1px solid var(--line);border-radius:11px;padding:11px 12px;margin-bottom:8px;background:#fff}
+  .sdjob.sent{opacity:.58;background:#f7f9fb}
+  .sdrow{display:flex;align-items:flex-start;gap:10px}
   .sdt{flex:1;min-width:0}
-  .sdt b{display:block;font-size:13.5px;color:var(--navy)}
-  .sdt span{display:block;font-size:11.5px;color:var(--muted);font-family:ui-monospace,Menlo,monospace}
-  .sdh{font-family:ui-monospace,Menlo,monospace;font-weight:700;font-size:14px;color:var(--navy)}
+  .sdt b{display:block;font-size:14px;color:var(--navy);line-height:1.3}
+  .sdt span{display:block;font-size:11.5px;color:var(--muted);font-family:ui-monospace,Menlo,monospace;margin-top:2px}
+  .sdh{font-family:ui-monospace,Menlo,monospace;font-weight:800;font-size:19px;color:var(--navy);
+       line-height:1.1;text-align:right;flex:none}
+  .sdh small{display:block;font-size:9.5px;font-weight:700;letter-spacing:.5px;color:var(--muted);text-transform:uppercase}
+  .sdone{width:100%;margin-top:8px;border:1px solid #cfe0d6;background:#eef7f2;color:#2e7d5b;
+         font-weight:800;font-size:12px;border-radius:9px;padding:9px;cursor:pointer}
+  .sdone:active{transform:scale(.99)}
+  .sdone[disabled]{opacity:.5}
+  .sdsent{font-size:10px;font-weight:800;color:#2e7d5b;background:#e3f1ea;border-radius:9px;padding:2px 7px}
   .sdsent{font-size:10px;font-weight:800;color:#2e7d5b;background:#e3f1ea;border-radius:9px;padding:2px 7px}
   /* Finished or not is the one thing only the person who did it knows, and the
      moment they read the day back is the moment they know it. */
@@ -1601,7 +1616,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-10·d</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-10·e</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -3811,27 +3826,46 @@ function sdRender(){
   if(!SD){ el.innerHTML='<div class="chempty">Couldn\u2019t load your day.</div>'; return; }
   if(!SD.count){ el.innerHTML='<div class="chempty">Nothing logged on '+esc(chNiceDate(SDDATE))+'.</div>';
                  if(go) go.disabled=true; return; }
-  var rows=SD.entries.map(function(e){
+  /* Grouped under the boat, because a day that touched two yachts reads as two
+     separate lots of work — which is how it will be invoiced. */
+  var byBoat = [], seen = {};
+  SD.entries.forEach(function(e){
+    var v=(e.vessel||"(no boat)");
+    if(!seen[v]){ seen[v]={ vessel:v, items:[], hours:0 }; byBoat.push(seen[v]); }
+    seen[v].items.push(e);
+    if(!e.running) seen[v].hours += (parseFloat(e.hours)||0);
+  });
+
+  function jobCard(e){
     var done=(e.pushed==="Yes");
     var eid=esc(e.entryId);
     var isDone=/complete|done/i.test(e.status||"");
     if(!SDSTATUS.hasOwnProperty(e.entryId)) SDSTATUS[e.entryId]= isDone ? "Complete" : "";
     var pick=SDSTATUS[e.entryId];
-    return '<div class="sdrow'+(done?" sent":"")+'">'+
-      '<div class="sdt"><b>'+esc(e.task||"(job)")+'</b>'+
-      '<span>'+(e.code?(esc(e.code)+' \u00b7 '):'')+esc(e.vessel||'')+
-      (e.running?' \u00b7 still running':(' \u00b7 '+esc(e.start)+'\u2013'+esc(e.finish)+
-        (e.breakMins?(' \u00b7 '+e.breakMins+'m break'):'')))+'</span></div>'+
-      '<div class="sdh">'+(e.running?'\u2014':chFmt(e.hours))+'</div>'+
-      (done?'<span class="sdsent">sent</span>'
-           :(e.running?'':'<button class="sdedit" onclick="ehOpen(\''+eid+'\')">\u270e Edit</button>'))+
+    var also=(e.alsoTasks||"").trim();
+    return '<div class="sdjob'+(done?" sent":"")+'">'+
+      '<div class="sdrow">'+
+        '<div class="sdt"><b>'+esc(e.task||"(job)")+(also?(' <span style="font-weight:600;color:var(--muted)">+ '+esc(also)+'</span>'):'')+'</b>'+
+          '<span>'+(e.code?(esc(e.code)+' \u00b7 '):'')+
+          (e.running?'still running':(esc(e.start)+'\u2013'+esc(e.finish)+
+            (e.breakMins?(' \u00b7 '+e.breakMins+'m break'):'')))+'</span></div>'+
+        '<div class="sdh">'+(e.running?'\u2014':chFmt(e.hours))+'<small>hrs</small></div>'+
+        (done?'<span class="sdsent">sent</span>'
+             :(e.running?'':'<button class="sdedit" onclick="ehOpen(\''+eid+'\')">\u270e</button>'))+
       '</div>'+
       (done?'':
         '<input class="sdc" id="sdc-'+eid+'" placeholder="Anything worth noting about this one?" value="'+esc(e.note||'')+'">'+
         (e.jobKey?('<div class="sdask"><span class="q">Finished this job?</span>'+
           '<button class="done'+(pick==="Complete"?" on":"")+'" onclick="sdPick(\''+eid+'\',\'Complete\')">\u2713 Yes \u2014 complete</button>'+
           '<button class="going'+(pick==="In Progress"?" on":"")+'" onclick="sdPick(\''+eid+'\',\'In Progress\')">Still in hand</button>'+
-          '</div>'):''));
+          '</div>'):'')+
+        (e.running?'':'<button class="sdone" onclick="sdSubmitOne(\''+eid+'\')">\u2705 Send just this one</button>'))+
+      '</div>';
+  }
+
+  var rows = byBoat.map(function(b){
+    return '<div class="sdboat"><b>'+esc(b.vessel)+'</b><i></i><span>'+chFmt(b.hours)+' hrs</span></div>'+
+           b.items.map(jobCard).join("");
   }).join("");
   var gap="";
   if(SD.shiftHours>0){
@@ -3844,10 +3878,34 @@ function sdRender(){
     '<div class="sdtot"><b>'+chFmt(SD.loggedHours)+'</b><span>total across '+SD.count+
       ' job'+(SD.count===1?'':'s')+' on '+esc(SD.date)+'</span></div>'+gap+
     (SD.openTimers?'<div class="chwarn">Stop your running timer before submitting.</div>':'');
+  var left = SD.count - (SD.alreadySubmitted||0);
   if(go){ go.disabled=!SD.canSubmit;
           go.textContent = SD.openTimers ? "Stop the timer first"
-            : (SD.canSubmit ? "Submit my day" : "Already submitted"); }
+            : (SD.canSubmit ? ("Submit "+(left===SD.count?"my day":("the remaining "+left))+
+                               " \u00b7 "+left+" job"+(left===1?"":"s"))
+                            : "Already submitted"); }
 }
+/* Send one job on its own. A day is still the usual unit, but a job finished at
+   lunchtime shouldn't have to wait for the rest of the day to be done — and a
+   timer running on a DIFFERENT job no longer blocks it. */
+function sdSubmitOne(entryId){
+  var e=(SD&&SD.entries||[]).filter(function(x){return x.entryId===entryId;})[0];
+  if(!e || e.pushed==="Yes" || e.running) return;
+  var comments={}, statuses={};
+  var i=document.getElementById("sdc-"+entryId);
+  if(i && i.value.trim()) comments[entryId]=i.value.trim();
+  if(e.jobKey && SDSTATUS[entryId]) statuses[e.jobKey]=SDSTATUS[entryId];
+  var btns=document.querySelectorAll(".sdone");
+  for(var b=0;b<btns.length;b++) btns[b].disabled=true;
+  apiPost({action:"crewSubmitDay", email:ME.email, code:ME.code, date:SDDATE,
+           entryIds:[entryId], comments:comments, statuses:statuses}).then(function(r){
+    if(!r||!r.ok){ toast((r&&r.error)||"Couldn’t submit that one"); sdRender(); return; }
+    toast("Sent — "+esc(e.task||"job")+" · "+chFmt(r.hours)+" hrs");
+    openSubmitDay(SDDATE);            // redraw the day with it marked sent
+    chLoad(true); chUnsubLoad();
+  }).catch(function(){ toast("Couldn’t connect"); sdRender(); });
+}
+
 function sdSubmit(){
   if(!SD||!SD.canSubmit) return;
   var comments={};
