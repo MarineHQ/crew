@@ -1707,9 +1707,9 @@ button:active{ filter: brightness(.93); }
     <input type="date" class="fld-in" id="ahDate">
     <div style="display:flex;gap:8px">
       <div style="flex:1"><label class="fld">Start</label>
-        <input type="time" step="900" class="fld-in" id="ahStart" onchange="ahCalc()"></div>
+        <input type="time" step="1800" class="fld-in" id="ahStart" onchange="snapHalf(this); ahCalc()"></div>
       <div style="flex:1"><label class="fld">Finish</label>
-        <input type="time" step="900" class="fld-in" id="ahFinish" onchange="ahCalc()"></div>
+        <input type="time" step="1800" class="fld-in" id="ahFinish" onchange="snapHalf(this); ahCalc()"></div>
       <div style="max-width:96px"><label class="fld">Break</label>
         <input type="number" min="0" step="5" class="fld-in" id="ahBreak" value="0" onchange="ahCalc()"></div>
     </div>
@@ -1744,9 +1744,9 @@ button:active{ filter: brightness(.93); }
   <p class="mhint" id="ehWhat">—</p>
   <div style="display:flex;gap:10px">
     <div style="flex:1"><label class="fld">Started</label>
-      <input type="time" step="900" class="fld-in" id="ehStart"></div>
+      <input type="time" step="1800" class="fld-in" id="ehStart" onchange="snapHalf(this)"></div>
     <div style="flex:1"><label class="fld">Finished</label>
-      <input type="time" step="900" class="fld-in" id="ehFinish"></div>
+      <input type="time" step="1800" class="fld-in" id="ehFinish" onchange="snapHalf(this)"></div>
   </div>
   <label class="fld">Break <span class="fldhint">(minutes — 0 if none)</span></label>
   <input type="number" min="0" step="5" class="fld-in" id="ehBreak" value="0">
@@ -3361,6 +3361,20 @@ function ahIsoFrom(v){
   }
   return "";
 }
+/* Clocked-on times go in as hours and halves — 08:00, 08:30, 09:00. Nobody is
+   logging 08:53, and a job card full of odd minutes reads like a stopwatch
+   receipt. step="1800" drives the phone's wheel, but a typed value ignores it,
+   so the value is snapped to the nearest half hour on the way out. */
+function snapHalf(el){
+  if(!el) return;
+  var v=(el.value||"").trim(); if(!/^\d{1,2}:\d{2}$/.test(v)) return;
+  var p=v.split(":"), mins=(+p[0])*60 + (+p[1]);
+  mins = Math.round(mins/30)*30;
+  if(mins>=1440) mins=1410;                       // 23:30 — never roll into tomorrow
+  var h=Math.floor(mins/60), m=mins%60;
+  el.value = ("0"+h).slice(-2)+":"+("0"+m).slice(-2);
+}
+
 function ahCalc(){
   var el=$("ahSum"); if(!el) return;
   function m(v){ var p=(v||"").split(":"); if(p.length<2) return -1;
