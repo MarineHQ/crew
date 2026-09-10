@@ -1585,7 +1585,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-10·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-10·c</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -3007,6 +3007,7 @@ function ehCalc(){
 }
 function ehSave(){
   if(!EHID) return;
+  if(!ahOvernightOk(($("ehStart").value||"").trim(), ($("ehFinish").value||"").trim(), "This")) return;
   apiPost({action:"crewHoursEdit", email:ME.email, code:ME.code, entryId:EHID,
            start:$("ehStart").value, finish:$("ehFinish").value,
            breakMins:(parseInt($("ehBreak").value,10)||0), note:$("ehNote").value}).then(function(r){
@@ -3468,6 +3469,28 @@ function snapHalf(el){
   el.value = ("0"+h).slice(-2)+":"+("0"+m).slice(-2);
 }
 
+/* An overnight shift is real — a delivery, a night passage — but nine times in
+   ten a finish EARLIER than the start is a 12-hour clock slip: 4pm picked as
+   04:00. Eric's 24 Aug wash down came in as 08:00–04:00 and scored 20 hours.
+   So it is allowed, but never silently: the summary says overnight, and saving
+   asks. */
+function ahOvernight(st, fi){
+  function m(v){ var p=(v||"").split(":"); if(p.length<2) return -1;
+    return (parseInt(p[0],10)||0)*60+(parseInt(p[1],10)||0); }
+  var a=m(st), b=m(fi);
+  if(a<0||b<0) return null;
+  if(b>a) return null;
+  var pm = (b+720) % 1440;                       // what they probably meant
+  return { hours: Math.round(((b-a+1440)/60)*4)/4,
+           suggest: ("0"+Math.floor(pm/60)).slice(-2)+":"+("0"+(pm%60)).slice(-2) };
+}
+function ahOvernightOk(st, fi, label){
+  var o = ahOvernight(st, fi);
+  if(!o) return true;
+  return confirm((label||"That")+" runs from "+st+" to "+fi+" — overnight, so it counts as "+
+    chFmt(o.hours)+" hours.\n\nIf you meant "+o.suggest+" the same afternoon, tap Cancel and change the finish.\n\nSave it as an overnight?");
+}
+
 function ahCalc(){
   var el=$("ahSum"); if(!el) return;
   function m(v){ var p=(v||"").split(":"); if(p.length<2) return -1;
@@ -3476,13 +3499,17 @@ function ahCalc(){
   if(a<0||b<0){ el.textContent="—"; return; }
   var mins=b-a; if(mins<0) mins+=1440;                  // finished after midnight
   mins-=br;
+  var ov = ahOvernight($("ahStart").value, $("ahFinish").value);
   el.textContent = mins>0 ? (chFmt(Math.round(mins/0.6)/100)+"  \u00b7  "+
-      Math.floor(mins/60)+"h "+(mins%60)+"m") : "that gives no time worked";
+      Math.floor(mins/60)+"h "+(mins%60)+"m"+(ov?"  \u00b7  OVERNIGHT":""))
+    : "that gives no time worked";
+  el.style.color = ov ? "#B06A00" : "";
 }
 function ahSave(){
   if(!AHKEY){ toast("Pick the job first"); return; }
   var st=($("ahStart").value||"").trim(), fi=($("ahFinish").value||"").trim();
   if(!st||!fi){ toast("Start and finish, please"); return; }
+  if(!ahOvernightOk(st, fi, "This")) return;
   /* Adding hours never re-sends anything — it writes a NEW entry. Which is
      right for a second day on the same job, and wrong for a day already
      logged, so say which one this is before it happens. */
