@@ -1616,7 +1616,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-10·f</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-10·g</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -3083,7 +3083,7 @@ function chBoxHtml(key){
        '. Starting here will stop that one.</div>') : '';
   return '<div class="chbox">'+other+
     '<button class="chbtn go" onclick="chStart(\''+esc(String(key).replace(/'/g,"\\'"))+'\')">\u25b6 Start</button>'+
-    '<button class="chbtn sec" onclick="chManual(\''+esc(String(key).replace(/'/g,"\\'"))+'\')">Enter times by hand</button>'+done+'</div>';
+    '<button class="chbtn sec" onclick="chManual(\''+esc(String(key).replace(/'/g,"\\'"))+'\')">\uff0b Add hours for another day</button>'+done+'</div>';
 }
 var _hoNextKey=null;
 /* Starting a second job stops the first. That has to be a decision, not a
@@ -3243,7 +3243,16 @@ function ahLoadLog(){
       });
     }).catch(function(){});
 }
-function chManual(key){ ahOpen(key); }
+/* From inside a job. Same panel as the Time clock's "+ Add hours for another
+   day" — it was only ever called "Enter times by hand", which gave no hint that
+   a DATE lives behind it, so people opened the job looking for one and found
+   Start/Stop. A finished job starts on the day it was finished. */
+function chManual(key){
+  ahOpen(key);
+  var j=wlFind(key);
+  var iso=(j && hubBucket(j.status)==="Done") ? ahIsoFrom(j.completed) : "";
+  if(iso){ var d=$("ahDate"); if(d && iso<=sdToday()) d.value=iso; }
+}
 /* ---- BUNDLED JOBS -----------------------------------------------------------
    Three small jobs in one block — tender clean, water tanks, vessel checks, four
    hours between them. Splitting that into 1h20 each is invented data, and timing
