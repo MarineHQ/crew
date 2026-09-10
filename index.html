@@ -1267,6 +1267,18 @@ button:active{ filter: brightness(.93); }
   .wf-dash{color:#b7c0cc}
   .vifrom{font-weight:600;color:#6b7a90;font-size:11px;margin-left:6px;text-transform:none;letter-spacing:0}
 
+/* ---- Bundled jobs: several small jobs, one block of hours ---- */
+#ahBundle{margin:0 0 10px}
+.ahb-lbl{font-size:11px;color:#7d8b96;font-family:ui-monospace,Menlo,monospace;letter-spacing:.08em;text-transform:uppercase;margin:0 0 5px}
+.ahb-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.ahb-chip{display:inline-flex;align-items:center;gap:7px;background:#eef1f5;border:1px solid #d7dee6;border-radius:16px;padding:5px 6px 5px 11px;font-size:12.5px;max-width:100%}
+.ahb-chip b{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ahb-chip.first{background:#e3eaf1;border-color:#b9cadb}
+.ahb-x{border:0;background:#fff;border-radius:50%;width:18px;height:18px;line-height:16px;font-size:12px;color:#8a5a12;cursor:pointer;flex:none}
+.ahb-add{width:100%;border:1px dashed #cfd8e0;background:#fff;border-radius:8px;padding:9px;font-size:12.5px;color:#41525f;cursor:pointer}
+.ahb-add:hover{border-color:#1A3A5C;color:#1A3A5C}
+.ahb-note{font-size:11.5px;color:#7d8b96;line-height:1.5;margin:7px 0 0}
+
 /* ---- The catalogue (director) ---- */
 .catadd{background:#fff;border:1px solid #cfd8e0;border-radius:8px;padding:12px;margin-bottom:10px}
 .catadd h4{margin:0 0 8px;font-size:14px;color:#1A3A5C}
@@ -1573,7 +1585,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-10·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-10·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1703,6 +1715,7 @@ button:active{ filter: brightness(.93); }
     <div class="ahlist" id="ahList"></div>
   </div>
   <div id="ahForm" style="display:none">
+    <div id="ahBundle"></div>
     <label class="fld">Day you did it</label>
     <input type="date" class="fld-in" id="ahDate">
     <div style="display:flex;gap:8px">
@@ -3183,8 +3196,86 @@ function ahLoadLog(){
     }).catch(function(){});
 }
 function chManual(key){ ahOpen(key); }
+/* ---- BUNDLED JOBS -----------------------------------------------------------
+   Three small jobs in one block — tender clean, water tanks, vessel checks, four
+   hours between them. Splitting that into 1h20 each is invented data, and timing
+   each one is the fifteen-minute nonsense nobody will actually do. So: keep
+   picking jobs, then put ONE total against the lot. The hours sit on the first
+   job and the rest are named beside it, which is what the job card prints.
+
+   They must all be the same category — a card splits scheduled from unscheduled,
+   and once the hours are one block there is no honest way to divide them. */
+var AHALSO = [], AHADDING = false;
+
+function ahCatKey(c){
+  c=(c||"").toString().trim().toLowerCase(); if(!c) return "";
+  if(c.indexOf("unscheduled")===0) return "unscheduled";
+  if(c.indexOf("scheduled")===0)   return "scheduled";
+  if(c.indexOf("upgrade")>=0) return "upgrade";
+  if(c.indexOf("charter")>=0||c.indexOf("delivery")>=0) return "charter";
+  if(c.indexOf("operation")===0) return "operations";
+  return c;
+}
+function ahJobOf(key){
+  return ((AHJOBS&&AHJOBS.length?AHJOBS:CREWJOBS)||[]).filter(function(x){return x.key===key;})[0]
+         || wlFind(key) || {};
+}
+function ahCatOf(j){ return (j.category||j.cat||""); }
+
+function ahRenderBundle(){
+  var el=$("ahBundle"); if(!el) return;
+  if(!AHKEY){ el.innerHTML=""; return; }
+  var first=ahJobOf(AHKEY);
+  var chips='<div class="ahb-chip first"><b>'+esc(first.task||"this job")+'</b></div>';
+  AHALSO.forEach(function(a,i){
+    chips+='<div class="ahb-chip"><b>'+esc(a.task)+'</b>'+
+           '<button class="ahb-x" title="Take it off" onclick="ahDropAlso('+i+')">✕</button></div>';
+  });
+  el.innerHTML='<p class="ahb-lbl">Jobs in this block</p>'+
+    '<div class="ahb-chips">'+chips+'</div>'+
+    '<button class="ahb-add" onclick="ahAddAnother()">＋ Also did another job in this block</button>'+
+    (AHALSO.length
+      ? '<p class="ahb-note">One set of times covers all '+(AHALSO.length+1)+'. They print on the job card as one line naming each of them.</p>'
+      : '');
+}
+function ahAddAnother(){
+  AHADDING = true;
+  $("ahPick").style.display=""; $("ahForm").style.display="none";
+  $("ahWhat").textContent = "What else did you do in the same block of time?";
+  $("ahSearch").value=""; ahFilter();
+  var b=$("ahSearch"); if(b) b.focus();
+}
+function ahDropAlso(i){ AHALSO.splice(i,1); ahRenderBundle(); }
+
+/* Adding a second job to the block, rather than choosing the first one. */
+function ahAlsoChoose(key){
+  if(key===AHKEY || AHALSO.some(function(a){return a.key===key;})){
+    toast("That one's already in"); return;
+  }
+  var j=ahJobOf(key), first=ahJobOf(AHKEY);
+  var pc=ahCatKey(ahCatOf(first)), ac=ahCatKey(ahCatOf(j));
+  if(pc && ac && pc!==ac){
+    alert("“"+(j.task||"That job")+"” is "+ahCatOf(j)+", and the first job is "+ahCatOf(first)+".\n\n"+
+          "A job card keeps those apart, so they can't share one block of hours. Log this one separately.");
+    return;
+  }
+  AHALSO.push({ key:key, task:(j.task||""), code:(j.code||""),
+                vessel:(j.vessel||""), cat:ahCatOf(j) });
+  AHADDING=false;
+  $("ahPick").style.display="none"; $("ahForm").style.display="";
+  ahSetWhat();
+  ahRenderBundle();
+}
+function ahSetWhat(){
+  var j=ahJobOf(AHKEY);
+  $("ahWhat").innerHTML = j && j.task
+    ? ('<b>'+esc(j.task)+'</b><br>'+esc([j.code,j.vessel].filter(Boolean).join(" · ")))
+    : "Pick the day and the times.";
+}
+
 function ahOpen(key){
   AHKEY = key || null;
+  AHALSO = []; AHADDING = false;
   var m=$("addHoursModal"); if(!m) return;
   $("ahPick").style.display = AHKEY ? "none" : "";
   $("ahForm").style.display = AHKEY ? "" : "none";
@@ -3192,6 +3283,7 @@ function ahOpen(key){
     var j=wlFind(AHKEY);
     $("ahWhat").innerHTML = j ? ('<b>'+esc(j.task||"this job")+'</b><br>'+
         esc([j.code,j.vessel].filter(Boolean).join(" \u00b7 "))) : "Pick the day and the times.";
+    ahRenderBundle();
   } else {
     $("ahWhat").textContent = "Which job were you on? Pick the boat, then the job.";
     $("ahSearch").value=""; AHBOAT=""; AHNOHRS=false; AHONLYDUE=false;
@@ -3329,6 +3421,7 @@ function ahFilter(){
 }
 function ahOpenNoHours(){ ahOpen(); AHNOHRS=true; AHONLYDUE=false; AHBOAT=""; ahFilter(); }
 function ahChoose(key){
+  if(AHADDING){ ahAlsoChoose(key); return; }   // second job for the same block
   ahOpen(key);
   /* Start on the day the job was marked finished — nine times in ten that is
      the day being logged, and it saves scrolling a date picker back a week. */
@@ -3409,12 +3502,15 @@ function ahSave(){
   apiPost({action:"crewHoursLog", email:ME.email, code:ME.code, jobKey:AHKEY,
            vessel:(jj.vessel||""), task:(jj.task||""), jobCode:(jj.code||""),
            cat:(jj.category||jj.cat||""),
+           also:AHALSO.map(function(a){ return { jobKey:a.key, task:a.task,
+                    jobCode:a.code, cat:a.cat }; }),
            date:($("ahDate").value||""), start:st, finish:fi,
            breakMins:(parseInt($("ahBreak").value,10)||0),
            note:($("ahNote").value||"").trim()}).then(function(r){
     go.disabled=false; go.textContent="Add these hours";
     if(!r||!r.ok){ toast((r&&r.error)||"Couldn\u2019t save"); return; }
-    toast("Added "+chFmt(r.hours)+" on "+chNiceDate($("ahDate").value||sdToday()));
+    toast("Added "+chFmt(r.hours)+(AHALSO.length?(" across "+(AHALSO.length+1)+" jobs"):"")+
+          " on "+chNiceDate($("ahDate").value||sdToday()));
     closeModal("addHoursModal");
     chLoad(true); chUnsubLoad(); ahLoadLog();
     if(openJobId) chJobLoad(openJobId,true);
