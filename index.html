@@ -1616,7 +1616,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-10·e</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-10·f</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2319,6 +2319,17 @@ var API_CACHE_FNS={crewjobs:1,worklists:1,worklist:1,vesselind:1,vesselaccess:1,
   crewtimer:1,crewday:1,crewdaysummary:1,crewjobhours:1,crewhours:1,crewshifts:1,crewchecklists:1,crewactivity:1,crewnames:1,crewlist:1,
   careschedule:1,bundles:1,oneoffs:1,onerofftemplates:1,catalogue:1,crewcerts:1};
 var API_FRESH_MS=20000, _apiInflight={};
+/* One-off sweep: entries written before the ok:true rule may be cached crashes.
+   Drop any stored answer that isn't a real success. */
+(function(){
+  try{
+    for(var i=localStorage.length-1;i>=0;i--){
+      var k=localStorage.key(i); if(!k || k.indexOf("mhqc_api_")!==0) continue;
+      var v=null; try{ v=JSON.parse(localStorage.getItem(k)); }catch(e){}
+      if(!v || !v.d || v.d.ok!==true) localStorage.removeItem(k);
+    }
+  }catch(e){}
+})();
 var _apiWriteAt=0; try{ _apiWriteAt=parseInt(localStorage.getItem("mhqc_writeat"),10)||0; }catch(e){}
 function _apiWrote(){ _apiWriteAt=Date.now(); try{ localStorage.setItem("mhqc_writeat", String(_apiWriteAt)); }catch(e){} }
 function _apiBar(on){
@@ -2339,14 +2350,19 @@ function apiGet(params){
   if(!API_CACHE_FNS[fn] || !ME) return _apiRaw(url, true);
   var key="mhqc_api_"+params;
   var ent=_cGet(key);
-  var usable=!!(ent && ent.d && ent.t>_apiWriteAt);
+  /* Only a REAL success is worth keeping or replaying. An Apps Script crash comes
+     back as {"error":"..."} with no ok field at all, so a plain `ok!==false` test
+     treated it as good, wrote it to the phone, and served it back for as long as
+     it sat there — the backend was fixed and the app still said "couldn't load
+     your day". Nothing but ok:true goes in the cache or comes out of it. */
+  var usable=!!(ent && ent.d && ent.d.ok===true && ent.t>_apiWriteAt);
   if(usable && Date.now()-ent.t<API_FRESH_MS) return Promise.resolve(ent.d);   // fetched moments ago — reuse, no call
   var p=_apiInflight[key];
   if(!p){
     var t0=Date.now();
     p=_apiRaw(url, !usable).then(function(d){
       delete _apiInflight[key];
-      if(d && d.ok!==false){
+      if(d && d.ok===true){
         var str=""; try{ str=JSON.stringify({t:t0,d:d}); }catch(e){}
         if(str && str.length<1500000){ try{ localStorage.setItem(key,str); }catch(e){ _apiPurge(); try{ localStorage.setItem(key,str); }catch(e2){} } }
       }
@@ -2356,7 +2372,7 @@ function apiGet(params){
   }
   if(!usable) return p;                                   // nothing on the phone yet — wait for Google (bar shows)
   var entStr=""; try{ entStr=JSON.stringify(ent.d); }catch(e){}
-  p.then(function(d){ var s=""; try{ s=JSON.stringify(d); }catch(e){} if(d && d.ok!==false && s!==entStr) apiFresh(fn); }).catch(function(){});
+  p.then(function(d){ var s=""; try{ s=JSON.stringify(d); }catch(e){} if(d && d.ok===true && s!==entStr) apiFresh(fn); }).catch(function(){});
   return Promise.resolve(ent.d);                           // instant: last copy, fresh one lands underneath
 }
 function apiPost(body){
