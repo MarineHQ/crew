@@ -1302,6 +1302,12 @@ button:active{ filter: brightness(.93); }
   .wf-dash{color:#b7c0cc}
   .vifrom{font-weight:600;color:#6b7a90;font-size:11px;margin-left:6px;text-transform:none;letter-spacing:0}
 
+/* ---- My log: one heading per day ---- */
+.mhday{display:flex;align-items:baseline;gap:9px;margin:16px 0 5px;padding-bottom:5px;border-bottom:1px solid #e2e8ee}
+.mhday b{font-size:13.5px;color:#1A3A5C;white-space:nowrap}
+.mhday span{flex:1;font-size:11.5px;color:#7d8b96;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mhday i{font-style:normal;font-family:ui-monospace,Menlo,monospace;font-size:12px;font-weight:700;color:#1A3A5C;white-space:nowrap}
+
 /* ---- Bundled jobs: several small jobs, one block of hours ---- */
 #ahBundle{margin:0 0 10px}
 .ahb-lbl{font-size:11px;color:#7d8b96;font-family:ui-monospace,Menlo,monospace;letter-spacing:.08em;text-transform:uppercase;margin:0 0 5px}
@@ -1620,7 +1626,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-10·h</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-11·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -3693,7 +3699,7 @@ function renderMyHours(){
   var tabs='<div class="mhtabs">'+
     '<button class="mhtab'+(MHVIEW==="todo"?" on":"")+'" onclick="mhView(\'todo\')">'+
       'To submit'+(nTodo?(' <i>'+nTodo+'</i>'):'')+'</button>'+
-    '<button class="mhtab'+(MHVIEW==="sent"?" on":"")+'" onclick="mhView(\'sent\')">Sent</button>'+
+    '<button class="mhtab'+(MHVIEW==="sent"?" on":"")+'" onclick="mhView(\'sent\')">My log</button>'+
     '</div>';
   if(MHVIEW==="todo"){ el.innerHTML = tabs + mhTodoHtml(); return; }
   var chips='<div class="mhchips">'+
@@ -3788,17 +3794,41 @@ function mhPeriodHtml(){
         '<div class="v">'+chFmt(obj[k])+'</div></div>';
     }).join("");
   }
-  var rows=MHDATA.entries.slice(0,40).map(function(e){
-    var jk=String(e.jobKey||"").replace(/'/g,"\\'");
-    return '<div class="chrow'+(e.jobKey?" tap":"")+'"'+
-      (e.jobKey?(' onclick="mhOpenJob(\''+esc(jk)+'\')"'):'')+
-      '><div class="t"><b>'+esc(e.task||"(job)")+'</b><span>'+
-      esc(e.date)+' \u00b7 '+esc(e.vessel||'')+
-      (e.start?(' \u00b7 '+esc(e.start)+'\u2013'+esc(e.finish||'\u2026')):'')+'</span></div>'+
-      '<div class="h">'+(e.finish?chFmt(e.hours):'\u2014')+'</div>'+
-      (e.finish?('<span class="chpill '+(e.pushed==="Yes"?'sent">sent':'open">not sent')+'</span>'):'')+
-      (e.finish&&e.pushed!=="Yes"?('<button class="ed" onclick="event.stopPropagation();ehOpen(\''+esc(e.entryId)+'\')">\u270e</button>'):'')+
-      '</div>';
+  /* A DAY AT A TIME. This was a flat run of entries with the date repeated on
+     every line, which answers "what did I log" but not "what did I do on the
+     25th" — the question anyone actually looks back with. Grouped by day now,
+     newest first, with the boats and the day's hours in the heading so a day
+     can be read without opening it. */
+  var byDay = [], seenDay = {};
+  MHDATA.entries.forEach(function(e){
+    var d = e.date || "\u2014";
+    if (!seenDay[d]){ seenDay[d] = { date:d, items:[], hours:0, boats:{} }; byDay.push(seenDay[d]); }
+    seenDay[d].items.push(e);
+    if (e.finish) seenDay[d].hours += (parseFloat(e.hours)||0);
+    if (e.vessel) seenDay[d].boats[e.vessel] = 1;
+  });
+  byDay.sort(function(a,b){ return a.date < b.date ? 1 : (a.date > b.date ? -1 : 0); });
+
+  var rows = byDay.slice(0,31).map(function(day){
+    var boats = Object.keys(day.boats);
+    var head = '<div class="mhday">'+
+      '<b>'+esc(chNiceDate(day.date))+'</b>'+
+      '<span>'+esc(boats.join(" \u00b7 ") || "\u2014")+'</span>'+
+      '<i>'+chFmt(day.hours)+' hrs</i></div>';
+    var items = day.items.map(function(e){
+      var jk=String(e.jobKey||"").replace(/'/g,"\\'");
+      return '<div class="chrow'+(e.jobKey?" tap":"")+'"'+
+        (e.jobKey?(' onclick="mhOpenJob(\''+esc(jk)+'\')"'):'')+
+        '><div class="t"><b>'+esc(e.task||"(job)")+'</b><span>'+
+        esc(e.vessel||'')+
+        (e.start?(' \u00b7 '+esc(e.start)+'\u2013'+esc(e.finish||'\u2026')):'')+
+        (e.alsoTasks?(' \u00b7 + '+esc(e.alsoTasks)):'')+'</span></div>'+
+        '<div class="h">'+(e.finish?chFmt(e.hours):'\u2014')+'</div>'+
+        (e.finish?('<span class="chpill '+(e.pushed==="Yes"?'sent">sent':'open">not sent')+'</span>'):'')+
+        (e.finish&&e.pushed!=="Yes"?('<button class="ed" onclick="event.stopPropagation();ehOpen(\''+esc(e.entryId)+'\')">\u270e</button>'):'')+
+        '</div>';
+    }).join("");
+    return head + items;
   }).join("");
   return '<div class="mhtot"><b>'+chFmt(MHDATA.totalHours)+'</b>'+
       '<span>across '+MHDATA.count+' entr'+(MHDATA.count===1?'y':'ies')+
