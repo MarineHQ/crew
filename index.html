@@ -1678,7 +1678,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-11·p</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-11·q</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -4105,7 +4105,7 @@ function mhTodoHtml(){
         esc(e.code||"no code")+' \u00b7 '+esc(e.vessel||'')+
         (run?' \u00b7 still running'
             :(e.start?(' \u00b7 '+esc(e.start)+'\u2013'+esc(e.finish)):' \u00b7 hours only'))+
-        (e.alsoTasks?(' \u00b7 \u26d3 '+(e.alsoTasks.split("\n").filter(Boolean).length+1)+' jobs in one block'):'')+
+        (e.alsoTasks?(' \u00b7 \u2021 '+(e.alsoTasks.split("\n").filter(Boolean).length+1)+' jobs in one block'):'')+
         '</span></div>'+
         '<div class="h">'+(run?'\u2014':chFmt(e.hours))+'</div>'+
         (run?'<span class="chpill open">running</span>'
@@ -4321,7 +4321,7 @@ function sdRender(){
       ? ('<div class="sdalso">'+also.map(function(t){
           var bit=t.split(" \u00b7 ");
           var c=bit.length>1?bit[0]:"", tk=bit.length>1?bit.slice(1).join(" \u00b7 "):t;
-          return '<div><b>'+esc(tk)+'</b><span>'+esc(c||"no code")+'</span><i>\u26d3 same block</i></div>';
+          return '<div><b>'+esc(tk)+'</b><span>'+esc(c||"no code")+'</span><i>\u2021 same block</i></div>';
         }).join("")+'</div>')
       : '';
     /* "Just hours" carries no start and no finish on purpose. Printing the
@@ -4416,8 +4416,13 @@ function sdSubmit(){
            comments:comments, statuses:statuses,
            products:($("sdProducts").value||"").trim()}).then(function(r){
     if(!r||!r.ok){ toast((r&&r.error)||"Couldn\u2019t submit"); sdRender(); return; }
+    /* Say what happens NEXT, because the email no longer arrives on submit — it
+       arrives once the day has reached the job card, which is what makes it
+       worth anything (Trish, 11 Sep 2026). A crew member who knows to expect it
+       is the one who notices when it doesn't come. */
     toast("Day submitted \u2014 "+chFmt(r.hours)+" across "+r.jobs+" job"+(r.jobs===1?"":"s")+
-          (r.marked?(" \u00b7 "+r.marked+" marked complete"):""));
+          (r.marked?(" \u00b7 "+r.marked+" marked complete"):"")+
+          ". You\u2019ll get an email once it\u2019s on the job card.");
     closeModal("submitDayModal");
     chLoad(true); chUnsubLoad();
   }).catch(function(){ toast("Couldn\u2019t connect"); sdRender(); });
