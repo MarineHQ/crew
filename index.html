@@ -1330,6 +1330,25 @@ button:active{ filter: brightness(.93); }
 .ahb-note{font-size:11.5px;color:#7d8b96;line-height:1.5;margin:7px 0 0}
 
 /* ---- The catalogue (director) ---- */
+.catguidebtn{width:100%;text-align:left;border:1px solid #cfd8e0;background:#fff;color:#1A3A5C;
+  font-weight:700;font-size:13px;padding:10px 12px;border-radius:8px;cursor:pointer;font-family:inherit;margin:0 0 8px}
+.catguidebtn span{color:#E87722;margin-right:6px;display:inline-block;width:9px}
+.catguide{border:1px solid #cfd8e0;border-radius:8px;padding:13px 14px;margin:-8px 0 10px;background:#fff}
+.catguide h4{margin:15px 0 7px;font-size:11.5px;color:#1A3A5C;text-transform:uppercase;letter-spacing:.5px}
+.catguide h4:first-child{margin-top:0}
+.catguide p{font-size:12.5px;color:#54646f;line-height:1.6;margin:0 0 9px}
+.catguide p b{color:#16222E}
+.cgcode{background:#f1f4f8;border-radius:8px;padding:13px;text-align:center;margin:0 0 10px}
+.cgcode .b{font-family:ui-monospace,Menlo,monospace;font-size:22px;font-weight:700}
+.cgcode .v{color:#1A3A5C}.cgcode .s{color:#E87722}.cgcode .n{color:#16222E}.cgcode .d{color:#8496a2}
+.cgkey{display:flex;justify-content:center;gap:16px;flex-wrap:wrap;margin-top:8px;font-size:11px;color:#7d8b96}
+.cgkey b{display:block;font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#1A3A5C}
+.cgg{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:7px;margin:0 0 9px}
+.cgc{border:1px solid #e2e8ee;border-radius:8px;padding:9px 10px;border-top:3px solid var(--gc,#1A3A5C)}
+.cgc b{display:block;font-family:ui-monospace,Menlo,monospace;font-size:13px;color:var(--gc,#1A3A5C)}
+.cgc i{display:block;font-style:normal;font-size:12px;font-weight:700;color:#16222E;margin:1px 0 3px}
+.cgc span{display:block;font-size:11px;color:#7d8b96;line-height:1.45}
+.catguide ol{margin:0;padding-left:19px;font-size:12.5px;color:#54646f;line-height:1.65}
 .catadd{background:#fff;border:1px solid #cfd8e0;border-radius:8px;padding:12px;margin-bottom:10px}
 .catadd h4{margin:0 0 8px;font-size:14px;color:#1A3A5C}
 .catnewno{background:#eef1f5;border-radius:6px;padding:8px 10px;font-size:12px;color:#54646f;margin:0 0 9px;line-height:1.5}
@@ -1506,6 +1525,12 @@ button:active{ filter: brightness(.93); }
         <div class="fl-go">›</div>
       </div>
       <div id="catPanel" class="hidden">
+        <!-- The same explainer as the dashboard's Catalogue, so a director reading
+             the list on a phone gets the reasoning with it. Collapsed. -->
+        <button class="catguidebtn" onclick="catToggleGuide()">
+          <span id="catGuideCar">▸</span> How the coding works — systems, categories, what a code means
+        </button>
+        <div id="catGuide" class="catguide" style="display:none"></div>
         <div class="catbar">
           <input id="catQ" type="search" placeholder="wax · interior · AC · teak · hull · 19" oninput="catType()" autocomplete="off">
           <span id="catCount" class="catcount"></span>
@@ -1635,7 +1660,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-11·h</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-11·i</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -4324,6 +4349,64 @@ function catAddSave(){
     toast("Added as No. "+j.no+" · codes as "+j.example);
     catToggleAdd(); $("catQ").value=job.trim(); catRun();
   });
+}
+
+/* The same explanation the dashboard's Catalogue carries, so whichever one a
+   director opens they get the reasoning with the list — and there is still only
+   one list underneath both. */
+var CGSYS=[["DECK","#1A3A5C","Deck & topsides","Decks, canvas, rails, hatches, lockers — and every wash down, cut, wax and polish"],
+ ["HULL","#1A3A5C","Hull, below the waterline","Antifoul, blisters, thru-hulls, haul-out, survey"],
+ ["RUN","#2A5DB0","Running gear","Shafts, props, cutlass bearings, rudders, anodes, thrusters"],
+ ["ENG","#E87722","Engines & engine room","Mains, gensets, gearboxes, fuel, exhaust, hydraulics, bilges"],
+ ["ELEC","#7E57A3","Electrical & electronics","Batteries, chargers, shore power, nav, lighting, air-con"],
+ ["PLUMB","#1F6F66","Plumbing & water","Fresh, grey and black water, watermaker, tanks, strainers"],
+ ["INT","#2A5DB0","Interior","Cabins, galley, heads, saloon, soft furnishings, beds"],
+ ["TOYS","#1F6F66","Tender & toys","Tender, jet ski, Seabobs, davits, tender fuel"],
+ ["SAFE","#B06A00","Safety & compliance","Life raft, EPIRB, flares, extinguishers, survey items"],
+ ["OPS","#1A3A5C","Operations","Movements, refuelling, boat shows, provisioning, admin, the fee"]];
+var CGCAT=[["Scheduled","#1F6F66","Always going to happen. Wash downs, services, the shipyard — and everything around a charter."],
+ ["Unscheduled","#B06A00","Something broke. Faults, leaks, callouts, storm damage."],
+ ["Upgrade","#7E57A3","She ends up better than she was. Ceramic, new electronics, teak restoration."],
+ ["Charter / Delivery","#1A3A5C","Only the vessel on hire or under way — the charter itself, and deliveries."],
+ ["Operations","#4F6F2C","Moving her, fuelling her, boat shows, viewings, the management fee."]];
+
+function catToggleGuide(){
+  var b=$("catGuide"), c=$("catGuideCar");
+  var open = b.style.display==="none";
+  b.style.display = open ? "" : "none";
+  c.textContent = open ? "▾" : "▸";
+  if(open && !b.innerHTML) b.innerHTML = catGuideHtml();
+}
+function catGuideHtml(){
+  function cards(arr, code){
+    return '<div class="cgg">'+arr.map(function(x){
+      return '<div class="cgc" style="--gc:'+x[1]+'">'+
+        (code?('<b>'+esc(x[0])+'</b><i>'+esc(x[2])+'</i>'):('<i style="margin-top:0">'+esc(x[0])+'</i>'))+
+        '<span>'+esc(code?x[3]:x[2])+'</span></div>'; }).join("")+'</div>';
+  }
+  return '<h4>A code has three parts</h4>'+
+    '<div class="cgcode"><span class="b"><span class="v">SY</span><span class="d">-</span>'+
+      '<span class="s">DECK</span><span class="d">-</span><span class="n">0001</span></span>'+
+      '<div class="cgkey"><span><b>SY</b>the vessel</span><span><b>DECK</b>where on the boat</span>'+
+      '<span><b>0001</b>its number on this list</span></div></div>'+
+    '<p><b>The category is deliberately not in the code.</b> The same wash down can be Scheduled in March '+
+      'and Unscheduled after a blow — so SY-DECK-0001 is both, and you can still ask what wash downs cost '+
+      'over a year.</p>'+
+    '<p><b>A number is never reused</b>, even after a job is retired. Old job cards point at it.</p>'+
+    '<h4>The ten systems — where on the boat</h4>'+cards(CGSYS,true)+
+    '<p><b>Three lines, not one.</b> Inboard machinery is ENG. The shell of the boat is HULL. What turns in '+
+      'the water — shafts, props, rudders, anodes — is RUN. Cut, wax and polish is DECK; which surface it was '+
+      'is answered by the job’s name, not the system.</p>'+
+    '<h4>The five categories — why it happened</h4>'+cards(CGCAT,false)+
+    '<p><b>Careful with Charter.</b> Only the vessel actually on hire. Everything around a charter — prep, '+
+      'turnaround, provisioning, linen, wash downs — is Scheduled.</p>'+
+    '<p><b>One job can be any of them.</b> A transfer is Scheduled to the yard, Charters to collect guests, '+
+      'Upgrade for the repaint. Same code — the category on the job moves the money.</p>'+
+    '<h4>Where it ends up</h4><ol>'+
+      '<li>Crew tick a job and log hours — one entry can cover several small jobs done in one block</li>'+
+      '<li>They submit the day; the code, the task and the status travel with it</li>'+
+      '<li>It fans out to the vessel, crew and month tabs, priced as it lands</li>'+
+      '<li>The job card groups by job and splits the money <b>by category</b></li></ol>';
 }
 
 function toggleCatPanel(){
