@@ -1660,7 +1660,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-11·i</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-11·j</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -4370,13 +4370,35 @@ var CGCAT=[["Scheduled","#1F6F66","Always going to happen. Wash downs, services,
  ["Charter / Delivery","#1A3A5C","Only the vessel on hire or under way — the charter itself, and deliveries."],
  ["Operations","#4F6F2C","Moving her, fuelling her, boat shows, viewings, the management fee."]];
 
+/* The wording comes from the SHEET — the Systems and Categories tabs in the
+   Master Job List, beside the jobs themselves. Reword a cell there and this says
+   the new thing next time it opens. The arrays above are only a fallback for a
+   phone that cannot reach the sheet, so the explanation is never simply blank. */
+var CGDOCS = null;
 function catToggleGuide(){
   var b=$("catGuide"), c=$("catGuideCar");
   var open = b.style.display==="none";
   b.style.display = open ? "" : "none";
   c.textContent = open ? "▾" : "▸";
-  if(open && !b.innerHTML) b.innerHTML = catGuideHtml();
+  if(!open) return;
+  if(!b.innerHTML) b.innerHTML = catGuideHtml();
+  if(CGDOCS) return;
+  apiGet("fn=catdocs&code="+encodeURIComponent(ME.code||"")+"&email="+encodeURIComponent(ME.email||""))
+    .then(function(j){
+      if(!j||!j.ok) return;
+      CGDOCS=j;
+      if(j.systems&&j.systems.length)
+        CGSYS=j.systems.map(function(x,i){ return [x.code, CGCOL[x.code]||"#1A3A5C", x.name, x.covers]; });
+      if(j.categories&&j.categories.length)
+        CGCAT=j.categories.map(function(x){ return [x.name, CGCATCOL[x.name]||"#1A3A5C",
+                 x.means + (x.rule?(" " + x.rule):"")]; });
+      b.innerHTML = catGuideHtml();
+    }).catch(function(){});
 }
+var CGCOL={DECK:"#1A3A5C",HULL:"#1A3A5C",RUN:"#2A5DB0",ENG:"#E87722",ELEC:"#7E57A3",
+           PLUMB:"#1F6F66",INT:"#2A5DB0",TOYS:"#1F6F66",SAFE:"#B06A00",OPS:"#1A3A5C"};
+var CGCATCOL={"Scheduled Maintenance":"#1F6F66","Unscheduled Maintenance":"#B06A00",
+              "Vessel Upgrades":"#7E57A3","Charter / Delivery":"#1A3A5C","Operations":"#4F6F2C"};
 function catGuideHtml(){
   function cards(arr, code){
     return '<div class="cgg">'+arr.map(function(x){
