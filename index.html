@@ -364,7 +364,15 @@
   .sdone:active{transform:scale(.99)}
   .sdone[disabled]{opacity:.5}
   .sdsent{font-size:10px;font-weight:800;color:#2e7d5b;background:#e3f1ea;border-radius:9px;padding:2px 7px}
-  .sdsent{font-size:10px;font-weight:800;color:#2e7d5b;background:#e3f1ea;border-radius:9px;padding:2px 7px}
+  /* The other jobs in the same block of time. Indented under the one carrying
+     the hours, with their own codes, because that is one line each on the card. */
+  .sdalso{margin:8px 0 0;padding-left:11px;border-left:2px solid #e3e8ef}
+  .sdalso div{display:flex;align-items:baseline;gap:8px;padding:3px 0}
+  .sdalso b{font-size:13px;font-weight:700;color:var(--ink);flex:1;min-width:0}
+  .sdalso span{font:600 11px/1.5 ui-monospace,Menlo,monospace;color:var(--muted);white-space:nowrap}
+  .sdalso i{font-style:normal;font-size:10px;font-weight:700;color:#7d8b96;
+            background:#f1f4f8;border-radius:8px;padding:1px 7px;white-space:nowrap}
+  .sdnote{margin:8px 0 0;font-size:12.5px;color:var(--muted);line-height:1.5}
   /* Finished or not is the one thing only the person who did it knows, and the
      moment they read the day back is the moment they know it. */
   .ahlist{max-height:300px;overflow:auto;border:1px solid var(--line);border-radius:10px;margin-top:8px}
@@ -1663,7 +1671,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-11·m</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-11·n</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1827,15 +1835,17 @@ button:active{ filter: brightness(.93); }
      the person reads their own day back and confirms it. That confirmation is
      the point: they saw the hours, they agreed them, and there is a record. -->
 <div class="modal" id="submitDayModal"><div class="card2">
-  <h3>✅ Submit a day</h3>
-  <p class="mhint">Check it reads right, add anything worth knowing, then send it. Once it's in, only a director can change it.</p>
+  <h3 id="sdTitle">✅ Submit a day</h3>
+  <p class="mhint" id="sdLede">Check it reads right, add anything worth knowing, then send it. Once it's in, only a director can change it.</p>
   <label class="fld">Which day</label>
   <input type="date" class="fld-in" id="sdDate" onchange="openSubmitDay($('sdDate').value)">
   <div id="sdBody"></div>
-  <label class="fld">Anything used from stock? <span class="fldhint">(optional)</span></label>
-  <input class="fld-in" id="sdProducts" placeholder="e.g. 2 × Semco, polish pads">
-  <button class="go" id="sdGo" onclick="sdSubmit()">Submit my day</button>
-  <button class="cancel" onclick="closeModal('submitDayModal')">Not yet</button>
+  <div id="sdSend">
+    <label class="fld">Anything used from stock? <span class="fldhint">(optional)</span></label>
+    <input class="fld-in" id="sdProducts" placeholder="e.g. 2 × Semco, polish pads">
+    <button class="go" id="sdGo" onclick="sdSubmit()">Submit my day</button>
+  </div>
+  <button class="cancel" id="sdClose" onclick="closeModal('submitDayModal')">Not yet</button>
 </div></div>
 
 <!-- Fixing a logged time. Forgetting to stop is the ordinary case, not the
@@ -2895,7 +2905,8 @@ function pickVessel(v){ CURVESSEL=v; WLCLOSED={}; WLSEC={}; loadListInfo(v); loa
    ============================================================ */
 var CHTIMER=null, CHDAY=null, _chTick=null;
 
-function chFmt(h){ h=parseFloat(h)||0; return (Math.round(h*100)/100).toFixed(2).replace(/\.00$/,"")+" hrs"; }
+function chNum(h){ h=parseFloat(h)||0; return (Math.round(h*100)/100).toFixed(2).replace(/\.00$/,""); }
+function chFmt(h){ return chNum(h)+" hrs"; }
 function chElapsed(startHHMM){
   var m=/^(\d{1,2}):(\d{2})$/.exec(startHHMM||""); if(!m) return "";
   var now=new Date(), s=(+m[1])*60+(+m[2]), n=now.getHours()*60+now.getMinutes();
@@ -2949,6 +2960,14 @@ function chLoad(force){
 /* Days with hours on them that have never been submitted. Crew shouldn't have
    to remember \u2014 the app tells them, on the home screen and in My hours. */
 var CHUNSUB=[], CHUNSENT=[], CHUNSUBREAD=false, CHHASHRS={};
+/* A RUNNING TIMER IS ONE THAT WAS STARTED AND NEVER STOPPED. Not simply one
+   with no finish time — since "just hours" entries (Trish, 11 Sep) carry no
+   times at all by design. Four places asked "no finish?" and called that
+   running, so a four-hour hours-only entry showed as a live timer, its hours
+   were left out of the day's total, and the day refused to be submitted until
+   you stopped a timer that was never started. Same rule as chRunning_ on the
+   server, in one place. */
+function chIsRunning(e){ return !(e&&e.finish) && !!(e&&e.start); }
 function chUnsubLoad(){
   if(!ME) return;
   var now=new Date(), back=new Date(now.getTime()-29*864e5);
@@ -2961,7 +2980,7 @@ function chUnsubLoad(){
         if(e.jobKey) CHHASHRS[e.jobKey]=1;             // this job has hours on it somewhere
         if(!e.date || e.pushed==="Yes") return;
         CHUNSENT.push(e);                                      // running ones included — they need stopping
-        if(!e.finish) return;                                  // a running timer isn't a day yet
+        if(chIsRunning(e)) return;                             // a running timer isn't a day yet
         if(!seen[e.date]) seen[e.date]={date:e.date, hours:0, n:0};
         seen[e.date].hours += (Number(e.hours)||0); seen[e.date].n++;
       });
@@ -3954,8 +3973,15 @@ function renderMyHours(){
 /* The working list: only what still has to reach a job card, newest day first,
    one Submit button per day — because a day is what gets submitted. */
 function mhTodoHtml(){
+  /* LOOK AT A DAY. The day screen could already open any date — it has its own
+     date picker — but the only door to it was a Submit button on a day that
+     still had something outstanding. So a finished day could not be read back
+     at all: what was on the 26th, on which boat, under which code, for how many
+     hours (Trish, 11 Sep). */
   var add='<button class="go alt2" style="margin-top:12px" onclick="closeModal(\'myHoursModal\');ahOpen()">'+
-          '\u2795 Add hours for another day</button>';
+          '\u2795 Add hours for another day</button>'+
+          '<button class="go alt2" style="margin-top:8px" onclick="closeModal(\'myHoursModal\');openSubmitDay(\'\')">'+
+          '\uD83D\uDCC5 Look at a day</button>';
   var nh=chNoHoursJobs(), nhBox='';
   if(nh.length){
     var boats={}; nh.forEach(function(j){ boats[j.vessel||"\u2014"]=(boats[j.vessel||"\u2014"]||0)+1; });
@@ -3984,14 +4010,15 @@ function mhTodoHtml(){
 
   return nhBox + order.map(function(day){
     var list=by[day], hrs=0, running=0;
-    list.forEach(function(e){ if(e.finish) hrs+=(Number(e.hours)||0); else running++; });
+    list.forEach(function(e){ if(chIsRunning(e)) running++; else hrs+=(Number(e.hours)||0); });
     var rows=list.map(function(e){
-      var run=!e.finish;
+      var run=chIsRunning(e);
       return '<div class="chrow'+(e.jobKey?" tap":"")+'"'+
         (e.jobKey?(' onclick="mhOpenJob(\''+esc(String(e.jobKey).replace(/'/g,"\\'"))+'\')"'):'')+'>'+
         '<div class="t"><b>'+esc(e.task||"(job)")+'</b><span>'+
         esc(e.code||"no code")+' \u00b7 '+esc(e.vessel||'')+
-        (run?' \u00b7 still running':(e.start?(' \u00b7 '+esc(e.start)+'\u2013'+esc(e.finish)):''))+
+        (run?' \u00b7 still running'
+            :(e.start?(' \u00b7 '+esc(e.start)+'\u2013'+esc(e.finish)):' \u00b7 hours only'))+
         '</span></div>'+
         '<div class="h">'+(run?'\u2014':chFmt(e.hours))+'</div>'+
         (run?'<span class="chpill open">running</span>'
@@ -4056,10 +4083,10 @@ function mhPeriodHtml(){
         '><div class="t"><b>'+esc(e.task||"(job)")+'</b><span>'+
         esc(e.vessel||'')+
         (e.start?(' \u00b7 '+esc(e.start)+'\u2013'+esc(e.finish||'\u2026')):'')+
-        (e.alsoTasks?(' \u00b7 + '+esc(e.alsoTasks)):'')+'</span></div>'+
-        '<div class="h">'+(e.finish?chFmt(e.hours):'\u2014')+'</div>'+
-        (e.finish?('<span class="chpill '+(e.pushed==="Yes"?'sent">sent':'open">not sent')+'</span>'):'')+
-        (e.finish&&e.pushed!=="Yes"?('<button class="ed" onclick="event.stopPropagation();ehOpen(\''+esc(e.entryId)+'\')">\u270e</button>'):'')+
+        (e.alsoTasks?(' \u00b7 + '+esc(e.alsoTasks.split("\n").join(" + "))):'')+'</span></div>'+
+        '<div class="h">'+(chIsRunning(e)?'\u2014':chFmt(e.hours))+'</div>'+
+        (chIsRunning(e)?'':('<span class="chpill '+(e.pushed==="Yes"?'sent">sent':'open">not sent')+'</span>'))+
+        (!chIsRunning(e)&&e.pushed!=="Yes"?('<button class="ed" onclick="event.stopPropagation();ehOpen(\''+esc(e.entryId)+'\')">\u270e</button>'):'')+
         '</div>';
     }).join("");
     return head + items;
@@ -4162,11 +4189,25 @@ function openSubmitDay(day){
     .then(function(r){ SD=(r&&r.ok)?r:null; sdRender(); })
     .catch(function(){ $("sdBody").innerHTML='<div class="chempty">Couldn\u2019t load your day.</div>'; });
 }
+/* The same screen answers two questions — "is this right, send it" and "what
+   did I do that day" — so it has to say which one you are looking at. */
+function sdDress(mode){
+  var t=$("sdTitle"), l=$("sdLede"), send=$("sdSend"), close=$("sdClose");
+  if(t) t.textContent = mode==="send" ? "\u2705 Submit a day" : "\uD83D\uDCC5 Your day";
+  if(l) l.textContent = mode==="send"
+    ? "Check it reads right, add anything worth knowing, then send it. Once it\u2019s in, only a director can change it."
+    : (mode==="sent"
+        ? "Every hour on this day is already on a job card. Pick another date to look at."
+        : "Nothing logged on this day yet. Pick another date, or add hours from the previous screen.");
+  if(send) send.style.display = mode==="send" ? "" : "none";
+  if(close) close.textContent = mode==="send" ? "Not yet" : "Close";
+}
 function sdRender(){
   var el=$("sdBody"), go=$("sdGo"); if(!el) return;
-  if(!SD){ el.innerHTML='<div class="chempty">Couldn\u2019t load your day.</div>'; return; }
+  if(!SD){ el.innerHTML='<div class="chempty">Couldn\u2019t load your day.</div>'; sdDress("empty"); return; }
   if(!SD.count){ el.innerHTML='<div class="chempty">Nothing logged on '+esc(chNiceDate(SDDATE))+'.</div>';
-                 if(go) go.disabled=true; return; }
+                 sdDress("empty"); if(go) go.disabled=true; return; }
+  sdDress(SD.canSubmit ? "send" : (SD.openTimers ? "send" : "sent"));
   /* Grouped under the boat, because a day that touched two yachts reads as two
      separate lots of work — which is how it will be invoiced. */
   var byBoat = [], seen = {};
@@ -4183,19 +4224,36 @@ function sdRender(){
     var isDone=/complete|done/i.test(e.status||"");
     if(!SDSTATUS.hasOwnProperty(e.entryId)) SDSTATUS[e.entryId]= isDone ? "Complete" : "";
     var pick=SDSTATUS[e.entryId];
-    var also=(e.alsoTasks||"").trim();
+    /* THE BLOCK, WRITTEN OUT. A bundle prints on the job card as one line per
+       job — the code, the task, and the hours on the first — so it has to read
+       that way here too, before it is sent. Squeezed onto the title as
+       "+ AT3-ELEC-0087 · Run systems" it was unreadable at three jobs and gave
+       no way to check a code. */
+    var also=(e.alsoTasks||"").split("\n").map(function(x){ return x.trim(); }).filter(Boolean);
+    var alsoHtml = also.length
+      ? ('<div class="sdalso">'+also.map(function(t){
+          var bit=t.split(" \u00b7 ");
+          var c=bit.length>1?bit[0]:"", tk=bit.length>1?bit.slice(1).join(" \u00b7 "):t;
+          return '<div><b>'+esc(tk)+'</b><span>'+esc(c||"no code")+'</span><i>same block</i></div>';
+        }).join("")+'</div>')
+      : '';
+    /* "Just hours" carries no start and no finish on purpose. Printing the
+       empty ones gave a bare en-dash that read like missing data. */
+    var when = e.running ? 'still running'
+             : (e.start ? (esc(e.start)+'\u2013'+esc(e.finish)+
+                 (e.breakMins?(' \u00b7 '+e.breakMins+'m break'):''))
+                        : 'hours only \u2014 no start or finish');
     return '<div class="sdjob'+(done?" sent":"")+'">'+
       '<div class="sdrow">'+
-        '<div class="sdt"><b>'+esc(e.task||"(job)")+(also?(' <span style="font-weight:600;color:var(--muted)">+ '+esc(also)+'</span>'):'')+'</b>'+
-          '<span>'+(e.code?(esc(e.code)+' \u00b7 '):'')+
-          (e.running?'still running':(esc(e.start)+'\u2013'+esc(e.finish)+
-            (e.breakMins?(' \u00b7 '+e.breakMins+'m break'):'')))+'</span></div>'+
-        '<div class="sdh">'+(e.running?'\u2014':chFmt(e.hours))+'<small>hrs</small></div>'+
+        '<div class="sdt"><b>'+esc(e.task||"(job)")+'</b>'+
+          '<span>'+(e.code?(esc(e.code)+' \u00b7 '):'')+when+'</span></div>'+
+        '<div class="sdh">'+(e.running?'\u2014':chNum(e.hours))+'<small>hrs</small></div>'+
         (done?'<span class="sdsent">sent</span>'
              :(e.running?'':'<button class="sdedit" onclick="ehOpen(\''+eid+'\')">\u270e</button>'))+
       '</div>'+
-      (done?'':
-        '<input class="sdc" id="sdc-'+eid+'" placeholder="Anything worth noting about this one?" value="'+esc(e.note||'')+'">'+
+      alsoHtml+
+      (done?(e.note?('<p class="sdnote">'+esc(e.note)+'</p>'):''):
+        '<input class="sdc" id="sdc-'+eid+'" placeholder="What did you do? Anything worth noting about this one?" value="'+esc(e.note||'')+'">'+
         (e.jobKey?('<div class="sdask"><span class="q">Finished this job?</span>'+
           '<button class="done'+(pick==="Complete"?" on":"")+'" onclick="sdPick(\''+eid+'\',\'Complete\')">\u2713 Yes \u2014 complete</button>'+
           '<button class="going'+(pick==="In Progress"?" on":"")+'" onclick="sdPick(\''+eid+'\',\'In Progress\')">Still in hand</button>'+
@@ -4204,8 +4262,15 @@ function sdRender(){
       '</div>';
   }
 
+  /* A bundle is ONE entry and several jobs. "1 job" under a card listing three
+     of them is the sort of small disagreement that makes someone stop trusting
+     the number beside it. */
+  var nJobs = 0;
+  SD.entries.forEach(function(e){
+    nJobs += 1 + (e.alsoTasks||"").split("\n").filter(function(x){ return x.trim(); }).length;
+  });
   var rows = byBoat.map(function(b){
-    return '<div class="sdboat"><b>'+esc(b.vessel)+'</b><i></i><span>'+chFmt(b.hours)+' hrs</span></div>'+
+    return '<div class="sdboat"><b>'+esc(b.vessel)+'</b><i></i><span>'+chNum(b.hours)+' hrs</span></div>'+
            b.items.map(jobCard).join("");
   }).join("");
   var gap="";
@@ -4216,8 +4281,8 @@ function sdRender(){
       (ok?' \u2014 that ties up.':(u>0?(' \u2014 <b>'+chFmt(u)+'</b> not on a job.'):' \u2014 more on jobs than clocked.'))+'</div>';
   }
   el.innerHTML=rows+
-    '<div class="sdtot"><b>'+chFmt(SD.loggedHours)+'</b><span>total across '+SD.count+
-      ' job'+(SD.count===1?'':'s')+' on '+esc(SD.date)+'</span></div>'+gap+
+    '<div class="sdtot"><b>'+chFmt(SD.loggedHours)+'</b><span>total across '+nJobs+
+      ' job'+(nJobs===1?'':'s')+' on '+esc(chNiceDate(SD.date))+'</span></div>'+gap+
     (SD.openTimers?'<div class="chwarn">Stop your running timer before submitting.</div>':'');
   var left = SD.count - (SD.alreadySubmitted||0);
   if(go){ go.disabled=!SD.canSubmit;
