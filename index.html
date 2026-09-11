@@ -1663,7 +1663,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-11·l</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-11·m</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -3531,6 +3531,11 @@ function ahAddAnother(){
   AHADDING = true;
   $("ahPick").style.display=""; $("ahForm").style.display="none";
   $("ahWhat").textContent = "What else did you do in the same block of time?";
+  /* The chips that found the FIRST job shouldn't quietly narrow the second.
+     "To send" and "No hours yet" are about hours, and the other jobs in a
+     block are exactly the ones with no hours of their own. The boat stays —
+     a block of time is nearly always one boat. */
+  AHONLYDUE=false; AHNOHRS=false; AHSHOWSENT=true;
   $("ahSearch").value=""; ahFilter();
   var b=$("ahSearch"); if(b) b.focus();
 }
@@ -3616,8 +3621,14 @@ function ahFilter(){
   var src = (AHJOBS && AHJOBS.length) ? AHJOBS : (CREWJOBS || []);
   var all=src.filter(function(j){
     if(AHBOAT && (j.vessel||"")!==AHBOAT) return false;
-    if(AHONLYDUE){ var l0=AHLOG[j.key]; if(!l0 || l0.sent>=l0.n) return false; }
-    if(AHNOHRS){ if(AHLOG[j.key] || hubBucket(j.status)!=="Done") return false; }
+    /* TYPING A NAME MUST ALWAYS REACH THE JOB. These two are shortcuts for
+       finding something in a long list, not rules about what may be picked —
+       but they ran before the search did, so a job they excluded could not be
+       found by name at all. Trish hit exactly that: "Run systems" is finished
+       with no hours against it, so the "To send" chip hid it, and typing
+       "run systems" returned nothing with no hint as to why. */
+    if(!q && AHONLYDUE){ var l0=AHLOG[j.key]; if(!l0 || l0.sent>=l0.n) return false; }
+    if(!q && AHNOHRS){ if(AHLOG[j.key] || hubBucket(j.status)!=="Done") return false; }
     /* You cannot have worked on something nobody has started. A job still To do
        - a raised job, next month's list - is noise here, and picking one by
        mistake puts hours on work that never happened. Searching still finds it. */
@@ -3659,10 +3670,12 @@ function ahFilter(){
       (AHBUSY ? '<div class="ahbusy">looking up your jobs\u2026</div>' : '')+
       '<div class="ahrow" style="cursor:default"><b>'+
       (AHBUSY ? "One moment" : (AHONLYDUE ? "\u2713 Nothing waiting to be sent" : "Nothing here matches"))+'</b>'+
-      '<span>This list is the jobs assigned to you'+
+      (q && AHBOAT ? ('<span>Nothing on <b>'+esc(AHBOAT)+'</b> matches \u201c'+esc(q)+
+        '\u201d. Tap <b>All</b> above to search every boat.</span>')
+       : '<span>This list is the jobs assigned to you'+
       (AHNOTE?(" \u2014 "+esc(AHNOTE)):"")+'. If the work was never on a '+
       'list, close this and use <b>\u2713 Log job</b> instead \u2014 it creates the job, '+
-      'with the day and the hours.</span></div>';
+      'with the day and the hours.</span>')+'</div>';
     return;
   }
 
