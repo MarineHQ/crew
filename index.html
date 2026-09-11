@@ -1633,7 +1633,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-11·d</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-11·e</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1812,16 +1812,30 @@ button:active{ filter: brightness(.93); }
      exception, so correcting it has to be a proper form rather than a stack of
      prompt boxes. -->
 <div class="modal" id="editHoursModal"><div class="card2">
-  <h3>Fix the times</h3>
+  <h3>Fix this entry</h3>
   <p class="mhint" id="ehWhat">—</p>
-  <div style="display:flex;gap:10px">
-    <div style="flex:1"><label class="fld">Started</label>
-      <input type="time" step="1800" class="fld-in" id="ehStart" onchange="snapHalf(this)"></div>
-    <div style="flex:1"><label class="fld">Finished</label>
-      <input type="time" step="1800" class="fld-in" id="ehFinish" onchange="snapHalf(this)"></div>
+  <div id="ehBundle"></div>
+  <label class="fld">Day it was done</label>
+  <input type="date" class="fld-in" id="ehDate">
+  <div class="ahmode">
+    <button type="button" id="ehModeTimes" class="on" onclick="ehMode(false)">Start &amp; finish</button>
+    <button type="button" id="ehModeHours" onclick="ehMode(true)">Just hours</button>
   </div>
-  <label class="fld">Break <span class="fldhint">(minutes — 0 if none)</span></label>
-  <input type="number" min="0" step="5" class="fld-in" id="ehBreak" value="0">
+  <div id="ehTimes">
+    <div style="display:flex;gap:10px">
+      <div style="flex:1"><label class="fld">Started</label>
+        <input type="time" step="1800" class="fld-in" id="ehStart" onchange="snapHalf(this); ehCalc()"></div>
+      <div style="flex:1"><label class="fld">Finished</label>
+        <input type="time" step="1800" class="fld-in" id="ehFinish" onchange="snapHalf(this); ehCalc()"></div>
+    </div>
+    <label class="fld">Break <span class="fldhint">(minutes — 0 if none)</span></label>
+    <input type="number" min="0" step="5" class="fld-in" id="ehBreak" value="0" onchange="ehCalc()">
+  </div>
+  <div id="ehJustHours" style="display:none">
+    <label class="fld">How many hours?</label>
+    <input type="number" min="0.25" max="18" step="0.25" inputmode="decimal" class="fld-in"
+           id="ehHours" placeholder="e.g. 4" oninput="ehCalc()">
+  </div>
   <div class="ehcalc" id="ehCalc">—</div>
   <label class="fld">Note <span class="fldhint">(optional)</span></label>
   <input class="fld-in" id="ehNote" placeholder="e.g. port side only">
@@ -3109,6 +3123,62 @@ function chSubmitJobNow(key){
 }
 /* Fix a logged time. Forgetting to stop is ordinary, so this is a form with the
    arithmetic shown, not a run of prompt boxes. */
+/* The editor does what the add panel does: the day, the hours (times or not),
+   and which jobs were in the block. Before this, an entry logged on the wrong
+   day had to be deleted and typed again, and a block could never gain a job
+   after the fact — which is how Trish ended up with an AT3 job stranded on the
+   29th that belonged with the 26th. */
+var EHALSO = [], EHADDING = false, EHHOURSONLY = false, EHJOBKEY = "";
+
+function ehMode(on){
+  EHHOURSONLY = !!on;
+  $("ehModeTimes").className = on ? "" : "on";
+  $("ehModeHours").className = on ? "on" : "";
+  $("ehTimes").style.display = on ? "none" : "";
+  $("ehJustHours").style.display = on ? "" : "none";
+  ehCalc();
+}
+function ehRenderBundle(){
+  var el=$("ehBundle"); if(!el) return;
+  var first = EHJOBKEY ? ahJobOf(EHJOBKEY) : null;
+  var chips = '<div class="ahb-chip first"><b>'+esc((first&&first.task)||"this job")+'</b></div>';
+  EHALSO.forEach(function(a,i){
+    chips+='<div class="ahb-chip"><b>'+esc(a.task)+'</b>'+
+           '<button class="ahb-x" title="Take it off" onclick="ehDropAlso('+i+')">✕</button></div>';
+  });
+  el.innerHTML='<p class="ahb-lbl">Jobs in this block</p>'+
+    '<div class="ahb-chips">'+chips+'</div>'+
+    '<button class="ahb-add" onclick="ehAddAnother()">＋ Add another job to this block</button>'+
+    (EHALSO.length ? '<p class="ahb-note">One set of hours covers all '+(EHALSO.length+1)+
+      '. They print as separate lines on the job card, with the hours on the first.</p>' : '');
+}
+function ehDropAlso(i){ EHALSO.splice(i,1); ehRenderBundle(); }
+
+/* Adding a job to an existing block reuses the add panel's picker: close this,
+   open that in "also" mode, and come back when one is chosen. */
+function ehAddAnother(){
+  EHADDING = true;
+  closeModal("editHoursModal");
+  ahOpen(); AHADDING = true;
+  $("ahWhat").textContent = "Which other job was in that block?";
+  $("ahSearch").value=""; ahFilter();
+}
+function ehTakeJob(key){
+  var j=ahJobOf(key), first=EHJOBKEY?ahJobOf(EHJOBKEY):{};
+  if(key===EHJOBKEY || EHALSO.some(function(a){return a.key===key;})){ toast("That one's already in"); return; }
+  var pc=ahCatKey(ahCatOf(first)), ac=ahCatKey(ahCatOf(j));
+  if(pc && ac && pc!==ac){
+    alert("“"+(j.task||"That job")+"” is "+ahCatOf(j)+", and this block is "+ahCatOf(first)+
+          ".\n\nA job card keeps those apart, so they can't share one set of hours.");
+    return;
+  }
+  EHALSO.push({ key:key, task:(j.task||""), code:(j.code||""), vessel:(j.vessel||""), cat:ahCatOf(j) });
+  EHADDING=false;
+  closeModal("addHoursModal");
+  $("editHoursModal").classList.add("show");
+  ehRenderBundle();
+}
+
 function ehOpen(entryId){
   var e=null;
   if(CHJOB) e=(CHJOB.entries||[]).filter(function(x){return x.entryId===entryId;})[0];
@@ -3120,14 +3190,32 @@ function ehOpen(entryId){
   if(!e) return;
   EHID=entryId;
   $("ehWhat").innerHTML=esc(e.task||"this job")+" \u00b7 "+esc(e.crew||"")+" \u00b7 "+esc(e.date||"");
+  EHJOBKEY = e.jobKey || "";
+  EHALSO = (e.alsoTasks||"").split("\n").map(function(x){ return x.trim(); }).filter(Boolean)
+    .map(function(txt, n){
+      var bit = txt.split(" \u00b7 ");
+      return { key:(e.alsoKeys && e.alsoKeys[n]) || "",
+               task:(bit.length>1 ? bit.slice(1).join(" \u00b7 ") : txt),
+               code:(bit.length>1 ? bit[0] : ""), vessel:e.vessel||"", cat:e.category||"" };
+    });
+  $("ehDate").value = e.date || "";
   $("ehStart").value=e.start||""; $("ehFinish").value=e.finish||"";
   $("ehBreak").value=String(e.breakMins||0); $("ehNote").value=e.note||"";
+  $("ehHours").value = (!e.start && !e.finish) ? String(e.hours||"") : "";
+  ehMode(!e.start && !e.finish);               // an entry with no times edits as hours
+  ehRenderBundle();
   ehCalc();
   $("editHoursModal").classList.add("show");
 }
 var EHID=null;
 function ehMins(v){ var m=/^(\d{1,2}):(\d{2})$/.exec((v||"").trim()); return m?((+m[1])*60+(+m[2])):-1; }
 function ehCalc(){
+  var el0=$("ehCalc"); if(!el0) return;
+  if(EHHOURSONLY){
+    var hv=Math.round((parseFloat(($("ehHours")||{}).value)||0)*4)/4;
+    el0.textContent = hv>0 ? (chFmt(hv)+" \u00b7 no times recorded") : "\u2014";
+    return;
+  }
   var a=ehMins($("ehStart").value), b=ehMins($("ehFinish").value);
   var br=parseInt($("ehBreak").value,10)||0;
   var el=$("ehCalc");
@@ -3140,10 +3228,19 @@ function ehCalc(){
 }
 function ehSave(){
   if(!EHID) return;
-  if(!ahOvernightOk(($("ehStart").value||"").trim(), ($("ehFinish").value||"").trim(), "This")) return;
-  apiPost({action:"crewHoursEdit", email:ME.email, code:ME.code, entryId:EHID,
-           start:$("ehStart").value, finish:$("ehFinish").value,
-           breakMins:(parseInt($("ehBreak").value,10)||0), note:$("ehNote").value}).then(function(r){
+  var body={ action:"crewHoursEdit", email:ME.email, code:ME.code, entryId:EHID,
+             date:($("ehDate").value||""), note:$("ehNote").value,
+             also:EHALSO.map(function(a){ return { jobKey:a.key, task:a.task, jobCode:a.code, cat:a.cat }; }) };
+  if(EHHOURSONLY){
+    var hv=Math.round((parseFloat(($("ehHours")||{}).value)||0)*4)/4;
+    if(!(hv>0)){ toast("How many hours?"); return; }
+    body.hoursOnly=true; body.hours=hv; body.start=""; body.finish=""; body.breakMins=0;
+  } else {
+    if(!ahOvernightOk(($("ehStart").value||"").trim(), ($("ehFinish").value||"").trim(), "This")) return;
+    body.start=$("ehStart").value; body.finish=$("ehFinish").value;
+    body.breakMins=(parseInt($("ehBreak").value,10)||0);
+  }
+  apiPost(body).then(function(r){
     if(!r||!r.ok){ toast((r&&r.error)||"Couldn\u2019t save"); return; }
     toast("Updated \u2014 "+chFmt(r.hours));
     closeModal("editHoursModal");
@@ -3578,6 +3675,7 @@ function ahFilter(){
 function ahShowSent(){ AHSHOWSENT=!AHSHOWSENT; ahFilter(); }
 function ahOpenNoHours(){ ahOpen(); AHNOHRS=true; AHONLYDUE=false; AHBOAT=""; ahFilter(); }
 function ahChoose(key){
+  if(EHADDING){ ehTakeJob(key); return; }      // adding to an entry already saved
   if(AHADDING){ ahAlsoChoose(key); return; }   // second job for the same block
   ahOpen(key);
   /* Start on the day the job was marked finished — nine times in ten that is
