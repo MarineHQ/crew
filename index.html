@@ -297,6 +297,8 @@
             text-overflow:ellipsis;white-space:nowrap;display:block}
   .jfact .v.soft{font-weight:600;color:var(--muted)}
   .jfact .v.late{color:#C0472A}
+  .jfact.tap{cursor:pointer}
+  .jfact.tap:hover{background:var(--line)}
   .sec p.body{font-size:13.5px;line-height:1.5;margin:0}
 
   /* progress tracker */
@@ -1633,7 +1635,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-11·f</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-11·g</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -6444,6 +6446,30 @@ function wlBucketToStatus(j){ var b=hubBucket(j.status); return b==="Done"?"Comp
    it's in, when it's due, whose it is, which list it belongs to, and when it
    last moved. They were spread over four separate cards further down, so
    checking one meant scrolling past everything else. */
+/* Which pot a job's money lands in. Directors only — it moves real figures
+   between halves of a job card. */
+var WLCATS = ["Scheduled","Unscheduled","Upgrade","Charters","Operations"];
+function wlSetCategory(key){
+  var j = wlFind(key); if(!j) return;
+  var cur = j.category || "";
+  var msg = "What does this job cost to?\n\n" +
+    WLCATS.map(function(c,i){ return (i+1)+"  "+c+(c===cur?"   \u2190 now":""); }).join("\n") +
+    "\n\nType a number 1\u2013" + WLCATS.length + ".";
+  var pick = prompt(msg, "");
+  if(pick===null) return;
+  var n = parseInt((pick||"").trim(), 10);
+  if(!(n>=1 && n<=WLCATS.length)){ toast("Nothing changed"); return; }
+  var want = WLCATS[n-1];
+  if(want === cur){ toast("Already "+want); return; }
+  apiPost({action:"crewJobCategory", email:ME.email, code:ME.code, jobKey:key, category:want})
+    .then(function(r){
+      if(!r||!r.ok){ toast((r&&r.error)||"Couldn\u2019t change it"); return; }
+      toast("Costs to "+want);
+      j.category = want;
+      loadJobs(); if(openJobId===key) openWLJob(key);
+    }).catch(function(){ toast("Couldn\u2019t connect"); });
+}
+
 function wlFactsHtml(j){
   function cell(k, v, cls){
     return '<div class="jfact"><span class="k">'+k+'</span>'+
@@ -6458,6 +6484,21 @@ function wlFactsHtml(j){
     out += cell("Due", "no date", "soft");
   }
   out += j.allocatedTo ? cell("On", firstNames(j.allocatedTo)) : cell("On", "nobody yet", "soft");
+
+  /* WHICH POT THIS COSTS. The whole point of the job card's works split is how
+     much went on charters vs scheduled vs unscheduled vs upgrades, and the
+     category on the job is what decides it. The same transfer can be any of
+     them — to the yard for the annual haul-out, or to pick up guests — so it
+     has to be changeable per job, not fixed by the catalogue. It was only ever
+     settable when the task was first added (Trish, 11 Sep 2026). */
+  var cat = j.category || "";
+  if (isMgrRole()){
+    out += '<div class="jfact tap" onclick="wlSetCategory(\''+esc(String(j.key).replace(/'/g,"\\'"))+'\')">'+
+           '<span class="k">Cost to \u270e</span>'+
+           '<span class="v'+(cat?'':' soft')+'">'+esc(cat || "not set")+'</span></div>';
+  } else if (cat){
+    out += cell("Cost to", cat);
+  }
   if(isMgrRole()) out += j.list ? cell("Worklist", j.list) : cell("Worklist", "not on a list", "soft");
   if(j.updated) out += cell("Last moved", relTime(j.updated), "soft");
   return '<div class="jfacts">'+out+'</div>';
