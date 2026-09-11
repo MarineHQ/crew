@@ -1635,7 +1635,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-11·g</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-11·h</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -6464,7 +6464,8 @@ function wlSetCategory(key){
   apiPost({action:"crewJobCategory", email:ME.email, code:ME.code, jobKey:key, category:want})
     .then(function(r){
       if(!r||!r.ok){ toast((r&&r.error)||"Couldn\u2019t change it"); return; }
-      toast("Costs to "+want);
+      var moved = (r.eodMoved||0);
+      toast("Costs to "+want + (moved ? (" \u00b7 "+moved+" row"+(moved===1?"":"s")+" already sent moved too") : ""));
       j.category = want;
       loadJobs(); if(openJobId===key) openWLJob(key);
     }).catch(function(){ toast("Couldn\u2019t connect"); });
