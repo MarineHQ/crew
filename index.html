@@ -385,6 +385,13 @@
   .ahhd{position:sticky;top:39px;background:#f4f7fc;padding:6px 12px;font-size:11px;font-weight:800;
     letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line)}
   .ahhd span{opacity:.6}
+  .ahcat{margin-top:14px;border-top:1px solid var(--line);padding-top:11px}
+  .ahcat h6{margin:0 0 7px;font:700 10.5px/1.6 ui-monospace,Menlo,monospace;letter-spacing:.5px;
+            text-transform:uppercase;color:var(--muted)}
+  .ahcatrow{border:1px dashed var(--line);border-radius:10px;padding:9px 12px;margin-bottom:6px;cursor:pointer;background:#fff}
+  .ahcatrow:hover{border-color:var(--navy);border-style:solid}
+  .ahcatrow b{display:block;font-size:14px;color:var(--navy)}
+  .ahcatrow span{display:block;margin-top:2px;font:600 11.5px/1.5 ui-monospace,Menlo,monospace;color:var(--muted)}
   .ahbusy{padding:7px 12px;font-size:11.5px;color:var(--muted);background:#f7f9fc;
     border-bottom:1px solid var(--line)}
   .ahdone,.ahhand{font-style:normal;font-size:9px;font-weight:800;letter-spacing:.05em;
@@ -1671,7 +1678,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-11·n</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-11·o</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -3514,6 +3521,60 @@ function chManual(key){
    They must all be the same category — a card splits scheduled from unscheduled,
    and once the hours are one block there is no honest way to divide them. */
 var AHALSO = [], AHADDING = false;
+var AHCAT = [], AHCATQ = "", _ahCatT = null, AHCATBUSY = false;
+
+function ahWords(q){
+  return (q||"").toLowerCase().split(/[^a-z0-9]+/).filter(function(w){ return w.length>1; });
+}
+
+/* THE JOB CATALOGUE, NOT JUST YOUR OWN LIST. The picker only ever searched the
+   jobs already on the boat, so a standard job nobody had put on a worklist
+   could not be found however you spelled it — and the code, which is the whole
+   point of picking from the catalogue, was never offered (Trish, 11 Sep).
+   fn=tasksuggest is the same ranked search the ＋Add task form uses, open to
+   any crew, and it hands back the code already built for this boat. */
+function ahCatBoat(){
+  if(AHBOAT) return AHBOAT;
+  var j = AHADDING ? ahJobOf(AHKEY) : null;
+  return (j && j.vessel) || ((ME && ME.vessels && ME.vessels[0]) || "");
+}
+function ahCatLoad(q){
+  clearTimeout(_ahCatT);
+  var boat = ahCatBoat();
+  if(!q || q.length<3 || !boat){ AHCAT=[]; AHCATQ=""; return; }
+  _ahCatT = setTimeout(function(){
+    AHCATBUSY = true;
+    apiGet("fn=tasksuggest&code="+encodeURIComponent(ME.code||"")+
+           "&email="+encodeURIComponent(ME.email||"")+
+           "&vessel="+encodeURIComponent(boat)+"&q="+encodeURIComponent(q))
+      .then(function(r){
+        AHCATBUSY=false;
+        AHCAT=(r&&r.ok&&r.suggestions)||[]; AHCATQ=q;
+        if(($("ahSearch").value||"").trim().toLowerCase()===q) ahFilter();
+      })
+      .catch(function(){ AHCATBUSY=false; });
+  }, 350);
+}
+/* Picked one that isn't on the boat yet: it becomes a logged job, coded against
+   the same master number, and then behaves like any other — which is exactly
+   what ✓ Log job does, so the work lands in one shape however it was found. */
+function ahCatChoose(num){
+  var s = AHCAT.filter(function(x){ return x.num===num; })[0]; if(!s) return;
+  var boat = ahCatBoat(); if(!boat){ toast("Pick the boat first"); return; }
+  var day = ($("ahDate") && $("ahDate").value) || sdToday();
+  if(!confirm("\u201c"+s.job+"\u201d isn\u2019t on "+boat+" yet.\n\n"+
+              "Add it as done on "+chNiceDate(day)+" and put it in this block?")) return;
+  toast("Adding \u201c"+s.job+"\u201d\u2026");
+  apiPost({action:"crewWorkLog", email:ME.email, code:ME.code, vessel:boat,
+           title:s.job, doneOn:day, status:"Complete"}).then(function(r){
+    if(!r||!r.ok){ toast((r&&r.error)||"Couldn\u2019t add it"); return; }
+    var made={ key:r.key, task:s.job, code:r.code||s.code, vessel:boat,
+               category:r.category||s.category, status:"Complete", completed:day };
+    AHJOBS=(AHJOBS||[]).concat([made]); CREWJOBS=(CREWJOBS||[]).concat([made]);
+    AHCAT=[]; $("ahSearch").value="";
+    if(AHADDING) ahAlsoChoose(r.key); else ahChoose(r.key);
+  }).catch(function(){ toast("Couldn\u2019t connect"); });
+}
 
 function ahCatKey(c){
   c=(c||"").toString().trim().toLowerCase(); if(!c) return "";
@@ -3637,6 +3698,8 @@ function ahBoat(v){ AHBOAT=v; ahFilter(); }
 function ahDueOnly(){ AHONLYDUE=!AHONLYDUE; ahFilter(); }
 function ahFilter(){
   var q=($("ahSearch").value||"").toLowerCase().trim();
+  if(q!==AHCATQ) ahCatLoad(q);
+  if(!q){ AHCAT=[]; AHCATQ=""; }
   var src = (AHJOBS && AHJOBS.length) ? AHJOBS : (CREWJOBS || []);
   var all=src.filter(function(j){
     if(AHBOAT && (j.vessel||"")!==AHBOAT) return false;
@@ -3659,7 +3722,11 @@ function ahFilter(){
     if(!q && !AHSHOWSENT){ var ls=AHLOG[j.key]; if(ls && ls.n && ls.sent>=ls.n) return false; }
     if(!q) return true;
     var hay=((j.task||"")+" "+(j.vessel||"")+" "+(j.code||"")).toLowerCase();
-    if(hay.indexOf(q)>=0) return true;
+    /* EVERY WORD, IN ANY ORDER. It used to look for the whole phrase as one
+       run of characters, so "fill water tanks" could not find "Fill / drain /
+       flush freshwater tanks" — the words are all there, just not adjacent.
+       Nobody types a job's exact title; they type what they did. */
+    if(ahWords(q).every(function(w){ return hay.indexOf(w)>=0; })) return true;
     return ahInitials(j.vessel).indexOf(q)>=0;             // AT3 → Abel Tasman III
   });
 
@@ -3684,8 +3751,10 @@ function ahFilter(){
         esc(String(v).replace(/'/g,"\\'"))+'\')">'+esc(v)+' <i>'+counts[v]+'</i></button>';
     }).join("") : '')+'</div>';
 
+  var cat = ahCatHtml(all, q);
+
   if(!all.length){
-    $("ahList").innerHTML = chips +
+    $("ahList").innerHTML = chips + cat +
       (AHBUSY ? '<div class="ahbusy">looking up your jobs\u2026</div>' : '')+
       '<div class="ahrow" style="cursor:default"><b>'+
       (AHBUSY ? "One moment" : (AHONLYDUE ? "\u2713 Nothing waiting to be sent" : "Nothing here matches"))+'</b>'+
@@ -3752,7 +3821,24 @@ function ahFilter(){
           '<span>'+esc(j.vessel||"")+' \u00b7 '+esc(j.code||"no code yet")+got+'</span></div>';
       }).join("");
   }).join("");
-  $("ahList").innerHTML = html;
+  $("ahList").innerHTML = html + cat;
+}
+
+/* Standard jobs that are NOT on this boat's list, with the code they would
+   carry. Anything already on the list is left out — it is above, and offering
+   to create a second copy of it is how a boat ends up with three. */
+function ahCatHtml(shown, q){
+  if(!q || q.length<3) return '';
+  var have={}; (shown||[]).forEach(function(j){ if(j.code) have[j.code]=1; });
+  var rows=(AHCAT||[]).filter(function(s){ return !have[s.code]; }).slice(0,6);
+  if(!rows.length)
+    return AHCATBUSY ? '<div class="ahbusy">checking the job catalogue\u2026</div>' : '';
+  return '<div class="ahcat"><h6>From the job catalogue \u2014 not on this boat yet</h6>'+
+    rows.map(function(s){
+      return '<div class="ahcatrow" onclick="ahCatChoose('+s.num+')">'+
+        '<b>'+esc(s.job)+'</b>'+
+        '<span>'+esc(s.code||"")+(s.category?(' \u00b7 '+esc(s.category)):'')+'</span></div>';
+    }).join("")+'</div>';
 }
 function ahShowSent(){ AHSHOWSENT=!AHSHOWSENT; ahFilter(); }
 function ahOpenNoHours(){ ahOpen(); AHNOHRS=true; AHONLYDUE=false; AHBOAT=""; ahFilter(); }
