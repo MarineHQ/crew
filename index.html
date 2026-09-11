@@ -1348,6 +1348,8 @@ button:active{ filter: brightness(.93); }
 .cgc b{display:block;font-family:ui-monospace,Menlo,monospace;font-size:13px;color:var(--gc,#1A3A5C)}
 .cgc i{display:block;font-style:normal;font-size:12px;font-weight:700;color:#16222E;margin:1px 0 3px}
 .cgc span{display:block;font-size:11px;color:#7d8b96;line-height:1.45}
+.cged{border:0;background:transparent;color:#8496a2;cursor:pointer;font-size:11px;padding:0 0 0 5px;font-family:inherit}
+.cged:active{color:#E87722}
 .catguide ol{margin:0;padding-left:19px;font-size:12.5px;color:#54646f;line-height:1.65}
 .catadd{background:#fff;border:1px solid #cfd8e0;border-radius:8px;padding:12px;margin-bottom:10px}
 .catadd h4{margin:0 0 8px;font-size:14px;color:#1A3A5C}
@@ -1660,7 +1662,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-11·j</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-11·k</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -4374,6 +4376,24 @@ var CGCAT=[["Scheduled","#1F6F66","Always going to happen. Wash downs, services,
    Master Job List, beside the jobs themselves. Reword a cell there and this says
    the new thing next time it opens. The arrays above are only a fallback for a
    phone that cannot reach the sheet, so the explanation is never simply blank. */
+/* Reword one line of the explanation from the phone. Writes to the Systems or
+   Categories tab in the Master Job List — so it is the same edit as typing on
+   the sheet, and every screen says the new thing. */
+function catEditDoc(kind, key){
+  var cur="";
+  if(kind==="system"){ var r=CGSYS.filter(function(x){return x[0]===key;})[0]; cur=r?r[3]:""; }
+  else { var c=CGCAT.filter(function(x){return x[0]===key;})[0]; cur=c?c[2]:""; }
+  var v=prompt("What does \u201c"+key+"\u201d cover?\n\nThis writes to the "+
+               (kind==="system"?"Systems":"Categories")+" tab, so every screen says it.", cur||"");
+  if(v===null) return;
+  apiPost({action:"catDocsSave", email:ME.email, code:ME.code, kind:kind, key:key,
+           field:(kind==="system"?"covers":"means"), value:v}).then(function(j){
+    if(!j||!j.ok){ toast((j&&j.error)||"Couldn\u2019t save"); return; }
+    toast("Saved \u2014 every screen says it now");
+    CGDOCS=null; var b=$("catGuide"); if(b){ b.innerHTML=""; b.style.display="none"; catToggleGuide(); }
+  }).catch(function(){ toast("Couldn\u2019t connect"); });
+}
+
 var CGDOCS = null;
 function catToggleGuide(){
   var b=$("catGuide"), c=$("catGuideCar");
@@ -4400,10 +4420,15 @@ var CGCOL={DECK:"#1A3A5C",HULL:"#1A3A5C",RUN:"#2A5DB0",ENG:"#E87722",ELEC:"#7E57
 var CGCATCOL={"Scheduled Maintenance":"#1F6F66","Unscheduled Maintenance":"#B06A00",
               "Vessel Upgrades":"#7E57A3","Charter / Delivery":"#1A3A5C","Operations":"#4F6F2C"};
 function catGuideHtml(){
+  /* Each card is editable in place — it writes to the Systems or Categories tab
+     in the Master Job List, the same cell you would edit on the sheet. */
   function cards(arr, code){
     return '<div class="cgg">'+arr.map(function(x){
+      var k=String(x[0]).replace(/'/g,"\\'");
+      var pen='<button class="cged" onclick="catEditDoc(\''+(code?'system':'category')+'\',\''+esc(k)+'\')">✎</button>';
       return '<div class="cgc" style="--gc:'+x[1]+'">'+
-        (code?('<b>'+esc(x[0])+'</b><i>'+esc(x[2])+'</i>'):('<i style="margin-top:0">'+esc(x[0])+'</i>'))+
+        (code?('<b>'+esc(x[0])+pen+'</b><i>'+esc(x[2])+'</i>')
+             :('<i style="margin-top:0">'+esc(x[0])+pen+'</i>'))+
         '<span>'+esc(code?x[3]:x[2])+'</span></div>'; }).join("")+'</div>';
   }
   return '<h4>A code has three parts</h4>'+
