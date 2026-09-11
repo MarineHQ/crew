@@ -1550,6 +1550,7 @@ button:active{ filter: brightness(.93); }
           <span class="catchip" onclick="catGo('engine')">engine</span>
           <span class="catchip" onclick="catGo('safety')">safety</span>
         </div>
+        <div class="catchips" id="catSysChips"></div>
         <div id="catList"></div>
         <datalist id="catAllSubs"></datalist>
       </div>
@@ -1662,7 +1663,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-11·k</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-11·l</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -4462,25 +4463,47 @@ function toggleCatPanel(){
   if(!p.classList.contains("hidden")){
     catLoadGroups();
     var q=$("catQ"); if(q){ q.focus(); }
-    if(!CATROWS.length && q && !q.value) catRender(null, "Type a word — “wax”, “interior”, “AC” — or a task number.");
+    if(!CATROWS.length) catRun();
   }
 }
 function catGo(q){ var i=$("catQ"); if(!i) return; i.value=q; catRun(); }
 function catType(){ clearTimeout(CAT_T); CAT_T=setTimeout(catRun, 260); }
 
+/* Browse by system — tap DECK and read the forty, without thinking of a word
+   first. "no system" is the group that cannot be searched for at all, since an
+   empty cell matches nothing, and it is the one that needs attention. */
+var CATSYSF="";
+function catSetSys(s){ CATSYSF=(CATSYSF===s?"":s); catRun(); }
+function catSysChips(counts, none){
+  var el=$("catSysChips"); if(!el) return;
+  var order=["DECK","HULL","RUN","ENG","ELEC","PLUMB","INT","TOYS","SAFE","OPS"];
+  var h='<span class="catchip'+(CATSYSF?"":" on")+'" onclick="catSetSys(\'\')">all</span>';
+  order.forEach(function(k){ if(!counts[k]) return;
+    h+='<span class="catchip'+(CATSYSF===k?" on":"")+'" onclick="catSetSys(\''+k+'\')">'+k+' '+counts[k]+'</span>'; });
+  Object.keys(counts).sort().forEach(function(k){ if(order.indexOf(k)>=0) return;
+    h+='<span class="catchip'+(CATSYSF===k?" on":"")+'" onclick="catSetSys(\''+esc(k)+'\')">'+esc(k)+' '+counts[k]+'</span>'; });
+  if(none) h+='<span class="catchip'+(CATSYSF==="__none"?" on":"")+'" onclick="catSetSys(\'__none\')">no system '+none+'</span>';
+  el.innerHTML=h;
+}
+
 function catRun(){
   var i=$("catQ"), el=$("catList"); if(!i||!el) return;
   var q=(i.value||"").trim();
   CATOPEN="";
-  if(q.length<2){ CATROWS=[]; $("catCount").textContent=""; catRender(null, "Type a word — “wax”, “interior”, “AC” — or a task number."); return; }
   el.innerHTML='<div class="loadingbox"><span class="spin"></span> Searching the catalogue…</div>';
+  /* "*" asks for the whole list — what makes browsing by system possible. */
   apiGet("fn=catalogue&code="+encodeURIComponent(ME.code||"")+"&email="+encodeURIComponent(ME.email||"")+
-         "&q="+encodeURIComponent(q))
+         "&q="+encodeURIComponent(q.length>=2?q:"*")+"&limit=300")
     .then(function(r){
       if(!r||!r.ok){ el.innerHTML='<div class="empty">'+esc((r&&r.error)||"Couldn’t search the catalogue.")+'</div>'; return; }
-      CATROWS=r.results||[];
+      var all=r.results||[], counts={}, none=0;
+      all.forEach(function(x){ if(x.system) counts[x.system]=(counts[x.system]||0)+1; else none++; });
+      catSysChips(counts, none);
+      CATROWS = !CATSYSF ? all
+              : all.filter(function(x){ return CATSYSF==="__none" ? !x.system : x.system===CATSYSF; });
       $("catCount").textContent = CATROWS.length + " of " + (r.total||0);
-      catRender(CATROWS, "Nothing matched “"+q+"”.");
+      catRender(CATROWS, CATSYSF ? ("Nothing in "+(CATSYSF==="__none"?"that group":CATSYSF)+".")
+                                 : ("Nothing matched “"+q+"”."));
     })
     .catch(function(){ el.innerHTML='<div class="empty">Couldn’t reach the catalogue.</div>'; });
 }
