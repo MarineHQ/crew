@@ -1633,7 +1633,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-11·e</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-11·f</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -3130,6 +3130,21 @@ function chSubmitJobNow(key){
    29th that belonged with the 26th. */
 var EHALSO = [], EHADDING = false, EHHOURSONLY = false, EHJOBKEY = "";
 
+/* A job being folded into a block may already have an entry of its own sitting
+   somewhere unsent — which is exactly Trish's case: an AT3 job logged on the
+   29th that belongs in the 26th's four hours. Leave both and the hours are
+   counted twice. So say so, and say what to do about it. */
+function ahWarnOwnEntry(key, task){
+  var lg = AHLOG[key];
+  if(!lg || !lg.n || lg.sent >= lg.n) return;
+  var left = lg.n - lg.sent;
+  alert("Heads up: \u201c" + (task||"that job") + "\u201d already has " + left +
+        " unsent entr" + (left===1?"y":"ies") + " of its own" +
+        (lg.last ? (", last on " + chNiceDate(lg.last)) : "") + ".\n\n" +
+        "It is in this block now, so delete that separate entry in My hours \u2014 " +
+        "otherwise its hours get counted twice.");
+}
+
 function ehMode(on){
   EHHOURSONLY = !!on;
   $("ehModeTimes").className = on ? "" : "on";
@@ -3173,6 +3188,7 @@ function ehTakeJob(key){
     return;
   }
   EHALSO.push({ key:key, task:(j.task||""), code:(j.code||""), vessel:(j.vessel||""), cat:ahCatOf(j) });
+  ahWarnOwnEntry(key, j.task);
   EHADDING=false;
   closeModal("addHoursModal");
   $("editHoursModal").classList.add("show");
@@ -3201,7 +3217,10 @@ function ehOpen(entryId){
   $("ehDate").value = e.date || "";
   $("ehStart").value=e.start||""; $("ehFinish").value=e.finish||"";
   $("ehBreak").value=String(e.breakMins||0); $("ehNote").value=e.note||"";
-  $("ehHours").value = (!e.start && !e.finish) ? String(e.hours||"") : "";
+  /* Always prefilled, not only when the entry had no times. Switching a timed
+     entry to "Just hours" used to show an empty box and then refuse to save with
+     "How many hours?" — for someone who only wanted to change the date. */
+  $("ehHours").value = String(e.hours || "");
   ehMode(!e.start && !e.finish);               // an entry with no times edits as hours
   ehRenderBundle();
   ehCalc();
@@ -3501,6 +3520,7 @@ function ahAlsoChoose(key){
   }
   AHALSO.push({ key:key, task:(j.task||""), code:(j.code||""),
                 vessel:(j.vessel||""), cat:ahCatOf(j) });
+  ahWarnOwnEntry(key, j.task);
   AHADDING=false;
   $("ahPick").style.display="none"; $("ahForm").style.display="";
   ahSetWhat();
