@@ -1694,7 +1694,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-12·n</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-12·o</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -9075,7 +9075,7 @@ function wlogSetStat(s){ WLOGSTAT=s; wlogRenderStat(); }
 function openWorkLog(){
   $("wl_vessel").innerHTML=vesselOpts(ME.vessels[0]); $("wl_other").style.display="none"; $("wl_other").value="";
   $("wl_title").value=""; $("wl_desc").value=""; $("wl_hours").value="";
-  WLALSO=[]; WLADDING=false; if($("wl_sugg")) $("wl_sugg").innerHTML=""; wlRenderBundle();
+  WLALSO=[]; WLADDING=false; WLFIRST=""; if($("wl_sugg")) $("wl_sugg").innerHTML=""; wlRenderBundle();
   stagedReset("wl_ph"); stagedReset("wl_dc");
   WLOGSTAT="Complete"; wlogRenderStat();
   var d=new Date(), p=function(n){return (n<10?"0":"")+n;};
@@ -9128,7 +9128,10 @@ function wlLogBlock(first, also, vessel, hrs, photos, docs){
    unplanned job should not have to guess the hours afterwards — they log it and
    the timer starts on the job that was just created. */
 function submitWorkLog(startTimer){
-  var t=($("wl_title").value||"").trim(); if(!t){ toast("What did you do? Give it a short title"); return; }
+  /* The block's first job, whether it is in the box or only remembered — the box
+     is borrowed by the picker while extra jobs are being added. */
+  var t=($("wl_title").value||"").trim() || WLFIRST;
+  if(!t){ toast("What did you do? Give it a short title"); return; }
   var vsel=$("wl_vessel").value, vessel;
   if(vsel==="__other__"){ vessel=($("wl_other").value||"").trim(); if(!vessel){ toast("Type the yacht name"); return; } vessel="Other — "+vessel; }
   else { vessel=vsel; }
@@ -9369,7 +9372,14 @@ function wlPickSugg(num){
     if(WLALSO.some(function(a){ return a.num===s.num; })){ toast("That one's already in"); return; }
     WLALSO.push({ num:s.num, job:s.job, code:s.code, category:s.category||"" });
     WLADDING=false; WLSUGG=[];
-    $("wl_title").value=""; $("wl_sugg").innerHTML="";
+    /* PUT THE FIRST JOB'S NAME BACK. This box doubles as the picker for the
+       extra jobs, and clearing it for typing wiped the first job's title — so
+       after building a block of four, saving asked "What did you do? Give it a
+       short title" about a form that plainly said what she did, four times over
+       (Trish, 12 Sep 2026). */
+    $("wl_title").value = WLFIRST;
+    $("wl_title").placeholder = "Start typing — e.g. rinse, vacuum, teak";
+    $("wl_sugg").innerHTML="";
     wlRenderBundle();
     return;
   }
@@ -9377,16 +9387,16 @@ function wlPickSugg(num){
   var d=$("wl_desc");
   /* Their own words are not the job's name — they are what happened on it. */
   if(d && !d.value.trim() && typed && typed.toLowerCase()!==s.job.toLowerCase()) d.value=typed;
-  $("wl_title").value=s.job;
+  $("wl_title").value=s.job; WLFIRST=s.job;
   WLSUGG=[]; $("wl_sugg").innerHTML="";
   wlRenderBundle();
   toast("Logging as "+s.code);
 }
 
-var WLALSO=[], WLADDING=false;
+var WLALSO=[], WLADDING=false, WLFIRST="";
 function wlRenderBundle(){
   var el=$("wl_bundle"); if(!el) return;
-  var first=($("wl_title").value||"").trim();
+  var first=WLADDING ? WLFIRST : (($("wl_title").value||"").trim() || WLFIRST);
   if(!first && !WLALSO.length){ el.innerHTML=""; return; }
   var chips='<div class="ahb-chip first"><b>'+esc(first||"this job")+'</b></div>'+
     WLALSO.map(function(a,i){
@@ -9403,10 +9413,23 @@ function wlRenderBundle(){
   if(hint) hint.textContent = WLALSO.length ? "(for the whole block)" : "(opt)";
 }
 function wlAddAnother(){
-  if(!($("wl_title").value||"").trim()){ toast("Name the first job first"); return; }
+  var typed=($("wl_title").value||"").trim();
+  /* Pressed while already adding, with something typed and nothing picked:
+     take it at its word. Not everything is on the catalogue. */
+  if(WLADDING && typed){
+    WLALSO.push({ num:0, job:typed, code:"", category:"" });
+    WLADDING=false; WLSUGG=[];
+    $("wl_title").value=WLFIRST;
+    $("wl_title").placeholder="Start typing — e.g. rinse, vacuum, teak";
+    $("wl_sugg").innerHTML="";
+    wlRenderBundle();
+    return;
+  }
+  if(!typed){ toast("Name the first job first"); return; }
+  WLFIRST=typed;
   WLADDING=true; WLSUGG=[];
   $("wl_title").value=""; $("wl_sugg").innerHTML="";
-  $("wl_title").placeholder="What else did you do in the same block?";
+  $("wl_title").placeholder="What else did you do in the same block? \u2014 then tap \uff0b again";
   $("wl_title").focus();
 }
 function wlDropAlso(i){ WLALSO.splice(i,1); wlRenderBundle(); }
