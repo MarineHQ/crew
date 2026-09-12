@@ -392,6 +392,10 @@
   .ahcatrow:hover{border-color:var(--navy);border-style:solid}
   .ahcatrow b{display:block;font-size:14px;color:var(--navy)}
   .ahcatrow span{display:block;margin-top:2px;font:600 11.5px/1.5 ui-monospace,Menlo,monospace;color:var(--muted)}
+  .ahsend{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+  .ahsendbtn{width:100%;border:1px solid #cfe3d6;background:#eaf5ee;color:#2e7d5b;
+             font:700 13px/1.4 inherit;padding:9px 12px;border-radius:9px;cursor:pointer}
+  .ahsendbtn:active{background:#dceee4}
   .ahprev{margin-top:8px;padding:7px 10px;background:#f1f4f8;border-radius:8px;
           font-size:12.5px;font-weight:normal;color:var(--muted);line-height:1.5}
   .ahprev b{color:var(--navy)}
@@ -1683,7 +1687,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-12·g</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-12·h</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -3498,11 +3502,15 @@ function ahLoadLog(){
       AHLOG={};
       ((j&&j.ok&&j.entries)||[]).forEach(function(e){
         if(!e.jobKey) return;
-        var a=AHLOG[e.jobKey]=AHLOG[e.jobKey]||{hrs:0,n:0,last:"",days:{},sent:0};
+        var a=AHLOG[e.jobKey]=AHLOG[e.jobKey]||{hrs:0,n:0,last:"",days:{},sent:0,todo:{}};
         a.hrs+=(Number(e.hours)||0); a.n++;
         if(e.date>a.last) a.last=e.date;
         a.days[e.date]=(a.days[e.date]||0)+(Number(e.hours)||0);
         if(e.pushed==="Yes") a.sent++;
+        /* WHICH days are still to send, not just how many. The Add hours form
+           can then offer to send them instead of leaving you to back out and
+           find the day yourself (Trish, 12 Sep 2026). */
+        else { a.todo = a.todo || {}; a.todo[e.date]=(a.todo[e.date]||0)+(Number(e.hours)||0); }
       });
     }).catch(function(){});
 }
@@ -3654,9 +3662,20 @@ function ahAlready(key){
   var lg = AHLOG[key];
   if(!lg || !lg.n) return "";
   var unsent = lg.n - lg.sent;
+  var todo = Object.keys(lg.todo||{}).sort();
+  /* A DEAD END OTHERWISE. This form only offers "Add these hours", so somebody
+     who came here to SEND hours that are already logged had to back out, find
+     ⏱ My hours, and pick the day — with nothing on screen saying so. The days
+     are named, and each one sends from here. */
+  var send = todo.length
+    ? ('<div class="ahsend">' + todo.map(function(d){
+        return '<button type="button" class="ahsendbtn" onclick="ahGoSubmit(\''+d+'\')">'+
+               '\u2705 Send '+esc(chNiceDate(d))+' \u00b7 '+chFmt(lg.todo[d])+'</button>';
+      }).join("") + '</div>')
+    : '';
   return '<div class="ahprev">Already on this job: <b>'+chFmt(lg.hrs)+'</b> across '+
          lg.n+' entr'+(lg.n===1?'y':'ies')+
-         (unsent ? (' · <em>'+unsent+' still to send</em>') : '')+'</div>';
+         (unsent ? (' · <em>'+unsent+' still to send</em>') : '')+send+'</div>';
 }
 /* "adding to 5.5 already there — 8 on this job", so the number in front of them
    is the one they will see next time they open it. */
@@ -3665,6 +3684,11 @@ function ahRunning(add){
   if(!lg || !lg.hrs || !(add>0)) return "";
   return '<span class="ahrun">adding to '+chFmt(lg.hrs)+' already there — '+
          chFmt(lg.hrs+add)+' on this job</span>';
+}
+/* Straight from this form to the day screen, which is where sending happens. */
+function ahGoSubmit(day){
+  closeModal("addHoursModal");
+  openSubmitDay(day);
 }
 function ahSetWhat(){
   var j=ahJobOf(AHKEY);
