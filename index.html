@@ -392,6 +392,10 @@
   .ahcatrow:hover{border-color:var(--navy);border-style:solid}
   .ahcatrow b{display:block;font-size:14px;color:var(--navy)}
   .ahcatrow span{display:block;margin-top:2px;font:600 11.5px/1.5 ui-monospace,Menlo,monospace;color:var(--muted)}
+  .wlxref{width:100%;text-align:left;border:1px dashed var(--line);background:#fff;
+          color:var(--navy);font:600 12.5px/1.5 inherit;padding:9px 12px;
+          border-radius:9px;cursor:pointer;margin:0 0 4px}
+  .wlxref:hover{border-color:var(--navy);border-style:solid}
   .ahadding{margin:14px 0 10px;padding-top:12px;border-top:1px solid var(--line);
             font:700 10.5px/1.6 ui-monospace,Menlo,monospace;letter-spacing:.5px;
             text-transform:uppercase;color:var(--muted)}
@@ -1690,7 +1694,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-12·l</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-12·m</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1938,6 +1942,13 @@ button:active{ filter: brightness(.93); }
 <div class="modal" id="workLogModal"><div class="card2">
   <h3>✓ Log work done</h3>
   <p class="mhint">Did something that wasn't on your worklist? Log it here so it's on the record and you get paid for it. No approval needed — it's yours.</p>
+  <!-- This form makes ONE job. Several jobs sharing one block of time is a
+       different screen, and there was nothing here to say so — Trish went
+       looking for "add another job to the bundle" on a form that has never had
+       one (12 Sep 2026). -->
+  <button type="button" class="wlxref" onclick="closeModal('workLogModal');openMyHours()">
+    Several jobs in one block of time? Log the hours instead &rsaquo;
+  </button>
   <label class="fld">Vessel</label>
   <select class="fld-in" id="wl_vessel" onchange="onVesselPick('wl_vessel','wl_other');wlSuggest()"></select>
   <input class="fld-in" id="wl_other" placeholder="Type the yacht name" style="display:none;margin-top:8px">
