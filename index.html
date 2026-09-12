@@ -1694,7 +1694,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-12·o</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-12·p</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -9096,32 +9096,45 @@ function wlogOpenWhenReady(key, tries, then){
    screen produces, so a block logged here and a block logged there are the same
    thing downstream (Trish, 12 Sep 2026). */
 function wlLogBlock(first, also, vessel, hrs, photos, docs){
+  /* GET OUT OF THE WAY FIRST. A block of four is five separate calls to Google —
+     the first job, three more, then the hours — and each one takes three to
+     seven seconds whatever it does. Sitting on a form watching that is how it
+     felt broken (Trish, 12 Sep 2026). The first job is already saved by the time
+     we get here, so the screen closes now and the rest finishes behind it. */
+  var day = $("wl_done").value||"";
+  var n = also.length + 1;
+  closeModal("workLogModal");
+  toast("Logging " + n + " jobs\u2026");
+  WLALSO=[]; WLADDING=false; WLFIRST="";
+  if(isMgrRole() && first.vessel) CURVESSEL=first.vessel;
+  go("jobs");
+  STAGED["wl_ph"]=[]; STAGED["wl_dc"]=[];
+  afterCreate(first.key, photos, docs);
+
   var made=[];
+  /* Still one at a time: a Work Log key is the millisecond it was made, and two
+     landing together would share one. Slow is recoverable; a collision is not. */
   function next(i){
     if(i>=also.length) return finish();
     return apiPost({action:"crewWorkLog", email:ME.email, code:ME.code, vessel:vessel,
-                    title:also[i].job, desc:"", doneOn:$("wl_done").value||"",
+                    title:also[i].job, desc:"", doneOn:day,
                     hours:"", status:WLOGSTAT})
       .then(function(r){ if(r&&r.ok) made.push(r); return next(i+1); });
   }
   function finish(){
     return apiPost({action:"crewHoursLog", email:ME.email, code:ME.code,
-                    date:$("wl_done").value||"", jobKey:first.key,
-                    hours:hrs,
+                    date:day, jobKey:first.key, hours:hrs,
                     also:made.map(function(m){ return { jobKey:m.key }; })})
       .then(function(h){
-        closeModal("workLogModal");
-        if(h&&h.ok) toast("\u2713 Logged "+(made.length+1)+" jobs \u00b7 "+chFmt(parseFloat(hrs)||0)+" across the block");
-        else toast("Jobs logged, but the hours didn\u2019t save — add them from \u23f1 My hours");
-        WLALSO=[]; WLADDING=false;
-        if(isMgrRole() && first.vessel) CURVESSEL=first.vessel;
-        go("jobs");
-        STAGED["wl_ph"]=[]; STAGED["wl_dc"]=[];
-        afterCreate(first.key, photos, docs);
+        if(h&&h.ok) toast("\u2713 "+n+" jobs logged \u00b7 "+chFmt(parseFloat(hrs)||0)+" across the block");
+        else toast("Jobs logged, but the hours didn\u2019t save \u2014 add them from \u23f1 My hours");
         chLoad(true); chUnsubLoad();
       });
   }
-  return next(0).catch(function(){ toast("Couldn\u2019t connect"); });
+  return next(0).catch(function(){
+    toast("Some of the block didn\u2019t save \u2014 check \u23f1 My hours");
+    chLoad(true); chUnsubLoad();
+  });
 }
 
 /* Work that was never on a worklist still gets timed. Someone who starts an
