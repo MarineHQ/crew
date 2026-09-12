@@ -1694,7 +1694,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-12·m</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-12·n</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1946,9 +1946,7 @@ button:active{ filter: brightness(.93); }
        different screen, and there was nothing here to say so — Trish went
        looking for "add another job to the bundle" on a form that has never had
        one (12 Sep 2026). -->
-  <button type="button" class="wlxref" onclick="closeModal('workLogModal');openMyHours()">
-    Several jobs in one block of time? Log the hours instead &rsaquo;
-  </button>
+
   <label class="fld">Vessel</label>
   <select class="fld-in" id="wl_vessel" onchange="onVesselPick('wl_vessel','wl_other');wlSuggest()"></select>
   <input class="fld-in" id="wl_other" placeholder="Type the yacht name" style="display:none;margin-top:8px">
@@ -1961,6 +1959,11 @@ button:active{ filter: brightness(.93); }
        ended up as the tender REFUELLING task and "Run systems" as a battery
        check (Trish, 12 Sep 2026). -->
   <div id="wl_sugg"></div>
+  <!-- SEVERAL JOBS, ONE BLOCK OF TIME — here as well as on Add hours. Trish:
+       "it needs to live in both." Somebody logging a morning's work should not
+       have to log four jobs and then go to another screen to put the hours
+       across them. -->
+  <div id="wl_bundle"></div>
   <label class="fld">Detail <span class="fldhint">(optional — parts used, what you found)</span></label>
   <textarea class="fld-ta" id="wl_desc" placeholder="Anything worth knowing later…"></textarea>
   <label class="fld">Where's it at?</label>
@@ -1971,7 +1974,7 @@ button:active{ filter: brightness(.93); }
       <input type="date" class="fld-in" id="wl_done">
     </div>
     <div style="max-width:120px">
-      <label class="fld">Hours <span class="fldhint">(opt)</span></label>
+      <label class="fld">Hours <span class="fldhint" id="wl_hrsHint">(opt)</span></label>
       <input type="number" step="0.25" min="0" class="fld-in" id="wl_hours" placeholder="e.g. 1.5">
     </div>
   </div>
@@ -9072,6 +9075,7 @@ function wlogSetStat(s){ WLOGSTAT=s; wlogRenderStat(); }
 function openWorkLog(){
   $("wl_vessel").innerHTML=vesselOpts(ME.vessels[0]); $("wl_other").style.display="none"; $("wl_other").value="";
   $("wl_title").value=""; $("wl_desc").value=""; $("wl_hours").value="";
+  WLALSO=[]; WLADDING=false; if($("wl_sugg")) $("wl_sugg").innerHTML=""; wlRenderBundle();
   stagedReset("wl_ph"); stagedReset("wl_dc");
   WLOGSTAT="Complete"; wlogRenderStat();
   var d=new Date(), p=function(n){return (n<10?"0":"")+n;};
@@ -9086,6 +9090,40 @@ function wlogOpenWhenReady(key, tries, then){
   if(tries>12){ if(then) then(); return; }               // ~6s then upload anyway — never lose a photo
   setTimeout(function(){ wlogOpenWhenReady(key, tries+1, then); }, 500);
 }
+/* THE REST OF THE BLOCK. Each job is logged in its own right — so it appears on
+   the boat, on the card and in the record — and then ONE hours entry carries the
+   whole block, with the others named beside it. Exactly what the Add hours
+   screen produces, so a block logged here and a block logged there are the same
+   thing downstream (Trish, 12 Sep 2026). */
+function wlLogBlock(first, also, vessel, hrs, photos, docs){
+  var made=[];
+  function next(i){
+    if(i>=also.length) return finish();
+    return apiPost({action:"crewWorkLog", email:ME.email, code:ME.code, vessel:vessel,
+                    title:also[i].job, desc:"", doneOn:$("wl_done").value||"",
+                    hours:"", status:WLOGSTAT})
+      .then(function(r){ if(r&&r.ok) made.push(r); return next(i+1); });
+  }
+  function finish(){
+    return apiPost({action:"crewHoursLog", email:ME.email, code:ME.code,
+                    date:$("wl_done").value||"", jobKey:first.key,
+                    hours:hrs,
+                    also:made.map(function(m){ return { jobKey:m.key }; })})
+      .then(function(h){
+        closeModal("workLogModal");
+        if(h&&h.ok) toast("\u2713 Logged "+(made.length+1)+" jobs \u00b7 "+chFmt(parseFloat(hrs)||0)+" across the block");
+        else toast("Jobs logged, but the hours didn\u2019t save — add them from \u23f1 My hours");
+        WLALSO=[]; WLADDING=false;
+        if(isMgrRole() && first.vessel) CURVESSEL=first.vessel;
+        go("jobs");
+        STAGED["wl_ph"]=[]; STAGED["wl_dc"]=[];
+        afterCreate(first.key, photos, docs);
+        chLoad(true); chUnsubLoad();
+      });
+  }
+  return next(0).catch(function(){ toast("Couldn\u2019t connect"); });
+}
+
 /* Work that was never on a worklist still gets timed. Someone who starts an
    unplanned job should not have to guess the hours afterwards — they log it and
    the timer starts on the job that was just created. */
@@ -9096,13 +9134,21 @@ function submitWorkLog(startTimer){
   else { vessel=vsel; }
   var photos=stagedFiles("wl_ph");
   var docs=stagedFiles("wl_dc");
+  var also = (startTimer ? [] : WLALSO.slice());   // a running timer is one job by definition
+  var hrs  = startTimer ? "" : ($("wl_hours").value||"");
+  if(also.length && !(parseFloat(hrs)>0)){
+    toast("How many hours for the whole block?"); return;
+  }
   toast("Logging…");
   apiPost({action:"crewWorkLog", email:ME.email, code:ME.code, vessel:vessel, title:t,
            desc:($("wl_desc").value||"").trim(),
            doneOn:$("wl_done").value||"",
-           hours: startTimer ? "" : ($("wl_hours").value||""),
+           /* The hours go on ONE entry covering the block, made below — not on
+              each job, which would bill the block once per job. */
+           hours: also.length ? "" : hrs,
            status: startTimer ? "In hand" : WLOGSTAT}).then(function(r){
     if(!r||!r.ok){ toast((r&&r.error)||"Couldn’t log it"); return; }
+    if(also.length) return wlLogBlock(r, also, vessel, hrs, photos, docs);
     closeModal("workLogModal");
     toast((r.status==="In hand"?"◐ Logged — still in hand":"✓ Logged")+(r.code?(" — "+r.code):""));
     if(isMgrRole() && r.vessel) CURVESSEL=r.vessel;
@@ -9319,14 +9365,51 @@ function wlRenderSugg(){
 }
 function wlPickSugg(num){
   var s=WLSUGG.filter(function(x){ return x.num===num; })[0]; if(!s) return;
+  if(WLADDING){
+    if(WLALSO.some(function(a){ return a.num===s.num; })){ toast("That one's already in"); return; }
+    WLALSO.push({ num:s.num, job:s.job, code:s.code, category:s.category||"" });
+    WLADDING=false; WLSUGG=[];
+    $("wl_title").value=""; $("wl_sugg").innerHTML="";
+    wlRenderBundle();
+    return;
+  }
   var typed=($("wl_title").value||"").trim();
   var d=$("wl_desc");
   /* Their own words are not the job's name — they are what happened on it. */
   if(d && !d.value.trim() && typed && typed.toLowerCase()!==s.job.toLowerCase()) d.value=typed;
   $("wl_title").value=s.job;
   WLSUGG=[]; $("wl_sugg").innerHTML="";
+  wlRenderBundle();
   toast("Logging as "+s.code);
 }
+
+var WLALSO=[], WLADDING=false;
+function wlRenderBundle(){
+  var el=$("wl_bundle"); if(!el) return;
+  var first=($("wl_title").value||"").trim();
+  if(!first && !WLALSO.length){ el.innerHTML=""; return; }
+  var chips='<div class="ahb-chip first"><b>'+esc(first||"this job")+'</b></div>'+
+    WLALSO.map(function(a,i){
+      return '<div class="ahb-chip"><b>'+esc(a.job)+'</b>'+
+             '<button class="ahb-x" title="Take it off" onclick="wlDropAlso('+i+')">\u2715</button></div>';
+    }).join("");
+  el.innerHTML='<p class="ahb-lbl">Jobs in this block</p>'+
+    '<div class="ahb-chips">'+chips+'</div>'+
+    '<button type="button" class="ahb-add" onclick="wlAddAnother()">\uff0b Also did another job in this block</button>'+
+    (WLALSO.length
+      ? '<p class="ahb-note">One set of hours covers all '+(WLALSO.length+1)+
+        '. Each is logged as its own job, with the hours on the first.</p>' : '');
+  var hint=$("wl_hrsHint");
+  if(hint) hint.textContent = WLALSO.length ? "(for the whole block)" : "(opt)";
+}
+function wlAddAnother(){
+  if(!($("wl_title").value||"").trim()){ toast("Name the first job first"); return; }
+  WLADDING=true; WLSUGG=[];
+  $("wl_title").value=""; $("wl_sugg").innerHTML="";
+  $("wl_title").placeholder="What else did you do in the same block?";
+  $("wl_title").focus();
+}
+function wlDropAlso(i){ WLALSO.splice(i,1); wlRenderBundle(); }
 
 function atVessel(){ var vsel=$("at_vessel").value; return vsel==="__other__" ? ($("at_vesselOther").value||"").trim() : vsel; }
 // As the director types, a choice they'd made no longer applies → reset it.
