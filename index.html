@@ -1678,7 +1678,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-12·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-12·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1912,7 +1912,7 @@ button:active{ filter: brightness(.93); }
      the shift cross-check so a missing job is obvious before the day is gone. -->
 <div class="modal" id="myHoursModal"><div class="card2">
   <h3>⏱ My hours today</h3>
-  <p class="mhint">Tap ✎ to fix a start or finish time. Do it now while you remember — once the day is on a job card it needs a director.</p>
+  <p class="mhint">Tap ✎ to fix a start or finish time. Do it now while you remember — once you\u2019ve submitted the day, only a director can change it.</p>
   <div id="chDayBox"></div>
   <button class="cancel" onclick="closeModal('myHoursModal')">Close</button>
 </div></div>
@@ -1920,7 +1920,7 @@ button:active{ filter: brightness(.93); }
 <!-- Work Log — work already DONE that was never on a worklist. No approval step. -->
 <div class="modal" id="workLogModal"><div class="card2">
   <h3>✓ Log work done</h3>
-  <p class="mhint">Did something that wasn't on your worklist? Log it here so it's on the record and on the job card. No approval needed — it's yours.</p>
+  <p class="mhint">Did something that wasn't on your worklist? Log it here so it's on the record and you get paid for it. No approval needed — it's yours.</p>
   <label class="fld">Vessel</label>
   <select class="fld-in" id="wl_vessel" onchange="onVesselPick('wl_vessel','wl_other')"></select>
   <input class="fld-in" id="wl_other" placeholder="Type the yacht name" style="display:none;margin-top:8px">
@@ -2167,7 +2167,7 @@ button:active{ filter: brightness(.93); }
 <!-- Log hours modal -->
 <div class="modal" id="logModal"><div class="card2">
   <h3>End‑of‑day log</h3>
-  <p class="mhint">Goes to Marine HQ and onto the vessel's job card.</p>
+  <p class="mhint">Goes straight to Marine HQ.</p>
   <label class="fld">Vessel</label>
   <select class="fld-in" id="l_vessel"></select>
   <label class="fld">Date</label>
@@ -3026,8 +3026,8 @@ function chUnsubHtml(compact){
     return '<button onclick="event.stopPropagation();closeModal(\'myHoursModal\');openSubmitDay(\''+
       u.date+'\')">'+chNiceDate(u.date)+' \u00b7 '+chFmt(u.hours)+'</button>'; }).join("");
   return '<div class="chunsub"><h5>\u23f3 '+n+' day'+(n===1?'':'s')+' not submitted yet</h5>'+
-    '<p>'+(compact?'Tap a day to send it through to the job card.'
-                  :'These hours haven\u2019t reached a job card. Tap a day to send it.')+'</p>'+
+    '<p>'+(compact?'Tap a day to send it.'
+                  :'You haven\u2019t submitted these yet. Tap a day to send it.')+'</p>'+
     '<div class="days">'+btns+'</div></div>';
 }
 function chPaint(){
@@ -3221,7 +3221,7 @@ function ehRenderBundle(){
     '<div class="ahb-chips">'+chips+'</div>'+
     '<button class="ahb-add" onclick="ehAddAnother()">＋ Add another job to this block</button>'+
     (EHALSO.length ? '<p class="ahb-note">One set of hours covers all '+(EHALSO.length+1)+
-      '. They print as separate lines on the job card, with the hours on the first.</p>' : '');
+      '. Each is named separately, with the hours on the first.</p>' : '');
 }
 function ehDropAlso(i){ EHALSO.splice(i,1); ehRenderBundle(); }
 
@@ -3240,7 +3240,7 @@ function ehTakeJob(key){
   var pc=ahCatKey(ahCatOf(first)), ac=ahCatKey(ahCatOf(j));
   if(pc && ac && pc!==ac){
     alert("“"+(j.task||"That job")+"” is "+ahCatOf(j)+", and this block is "+ahCatOf(first)+
-          ".\n\nA job card keeps those apart, so they can't share one set of hours.");
+          ".\n\nThose are kept apart, so they can't share one set of hours.");
     return;
   }
   EHALSO.push({ key:key, task:(j.task||""), code:(j.code||""), vessel:(j.vessel||""), cat:ahCatOf(j) });
@@ -3604,7 +3604,7 @@ function ahRenderBundle(){
     '<div class="ahb-chips">'+chips+'</div>'+
     '<button class="ahb-add" onclick="ahAddAnother()">＋ Also did another job in this block</button>'+
     (AHALSO.length
-      ? '<p class="ahb-note">One set of times covers all '+(AHALSO.length+1)+'. They print on the job card as one line naming each of them.</p>'
+      ? '<p class="ahb-note">One set of times covers all '+(AHALSO.length+1)+'. Each of them is named, so they all go on the record.</p>'
       : '');
 }
 function ahAddAnother(){
@@ -3630,7 +3630,7 @@ function ahAlsoChoose(key){
   var pc=ahCatKey(ahCatOf(first)), ac=ahCatKey(ahCatOf(j));
   if(pc && ac && pc!==ac){
     alert("“"+(j.task||"That job")+"” is "+ahCatOf(j)+", and the first job is "+ahCatOf(first)+".\n\n"+
-          "A job card keeps those apart, so they can't share one block of hours. Log this one separately.");
+          "Those are kept apart, so they can't share one block of hours. Log this one separately.");
     return;
   }
   AHALSO.push({ key:key, task:(j.task||""), code:(j.code||""),
@@ -4052,7 +4052,7 @@ function renderMyHours(){
           esc(String(v).replace(/'/g,"\\'"))+'\')">'+esc(v)+'</button>'; }).join("")+'</div>';
   }
   el.innerHTML = tabs + chips + boats +
-    '<p class="mhnote">Everything already on a job card. Nothing here can be sent twice.</p>' +
+    '<p class="mhnote">Everything here you\u2019ve already submitted. Nothing can be sent twice.</p>' +
     (MHPERIOD==="today" ? chDayHtml() : mhPeriodHtml());
 }
 
@@ -4088,7 +4088,7 @@ function mhTodoHtml(){
              '<b style="color:var(--navy)">Checking\u2026</b>'+
              '<span style="color:var(--muted)">Looking for anything not yet on a job card.</span></div>';
     return nhBox+'<div class="mhclear"><b>\u2713 Nothing waiting to be sent</b>'+
-           '<span>Every hour you\u2019ve logged is on a job card.</span></div>'+add;
+           '<span>You\u2019ve submitted every hour you\u2019ve logged.</span></div>'+add;
   }
 
   var by={}, order=[];
@@ -4289,11 +4289,10 @@ function sdDress(mode, sent, total){
        plainly that the sent ones are left alone, so nobody worries about
        double-billing and nobody hunts for a way to exclude them (Trish,
        12 Sep 2026). Each one is marked "sent" on its own line as well. */
-    if(sent) lede = sent+" of these "+(sent===1?"has":"have")+" already gone to a job card and "+
-                    (sent===1?"is":"are")+" left alone \u2014 marked \u201csent\u201d below. "+
-                    "Submitting sends the other "+(total-sent)+".";
+    if(sent) lede = "You\u2019ve already submitted "+sent+" of these \u2014 marked \u201csent\u201d below, "+
+                    "and they won\u2019t go again. Submitting sends the other "+(total-sent)+".";
   } else if(mode==="sent"){
-    lede = "Every hour on this day is already on a job card \u2014 nothing here can be sent twice. Pick another date to look at.";
+    lede = "You\u2019ve already submitted these. Pick another date to look at.";
   } else {
     lede = "Nothing logged on this day yet. Pick another date, or add hours from the previous screen.";
   }
