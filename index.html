@@ -1694,7 +1694,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-12·p</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-12·q</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -6160,6 +6160,70 @@ function rptDate(s){
   var mo=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][parseInt(m[2],10)-1]||"";
   return parseInt(m[3],10)+" "+mo+" "+m[1];
 }
+// ---- Bottom banner rule (Trish, 12 Sep 2026) --------------------------------
+// If the contact banner fits on the last page of content it sits at the BOTTOM of
+// that page. It only takes a page of its own when it genuinely can't fit — never a
+// page with nothing on it but the banner. Print CSS can't see page breaks, so the
+// report measures itself at print width (A4, 14mm margins), walks the cards the way
+// Chrome paginates them (page-break-inside:avoid blocks drop to the next page whole),
+// and then either pads the banner down to the foot of the last page or, when it
+// can't fit, fills a final page and bottom-aligns it. Runs on load and again on
+// beforeprint. Chrome keeps a container's bottom padding glued to its last
+// keep-together child (a card ending 20px above the page foot still drops to the
+// next page when its .wrap has 40px of bottom padding) — tail() models that. `extra` = print-only rules the doc has that measuring must mirror,
+// already prefixed with `body.mhqMeasure ` (e.g. 'body.mhqMeasure .page{padding:0 6px}').
+// Same block lives in crew-app/index.html, client-portal/worklist.html and
+// dashboard/off-fleet.html — change all three together.
+function mhqPinBlock(extra){
+  return '<style>'+
+    '.mhqSpacer{display:none}'+
+    'body.mhqMeasure{width:182mm!important;max-width:none!important;margin:0!important}'+
+    'body.mhqMeasure .noprint{display:none!important}'+
+    '.end{padding-bottom:0!important;page-break-inside:avoid;break-inside:avoid}'+
+    (extra||'')+
+    '@media print{.mhqSpacer{display:block}'+
+      '.end.ownpage{min-height:265mm;display:flex;flex-direction:column;justify-content:flex-end}}'+
+    '</style><script>(function(){'+
+    'var PX=96/25.4,PAGE_H=(297-28)*PX,SAFE=10*PX;'+
+    'function pin(){'+
+      'var end=document.querySelector(".end");if(!end)return;'+
+      'var old=document.getElementById("mhqSpacer");if(old)old.parentNode.removeChild(old);'+
+      'end.classList.remove("ownpage");'+
+      'document.body.classList.add("mhqMeasure");'+
+      'var sy=window.pageYOffset||0;'+
+      'function top(el){return el.getBoundingClientRect().top+sy;}'+
+      'function tail(el){var t=0,p=el;while(p.parentElement&&p.parentElement!==document.body){'+
+        'var par=p.parentElement,last=par.lastElementChild;'+
+        'while(last&&(last.tagName==="SCRIPT"||last.tagName==="STYLE"||getComputedStyle(last).display==="none"))last=last.previousElementSibling;'+
+        'if(last!==p)break;var cs=getComputedStyle(par);'+
+        't+=(parseFloat(cs.paddingBottom)||0)+(parseFloat(cs.borderBottomWidth)||0);p=par;}return t;}'+
+      'var els=[].slice.call(document.querySelectorAll("body > *, body > * > *")).filter(function(el){'+
+        'if(el===end||end.contains(el))return false;'+
+        'if(el.tagName==="SCRIPT"||el.tagName==="STYLE")return false;'+
+        'if(el.classList.contains("noprint")||(el.closest&&el.closest(".noprint")))return false;'+
+        'return true;});'+
+      'els.sort(function(a,b){return top(a)-top(b);});'+
+      'var shift=0;'+
+      'els.forEach(function(el){'+
+        'var cs=getComputedStyle(el);'+
+        'if(!/avoid/.test(cs.breakInside||"")&&!/avoid/.test(cs.pageBreakInside||""))return;'+
+        'var h=el.getBoundingClientRect().height;if(!h)return;h+=tail(el);if(h>PAGE_H)return;'+
+        'var pos=(top(el)+shift)%PAGE_H;'+
+        'if(pos+h>PAGE_H)shift+=PAGE_H-pos;});'+
+      'var used=(top(end)+shift)%PAGE_H;'+
+      'var eh=document.documentElement.scrollHeight-top(end);'+
+      'var free=PAGE_H-used;'+
+      'document.body.classList.remove("mhqMeasure");'+
+      'end.setAttribute("data-pin","used="+Math.round(used)+" eh="+Math.round(eh)+" free="+Math.round(free)+" shift="+Math.round(shift)+" page="+Math.round(PAGE_H));'+
+      'if(eh+SAFE<=free){'+
+        'var s=document.createElement("div");s.id="mhqSpacer";s.className="mhqSpacer";'+
+        's.style.height=Math.round(free-eh-SAFE)+"px";end.parentNode.insertBefore(s,end);}'+
+      'else if(eh>free){end.classList.add("ownpage");}'+
+    '}'+
+    'window.addEventListener("load",pin);window.addEventListener("beforeprint",pin);'+
+    '})();<\/script>';
+}
+
 function buildReport(){
   var jobs=rptJobs(); if(!jobs.length) return;
   var label={all:"Every job", done:"Completed works", prog:"Completed &amp; in hand"}[RPT.scope];
@@ -6256,7 +6320,7 @@ function buildReport(){
     '.end{page-break-inside:avoid}.end .bnr{width:62%;max-width:430px;margin:12px auto 0;display:block}'+
     // Print can't measure page breaks, so fill the footer's own last page and
     // bottom-align it — drops the contact banner to the bottom of the last page.
-    '@media print{.noprint{display:none}.end{min-height:265mm;display:flex;flex-direction:column;justify-content:flex-end}}'+
+    '@media print{.noprint{display:none}}'+
     '</style></head><body>'+
     '<div class="wrap noprint"><div class="topbar">'+
       '<button class="tbtn close" onclick="window.close()">&lsaquo; Close report</button>'+
@@ -6269,7 +6333,7 @@ function buildReport(){
     rows+
     '</div>'+
     '<div class="wrap end"><div class="ft">Marine HQ Fleet Management &middot; '+rptEsc(CURVESSEL)+'</div>'+
-    '<img class="bnr" src="'+rptEsc(base)+'footer-banner.jpg" alt="Marine HQ"></div></body></html>';
+    '<img class="bnr" src="'+rptEsc(base)+'footer-banner.jpg" alt="Marine HQ"></div>'+mhqPinBlock()+'</body></html>';
   var w=window.open("","_blank");
   if(!w){ toast("Allow pop-ups to open the report"); return; }
   w.document.open(); w.document.write(doc); w.document.close();
@@ -8438,6 +8502,7 @@ function ofBuildReport(){
   var html='<!doctype html><html><head><meta charset="utf-8">'+
   '<meta name="viewport" content="width=device-width,initial-scale=1">'+
   '<title>'+esc(j.code+" "+docTitle+" — "+(j.vessel||""))+'</title><style>'+
+  '@page{size:A4;margin:14mm}'+
   '*{box-sizing:border-box}'+
   'body{font-family:Arial,Helvetica,sans-serif;color:#22303f;margin:0;background:#fff;font-size:13px;line-height:1.5}'+
   '.page{max-width:820px;margin:0 auto;padding:0 26px 40px}'+
@@ -8506,8 +8571,8 @@ function ofBuildReport(){
     '</div>'+
     '<p class="foot">Marine HQ · yachtsupport@marinehq.com.au · 0439 748 387<br>Report generated '+esc(dstr)+' from the Marine HQ crew app.</p>'+
   '</div>'+
-  '<img class="bnr" src="'+base+'footer-banner.jpg" alt="">'+
-  '</body></html>';
+  '<div class="end"><img class="bnr" src="'+base+'footer-banner.jpg" alt=""></div>'+
+  mhqPinBlock('body.mhqMeasure .page{padding:0 6px}')+'</body></html>';
 
   var w=window.open("","_blank");
   if(!w){ toast("Allow pop-ups to open the report"); return; }
