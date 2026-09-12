@@ -392,6 +392,9 @@
   .ahcatrow:hover{border-color:var(--navy);border-style:solid}
   .ahcatrow b{display:block;font-size:14px;color:var(--navy)}
   .ahcatrow span{display:block;margin-top:2px;font:600 11.5px/1.5 ui-monospace,Menlo,monospace;color:var(--muted)}
+  .ahadding{margin:14px 0 10px;padding-top:12px;border-top:1px solid var(--line);
+            font:700 10.5px/1.6 ui-monospace,Menlo,monospace;letter-spacing:.5px;
+            text-transform:uppercase;color:var(--muted)}
   .ahsend{display:flex;flex-direction:column;gap:6px;margin-top:8px}
   .ahsendbtn{width:100%;border:1px solid #cfe3d6;background:#eaf5ee;color:#2e7d5b;
              font:700 13px/1.4 inherit;padding:9px 12px;border-radius:9px;cursor:pointer}
@@ -1687,7 +1690,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-12·h</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-12·i</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1818,6 +1821,11 @@ button:active{ filter: brightness(.93); }
   </div>
   <div id="ahForm" style="display:none">
     <div id="ahBundle"></div>
+    <!-- Which half of this form you are in. The top says what is already on the
+         job and offers to send it; everything below here ADDS a new set of
+         hours on another day. Trish asked what the bottom was for and whether
+         it edited the entry above it — it does not, and nothing said so. -->
+    <p class="ahadding">Adding another set of hours to this job</p>
     <label class="fld">Day you did it</label>
     <input type="date" class="fld-in" id="ahDate">
     <div class="ahmode">
