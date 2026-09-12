@@ -1694,7 +1694,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-12·q</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-12·r</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -6162,7 +6162,7 @@ function rptDate(s){
 }
 // ---- Bottom banner rule (Trish, 12 Sep 2026) --------------------------------
 // If the contact banner fits on the last page of content it sits at the BOTTOM of
-// that page. It only takes a page of its own when it genuinely can't fit — never a
+// that page, FULL WIDTH like the top banner and flush to the bottom margin. It only takes a page of its own when it genuinely can't fit — never a
 // page with nothing on it but the banner. Print CSS can't see page breaks, so the
 // report measures itself at print width (A4, 14mm margins), walks the cards the way
 // Chrome paginates them (page-break-inside:avoid blocks drop to the next page whole),
@@ -6179,12 +6179,13 @@ function mhqPinBlock(extra){
     '.mhqSpacer{display:none}'+
     'body.mhqMeasure{width:182mm!important;max-width:none!important;margin:0!important}'+
     'body.mhqMeasure .noprint{display:none!important}'+
-    '.end{padding-bottom:0!important;page-break-inside:avoid;break-inside:avoid}'+
+    '.end{padding:0!important;page-break-inside:avoid;break-inside:avoid}'+
+    '.end .bnr{width:100%!important;max-width:none!important;margin:14px 0 0!important;display:block}'+
     (extra||'')+
     '@media print{.mhqSpacer{display:block}'+
       '.end.ownpage{min-height:265mm;display:flex;flex-direction:column;justify-content:flex-end}}'+
     '</style><script>(function(){'+
-    'var PX=96/25.4,PAGE_H=(297-28)*PX,SAFE=10*PX;'+
+    'var PX=96/25.4,PAGE_H=(297-28)*PX,SAFE=3*PX;'+
     'function pin(){'+
       'var end=document.querySelector(".end");if(!end)return;'+
       'var old=document.getElementById("mhqSpacer");if(old)old.parentNode.removeChild(old);'+
@@ -6317,7 +6318,7 @@ function buildReport(){
     '.topbar{position:sticky;top:0;display:flex;gap:8px;align-items:center;background:#fff;padding:10px 0;margin-bottom:6px;border-bottom:1px solid #e3e8ef;z-index:9}'+
     '.topbar .tbtn{border:0;border-radius:9px;padding:9px 15px;font-size:13px;font-weight:700;cursor:pointer}'+
     '.topbar .close{background:#eef1f6;color:#1A2B5C}.topbar .print{background:#E87722;color:#fff;margin-left:auto}'+
-    '.end{page-break-inside:avoid}.end .bnr{width:62%;max-width:430px;margin:12px auto 0;display:block}'+
+    '.end{page-break-inside:avoid}.end .bnr{width:100%;margin:14px 0 0;display:block}'+
     // Print can't measure page breaks, so fill the footer's own last page and
     // bottom-align it — drops the contact banner to the bottom of the last page.
     '@media print{.noprint{display:none}}'+
