@@ -1694,7 +1694,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-12·r</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-12·s</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -6161,67 +6161,78 @@ function rptDate(s){
   return parseInt(m[3],10)+" "+mo+" "+m[1];
 }
 // ---- Bottom banner rule (Trish, 12 Sep 2026) --------------------------------
-// If the contact banner fits on the last page of content it sits at the BOTTOM of
-// that page, FULL WIDTH like the top banner and flush to the bottom margin. It only takes a page of its own when it genuinely can't fit — never a
-// page with nothing on it but the banner. Print CSS can't see page breaks, so the
-// report measures itself at print width (A4, 14mm margins), walks the cards the way
-// Chrome paginates them (page-break-inside:avoid blocks drop to the next page whole),
-// and then either pads the banner down to the foot of the last page or, when it
-// can't fit, fills a final page and bottom-aligns it. Runs on load and again on
-// beforeprint. Chrome keeps a container's bottom padding glued to its last
-// keep-together child (a card ending 20px above the page foot still drops to the
-// next page when its .wrap has 40px of bottom padding) — tail() models that. `extra` = print-only rules the doc has that measuring must mirror,
-// already prefixed with `body.mhqMeasure ` (e.g. 'body.mhqMeasure .page{padding:0 6px}').
-// Same block lives in crew-app/index.html, client-portal/worklist.html and
-// dashboard/off-fleet.html — change all three together.
+// The bottom banner sits at the FOOT of the LAST page of content, full page width
+// like the top banner. Never a page with nothing on it but the banner, never a
+// small centred banner floating mid-page. The report paginates ITSELF: every
+// printed page is an explicit box the shape of the paper (182×253mm content —
+// a hair under A4's ratio so no print engine can spill a box onto an extra
+// page), the cards are dealt into the boxes in order, the banner block is
+// pushed to the bottom of the last box with flex. If the banner would not fit
+// under the last card, that card comes along to the final page with it.
+// Why boxes instead of measuring page breaks: iPhone Safari lays a page out at
+// the PHONE's width and scales it to A4, Chrome lays it out at A4 width — so the
+// only thing both agree on is "a box this shape is one page". On WebKit-touch
+// the boxes are measured at the screen width (which IS its print width); on
+// Chrome/desktop at 182mm (body.mhqPrintW). Runs on load, beforeprint and, on
+// iOS, on resize. Same block lives in crew-app/index.html,
+// client-portal/worklist.html and dashboard/off-fleet.html — change all three.
+// `extra` = print-only rules the doc has that measuring must mirror, already
+// prefixed with `body.mhqPrintW ` (e.g. 'body.mhqPrintW .page{padding:0 6px}').
 function mhqPinBlock(extra){
   return '<style>'+
-    '.mhqSpacer{display:none}'+
-    'body.mhqMeasure{width:182mm!important;max-width:none!important;margin:0!important}'+
+    'body.mhqPrintW{width:182mm!important;max-width:none!important;margin:0!important}'+
     'body.mhqMeasure .noprint{display:none!important}'+
-    '.end{padding:0!important;page-break-inside:avoid;break-inside:avoid}'+
+    '.end{padding:0!important}'+
     '.end .bnr{width:100%!important;max-width:none!important;margin:14px 0 0!important;display:block}'+
+    '#mhqPages>.mhqpg>img.bnr{width:100%;display:block}'+
     (extra||'')+
-    '@media print{.mhqSpacer{display:block}'+
-      '.end.ownpage{min-height:265mm;display:flex;flex-direction:column;justify-content:flex-end}}'+
-    '</style><script>(function(){'+
-    'var PX=96/25.4,PAGE_H=(297-28)*PX,SAFE=3*PX;'+
-    'function pin(){'+
-      'var end=document.querySelector(".end");if(!end)return;'+
-      'var old=document.getElementById("mhqSpacer");if(old)old.parentNode.removeChild(old);'+
-      'end.classList.remove("ownpage");'+
-      'document.body.classList.add("mhqMeasure");'+
-      'var sy=window.pageYOffset||0;'+
-      'function top(el){return el.getBoundingClientRect().top+sy;}'+
-      'function tail(el){var t=0,p=el;while(p.parentElement&&p.parentElement!==document.body){'+
-        'var par=p.parentElement,last=par.lastElementChild;'+
-        'while(last&&(last.tagName==="SCRIPT"||last.tagName==="STYLE"||getComputedStyle(last).display==="none"))last=last.previousElementSibling;'+
-        'if(last!==p)break;var cs=getComputedStyle(par);'+
-        't+=(parseFloat(cs.paddingBottom)||0)+(parseFloat(cs.borderBottomWidth)||0);p=par;}return t;}'+
-      'var els=[].slice.call(document.querySelectorAll("body > *, body > * > *")).filter(function(el){'+
-        'if(el===end||end.contains(el))return false;'+
-        'if(el.tagName==="SCRIPT"||el.tagName==="STYLE")return false;'+
-        'if(el.classList.contains("noprint")||(el.closest&&el.closest(".noprint")))return false;'+
-        'return true;});'+
-      'els.sort(function(a,b){return top(a)-top(b);});'+
-      'var shift=0;'+
-      'els.forEach(function(el){'+
-        'var cs=getComputedStyle(el);'+
-        'if(!/avoid/.test(cs.breakInside||"")&&!/avoid/.test(cs.pageBreakInside||""))return;'+
-        'var h=el.getBoundingClientRect().height;if(!h)return;h+=tail(el);if(h>PAGE_H)return;'+
-        'var pos=(top(el)+shift)%PAGE_H;'+
-        'if(pos+h>PAGE_H)shift+=PAGE_H-pos;});'+
-      'var used=(top(end)+shift)%PAGE_H;'+
-      'var eh=document.documentElement.scrollHeight-top(end);'+
-      'var free=PAGE_H-used;'+
-      'document.body.classList.remove("mhqMeasure");'+
-      'end.setAttribute("data-pin","used="+Math.round(used)+" eh="+Math.round(eh)+" free="+Math.round(free)+" shift="+Math.round(shift)+" page="+Math.round(PAGE_H));'+
-      'if(eh+SAFE<=free){'+
-        'var s=document.createElement("div");s.id="mhqSpacer";s.className="mhqSpacer";'+
-        's.style.height=Math.round(free-eh-SAFE)+"px";end.parentNode.insertBefore(s,end);}'+
-      'else if(eh>free){end.classList.add("ownpage");}'+
+    '@media print{'+
+      '.mhqpg{height:var(--ph,auto);display:flex;flex-direction:column;page-break-after:always;break-after:page;page-break-inside:avoid;break-inside:avoid}'+
+      '.mhqpg:last-child{page-break-after:auto;break-after:auto}'+
+      '.mhqpg>*{flex:0 0 auto}'+
+      '.mhqpg.last>.end{margin-top:auto}'+
     '}'+
-    'window.addEventListener("load",pin);window.addEventListener("beforeprint",pin);'+
+    '</style><script>(function(){'+
+    'var R=253/182,ua=navigator.userAgent||"";'+
+    'var IOS=window.MHQ_FORCE_IOS||/iPhone|iPad|iPod/.test(ua)||(/Macintosh/.test(ua)&&navigator.maxTouchPoints>1);'+
+    'var ITEMS=null,TOP=null,END=null,WRAPCLS="wrap";'+
+    'function init(){'+
+      'END=document.querySelector(".end");if(!END)return false;'+
+      'var wrap=null;[].slice.call(document.body.children).forEach(function(k){'+
+        'if(!TOP&&k.tagName==="IMG"&&k.classList.contains("bnr"))TOP=k;'+
+        'else if(!wrap&&k!==END&&!k.classList.contains("noprint")&&(k.classList.contains("wrap")||k.classList.contains("page")))wrap=k;});'+
+      'if(!wrap)return false;'+
+      'WRAPCLS=wrap.className;ITEMS=[].slice.call(wrap.children);'+
+      'var host=document.createElement("div");host.id="mhqPages";'+
+      'wrap.parentNode.insertBefore(host,wrap);wrap.parentNode.removeChild(wrap);'+
+      'END.parentNode&&END.parentNode.removeChild(END);'+
+      'return true;}'+
+    'function paginate(){'+
+      'if(ITEMS===null&&!init())return;'+
+      'document.body.classList.add("mhqMeasure");if(!IOS)document.body.classList.add("mhqPrintW");'+
+      'var host=document.getElementById("mhqPages");'+
+      'while(host.firstChild)host.removeChild(host.firstChild);'+
+      'var W=host.getBoundingClientRect().width,PH=Math.floor(W*R),box=null,wrap=null,n=0,boxes=[];'+
+      'function h(){return box.getBoundingClientRect().height;}'+
+      'function fresh(){box=document.createElement("div");box.className="mhqpg";host.appendChild(box);boxes.push(box);'+
+        'wrap=document.createElement("div");wrap.className=WRAPCLS;box.appendChild(wrap);n=0;}'+
+      'fresh();if(TOP)box.insertBefore(TOP,wrap);'+
+      'ITEMS.forEach(function(it){'+
+        'wrap.appendChild(it);n++;'+
+        'if(h()>PH&&n>1){var carry=[it],p=it.previousElementSibling;'+
+          'if(p&&p.classList.contains("bar")&&n>2)carry.unshift(p);'+
+          'fresh();carry.forEach(function(c){wrap.appendChild(c);});n=carry.length;}});'+
+      'box.appendChild(END);box.classList.add("last");'+
+      'if(h()>PH&&n>0){'+
+        'var last=wrap.lastElementChild,movers=[];'+
+        'if(n>1&&last){movers.push(last);var q=last.previousElementSibling;if(q&&q.classList.contains("bar")&&n>2)movers.unshift(q);}'+
+        'box.classList.remove("last");box.removeChild(END);'+
+        'fresh();movers.forEach(function(m){wrap.appendChild(m);});box.appendChild(END);box.classList.add("last");}'+
+      'boxes.forEach(function(b){b.style.setProperty("--ph",(b.getBoundingClientRect().height<=PH)?(PH+"px"):"auto");});'+
+      'host.setAttribute("data-pin","pages="+boxes.length+" W="+Math.round(W)+" PH="+PH+" ios="+(IOS?1:0));'+
+      'document.body.classList.remove("mhqMeasure");document.body.classList.remove("mhqPrintW");}'+
+    'window.addEventListener("load",paginate);window.addEventListener("beforeprint",paginate);'+
+    'var rt;window.addEventListener("resize",function(){if(!IOS)return;clearTimeout(rt);rt=setTimeout(paginate,150);});'+
     '})();<\/script>';
 }
 
@@ -6282,7 +6293,7 @@ function buildReport(){
   }).join("");
   var doc='<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'+
     '<title>'+rptEsc(CURVESSEL)+' '+rptEsc(rptPeriodLabel())+' — '+label+'</title><style>'+
-    '@page{size:A4;margin:14mm}*{box-sizing:border-box}'+
+    '@page{size:A4;margin:21mm 14mm}*{box-sizing:border-box}'+
     'body{margin:0;font-family:-apple-system,Segoe UI,Arial,sans-serif;color:#22303f;background:#fff}'+
     '.wrap{max-width:820px;margin:0 auto;padding:0 16px 40px}'+
     'img.bnr{display:block;width:100%;height:auto}'+
@@ -8503,7 +8514,7 @@ function ofBuildReport(){
   var html='<!doctype html><html><head><meta charset="utf-8">'+
   '<meta name="viewport" content="width=device-width,initial-scale=1">'+
   '<title>'+esc(j.code+" "+docTitle+" — "+(j.vessel||""))+'</title><style>'+
-  '@page{size:A4;margin:14mm}'+
+  '@page{size:A4;margin:21mm 14mm}'+
   '*{box-sizing:border-box}'+
   'body{font-family:Arial,Helvetica,sans-serif;color:#22303f;margin:0;background:#fff;font-size:13px;line-height:1.5}'+
   '.page{max-width:820px;margin:0 auto;padding:0 26px 40px}'+
@@ -8548,10 +8559,10 @@ function ofBuildReport(){
   '.foot{margin-top:26px;color:#8b98a8;font-size:11px;text-align:center}'+
   '.noprint{position:fixed;top:0;left:0;right:0;background:#1A2B5C;color:#fff;padding:11px;text-align:center;font-size:13px;z-index:9}'+
   '.noprint button{background:#E87722;color:#fff;border:0;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:bold;margin-left:10px;cursor:pointer}'+
-  '@media print{.noprint{display:none}.page{padding:0 6px}h2{page-break-after:avoid}}'+
+  '@media print{.noprint{display:none}.tbsp{display:none}.page{padding:0 6px}h2{page-break-after:avoid}}'+
   '</style></head><body>'+
   '<div class="noprint">Print or save this as a PDF to send with the invoice.<button onclick="window.print()">Print / Save as PDF</button></div>'+
-  '<div style="height:44px"></div>'+
+  '<div class="tbsp" style="height:44px"></div>'+
   '<img class="bnr" src="'+base+'banner.jpg" alt="Marine HQ">'+
   '<div class="page">'+
     '<h1>'+docTitle+'</h1>'+
@@ -8573,7 +8584,7 @@ function ofBuildReport(){
     '<p class="foot">Marine HQ · yachtsupport@marinehq.com.au · 0439 748 387<br>Report generated '+esc(dstr)+' from the Marine HQ crew app.</p>'+
   '</div>'+
   '<div class="end"><img class="bnr" src="'+base+'footer-banner.jpg" alt=""></div>'+
-  mhqPinBlock('body.mhqMeasure .page{padding:0 6px}')+'</body></html>';
+  mhqPinBlock('body.mhqPrintW .page{padding:0 6px}')+'</body></html>';
 
   var w=window.open("","_blank");
   if(!w){ toast("Allow pop-ups to open the report"); return; }
