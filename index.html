@@ -1678,7 +1678,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-12·c</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-12·d</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -3811,7 +3811,13 @@ function ahFilter(){
           var state = lg.sent===lg.n ? '<em class="ahsent">\u2713 sent</em>'
                     : (lg.sent ? '<em class="ahunsent">'+(lg.n-lg.sent)+' to send</em>'
                                : '<em class="ahunsent">to send</em>');
-          got = '  \u00b7  <em class="ahgot">'+chFmt(lg.hrs)+' logged, last '+
+          /* SAY IT IS THE JOB'S TOTAL, NOT THE DAY'S (Trish, 12 Sep 2026).
+             This list is grouped under the day a job was last done, so a
+             heading of "MON 7 SEP" sat directly above "5.50 hrs logged" — and
+             the 7th has 2.5 on it. The 5.5 is every hour ever logged against
+             that job code, here 3 on the 4th plus 2.5 on the 7th. Reading as a
+             day's total it looks like the app has invented three hours. */
+          got = '  \u00b7  <em class="ahgot">'+chFmt(lg.hrs)+' on this job all up, last '+
                 chNiceDate(lg.last)+'</em> '+state;
         } else {
           got = '  \u00b7  <em class="ahnone">no hours yet</em>';
