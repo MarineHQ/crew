@@ -1678,7 +1678,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-11·r</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-12·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -4278,23 +4278,36 @@ function openSubmitDay(day){
 }
 /* The same screen answers two questions — "is this right, send it" and "what
    did I do that day" — so it has to say which one you are looking at. */
-function sdDress(mode){
+function sdDress(mode, sent, total){
   var t=$("sdTitle"), l=$("sdLede"), send=$("sdSend"), close=$("sdClose");
   if(t) t.textContent = mode==="send" ? "\u2705 Submit a day" : "\uD83D\uDCC5 Your day";
-  if(l) l.textContent = mode==="send"
-    ? "Check it reads right, add anything worth knowing, then send it. Once it\u2019s in, only a director can change it."
-    : (mode==="sent"
-        ? "Every hour on this day is already on a job card. Pick another date to look at."
-        : "Nothing logged on this day yet. Pick another date, or add hours from the previous screen.");
+  var lede;
+  if(mode==="send"){
+    lede = "Check it reads right, add anything worth knowing, then send it. Once it\u2019s in, only a director can change it.";
+    /* HALF A DAY ALREADY GONE IS THE NORMAL CASE, not an odd one — a job
+       finished at lunchtime gets sent, the rest of the day comes later. Say
+       plainly that the sent ones are left alone, so nobody worries about
+       double-billing and nobody hunts for a way to exclude them (Trish,
+       12 Sep 2026). Each one is marked "sent" on its own line as well. */
+    if(sent) lede = sent+" of these "+(sent===1?"has":"have")+" already gone to a job card and "+
+                    (sent===1?"is":"are")+" left alone \u2014 marked \u201csent\u201d below. "+
+                    "Submitting sends the other "+(total-sent)+".";
+  } else if(mode==="sent"){
+    lede = "Every hour on this day is already on a job card \u2014 nothing here can be sent twice. Pick another date to look at.";
+  } else {
+    lede = "Nothing logged on this day yet. Pick another date, or add hours from the previous screen.";
+  }
+  if(l) l.textContent = lede;
   if(send) send.style.display = mode==="send" ? "" : "none";
   if(close) close.textContent = mode==="send" ? "Not yet" : "Close";
 }
 function sdRender(){
   var el=$("sdBody"), go=$("sdGo"); if(!el) return;
-  if(!SD){ el.innerHTML='<div class="chempty">Couldn\u2019t load your day.</div>'; sdDress("empty"); return; }
+  if(!SD){ el.innerHTML='<div class="chempty">Couldn\u2019t load your day.</div>'; sdDress("empty",0,0); return; }
   if(!SD.count){ el.innerHTML='<div class="chempty">Nothing logged on '+esc(chNiceDate(SDDATE))+'.</div>';
-                 sdDress("empty"); if(go) go.disabled=true; return; }
-  sdDress(SD.canSubmit ? "send" : (SD.openTimers ? "send" : "sent"));
+                 sdDress("empty",0,0); if(go) go.disabled=true; return; }
+  sdDress(SD.canSubmit ? "send" : (SD.openTimers ? "send" : "sent"),
+          (SD.alreadySubmitted||0), SD.count);
   /* Grouped under the boat, because a day that touched two yachts reads as two
      separate lots of work — which is how it will be invoiced. */
   var byBoat = [], seen = {};
