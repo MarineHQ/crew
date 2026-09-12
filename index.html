@@ -1678,7 +1678,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-12·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-12·c</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -4289,10 +4289,10 @@ function sdDress(mode, sent, total){
        plainly that the sent ones are left alone, so nobody worries about
        double-billing and nobody hunts for a way to exclude them (Trish,
        12 Sep 2026). Each one is marked "sent" on its own line as well. */
-    if(sent) lede = "You\u2019ve already submitted "+sent+" of these \u2014 marked \u201csent\u201d below, "+
-                    "and they won\u2019t go again. Submitting sends the other "+(total-sent)+".";
+    if(sent) lede = "Thanks \u2014 "+sent+" of these "+(sent===1?"is":"are")+
+                    " already submitted. Submitting sends the other "+(total-sent)+".";
   } else if(mode==="sent"){
-    lede = "You\u2019ve already submitted these. Pick another date to look at.";
+    lede = "Thanks \u2014 these jobs are already submitted.";
   } else {
     lede = "Nothing logged on this day yet. Pick another date, or add hours from the previous screen.";
   }
