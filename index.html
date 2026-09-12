@@ -1683,7 +1683,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-12·f</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-12·g</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -3646,10 +3646,30 @@ function ahAlsoChoose(key){
   ahSetWhat();
   ahRenderBundle();
 }
+/* WHAT IS ALREADY ON THIS JOB (Trish, 12 Sep 2026). The form opens blank —
+   correctly, it is for NEW hours — but it said nothing about what is already
+   against the job. After a list showing "5.50 hrs logged" you land on an empty
+   box with no way to tell what you are adding to. */
+function ahAlready(key){
+  var lg = AHLOG[key];
+  if(!lg || !lg.n) return "";
+  var unsent = lg.n - lg.sent;
+  return '<div class="ahprev">Already on this job: <b>'+chFmt(lg.hrs)+'</b> across '+
+         lg.n+' entr'+(lg.n===1?'y':'ies')+
+         (unsent ? (' · <em>'+unsent+' still to send</em>') : '')+'</div>';
+}
+/* "adding to 5.5 already there — 8 on this job", so the number in front of them
+   is the one they will see next time they open it. */
+function ahRunning(add){
+  var lg = AHLOG[AHKEY];
+  if(!lg || !lg.hrs || !(add>0)) return "";
+  return '<span class="ahrun">adding to '+chFmt(lg.hrs)+' already there — '+
+         chFmt(lg.hrs+add)+' on this job</span>';
+}
 function ahSetWhat(){
   var j=ahJobOf(AHKEY);
   $("ahWhat").innerHTML = j && j.task
-    ? ('<b>'+esc(j.task)+'</b><br>'+esc([j.code,j.vessel].filter(Boolean).join(" · ")))
+    ? ('<b>'+esc(j.task)+'</b><br>'+esc([j.code,j.vessel].filter(Boolean).join(" · "))+ahAlready(AHKEY))
     : "Pick the day and the times.";
 }
 
@@ -3663,7 +3683,8 @@ function ahOpen(key){
   if(AHKEY){
     var j=wlFind(AHKEY);
     $("ahWhat").innerHTML = j ? ('<b>'+esc(j.task||"this job")+'</b><br>'+
-        esc([j.code,j.vessel].filter(Boolean).join(" \u00b7 "))) : "Pick the day and the times.";
+        esc([j.code,j.vessel].filter(Boolean).join(" \u00b7 "))+ahAlready(AHKEY))
+      : "Pick the day and the times.";
     ahRenderBundle();
   } else {
     $("ahWhat").textContent = "Which job were you on? Pick the boat, then the job.";
@@ -3945,7 +3966,7 @@ function ahCalc(){
     var hv=parseFloat(($("ahHours")||{}).value);
     hv = Math.round((hv||0)*4)/4;
     el.style.color="";
-    el.textContent = hv>0 ? (chFmt(hv)+"  ·  no times recorded") : "—";
+    el.innerHTML = hv>0 ? (esc(chFmt(hv))+"  ·  no times recorded"+ahRunning(hv)) : "—";
     return;
   }
   function m(v){ var p=(v||"").split(":"); if(p.length<2) return -1;
@@ -3955,8 +3976,9 @@ function ahCalc(){
   var mins=b-a; if(mins<0) mins+=1440;                  // finished after midnight
   mins-=br;
   var ov = ahOvernight($("ahStart").value, $("ahFinish").value);
-  el.textContent = mins>0 ? (chFmt(Math.round(mins/0.6)/100)+"  \u00b7  "+
-      Math.floor(mins/60)+"h "+(mins%60)+"m"+(ov?"  \u00b7  OVERNIGHT":""))
+  var hrsNow = Math.round(mins/0.6)/100;
+  el.innerHTML = mins>0 ? (esc(chFmt(hrsNow))+"  \u00b7  "+
+      Math.floor(mins/60)+"h "+(mins%60)+"m"+(ov?"  \u00b7  OVERNIGHT":"")+ahRunning(hrsNow))
     : "that gives no time worked";
   el.style.color = ov ? "#B06A00" : "";
 }
