@@ -1690,7 +1690,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-12·j</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-12·k</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -9273,10 +9273,27 @@ function atCheckMatch(){
     var title=($("at_title").value||"").trim(), vessel=atVessel();
     if(!title || !vessel){ ATSUGG=[]; ATEXISTS=null; ATCHOSEN=null; ATNEW=false; atRenderMatch(); return; }
     var mine={t:title,v:vessel}; _atMatchReq=mine;
+    /* CREW GET SUGGESTIONS TOO (Trish, 12 Sep 2026). crewMatchTask is
+       managers-only on the server, so a crew member typing "rinse" here got a
+       flat refusal and an empty box — no list, no reason, nothing to pick. It
+       carries one extra thing a director wants ("this boat already has that
+       task"), so it is still asked first; when it is refused we fall back to
+       fn=tasksuggest, the same ranked search, open to any active crew. */
     apiPost({action:"crewMatchTask", email:ME.email, code:ME.code, vessel:vessel, title:title, desc:($("at_desc").value||"").trim()}).then(function(r){
       if(_atMatchReq!==mine) return;                 // a newer request superseded this one
-      ATSUGG=(r&&r.ok&&r.suggestions)||[]; ATEXISTS=(r&&r.ok&&r.exists)||null;
-      atRenderMatch();
+      if(r && r.ok){
+        ATSUGG=r.suggestions||[]; ATEXISTS=r.exists||null;
+        atRenderMatch(); return;
+      }
+      return apiGet("fn=tasksuggest&code="+encodeURIComponent(ME.code||"")+
+                    "&email="+encodeURIComponent(ME.email||"")+
+                    "&vessel="+encodeURIComponent(vessel)+
+                    "&q="+encodeURIComponent(title+" "+($("at_desc").value||"").trim()))
+        .then(function(t){
+          if(_atMatchReq!==mine) return;
+          ATSUGG=(t&&t.ok&&t.suggestions)||[]; ATEXISTS=null;
+          atRenderMatch();
+        });
     }).catch(function(){});
   }, 450);
 }
