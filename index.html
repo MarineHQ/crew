@@ -1690,7 +1690,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-12·i</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-12·j</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -3788,7 +3788,24 @@ function ahFilter(){
     return ahInitials(j.vessel).indexOf(q)>=0;             // AT3 → Abel Tasman III
   });
 
-  var counts={}; src.forEach(function(j){ counts[j.vessel||"—"]=(counts[j.vessel||"—"]||0)+1; });
+  /* COUNT WHAT YOU WOULD ACTUALLY SEE (Trish, 12 Sep 2026). These counted every
+     job on the boat — "Andiamo 26" — while the list below hides anything whose
+     hours have all been sent, so two rows sat under a chip promising twenty-six.
+     It read as a history that grows for ever and never lets anything go. Same
+     test as the list, minus the boat filter, so a chip's number is the number
+     of rows tapping it produces. */
+  function ahPickable(j){
+    if(AHONLYDUE){ var l0=AHLOG[j.key]; if(!l0 || l0.sent>=l0.n) return false; }
+    if(AHNOHRS){ if(AHLOG[j.key] || hubBucket(j.status)!=="Done") return false; }
+    if(hubBucket(j.status)==="To do") return false;
+    if(!AHSHOWSENT){ var ls=AHLOG[j.key]; if(ls && ls.n && ls.sent>=ls.n) return false; }
+    return true;
+  }
+  var counts={};
+  src.forEach(function(j){
+    if(!ahPickable(j)) return;
+    counts[j.vessel||"—"]=(counts[j.vessel||"—"]||0)+1;
+  });
   var boats=Object.keys(counts).sort();
   var due=0, sentN=0;
   src.forEach(function(j){
@@ -3796,6 +3813,9 @@ function ahFilter(){
     if(l1 && l1.sent<l1.n) due++;
     if(l1 && l1.n && l1.sent>=l1.n) sentN++;
   });
+  /* Boat chips only earn their place when there is more than one boat left to
+     choose between after the hiding. */
+  var boatChips = Object.keys(counts).length > 1;
   var chips = '<div class="ahchips">'+
     '<button class="ahchip'+(AHBOAT||AHONLYDUE||AHNOHRS?"":" on")+
       '" onclick="AHONLYDUE=false;AHNOHRS=false;ahBoat(\'\')">All</button>'+
@@ -3804,7 +3824,7 @@ function ahFilter(){
           '\u25cf To send <i>'+due+'</i></button>'):'')+
     (sentN?('<button class="ahchip'+(AHSHOWSENT?" on":"")+'" onclick="ahShowSent()">'+
             '\u2713 already sent <i>'+sentN+'</i></button>'):'')+
-    (boats.length>1 ? boats.map(function(v){
+    (boatChips ? boats.map(function(v){
       return '<button class="ahchip'+(AHBOAT===v?" on":"")+'" onclick="ahBoat(\''+
         esc(String(v).replace(/'/g,"\\'"))+'\')">'+esc(v)+' <i>'+counts[v]+'</i></button>';
     }).join("") : '')+'</div>';
