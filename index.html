@@ -1690,7 +1690,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-12·k</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-12·l</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1939,10 +1939,17 @@ button:active{ filter: brightness(.93); }
   <h3>✓ Log work done</h3>
   <p class="mhint">Did something that wasn't on your worklist? Log it here so it's on the record and you get paid for it. No approval needed — it's yours.</p>
   <label class="fld">Vessel</label>
-  <select class="fld-in" id="wl_vessel" onchange="onVesselPick('wl_vessel','wl_other')"></select>
+  <select class="fld-in" id="wl_vessel" onchange="onVesselPick('wl_vessel','wl_other');wlSuggest()"></select>
   <input class="fld-in" id="wl_other" placeholder="Type the yacht name" style="display:none;margin-top:8px">
   <label class="fld">What did you do?</label>
-  <input class="fld-in" id="wl_title" placeholder="e.g. Replaced galley tap washer">
+  <input class="fld-in" id="wl_title" placeholder="Start typing — e.g. rinse, vacuum, teak"
+         oninput="wlSuggest()" autocomplete="off">
+  <!-- The catalogue, offered as you type. Without it this was a plain text box:
+       whatever got typed became the job's NAME and the auto-coder guessed a
+       number afterwards, which is how "Tender.   Get rid of growth on prop…"
+       ended up as the tender REFUELLING task and "Run systems" as a battery
+       check (Trish, 12 Sep 2026). -->
+  <div id="wl_sugg"></div>
   <label class="fld">Detail <span class="fldhint">(optional — parts used, what you found)</span></label>
   <textarea class="fld-ta" id="wl_desc" placeholder="Anything worth knowing later…"></textarea>
   <label class="fld">Where's it at?</label>
@@ -9263,6 +9270,53 @@ function atLoadVesselLists(vessel){
     ATVLISTS[vessel]=Object.keys(set); if($("addTaskModal").classList.contains("show")) atFillLists();
   }).catch(function(){});
 }
+/* ---- the catalogue on the Log work done form ------------------------------
+   Same ranked search the hours picker uses, open to any crew. Picking one makes
+   the master job the TITLE — so it codes to that number instead of being
+   guessed at — and anything already typed drops into Detail, which is where a
+   crew member's own words belong and where the job card prints them. */
+var _wlSuggT=null, WLSUGG=[];
+function wlVesselNow(){
+  var v=$("wl_vessel"); if(!v) return "";
+  return v.value==="__other__" ? (($("wl_other")||{}).value||"").trim() : v.value;
+}
+function wlSuggest(){
+  clearTimeout(_wlSuggT);
+  var q=($("wl_title").value||"").trim(), boat=wlVesselNow(), box=$("wl_sugg");
+  if(!box) return;
+  if(q.length<3 || !boat){ WLSUGG=[]; box.innerHTML=""; return; }
+  _wlSuggT=setTimeout(function(){
+    apiGet("fn=tasksuggest&code="+encodeURIComponent(ME.code||"")+
+           "&email="+encodeURIComponent(ME.email||"")+
+           "&vessel="+encodeURIComponent(boat)+"&q="+encodeURIComponent(q))
+      .then(function(r){
+        if((($("wl_title")||{}).value||"").trim()!==q) return;   // they kept typing
+        WLSUGG=(r&&r.ok&&r.suggestions)||[];
+        wlRenderSugg();
+      }).catch(function(){});
+  }, 350);
+}
+function wlRenderSugg(){
+  var box=$("wl_sugg"); if(!box) return;
+  if(!WLSUGG.length){ box.innerHTML=""; return; }
+  box.innerHTML='<div class="ahcat"><h6>From the job catalogue</h6>'+
+    WLSUGG.slice(0,6).map(function(s){
+      return '<div class="ahcatrow" onclick="wlPickSugg('+s.num+')">'+
+             '<b>'+esc(s.job)+'</b><span>'+esc(s.code||"")+
+             (s.category?(' \u00b7 '+esc(s.category)):'')+'</span></div>';
+    }).join("")+'</div>';
+}
+function wlPickSugg(num){
+  var s=WLSUGG.filter(function(x){ return x.num===num; })[0]; if(!s) return;
+  var typed=($("wl_title").value||"").trim();
+  var d=$("wl_desc");
+  /* Their own words are not the job's name — they are what happened on it. */
+  if(d && !d.value.trim() && typed && typed.toLowerCase()!==s.job.toLowerCase()) d.value=typed;
+  $("wl_title").value=s.job;
+  WLSUGG=[]; $("wl_sugg").innerHTML="";
+  toast("Logging as "+s.code);
+}
+
 function atVessel(){ var vsel=$("at_vessel").value; return vsel==="__other__" ? ($("at_vesselOther").value||"").trim() : vsel; }
 // As the director types, a choice they'd made no longer applies → reset it.
 function atTitleTyping(){ if(ATCHOSEN||ATNEW){ ATCHOSEN=null; ATNEW=false; atRenderMatch(); } }
