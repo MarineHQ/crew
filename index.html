@@ -1419,6 +1419,39 @@ button:active{ filter: brightness(.93); }
 #apiBar{position:fixed;top:0;left:0;height:3px;width:0;background:var(--orange);z-index:99999;opacity:0;pointer-events:none;transition:width .5s ease,opacity .3s}
 #apiBar.on{opacity:1;width:72%}
 #apiBar.done{width:100%;opacity:0;transition:width .15s ease,opacity .4s ease .15s}
+
+/* ---- Variations (extra work found on a job) ---- */
+.varsec{border-left:4px solid var(--orange)}
+.acptchip.varchip.sent{background:#fff4e5;color:#b45309}
+.acptchip.varchip.ok{background:#dcfce7;color:#166534}
+.acptchip.varchip.no{background:#fee2e2;color:#b91c1c}
+.acptchip.varchip.draft{background:#fdf0e6;color:#8a4a12}
+.varline{position:relative;border:1px solid var(--line);border-radius:10px;padding:10px 34px 10px 10px;margin-top:8px;background:#fbfcfe}
+.varline .fld-in{margin-top:6px}
+.varkind{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)}
+.varrow{display:flex;gap:8px}
+.varrow .fld-in{flex:1;min-width:0}
+.varamt{font-size:12.5px;color:var(--navy);margin-top:6px}
+.varamt small{color:var(--muted);font-weight:600}
+.varat{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--muted);margin-top:7px}
+.vardel{position:absolute;top:8px;right:8px;border:0;background:#eef2f7;color:#64748b;border-radius:8px;width:24px;height:24px;font-size:12px;cursor:pointer}
+.vardel.inline{position:static;margin-left:auto}
+.vartotals{margin-top:12px;border-top:1.5px solid var(--line);padding-top:8px}
+.vartotals div{display:flex;justify-content:space-between;font-size:13px;padding:3px 0}
+.vartotals div.inc{background:var(--navy);color:#fff;border-radius:8px;padding:8px 10px;margin-top:4px;font-size:14px}
+.varrec{width:100%;margin-top:6px;border:1.5px solid var(--line);background:#fff;color:var(--navy);border-radius:10px;padding:11px;font-size:14px;font-weight:700;cursor:pointer}
+.varrec.rec{background:#fee2e2;border-color:#fca5a5;color:#b91c1c;animation:acptpulse 1.4s ease-in-out infinite}
+.varvoice{margin-top:8px;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:#fff}
+.varvoice audio{width:100%;height:36px}
+.varvmeta{display:flex;align-items:center;gap:10px;font-size:11.5px;color:var(--muted);margin-top:4px}
+.varvmeta a{color:var(--navy);font-weight:700}
+#varModal.crewmode .mgronly{display:none!important}
+#varModal:not(.crewmode) .crewonly{display:none!important}
+.vartiles{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 10px}
+.vartile{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.vartile b{display:block;font-size:17px;color:var(--navy)}
+.vartile span{font-size:11.5px;color:var(--muted);font-weight:600}
+.vartile.sent{border-left:4px solid #b45309}.vartile.ok{border-left:4px solid #166534}.vartile.draft{border-left:4px solid var(--orange)}.vartile.inv{border-left:4px solid #64748b}
 </style>
 </head>
 <body>
@@ -1694,7 +1727,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-12·s</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-15·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2169,6 +2202,45 @@ button:active{ filter: brightness(.93); }
 </div></div>
 
 <!-- Move a task to another worklist on the SAME vessel -->
+<!-- Variation — extra work found on a job (crew raise it, directors price + send) -->
+<div class="modal" id="varModal"><div class="card2">
+  <h3>💲 Variation — extra work found</h3>
+  <p class="mhint" id="var_hint"></p>
+  <label class="fld">What is it? <span class="fldhint">— short title, e.g. “Replace cracked shore-power cable”</span></label>
+  <input class="fld-in" id="var_title" type="text" maxlength="90" placeholder="Extra work found">
+  <label class="fld">Voice note <span class="fldhint">— say what you found and what it needs; it’s saved on the job</span></label>
+  <button type="button" class="varrec" id="var_rec" onclick="varRecToggle()">🎙 Record a voice note</button>
+  <div id="var_voice"></div>
+  <label class="fld">What we found &amp; why it matters <span class="fldhint">— this goes on the owner’s variation</span></label>
+  <textarea class="fld-in" id="var_scope" rows="3" placeholder="e.g. The shore-power inlet cable has a split in the outer sheath at the plug — it will fail an inspection and is a shock risk. Needs a new 16 A marine cable and plug fitted."></textarea>
+  <p class="body crewonly" style="font-size:12px;color:var(--muted);margin:6px 0 0">Photos you add to the job are included automatically. Marine HQ adds the prices.</p>
+  <label class="fld">What it needs</label>
+  <div id="var_lines"></div>
+  <div class="assignrow" style="margin-top:8px">
+    <button type="button" class="aopt" onclick="varAddLine('labour')">＋ Labour</button>
+    <button type="button" class="aopt" onclick="varAddLine('parts')">＋ Part / material</button>
+    <button type="button" class="aopt mgronly" onclick="varAddLine('other')">＋ Other</button>
+  </div>
+  <div class="vartotals mgronly" id="var_totals"></div>
+  <div class="mgronly" id="var_msgrow">
+    <label class="fld">Message to the owner <span class="fldhint">— optional, goes in the email and on the PDF</span></label>
+    <textarea class="fld-in" id="var_msg" rows="2" placeholder="e.g. We can do this while she’s already out of the water — saves a second haul-out."></textarea>
+  </div>
+  <button class="go" id="var_go" onclick="varSave(false)">💾 Save draft</button>
+  <button class="go mgronly" id="var_send" style="background:var(--navy);margin-top:8px" onclick="varSave(true)">📤 Save &amp; send to the owner</button>
+  <button class="cancel" onclick="varClose()">Cancel</button>
+</div></div>
+
+<!-- Variation approved → mark it invoiced (director) -->
+<div class="modal" id="varInvModal"><div class="card2">
+  <h3>💳 Mark this variation invoiced</h3>
+  <p class="mhint">Records it on the job and the Variations tab so it drops off “to invoice”.</p>
+  <label class="fld">Invoice number <span class="fldhint">— optional, e.g. the Xero invoice no.</span></label>
+  <input class="fld-in" id="varinv_ref" type="text" placeholder="INV-0421">
+  <button class="go" onclick="varDoInvoiced()">💳 Mark invoiced</button>
+  <button class="cancel" onclick="closeModal('varInvModal')">Cancel</button>
+</div></div>
+
 <!-- Waiting on owner (director) — park a job on the owner's decision -->
 <div class="modal" id="waitOwnerModal"><div class="card2">
   <h3>Waiting on the owner</h3>
@@ -5727,7 +5799,8 @@ function segOwnerAsk(){
 function jobSegs(){
   if(isMgrRole()) return [["all","📋 All work"],["ownerask","👤 Owner asked",segOwnerAsk().length],
                           ["raised","🔔 Raised by crew",(REQJOBS||[]).length],
-                          ["waitowner","⏳ Waiting on owner",segWaitOwner().length]];
+                          ["waitowner","⏳ Waiting on owner",segWaitOwner().length],
+                          ["variations","💲 Variations",segVariations().length]];
   return [["all","📋 My worklist"],["ownerask","👤 Owner asked",segOwnerAsk().length],
           ["offered","🗂 Offered to me",segOffered().length],
           ["approve","🚨 To approve",segToApprove().length],["raised","📤 My raised jobs",(CREWRAISED||[]).length]];
@@ -5801,6 +5874,13 @@ function renderSegBody(){
     }).join("") : '<div class="empty">Nothing the owner has asked for is open. 🎉<br><span style="font-size:12px">A job shows here once a director marks it as the owner\'s request on its card. It also appears on the owner\'s own My Jobs page.</span></div>';
     return;
   }
+  if(JOBSEG==="variations" && isMgrRole()){
+    title="Variations"; list=segVariations();
+    if(cnt) cnt.textContent=list.length+(list.length===1?" variation":" variations");
+    if(sub) sub.textContent=title;
+    renderVariationsSeg(el, list);
+    return;
+  }
   if(JOBSEG==="waitowner" && isMgrRole()){
     title="Waiting on owner"; list=segWaitOwner();
     if(cnt) cnt.textContent=list.length+" waiting";
@@ -5847,6 +5927,8 @@ function wlJobCard(j, idx, noNum){
     if(j.dueTs){ codeChip += ' <span class="duechip'+dueCls(j.dueTs,done)+'">📅 '+esc(dayLabel(j.dueTs))+(j.dueTime?(' '+esc(fmtTime12(j.dueTime))):'')+'</span>'; }
     // parked on the owner's answer — everyone sees why it isn't moving
     if(j.signoff && j.signoff.wait){ codeChip += ' <span class="acptchip urgent">⏳ Waiting on owner</span>'; }
+    // extra work found on the job — where the variation is up to (crew see the status, not the money)
+    codeChip += varChip(j);
     // The owner asked for this job. Flagged everywhere it appears, because "the
     // owner is waiting on this" is the one thing that should change what you pick up next.
     if(j.ownerReq){ codeChip += ' <span class="acptchip owner">👤 Owner asked</span>'; }
@@ -7177,6 +7259,7 @@ function openWLJob(key){
       '<div id="tagPicker" class="tagpicker" style="display:none"></div>'+
       '<button class="jobbtn complete" style="background:var(--navy)" onclick="wlAddComment(\''+esc(key)+'\')">Add note</button>'+
       '<p class="body" style="font-size:11.5px;color:var(--muted);text-align:center;margin:8px 0 0">A note is optional — everything else (status, photos, day) saves as you go.</p></div>'+
+    wlVariationBlock(j,key)+
     wlApproveBlock(j,key)+
     wlFixBlock(j,key)+
     '<button class="jobbtn donebtn" onclick="closeSheet()">✓ Done</button>'+
@@ -7367,6 +7450,305 @@ function saveInduct(){
    The owner-share state is shown WHATEVER the status — a task can be shared
    without ever going through Complete (a whole work list shared at onboarding),
    and a director needs to see that and be able to pull it back. */
+/* ============================================================================
+   VARIATIONS — extra work found on a job (15 Sep 2026)
+   Crew find something extra mid-job and raise it from the job card: what it is,
+   photos (they're already on the job), a voice note, and roughly what it needs.
+   A director prices it (labour tiers × hours, parts, other), sends a branded
+   Variation PDF to the owner — email + push, and a share sheet for texting the
+   link — and the owner approves in MyYacht with a typed signature. The signed
+   record, status and invoice-ready total sit on the job (signoff.variation) and
+   in the Variations tab of the sheet. Nobody starts the extra work until it
+   says APPROVED. Crew never see the money — they see the status.
+   Backend: Variations.gs (variationSave / variationSend / variationUpdate).
+   ============================================================================ */
+var VAR_RATES={ master:{label:"Master / Specialist trade",rate:155}, eng:{label:"Engineer / Qualified trade",rate:145},
+                ops:{label:"Operations manager / Supervisor",rate:120}, gen:{label:"General labour / Trade assistant",rate:95} };
+var VAR_TIERS=["eng","master","ops","gen"];
+var VAR_PARTS_MARKUP=1.20, VAR_HANDLING=1.10;
+var VARM={ key:"", lines:[], voice:[], rec:null, chunks:[], stream:null, timer:null, secs:0 };
+function varErr(r,fb){ var e=(r&&r.error)||""; if(/unknown action/i.test(e)) return "Marine HQ backend needs deploying first (Variations.gs isn’t live yet)"; return e||fb; }
+function varMoney(n){ return "$"+(Number(n)||0).toLocaleString("en-AU",{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function varOf(j){ return (j&&j.signoff&&j.signoff.variation)||null; }
+function varRound(n){ return Math.round((Number(n)||0)*100)/100; }
+/* Same maths as vrPrice_ on the backend — the app shows it live, the sheet is the record. */
+function varPrice(lines){
+  var out=[], ex=0;
+  (lines||[]).forEach(function(l){
+    if(!l) return; var kind=l.kind||"other", row={kind:kind, desc:(l.desc||"").trim()};
+    if(kind==="labour"){ var tier=VAR_RATES[l.tier]?l.tier:"", rate=tier?VAR_RATES[tier].rate:(Number(l.rate)||0), hrs=varRound(l.hours);
+      if(!(hrs>0)) return; row.tier=tier; row.rate=rate; row.hours=hrs; row.desc=row.desc||(tier?VAR_RATES[tier].label:"Labour"); row.amount=varRound(hrs*rate); }
+    else if(kind==="parts"){ var qty=Number(l.qty)||1, cost=varRound(l.cost); if(!row.desc && !(cost>0)) return;
+      row.qty=qty; row.cost=cost; row.atCost=!!l.atCost; row.amount=varRound(row.atCost?(qty*cost):(qty*cost*VAR_PARTS_MARKUP*VAR_HANDLING));
+      if(l.override && l.amount!=="" && l.amount!=null && Number(l.amount)>=0){ row.amount=varRound(l.amount); row.override=true; } }
+    else { var amt=varRound(l.amount); if(!row.desc && !(amt>0)) return; row.kind="other"; row.amount=amt; }
+    out.push(row); ex+=row.amount;
+  });
+  ex=varRound(ex); var gst=varRound(ex*0.1); return {lines:out, ex:ex, gst:gst, inc:varRound(ex+gst)};
+}
+function varStatus(v){
+  var s=(v&&v.status)||"draft";
+  return {draft:"Draft — not sent yet", sent:"Sent to the owner — awaiting approval", approved:"Approved", declined:"Declined by the owner", withdrawn:"Withdrawn"}[s]||s;
+}
+function varChip(j){
+  var v=varOf(j); if(!v) return "";
+  var s=v.status||"draft";
+  if(s==="sent") return ' <span class="acptchip varchip sent">💲 Variation with owner</span>';
+  if(s==="approved") return ' <span class="acptchip varchip ok">✅ Variation approved'+(isMgrRole()?(' · '+varMoney(v.inc)):'')+'</span>';
+  if(s==="declined") return ' <span class="acptchip varchip no">❌ Variation declined</span>';
+  if(s==="draft") return ' <span class="acptchip varchip draft">💲 Variation '+(isMgrRole()?'to price':'raised')+'</span>';
+  return "";
+}
+/* ---- the section on the job card ---- */
+function wlVariationBlock(j,key){
+  var kk=esc(key), v=varOf(j), mgr=isMgrRole();
+  var hist=(j.signoff&&j.signoff.variations&&j.signoff.variations.length)||0;
+  var histHTML = (mgr&&hist) ? '<p class="body" style="font-size:12px;color:var(--muted);margin:8px 0 0">'+hist+' earlier variation'+(hist>1?'s':'')+' on this job — filed on the Variations tab of the sheet.</p>' : '';
+  if(!v){
+    return '<div class="sec"><h4>Extra work found?</h4>'+
+      '<p class="body" style="font-size:12.5px;color:var(--muted);margin:0 0 8px">'+
+      (mgr ? 'Something outside the job’s scope? Raise a variation, price it and send it to the owner — nobody starts the extra work until it says <b>Approved</b>.'
+           : 'Found something that isn’t part of this job? Raise it here with a voice note and what it needs. Marine HQ prices it and sends it to the owner — <b>don’t start the extra work</b> until the card says Approved.')+'</p>'+
+      '<button class="jobbtn" style="background:var(--orange);margin-top:0" onclick="varOpen(\''+kk+'\')">💲 Raise a variation</button>'+histHTML+'</div>';
+  }
+  var s=v.status||"draft", d=v.decision||{};
+  var head='<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap"><b>'+esc(v.ref||"Variation")+'</b>'+
+           (mgr&&v.inc>0?'<b style="color:var(--navy)">'+varMoney(v.inc)+' <small style="font-weight:600;color:var(--muted)">inc GST</small></b>':'')+'</div>'+
+           '<div style="font-size:13.5px;margin-top:3px">'+esc(v.title||"")+'</div>'+
+           (v.scope?'<div style="font-size:12.5px;color:var(--muted);margin-top:3px;white-space:pre-wrap">'+esc(v.scope)+'</div>':'');
+  var voice=(v.voice&&v.voice.length)?('<div style="font-size:12px;color:var(--muted);margin-top:6px">🎙 '+v.voice.length+' voice note'+(v.voice.length>1?'s':'')+' — open to listen</div>'):'';
+  var box, btns='';
+  if(s==="draft"){
+    box='<div class="apprOn" style="background:#fdf3e3;color:#8a5a12;border-color:#f0dcb8">💲 '+(mgr?('Draft — '+(v.inc>0?'priced, not sent yet':'needs pricing')):'Raised — with Marine HQ to price and send')+
+        (v.raisedBy?('<div style="font-weight:400;font-size:12px;margin-top:3px">Raised by '+esc(firstName(v.raisedBy))+(v.raisedAt?(' · '+relTime(v.raisedAt)):'')+(v.resend?' · edited since it was sent — send it again':'')+'</div>'):'')+'</div>';
+    btns='<button class="jobbtn" style="background:var(--navy)" onclick="varOpen(\''+kk+'\')">✎ '+(mgr?'Price &amp; edit':'Edit what I raised')+'</button>'+
+         (mgr&&v.inc>0?'<button class="jobbtn" style="background:var(--orange)" onclick="varSend(\''+kk+'\')">📤 Send to the owner</button>':'')+
+         (mgr?'<button class="jobbtn" style="background:#64748b" onclick="varUpdate(\''+kk+'\',\'withdraw\')">Withdraw</button>':'');
+  } else if(s==="sent"){
+    box='<div class="apprOn" style="background:#fff4e5;color:#7a4a08;border-color:#f5c98a">⏳ Sent to the owner — awaiting approval'+
+        (mgr&&v.sentBy?('<div style="font-weight:400;font-size:12px;margin-top:3px">Sent by '+esc(firstName(v.sentBy))+(v.sentAt?(' · '+relTime(v.sentAt)):'')+'</div>'):'')+
+        '<div style="font-weight:400;font-size:12px;margin-top:3px">Don’t start the extra work yet. It clears itself when they answer in MyYacht.</div></div>';
+    if(mgr) btns=(v.pdf&&v.pdf.url?'<a class="jobbtn" style="display:block;text-align:center;background:#fff;color:var(--navy);border:1.5px solid var(--line);text-decoration:none" href="'+esc(v.pdf.url)+'" target="_blank" rel="noopener">📄 Open the variation PDF</a>':'')+
+         '<button class="jobbtn" style="background:var(--navy)" onclick="varShare(\''+kk+'\')">📲 Text / share it with the owner</button>'+
+         '<button class="jobbtn" style="background:#fff;color:var(--navy);border:1.5px solid var(--line)" onclick="varSend(\''+kk+'\')">✉ Send again</button>'+
+         '<button class="jobbtn" style="background:#fff;color:var(--navy);border:1.5px solid var(--line)" onclick="varOpen(\''+kk+'\')">✎ Edit (you’ll need to re-send)</button>'+
+         '<button class="jobbtn" style="background:#64748b" onclick="varUpdate(\''+kk+'\',\'withdraw\')">Withdraw</button>';
+  } else if(s==="approved"){
+    var inv=v.invoice||{}, invoiced=(inv.status==="invoiced");
+    box='<div class="apprOn">✅ Approved — go ahead'+
+        '<div style="font-weight:400;font-size:12px;margin-top:3px">Signed '+esc(d.name||d.by||"the owner")+(d.at?(' · '+fmtDateTime(d.at)):'')+' via MyYacht'+(d.text?(' — “'+esc(d.text)+'”'):'')+'</div></div>'+
+        (mgr?('<div class="apprOn" style="background:'+(invoiced?'#eef4fb':'#fdf3e3')+';color:'+(invoiced?'var(--navy)':'#8a5a12')+';border-color:'+(invoiced?'#d3e2f2':'#f0dcb8')+';margin-top:8px">'+
+          (invoiced?('💳 Invoiced'+(inv.ref?(' · '+esc(inv.ref)):'')+(inv.at?(' · '+fmtDateTime(inv.at)):'')):('💳 To invoice — '+varMoney(v.inc)+' inc GST ('+varMoney(v.ex)+' ex)'))+'</div>'):'');
+    if(mgr) btns=((v.signedPdf&&v.signedPdf.url)||(v.pdf&&v.pdf.url)?'<a class="jobbtn" style="display:block;text-align:center;background:#fff;color:var(--navy);border:1.5px solid var(--line);text-decoration:none" href="'+esc((v.signedPdf&&v.signedPdf.url)||v.pdf.url)+'" target="_blank" rel="noopener">📄 Open the signed record</a>':'')+
+         (invoiced?'<button class="jobbtn" style="background:#64748b" onclick="varUpdate(\''+kk+'\',\'uninvoiced\')">Undo “invoiced”</button>'
+                  :'<button class="jobbtn" style="background:#0f766e" onclick="varInvoiced(\''+kk+'\')">💳 Mark invoiced</button>')+
+         '<button class="jobbtn" style="background:#fff;color:var(--navy);border:1.5px solid var(--line)" onclick="varUpdate(\''+kk+'\',\'new\')">＋ Start another variation</button>';
+  } else if(s==="declined"){
+    box='<div class="apprOn" style="background:#fee2e2;color:#b91c1c;border-color:#fecaca">❌ Declined — leave the extra work'+
+        '<div style="font-weight:400;font-size:12px;margin-top:3px">'+esc(d.name||d.by||"The owner")+(d.at?(' · '+fmtDateTime(d.at)):'')+(d.text?(' — “'+esc(d.text)+'”'):'')+'</div></div>';
+    if(mgr) btns='<button class="jobbtn" style="background:var(--navy)" onclick="varUpdate(\''+kk+'\',\'reopen\')">↺ Reopen as a draft</button>'+
+         '<button class="jobbtn" style="background:#fff;color:var(--navy);border:1.5px solid var(--line)" onclick="varUpdate(\''+kk+'\',\'new\')">＋ Start another variation</button>';
+  } else {
+    box='<div class="apprOn" style="background:#eef2f7;color:#334155;border-color:#d7dee8">Withdrawn'+(v.withdrawnBy?('<div style="font-weight:400;font-size:12px;margin-top:3px">by '+esc(firstName(v.withdrawnBy))+'</div>'):'')+'</div>';
+    if(mgr) btns='<button class="jobbtn" style="background:var(--navy)" onclick="varUpdate(\''+kk+'\',\'reopen\')">↺ Reopen as a draft</button>'+
+         '<button class="jobbtn" style="background:#fff;color:var(--navy);border:1.5px solid var(--line)" onclick="varUpdate(\''+kk+'\',\'new\')">＋ Start another variation</button>';
+  }
+  return '<div class="sec varsec"><h4>Variation — extra work</h4>'+head+voice+'<div style="margin-top:8px">'+box+'</div>'+btns+histHTML+'</div>';
+}
+/* ---- the modal: raise / price ---- */
+function varOpen(key){
+  var j=wlFind(key); if(!j) return;
+  var v=varOf(j)||{}, mgr=isMgrRole();
+  VARM.key=key; VARM.lines=(v.lines||[]).map(function(l){ return JSON.parse(JSON.stringify(l)); }); VARM.voice=(v.voice||[]).slice();
+  if(!VARM.lines.length) VARM.lines=[{kind:"labour",tier:"eng",hours:""}];
+  $("var_hint").textContent=(j.code?j.code+" · ":"")+(j.task||j.title||"")+(j.vessel?(" · "+j.vessel):"");
+  $("var_title").value=v.title||""; $("var_scope").value=v.scope||"";
+  var mrow=$("var_msgrow"); if(mrow) mrow.style.display=mgr?"":"none";
+  var ms=$("var_msg"); if(ms) ms.value=v.message||"";
+  $("varModal").classList.toggle("crewmode", !mgr);
+  $("var_go").textContent = mgr ? "💾 Save draft" : "📤 Send to Marine HQ";
+  var sendBtn=$("var_send"); if(sendBtn) sendBtn.style.display=mgr?"":"none";
+  varRenderLines(); varRenderVoice(); varRecUI(false);
+  $("varModal").classList.add("show");
+}
+function varClose(){ if(VARM.rec){ try{ VARM.rec.stop(); }catch(e){} } closeModal("varModal"); }
+function varAddLine(kind){ VARM.lines.push(kind==="labour"?{kind:"labour",tier:"eng",hours:""}:(kind==="parts"?{kind:"parts",desc:"",qty:1,cost:""}:{kind:"other",desc:"",amount:""})); varRenderLines(); }
+function varDelLine(i){ VARM.lines.splice(i,1); varRenderLines(); }
+function varSetLine(i,f,val){ if(!VARM.lines[i]) return; VARM.lines[i][f]=val; if(f==="amount") VARM.lines[i].override=true; varRenderTotals(); }
+function varRenderLines(){
+  var mgr=isMgrRole(), host=$("var_lines"); if(!host) return;
+  host.innerHTML=VARM.lines.map(function(l,i){
+    var del='<button type="button" class="vardel" onclick="varDelLine('+i+')" title="Remove">✕</button>';
+    if(l.kind==="labour"){
+      return '<div class="varline"><div class="varkind">👷 Labour</div>'+
+        '<select class="fld-in" onchange="varSetLine('+i+',\'tier\',this.value)">'+VAR_TIERS.map(function(t){ return '<option value="'+t+'"'+(l.tier===t?' selected':'')+'>'+esc(VAR_RATES[t].label)+(mgr?(' — $'+VAR_RATES[t].rate+'/hr'):'')+'</option>'; }).join("")+'</select>'+
+        '<div class="varrow"><input class="fld-in" type="number" inputmode="decimal" step="0.5" min="0" placeholder="Hours" value="'+esc(String(l.hours||""))+'" oninput="varSetLine('+i+',\'hours\',this.value)">'+
+        '<input class="fld-in" type="text" placeholder="What for (optional)" value="'+esc(l.desc||"")+'" oninput="varSetLine('+i+',\'desc\',this.value)"></div>'+
+        (mgr?'<div class="varamt" id="varamt'+i+'"></div>':'')+del+'</div>';
+    }
+    if(l.kind==="parts"){
+      return '<div class="varline"><div class="varkind">🔩 Part / material</div>'+
+        '<input class="fld-in" type="text" placeholder="What (e.g. bilge pump 2000 GPH)" value="'+esc(l.desc||"")+'" oninput="varSetLine('+i+',\'desc\',this.value)">'+
+        '<div class="varrow"><input class="fld-in" type="number" inputmode="decimal" min="0" step="1" placeholder="Qty" value="'+esc(String(l.qty||1))+'" oninput="varSetLine('+i+',\'qty\',this.value)">'+
+        (mgr?'<input class="fld-in" type="number" inputmode="decimal" min="0" step="0.01" placeholder="Cost each (ex GST)" value="'+esc(String(l.cost||""))+'" oninput="varSetLine('+i+',\'cost\',this.value)">':'')+'</div>'+
+        (mgr?('<label class="varat"><input type="checkbox"'+(l.atCost?' checked':'')+' onchange="varSetLine('+i+',\'atCost\',this.checked)"> Charge at cost (no markup / handling)</label><div class="varamt" id="varamt'+i+'"></div>'):'')+del+'</div>';
+    }
+    return '<div class="varline"><div class="varkind">📦 Other (sub-contractor, marina, crane…)</div>'+
+      '<div class="varrow"><input class="fld-in" type="text" placeholder="What" value="'+esc(l.desc||"")+'" oninput="varSetLine('+i+',\'desc\',this.value)">'+
+      '<input class="fld-in" type="number" inputmode="decimal" min="0" step="0.01" placeholder="Amount ex GST" value="'+esc(String(l.amount||""))+'" oninput="varSetLine('+i+',\'amount\',this.value)"></div>'+del+'</div>';
+  }).join("");
+  varRenderTotals();
+}
+function varRenderTotals(){
+  if(!isMgrRole()) return;
+  var p=varPrice(VARM.lines), n=0;
+  VARM.lines.forEach(function(l,i){
+    var el=$("varamt"+i); if(!el) return;
+    var pr=null; if(l.kind==="labour"&&Number(l.hours)>0){ pr=p.lines[n++]; } else if(l.kind==="parts"&&((l.desc||"").trim()||Number(l.cost)>0)){ pr=p.lines[n++]; } else if(l.kind==="other"&&((l.desc||"").trim()||Number(l.amount)>0)){ pr=p.lines[n++]; }
+    if(!pr){ el.textContent=""; return; }
+    el.innerHTML = (l.kind==="parts" && !l.atCost && !l.override && pr.cost>0)
+      ? ('Charged <b>'+varMoney(pr.amount)+'</b> <small>= cost + 20% + 10% handling</small>')
+      : ('<b>'+varMoney(pr.amount)+'</b>'+(l.kind==="labour"?(' <small>= '+pr.hours+' hr × $'+pr.rate+'</small>'):''));
+  });
+  var t=$("var_totals"); if(t) t.innerHTML='<div><span>TOTAL (ex-GST)</span><b>'+varMoney(p.ex)+'</b></div><div><span>GST (10%)</span><b>'+varMoney(p.gst)+'</b></div><div class="inc"><span>TOTAL (inc-GST)</span><b>'+varMoney(p.inc)+'</b></div>';
+}
+/* ---- voice notes: record on the phone, saved as a document on the job (crew lane) ---- */
+function varRecUI(on){
+  var b=$("var_rec"); if(!b) return;
+  b.textContent = on ? ("■ Stop  "+(VARM.secs?("("+VARM.secs+"s)"):"")) : "🎙 Record a voice note";
+  b.classList.toggle("rec", !!on);
+}
+function varRecToggle(){
+  if(VARM.rec){ try{ VARM.rec.stop(); }catch(e){} return; }
+  if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia&&window.MediaRecorder)){ toast("Voice notes need a newer phone browser — tap the mic on the keyboard instead"); return; }
+  navigator.mediaDevices.getUserMedia({audio:true}).then(function(st){
+    VARM.stream=st;
+    var mt=(MediaRecorder.isTypeSupported&&MediaRecorder.isTypeSupported("audio/mp4"))?"audio/mp4":((MediaRecorder.isTypeSupported&&MediaRecorder.isTypeSupported("audio/webm"))?"audio/webm":"");
+    var r; try{ r=mt?new MediaRecorder(st,{mimeType:mt}):new MediaRecorder(st); }catch(e){ r=new MediaRecorder(st); }
+    VARM.chunks=[]; VARM.secs=0;
+    r.ondataavailable=function(e){ if(e.data&&e.data.size) VARM.chunks.push(e.data); };
+    r.onstop=function(){
+      try{ st.getTracks().forEach(function(t){ t.stop(); }); }catch(e){}
+      clearInterval(VARM.timer); VARM.timer=null;
+      var type=r.mimeType||mt||"audio/webm";
+      var blob=new Blob(VARM.chunks,{type:type}); VARM.rec=null; varRecUI(false);
+      if(blob.size<1000){ toast("Nothing recorded"); return; }
+      varVoiceUpload(blob, type);
+    };
+    r.start(); VARM.rec=r; varRecUI(true);
+    VARM.timer=setInterval(function(){ VARM.secs++; varRecUI(true); if(VARM.secs>=120){ try{ r.stop(); }catch(e){} } },1000);
+  }).catch(function(){ toast("Microphone not available — type the note, or use the mic on the keyboard"); });
+}
+function varVoiceUpload(blob, type){
+  var ext=/mp4/.test(type)?"m4a":(/ogg/.test(type)?"ogg":"webm");
+  var d=new Date(), nm="Voice note "+d.getDate()+"-"+(d.getMonth()+1)+" "+("0"+d.getHours()).slice(-2)+":"+("0"+d.getMinutes()).slice(-2)+"."+ext;
+  var fr=new FileReader();
+  fr.onload=function(){
+    toast("Saving voice note…");
+    apiPost({action:"crewJobDocs", email:ME.email, code:ME.code, jobKey:VARM.key, docs:[{name:nm, dataUrl:fr.result}], aud:"crew"}).then(function(r){
+      if(!(r&&r.ok)){ toast((r&&r.error)||"Couldn’t save the voice note"); return; }
+      var docs=r.docs||[], hit=null; docs.forEach(function(x){ if((x.name||"")===nm) hit=x; });
+      var j=wlFind(VARM.key); if(j&&r.docs) j.docs=r.docs;
+      if(hit){ VARM.voice.push({name:nm, url:hit.url, by:ME.name, at:Date.now()}); varRenderVoice(); toast("🎙 Voice note saved"); }
+      else toast("Saved on the job — refresh to see it");
+    }).catch(function(){ toast("Couldn’t connect — the voice note wasn’t saved"); });
+  };
+  fr.readAsDataURL(blob);
+}
+function varAudioSrc(u){ var id=driveId(u); return id?("https://drive.google.com/uc?export=download&id="+id):(u||""); }
+function varRenderVoice(){
+  var host=$("var_voice"); if(!host) return;
+  host.innerHTML = VARM.voice.length ? VARM.voice.map(function(vn,i){
+    return '<div class="varvoice"><audio controls preload="none" src="'+esc(varAudioSrc(vn.url))+'"></audio>'+
+      '<div class="varvmeta"><span>'+esc(vn.by?firstName(vn.by):"")+(vn.at?(' · '+relTime(vn.at)):'')+'</span>'+
+      '<a href="'+esc(driveView(vn.url))+'" target="_blank" rel="noopener">open</a>'+
+      '<button type="button" class="vardel inline" onclick="VARM.voice.splice('+i+',1);varRenderVoice()" title="Remove from this variation">✕</button></div></div>';
+  }).join("") : '<div style="font-size:12px;color:var(--muted)">No voice note yet — say what you found and what it needs.</div>';
+}
+/* ---- save / send / housekeeping ---- */
+function varBody(){
+  return { title:($("var_title").value||"").trim(), scope:($("var_scope").value||"").trim(),
+           lines:VARM.lines, voice:VARM.voice, message:($("var_msg")?($("var_msg").value||"").trim():"") };
+}
+function varSave(thenSend){
+  var b=varBody();
+  if(!b.title){ toast("Give it a short title first"); $("var_title").focus(); return; }
+  if(!isMgrRole() && !b.scope && !VARM.voice.length){ toast("Say what you found — a line or a voice note"); $("var_scope").focus(); return; }
+  var key=VARM.key;
+  toast(thenSend?"Saving…":"Saving variation…");
+  apiPost({action:"variationSave", email:ME.email, code:ME.code, jobKey:key, title:b.title, scope:b.scope, lines:b.lines, voice:b.voice}).then(function(r){
+    if(!(r&&r.ok)){ toast(varErr(r,"Couldn’t save")); return; }
+    var j=wlFind(key); if(j){ j.signoff=j.signoff||{}; j.signoff.variation=r.variation; }
+    if(thenSend){ closeModal("varModal"); varSend(key, b.message); return; }
+    closeModal("varModal");
+    toast(isMgrRole()?"💾 Variation saved as a draft":"📤 Sent to Marine HQ — they’ll price it and send it to the owner");
+    openWLJob(key); loadJobs();
+  }).catch(function(){ toast("Couldn’t connect"); });
+}
+function varSend(key, message){
+  var j=wlFind(key), v=varOf(j);
+  if(!v){ toast("Raise the variation first"); return; }
+  if(!(v.inc>0)){ toast("Price it first — at least one line with an amount"); varOpen(key); return; }
+  if(message===undefined){ message=v.message||""; if(!confirm("Send "+(v.ref||"this variation")+" — "+varMoney(v.inc)+" inc GST — to the owner?\n\nThey get the PDF by email and a push, and it lands on their Waiting on you tab.")) return; }
+  toast("Building the PDF and sending…");
+  apiPost({action:"variationSend", email:ME.email, code:ME.code, jobKey:key, message:message}).then(function(r){
+    if(!(r&&r.ok)){ toast(varErr(r,"Couldn’t send")); return; }
+    if(j){ j.shared=true; j.signoff=j.signoff||{}; j.signoff.variation=r.variation; }
+    VARM.lastShare=r.shareText||"";
+    toast(r.emailed?"📤 Sent — emailed with the PDF, and on their Waiting on you tab":"📤 Sent — on their Waiting on you tab (no email on file — text them the link)");
+    openWLJob(key); loadJobs();
+    if(!r.emailed) setTimeout(function(){ varShare(key); }, 900);
+  }).catch(function(){ toast("Couldn’t connect"); });
+}
+function varShareText(key){
+  var j=wlFind(key)||{}, v=varOf(j)||{};
+  return "Marine HQ — "+(j.vessel||"")+": extra work found on “"+(j.task||j.title||"")+"” — "+(v.title||"")+". Variation "+(v.ref||"")+", "+varMoney(v.inc)+" inc GST. We won’t start until you approve. Open MyYacht → Waiting on you: https://myyacht.marinehq.com.au/";
+}
+function varShare(key){
+  var text=VARM.lastShare||varShareText(key);
+  if(navigator.share){ navigator.share({text:text}).catch(function(){}); return; }
+  try{ navigator.clipboard.writeText(text).then(function(){ toast("Copied — paste it into a text to the owner"); }); }catch(e){ toast("Couldn’t copy — open the PDF and share it from there"); }
+}
+function varUpdate(key, op, extra){
+  var msg={withdraw:"Withdraw this variation? The owner is told to disregard it.", new:"File this variation and start a fresh one on the job?", reopen:"Reopen as a draft?", uninvoiced:"Undo “invoiced”?"}[op];
+  if(msg && !confirm(msg)) return;
+  var body={action:"variationUpdate", email:ME.email, code:ME.code, jobKey:key, op:op}; if(extra) body.invoiceRef=extra;
+  apiPost(body).then(function(r){
+    if(!(r&&r.ok)){ toast(varErr(r,"Couldn’t update")); return; }
+    var j=wlFind(key); if(j){ j.signoff=j.signoff||{}; j.signoff.variation=r.variation||null; if(r.history) j.signoff.variations=r.history; }
+    toast({withdraw:"Withdrawn", new:"Filed — raise the next one", reopen:"↺ Back to a draft", invoiced:"💳 Marked invoiced", uninvoiced:"Back to “to invoice”"}[op]||"Updated");
+    openWLJob(key); loadJobs();
+    if(op==="new") varOpen(key);
+  }).catch(function(){ toast("Couldn’t connect"); });
+}
+var _varInvKey="";
+function varInvoiced(key){ _varInvKey=key; var i=$("varinv_ref"); if(i) i.value=""; $("varInvModal").classList.add("show"); }
+function varDoInvoiced(){ var ref=(($("varinv_ref")||{}).value||"").trim(); closeModal("varInvModal"); varUpdate(_varInvKey,"invoiced",ref); }
+/* ---- the Variations segment on the Worklist (directors) ---- */
+function segVariations(){
+  return (CREWJOBS||[]).filter(function(j){ return !!varOf(j); })
+    .sort(function(a,b){ var o={sent:0,draft:1,approved:2,declined:3,withdrawn:4}; var va=varOf(a),vb=varOf(b);
+      var d=(o[va.status]||9)-(o[vb.status]||9); if(d) return d; return ((vb.updatedAt||vb.sentAt||vb.raisedAt)||0)-((va.updatedAt||va.sentAt||va.raisedAt)||0); });
+}
+function renderVariationsSeg(el, list){
+  var sum=function(st, pred){ var n=0,$=0; list.forEach(function(j){ var v=varOf(j); if(v.status===st && (!pred||pred(v))){ n++; $+=Number(v.inc)||0; } }); return {n:n,inc:$}; };
+  var sent=sum("sent"), toInv=sum("approved",function(v){ return !(v.invoice&&v.invoice.status==="invoiced"); }), inv=sum("approved",function(v){ return v.invoice&&v.invoice.status==="invoiced"; }), draft=sum("draft");
+  var tiles='<div class="vartiles">'+
+    '<div class="vartile sent"><b>'+varMoney(sent.inc)+'</b><span>'+sent.n+' with the owner</span></div>'+
+    '<div class="vartile ok"><b>'+varMoney(toInv.inc)+'</b><span>'+toInv.n+' approved — to invoice</span></div>'+
+    '<div class="vartile draft"><b>'+draft.n+'</b><span>draft'+(draft.n===1?'':'s')+' to price</span></div>'+
+    '<div class="vartile inv"><b>'+varMoney(inv.inc)+'</b><span>'+inv.n+' invoiced</span></div></div>';
+  var cards = list.length ? list.map(function(j){
+    var v=varOf(j), d=v.decision||{};
+    var chip=varChip(j)+' <span class="acptchip" style="background:#eef2f7;color:#334155">'+esc(v.ref||"")+'</span>';
+    var line='<div style="font-size:12.5px;color:var(--muted);margin-top:5px">'+esc(v.title||"")+' · <b style="color:var(--navy)">'+varMoney(v.inc)+'</b> inc GST'+
+      (v.status==="sent"&&v.sentAt?(' · sent '+relTime(v.sentAt)):'')+(v.status==="approved"?(' · signed '+esc(d.name||d.by||"")+(d.at?(' '+relTime(d.at)):'')+(v.invoice&&v.invoice.status==="invoiced"?' · 💳 invoiced':' · 💳 to invoice')):'')+
+      (v.status==="draft"&&v.raisedBy?(' · raised by '+esc(firstName(v.raisedBy))):'')+'</div>';
+    return segCard(j, chip+line);
+  }).join("") : '<div class="empty">No variations yet. 🎉<br><span style="font-size:12px">Open any job → <b>💲 Raise a variation</b>. Crew can raise one too — it lands here for you to price and send.</span></div>';
+  el.innerHTML=tiles+cards;
+}
+
 function wlApproveBlock(j,key){
   if(!/director|manager/i.test(ME.role||"")) return "";
   var so=j.signoff||{}, qc=(so.qc&&so.qc.by);
