@@ -280,6 +280,9 @@
   @media (max-width:640px){ .sheet{top:0;max-height:none;height:100%;border-radius:0} .sheet-hd{border-radius:0} }
   .phfold{width:100%;margin:6px 0 0;border:1.5px solid var(--line);background:#fff;color:var(--navy);font-weight:700;font-size:12.5px;padding:8px;border-radius:9px;cursor:pointer}
   .phmore{display:contents}.phmore[hidden]{display:none!important}
+  .chfold summary{list-style:none;cursor:pointer}.chfold summary::-webkit-details-marker{display:none}
+  .chbtn.sec{padding:10px;font-size:13.5px;margin-top:8px}
+  @media (max-width:640px){ .sec{margin:6px 8px;padding:9px 11px} .sec h4{margin-bottom:5px} .jfacts{margin:6px 8px} }
   .sheet-hd{position:sticky;top:0;background:var(--navy);color:#fff;padding:14px 16px;border-radius:18px 18px 0 0;display:flex;align-items:flex-start;gap:10px;z-index:2}
   .sheet-hd h3{margin:3px 0 0;font-size:16px;line-height:1.3}
   /* The task name edits where it sits. Every other part of a task already had a
@@ -1740,7 +1743,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-15·e</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-15·f</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -3261,9 +3264,11 @@ function chJobEntriesHtml(key){
        (CHJOB.codeMonthOccurrences===1?'':'s')+' it\u2019s been done</div>') : '';
   var oth = (!CHJOB.everyone && CHJOB.othersCount)
     ? ('<div style="font-size:11px;color:var(--muted);margin-top:6px">Others have also logged time on this job.</div>') : '';
-  return '<div style="margin-top:12px"><div class="chtothdr">'+
-    '<b style="font-size:12px;color:var(--muted)">'+hdr+'</b>'+
-    '<b class="chtot">'+chFmt(CHJOB.totalHours)+' total</b></div>'+rows+mth+oth+sendBtn+'</div>';
+  // The entries and the month figure fold under the total — one line unless you
+  // open it. The Submit button is an action, so it stays out.
+  return '<div style="margin-top:10px"><details class="chfold"><summary><div class="chtothdr">'+
+    '<b style="font-size:12px;color:var(--muted)">'+hdr+' \u203a</b>'+
+    '<b class="chtot">'+chFmt(CHJOB.totalHours)+' total</b></div></summary>'+rows+mth+oth+'</details>'+sendBtn+'</div>';
 }
 
 /* Send this job's hours without waiting for the end of the day. Stop the clock,
@@ -7144,7 +7149,15 @@ function wlFactsHtml(j){
   // Who it's on is a management view. Crew see "you" when it's theirs, otherwise
   // nothing at all — never the other names (Trish, 15 Sep 2026).
   if(isMgrRole()) out += j.allocatedTo ? cell("On", firstNames(j.allocatedTo)) : cell("On", "nobody yet", "soft");
-  else { var _meOn=(ME.name||"").toLowerCase().replace(/\s*\(test\)/,"").trim(); if(_meOn && (j.allocatedTo||"").toLowerCase().indexOf(_meOn)>=0) out += cell("On", "you"); }
+  else {
+    // Crew get a two-line strip: Status · Due · (Yours, accepted). Cost pot and
+    // "last moved" are management facts — they only made the page longer.
+    var _meOn=(ME.name||"").toLowerCase().replace(/\s*\(test\)/,"").trim();
+    var _mineOn=_meOn && (j.allocatedTo||"").toLowerCase().indexOf(_meOn)>=0;
+    if(_mineOn && j.accepted && j.accepted.by) out += cell("Yours", "\u2713 accepted"+(j.accepted.date?(" "+j.accepted.date):""));
+    else if(_mineOn) out += cell("Yours", "not accepted yet", "late");
+    return '<div class="jfacts">'+out+'</div>';
+  }
 
   /* WHICH POT THIS COSTS. The whole point of the job card's works split is how
      much went on charters vs scheduled vs unscheduled vs upgrades, and the
@@ -7185,9 +7198,11 @@ function openWLJob(key){
   // behind one button so a 30-photo job doesn't push the notes off the bottom of the phone.
   var _phTiles=(j.photos||[]).map(function(p,idx){return '<div class="ph"><img src="'+esc(driveImg(p.url))+'" alt="" loading="lazy" onerror="this.classList.add(\'imgerr\')" onclick="event.stopPropagation();openPhoto(\''+esc(key)+'\','+idx+')" style="cursor:pointer">'+((phNoteCount(p)>1)?('<span class="phcap">💬 '+phNoteCount(p)+'</span>'):'')+phTagPill(p)+'<small>'+esc(p.by?firstName(p.by):(phName(p)||"photo"))+(p.at?(' · '+relTime(p.at)):'')+'</small>'+(phFirstNote(p)?('<span class="phnote">'+esc(phFirstNote(p))+'</span>'):'')+(wlMayDel(p)?'<button class="attdel" title="Remove" onclick="event.stopPropagation();wlDelAtt(\''+esc(key)+'\',\''+esc(p.url)+'\',\'photo\')">✕</button>':'')+(isMgrRole()?lanePill(p.aud):'')+'</div>';});
   var _phKeep=6, _phHide=Math.max(0,_phTiles.length-_phKeep);
+  var _docTile='<label class="addph" for="wlDocInput" onclick="if(!laneReady())return event.preventDefault();">📎<span>Add</span></label><input id="wlDocInput" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,image/*" multiple style="display:none" onchange="wlAddDocs(\''+esc(key)+'\',this)">';
   var phHTML='<label class="addph" id="phAddLbl" for="wlPhotoInput" onclick="if(!laneReady())return event.preventDefault();">'+phAddLabel()+'</label><input id="wlPhotoInput" type="file" accept="image/*" multiple style="display:none" onchange="wlAddPhotos(\''+esc(key)+'\',this)">'
+    +_docTile
     +(_phTiles.length ? ((_phHide?('<div class="phmore" hidden>'+_phTiles.slice(0,_phHide).join("")+'</div>'):'')+_phTiles.slice(_phHide).join(""))
-                      : '<div style="font-size:13px;color:var(--muted);align-self:center">No photos yet.</div>');
+                      : '');
   var phFoldBtn=_phHide?('<button class="phfold" onclick="var m=this.parentNode.querySelector(\'.phmore\');m.hidden=!m.hidden;this.textContent=m.hidden?\'See all '+_phTiles.length+' photos\':\'Show fewer\'">See all '+_phTiles.length+' photos</button>'):'';
   // Images (even ones added via the 📎 button) show as thumbnails; real files (PDF/xls…) show as rows.
   var _docs=j.docs||[];
@@ -7196,7 +7211,7 @@ function openWLJob(key){
   var docHTML=
     (_imgDocs.length?('<div class="photos">'+_imgDocs.map(function(dd){return '<div class="ph"><img src="'+esc(driveImg(dd.url))+'" alt="" loading="lazy" onerror="this.classList.add(\'imgerr\')" onclick="window.open(\''+esc(driveView(dd.url))+'\',\'_blank\')" style="cursor:pointer"><small>'+esc(dd.by?firstName(dd.by):(dd.name||"photo"))+(dd.at?(' · '+relTime(dd.at)):'')+'</small>'+(wlMayDel(dd)?'<button class="attdel" title="Remove" onclick="event.stopPropagation();wlDelAtt(\''+esc(key)+'\',\''+esc(dd.url)+'\',\'doc\')">✕</button>':'')+(isMgrRole()?lanePill(dd.aud):'')+'</div>';}).join("")+'</div>'):'')
     +(_fileDocs.length?_fileDocs.map(function(dd){return '<div class="docrowitem"><a class="docitem" href="'+esc(driveView(dd.url))+'" target="_blank" rel="noopener"><span class="ic">📄</span><span class="docmain">'+esc(dd.name||"document")+(dd.by?('<span class="docby">'+esc(firstName(dd.by))+(dd.at?(' · '+fmtDateTime(dd.at)):'')+'</span>'):'')+'</span></a>'+(wlMayDel(dd)?'<button class="attdel doc" title="Remove" onclick="wlDelAtt(\''+esc(key)+'\',\''+esc(dd.url)+'\',\'doc\')">✕</button>':'')+(isMgrRole()?lanePill(dd.aud):'')+'</div>';}).join(""):'')
-    +'<label class="addph" for="wlDocInput" onclick="if(!laneReady())return event.preventDefault();">📎<span>Add</span></label><input id="wlDocInput" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,image/*" multiple style="display:none" onchange="wlAddDocs(\''+esc(key)+'\',this)">';
+    +'';
   var cmtHTML=(j.comments&&j.comments.length ? j.comments.map(function(cm){
     var mgr=/director|manager/i.test(cm.role||"");
     var tag=(cm.mentions&&cm.mentions.length)?'<span class="cmt-tag">🔔 '+cm.mentions.map(function(n){return esc(firstName(n));}).join(", ")+'</span>':'';
@@ -7277,7 +7292,7 @@ function openWLJob(key){
         : ('◐ Logged by '+(_mine?'you':esc(_did))+' — still in hand'))+
       '</div></div>';
   } else if(acc && acc.by){
-    acceptHTML='<div class="sec"><div class="apprOn">'+(isMgrRole()?('✓ Accepted by '+esc(firstName(acc.by))):'👷 Yours — accepted')+(acc.date?(' · '+esc(acc.date)):'')+'</div></div>';
+    acceptHTML=isMgrRole()?('<div class="sec"><div class="apprOn">✓ Accepted by '+esc(firstName(acc.by))+(acc.date?(' · '+esc(acc.date)):'')+'</div></div>'):'';
   } else if(mineJob){
     // Urgent, unmissable call to accept a task Marine HQ has assigned to this crew member.
     acceptHTML='<div class="sec"><div class="acceptcall">'+
@@ -7315,15 +7330,15 @@ function openWLJob(key){
     crewAssignHTML+
     '<div class="sec"><h4>Status</h4><div class="pillrow">'+pills+'</div>'+(j.completed?('<div class="apprOn" style="margin-top:8px">✓ Completed '+esc(j.completed)+' <span class="wlnote-ed" style="cursor:pointer" onclick="openCompleteModal(\''+esc(key)+'\')">✎ Edit date</span></div>'):'')+'</div>'+
     laneHTML+
-    '<div class="sec"><h4>Photos</h4><div class="photos">'+phHTML+'</div>'+phFoldBtn+'<div class="tagrow" id="phTagRow">'+phTagRowHtml()+'</div>'+((j.photos&&j.photos.length)?bulkBar('photo',key):'')+'</div>'+
-    '<div class="sec"><h4>Documents</h4><div class="docrow">'+docHTML+'</div>'+((j.docs&&j.docs.length)?bulkBar('doc',key):'')+'</div>'+
+    '<div class="sec"><h4>Photos &amp; documents</h4><div class="photos">'+phHTML+'</div>'+phFoldBtn+'<div class="tagrow" id="phTagRow">'+phTagRowHtml()+'</div>'+((j.photos&&j.photos.length)?bulkBar('photo',key):'')+
+      '<div class="docrow" style="margin-top:8px">'+docHTML+'</div>'+((j.docs&&j.docs.length)?bulkBar('doc',key):'')+'</div>'+
     '<div class="sec"><h4>Notes &amp; timeline</h4><div class="cmts">'+cmtHTML+'</div>'+
       '<textarea id="wlNote" class="fld-ta" placeholder="Add a note… (crew &amp; Marine HQ can both post here)"></textarea>'+
       '<div id="tagChips" class="tagchips"></div>'+
       '<div class="taghd"><button class="tagbtn" onclick="toggleTagPicker(\''+esc(key)+'\')">🔔 Tag someone</button><span class="taghint">they get an alert + email</span></div>'+
       '<div id="tagPicker" class="tagpicker" style="display:none"></div>'+
       '<button class="jobbtn complete" style="background:var(--navy)" onclick="wlAddComment(\''+esc(key)+'\')">Add note</button>'+
-      '<p class="body" style="font-size:11.5px;color:var(--muted);text-align:center;margin:8px 0 0">A note is optional — everything else (status, photos, day) saves as you go.</p></div>'+
+      (isMgrRole()?'<p class="body" style="font-size:11.5px;color:var(--muted);text-align:center;margin:8px 0 0">A note is optional — everything else (status, photos, day) saves as you go.</p>':'')+'</div>'+
     // ---- Manage this job (directors) --------------------------------------------
     // The page was twelve stacked sections and the buttons nobody could read
     // (Trish, 15 Sep 2026). Crew-facing work stays in view; the management
@@ -7589,6 +7604,9 @@ function wlVariationBlock(j,key){
   var kk=esc(key), v=varOf(j), mgr=isMgrRole();
   var hist=(j.signoff&&j.signoff.variations&&j.signoff.variations.length)||0;
   var histHTML = (mgr&&hist) ? '<p class="body" style="font-size:12px;color:var(--muted);margin:8px 0 0">'+hist+' earlier variation'+(hist>1?'s':'')+' on this job — filed on the Variations tab of the sheet.</p>' : '';
+  if(!v && !mgr){
+    return '<div class="sec"><button class="jobbtn" style="background:var(--orange);margin:0" onclick="varOpen(\''+kk+'\')">💲 Found extra work? Raise a variation</button></div>';
+  }
   if(!v){
     return '<div class="sec"><h4>Extra work found?</h4>'+
       '<p class="body" style="font-size:12.5px;color:var(--muted);margin:0 0 8px">'+
@@ -11017,7 +11035,7 @@ function phTagRowHtml(){
       return '<button class="tagbtn '+t+(PHTAG===t?" on":"")+'" onclick="setPhTag(\''+t+'\')">'+PH_TAGS[t].lbl+'</button>';
     }).join("")+
     (PHTAG?'<button class="tagbtn" onclick="setPhTag(\''+PHTAG+'\')">Clear</button>':'')+
-    '<span class="taghint">'+(PHTAG?("Next photos are tagged "+PH_TAGS[PHTAG].lbl):"Optional — tagged pairs print side by side in the report")+'</span>';
+    '<span class="taghint">'+(PHTAG?("Next photos are tagged "+PH_TAGS[PHTAG].lbl):(isMgrRole()?"Optional — tagged pairs print side by side in the report":""))+'</span>';
 }
 
 /* Re-tag a photo already uploaded, via crewJobPhotoTag. */
