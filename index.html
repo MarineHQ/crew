@@ -103,7 +103,16 @@
   .s-parts{background:#a8641c} .brd-parts{border-left-color:#a8641c}
   .s-done{background:var(--ok)} .brd-done{border-left-color:var(--ok)}
   .s-req{background:#8a5a12} .brd-req{border-left-color:#d99a2b}
-  .jobbtn{width:100%;margin-top:11px;border:0;border-radius:10px;padding:12px;font-size:14px;font-weight:bold;cursor:pointer}
+  .jobbtn{width:100%;margin-top:11px;border:0;border-radius:10px;padding:12px;font-size:14px;font-weight:bold;cursor:pointer;color:#fff;-webkit-appearance:none;appearance:none}
+  /* iOS paints a button's text its own blue unless told otherwise — every filled button is white-on-colour. */
+  .corow{display:flex;gap:7px;margin-top:9px}.corow .jobbtn{font-size:12.5px;padding:10px 6px;line-height:1.2}
+  .more{margin:8px 10px;background:#fff;border:1px solid var(--line);border-radius:10px}
+  .more summary{list-style:none;cursor:pointer;padding:11px 13px;display:flex;flex-direction:column;gap:3px}
+  .more summary::-webkit-details-marker{display:none}
+  .more-t{font-size:12.5px;font-weight:800;color:var(--navy)}.more-t::after{content:' ›';color:var(--muted)}
+  .more[open] .more-t::after{content:' ⌄'}
+  .more-s{font-size:12px;color:var(--muted);line-height:1.35}
+  .more-b{border-top:1px solid var(--line)}.more-b .sec{margin:8px 0 0;border:0;border-radius:0;border-top:1px dashed var(--line);padding:11px 13px}.more-b .sec:first-child{border-top:0}
   .jobbtn.complete{background:var(--ok);color:#fff}
   .jobbtn.reopen{background:#fff;color:var(--muted);border:1px solid var(--line)!important}
   /* A finished job is MARKED, never dimmed or struck out — Trish, 1 Sep 2026.
@@ -1727,7 +1736,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-15·c</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-15·d</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -7285,19 +7294,13 @@ function openWLJob(key){
     // this screen, and it was sitting below the notes where nobody scrolled to it.
     '<div class="sec"><h4>Time on this job</h4><div id="chBox">'+chBoxHtml(key)+'</div></div>'+
     // where this job came from — the matched Zoho task, for traceability
-    ((isMgrRole() && j.zoho)?('<div class="sec"><h4>Source</h4><div class="srcref">🔗 Matched to <b>Zoho '+esc(String(j.zoho).slice(-7))+'</b>'+(j.project?(' · '+esc(j.project)):'')+'<div class="srcsub">Zoho task id '+esc(j.zoho)+'</div></div></div>'):'')+
-    ((isMgrRole() && j.zoho)?('<div class="sec"><h4>Send to Michael’s Zoho</h4><button onclick="zohoSendJob(\''+esc(key)+'\')" style="width:100%;border:0;background:#1a2b5c;color:#fff;font-weight:800;font-size:13px;padding:12px;border-radius:10px;cursor:pointer">📷 Send this job’s photos + note to his Zoho</button><div class="srcsub" style="margin-top:6px">Posts the photos (as links) and a note onto the matched Zoho task.</div></div>'):'')+
-    ((isMgrRole() && j.zoho)?('<div class="sec"><h4>From Michael’s Zoho <span style="font-size:10px;color:#9aa7b4;font-weight:700">directors only</span></h4><div id="zinbox" style="font-size:12.5px;color:var(--muted)">Loading his Zoho comments…</div></div>'):'')+
     ((j.reqOk&&j.reqOk.by)?('<div class="sec"><h4>Approved</h4><div class="body" style="font-size:13px">\u2713 Approved by <b>'+esc(j.reqOk.by)+'</b>'+(j.reqOk.at?(' \u00b7 '+esc(dayLabel(j.reqOk.at))):'')+(j.raisedBy?('<br><span style="color:var(--muted)">Raised by '+esc(j.raisedBy)+'</span>'):'')+'</div></div>'):'')+
     // The list itself is in the facts strip now; this stays as the way to MOVE it.
-    (isMgrRole()?('<div class="sec"><h4>Move to another worklist</h4><div class="subnote-box" onclick="wlMoveList(\''+esc(key)+'\')">\ud83d\udccb '+esc(j.list||"\u2014 not on a worklist \u2014")+' <span class="wlnote-ed">\u270e</span></div></div>'):'')+
     ((j.subNote||wlCanFix(j))?('<div class="sec"><h4>Sub note</h4><div class="subnote-box'+(j.subNote?"":" empty")+'"'+(wlCanFix(j)?(' onclick="wlSetSubNote(\''+esc(key)+'\')"'):'')+'>'+(j.subNote?('📌 '+esc(j.subNote)):'＋ add a quick note')+(wlCanFix(j)?' <span class="wlnote-ed">✎</span>':'')+'</div></div>'):'')+
     reqBlock+
     acceptHTML+
     crewAssignHTML+
     '<div class="sec"><h4>Status</h4><div class="pillrow">'+pills+'</div>'+(j.completed?('<div class="apprOn" style="margin-top:8px">✓ Completed '+esc(j.completed)+' <span class="wlnote-ed" style="cursor:pointer" onclick="openCompleteModal(\''+esc(key)+'\')">✎ Edit date</span></div>'):'')+'</div>'+
-    assignHTML+offerHTML+
-    dueHTML+
     laneHTML+
     '<div class="sec"><h4>Photos</h4><div class="photos">'+phHTML+'</div><div class="tagrow" id="phTagRow">'+phTagRowHtml()+'</div>'+((j.photos&&j.photos.length)?bulkBar('photo',key):'')+'</div>'+
     '<div class="sec"><h4>Documents</h4><div class="docrow">'+docHTML+'</div>'+((j.docs&&j.docs.length)?bulkBar('doc',key):'')+'</div>'+
@@ -7308,9 +7311,29 @@ function openWLJob(key){
       '<div id="tagPicker" class="tagpicker" style="display:none"></div>'+
       '<button class="jobbtn complete" style="background:var(--navy)" onclick="wlAddComment(\''+esc(key)+'\')">Add note</button>'+
       '<p class="body" style="font-size:11.5px;color:var(--muted);text-align:center;margin:8px 0 0">A note is optional — everything else (status, photos, day) saves as you go.</p></div>'+
-    wlVariationBlock(j,key)+
-    wlApproveBlock(j,key)+
-    wlFixBlock(j,key)+
+    // ---- Manage this job (directors) --------------------------------------------
+    // The page was twelve stacked sections and the buttons nobody could read
+    // (Trish, 15 Sep 2026). Crew-facing work stays in view; the management
+    // tools fold into one panel. Two things stay out in the open because they
+    // ARE the next step: a variation that's in play, and sign-off once the job
+    // is Complete.
+    (function(){
+      if(!isMgrRole()) return (wlCanFix(j)?dueHTML:'')+wlVariationBlock(j,key);
+      var varVisible=!!varOf(j), apprVisible=(wlBucketToStatus(j)==="Complete");
+      var strip=wlManageStrip(j);
+      return (varVisible?wlVariationBlock(j,key):'')+(apprVisible?wlApproveBlock(j,key):'')+
+        '<details class="more" id="wlMore"><summary><span class="more-t">⚙️ Manage this job</span><span class="more-s">'+strip+'</span></summary><div class="more-b">'+
+      assignHTML+offerHTML +
+      dueHTML +
+      ((isMgrRole() && j.zoho)?('<div class="sec"><h4>Source</h4><div class="srcref">🔗 Matched to <b>Zoho '+esc(String(j.zoho).slice(-7))+'</b>'+(j.project?(' · '+esc(j.project)):'')+'<div class="srcsub">Zoho task id '+esc(j.zoho)+'</div></div></div>'):'') +
+      ((isMgrRole() && j.zoho)?('<div class="sec"><h4>Send to Michael’s Zoho</h4><button onclick="zohoSendJob(\''+esc(key)+'\')" style="width:100%;border:0;background:#1a2b5c;color:#fff;font-weight:800;font-size:13px;padding:12px;border-radius:10px;cursor:pointer">📷 Send this job’s photos + note to his Zoho</button><div class="srcsub" style="margin-top:6px">Posts the photos (as links) and a note onto the matched Zoho task.</div></div>'):'') +
+      ((isMgrRole() && j.zoho)?('<div class="sec"><h4>From Michael’s Zoho <span style="font-size:10px;color:#9aa7b4;font-weight:700">directors only</span></h4><div id="zinbox" style="font-size:12.5px;color:var(--muted)">Loading his Zoho comments…</div></div>'):'') +
+      (isMgrRole()?('<div class="sec"><h4>Move to another worklist</h4><div class="subnote-box" onclick="wlMoveList(\''+esc(key)+'\')">\ud83d\udccb '+esc(j.list||"\u2014 not on a worklist \u2014")+' <span class="wlnote-ed">\u270e</span></div></div>'):'') +
+      (varVisible?'':wlVariationBlock(j,key)) +
+      (apprVisible?'':wlApproveBlock(j,key)) +
+      wlFixBlock(j,key) +
+        '</div></details>';
+    })()+
     '<button class="jobbtn donebtn" onclick="closeSheet()">✓ Done</button>'+
     '<div style="height:16px"></div>';
   showSheet();
@@ -7799,24 +7822,36 @@ function renderVariationsSeg(el, list){
   el.innerHTML=tiles+cards;
 }
 
+// One line under "Manage this job": who it's on, and anything owner- or
+// variation-side that's in flight. Plain words, no buttons.
+function wlManageStrip(j){
+  var so=j.signoff||{}, v=varOf(j), bits=[];
+  bits.push(j.allocatedTo?('on '+esc(firstNames(j.allocatedTo))):'nobody assigned yet');
+  if(j.shared) bits.push('👁 owner can see it');
+  if(j.ownerReq) bits.push('👤 owner asked');
+  if(so.wait) bits.push('⏳ waiting on owner');
+  if(v){ var st=v.status||'draft'; bits.push({draft:'💲 variation to price',sent:'💲 variation with owner',approved:'✅ variation approved',declined:'❌ variation declined'}[st]||''); }
+  if(so.qc&&so.qc.by) bits.push('✅ QC signed');
+  return bits.filter(Boolean).join(' · ');
+}
 function wlApproveBlock(j,key){
   if(!/director|manager/i.test(ME.role||"")) return "";
   var so=j.signoff||{}, qc=(so.qc&&so.qc.by);
   var kk=esc(key);
   var who=(j.approvedBy?(' · '+esc(firstName(j.approvedBy))):'')+(j.approvedAt?(' · '+esc(j.approvedAt)):'');
-  var pullBtn='<button class="jobbtn" style="background:#64748b;margin-top:8px" onclick="wlApprove(\''+kk+'\',false)">Pull back from owner</button>';
+  var pullBtn='<button class="jobbtn" style="background:#64748b;margin-top:8px" onclick="wlApprove(\''+kk+'\',false)">Pull back</button>';
   var ready=wlBucketToStatus(j)==="Complete";
   var waiting=!!(j.signoff&&j.signoff.wait);
   var waitBtn = waiting
-    ? '<button class="jobbtn" style="background:#64748b;margin-top:8px" onclick="wlWaitOwner(\''+kk+'\',false)">Clear “waiting on owner”</button>'
+    ? '<button class="jobbtn" style="background:#64748b;margin-top:8px" onclick="wlWaitOwner(\''+kk+'\',false)">Clear waiting</button>'
     : '<button class="jobbtn" style="background:#b45309;margin-top:8px" onclick="wlWaitOwner(\''+kk+'\',true)">⏳ Waiting on owner</button>';
   // "The owner asked for this." Separate from Waiting-on-owner on purpose: this
   // says where the job CAME FROM, that one says who it's stuck on. Marking it
   // also puts the job on the owner's own My Jobs page in MyYacht.
   var asked = !!j.ownerReq;
   var askBtn = asked
-    ? '<button class="jobbtn" style="background:#64748b;margin-top:8px" onclick="wlOwnerAsk(\''+kk+'\',false)">Not the owner\u2019s request</button>'
-    : '<button class="jobbtn" style="background:#e87722;margin-top:8px" onclick="wlOwnerAsk(\''+kk+'\',true)">\ud83d\udc64 The owner asked for this</button>';
+    ? '<button class="jobbtn" style="background:#64748b;margin-top:8px" onclick="wlOwnerAsk(\''+kk+'\',false)">Not owner\u2019s request</button>'
+    : '<button class="jobbtn" style="background:#e87722;margin-top:8px" onclick="wlOwnerAsk(\''+kk+'\',true)">\ud83d\udc64 Owner asked</button>';
   var askOn = asked
     ? '<div class="apprOn" style="background:#fdf0e6;color:#8a4a12;border-color:#f3d7bd;margin-top:8px">\ud83d\udc64 '+
       (j.ownerReqBy?(esc(firstName(j.ownerReqBy))+' asked for this'):'The owner asked for this')+
@@ -7838,12 +7873,12 @@ function wlApproveBlock(j,key){
         '<div class="apprOn" style="background:#eef4fb;color:var(--navy);border-color:#d3e2f2">👁 The owner can see this task'+who+'.</div>'+
         askOn+waitOn+
         '<p class="body" style="font-size:12.5px;color:var(--muted);margin:10px 0 0">Nothing has been filed to the maintenance record — that happens when it’s marked <b>Complete</b>. They can reply on the job and you’ll get their note.</p>'+
-        askBtn+waitBtn+pullBtn+'</div>';
+        '<div class="corow">'+askBtn+waitBtn+pullBtn+'</div></div>';
     }
     return '<div class="sec"><h4>Owner</h4>'+
       '<p class="body" style="font-size:12.5px;color:var(--muted);margin:0 0 8px">Let the owner see this job while it’s still open — because they already know about it, or because you need a decision before you can carry on. <b>Nothing is filed</b> to the maintenance record until it’s complete.</p>'+
       '<button class="jobbtn complete" onclick="wlApprove(\''+kk+'\',true)">👁 Show owner</button>'+
-      askBtn+waitBtn+'</div>';
+      '<div class="corow">'+askBtn+waitBtn+'</div></div>';
   }
   // QC / sign-off (optional — not every job needs it)
   var qcRow = qc
