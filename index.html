@@ -8244,17 +8244,39 @@ function wlSaveTitle(key){
     else toast((r&&r.error)||"Couldn’t rename");
   }).catch(function(){ toast("Couldn’t connect"); });
 }
+/* In-app confirm — replaces the browser's native confirm() so the "Are you sure?"
+   box is part of the app (works on a phone, and lets a director/automation complete
+   a delete). Returns a Promise<boolean>. */
+function mhqConfirm(msg, yesLabel){
+  return new Promise(function(res){
+    var ov=document.createElement('div');
+    ov.style.cssText='position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
+    var card=document.createElement('div');
+    card.style.cssText='background:#fff;border-radius:16px;max-width:420px;width:100%;padding:22px;font:15px -apple-system,Segoe UI,Roboto,sans-serif;color:#16223f;box-shadow:0 12px 44px rgba(0,0,0,.35)';
+    var body=document.createElement('div'); body.style.cssText='white-space:pre-wrap;line-height:1.5;margin-bottom:18px'; body.textContent=msg;
+    var row=document.createElement('div'); row.style.cssText='display:flex;gap:10px';
+    var no=document.createElement('button'); no.textContent='Cancel'; no.style.cssText='flex:1;padding:12px;border-radius:10px;border:1.5px solid #dce5f1;background:#fff;color:#16223f;font-weight:700;font-size:15px;cursor:pointer';
+    var yes=document.createElement('button'); yes.textContent=yesLabel||'Yes'; yes.style.cssText='flex:1;padding:12px;border-radius:10px;border:none;background:#c0392b;color:#fff;font-weight:800;font-size:15px;cursor:pointer';
+    function done(v){ try{document.body.removeChild(ov);}catch(e){} res(v); }
+    no.onclick=function(){done(false);}; yes.onclick=function(){done(true);};
+    ov.onclick=function(e){ if(e.target===ov) done(false); };
+    row.appendChild(no); row.appendChild(yes); card.appendChild(body); card.appendChild(row); ov.appendChild(card);
+    document.body.appendChild(ov);
+  });
+}
 function wlDeleteJob(key){
   var j=wlFind(key); if(!j) return;
   var warn='Delete "'+(j.task||"this task")+'"?\n\nThis removes it from the worklist for good.';
   if(j.shared) warn+='\n\nIt has been sent to the owner — it will disappear from their app too.';
-  if(!confirm(warn)) return;
-  apiPost({action:"crewJobDelete", email:ME.email, code:ME.code, jobKey:key}).then(function(r){
-    if(r&&r.ok){ toast("🗑 Task deleted");
-      CREWJOBS=CREWJOBS.filter(function(x){return x.key!==key;});
-      closeSheet(); loadJobs(); }
-    else toast((r&&r.error)||"Couldn’t delete");
-  }).catch(function(){ toast("Couldn’t connect"); });
+  mhqConfirm(warn, "Yes, delete").then(function(ok){
+    if(!ok) return;
+    apiPost({action:"crewJobDelete", email:ME.email, code:ME.code, jobKey:key}).then(function(r){
+      if(r&&r.ok){ toast("🗑 Task deleted");
+        CREWJOBS=CREWJOBS.filter(function(x){return x.key!==key;});
+        closeSheet(); loadJobs(); }
+      else toast((r&&r.error)||"Couldn’t delete");
+    }).catch(function(){ toast("Couldn’t connect"); });
+  });
 }
 
 function trackerHTML(status){
