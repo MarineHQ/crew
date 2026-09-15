@@ -276,6 +276,10 @@
   .overlay.show{display:block}
   .sheet{position:fixed;left:0;right:0;bottom:0;max-width:620px;margin:0 auto;background:var(--bg);border-radius:18px 18px 0 0;max-height:94vh;overflow-y:auto;z-index:50;transform:translateY(100%);transition:transform .25s}
   .sheet.show{transform:translateY(0)}
+  /* On a phone the sheet IS the screen: the brand banner and app header above it were a third of the height (Trish, 15 Sep 2026). */
+  @media (max-width:640px){ .sheet{top:0;max-height:none;height:100%;border-radius:0} .sheet-hd{border-radius:0} }
+  .phfold{width:100%;margin:6px 0 0;border:1.5px solid var(--line);background:#fff;color:var(--navy);font-weight:700;font-size:12.5px;padding:8px;border-radius:9px;cursor:pointer}
+  .phmore{display:contents}.phmore[hidden]{display:none!important}
   .sheet-hd{position:sticky;top:0;background:var(--navy);color:#fff;padding:14px 16px;border-radius:18px 18px 0 0;display:flex;align-items:flex-start;gap:10px;z-index:2}
   .sheet-hd h3{margin:3px 0 0;font-size:16px;line-height:1.3}
   /* The task name edits where it sits. Every other part of a task already had a
@@ -1736,7 +1740,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-15·d</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-15·e</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2775,6 +2779,9 @@ function signOut(){
   location.reload();
 }
 function enterReal(crew, shift, quiet){
+  // Another person on the same open page (a director's phone handed to crew) must not
+  // inherit what was loaded for the last one — wipe the in-memory lists first.
+  if(ME && ME.id && ME.id!==crew.id){ try{ CREWJOBS=[]; JOBS=[]; REQJOBS=[]; CREWRAISED=[]; UPDATES=[]; }catch(e){} }
   try{ _cSet("mhqc_me", {crew:crew, shift:shift||null, t:Date.now()}); }catch(e){}   // next open goes straight in from this
   if(quiet && ME && ME.id===crew.id){
     // Already inside from this phone's copy — take the fresh details without resetting the screen.
@@ -7174,8 +7181,14 @@ function openWLJob(key){
   // Per ITEM, not per job: your own upload is yours to remove even after the
   // job has been shared with the owner, and someone else's never is (unless
   // you're a director). See wlMayDel above.
-  var phHTML=(j.photos&&j.photos.length ? j.photos.map(function(p,idx){return '<div class="ph"><img src="'+esc(driveImg(p.url))+'" alt="" loading="lazy" onerror="this.classList.add(\'imgerr\')" onclick="event.stopPropagation();openPhoto(\''+esc(key)+'\','+idx+')" style="cursor:pointer">'+((phNoteCount(p)>1)?('<span class="phcap">💬 '+phNoteCount(p)+'</span>'):'')+phTagPill(p)+'<small>'+esc(p.by?firstName(p.by):(phName(p)||"photo"))+(p.at?(' · '+relTime(p.at)):'')+'</small>'+(phFirstNote(p)?('<span class="phnote">'+esc(phFirstNote(p))+'</span>'):'')+(wlMayDel(p)?'<button class="attdel" title="Remove" onclick="event.stopPropagation();wlDelAtt(\''+esc(key)+'\',\''+esc(p.url)+'\',\'photo\')">✕</button>':'')+(isMgrRole()?lanePill(p.aud):'')+'</div>';}).join("") : '<div style="font-size:13px;color:var(--muted)">No photos yet.</div>')
-    +'<label class="addph" id="phAddLbl" for="wlPhotoInput" onclick="if(!laneReady())return event.preventDefault();">'+phAddLabel()+'</label><input id="wlPhotoInput" type="file" accept="image/*" multiple style="display:none" onchange="wlAddPhotos(\''+esc(key)+'\',this)">';
+  // Camera tile first (it's what crew came to do), then the newest six photos; the rest fold
+  // behind one button so a 30-photo job doesn't push the notes off the bottom of the phone.
+  var _phTiles=(j.photos||[]).map(function(p,idx){return '<div class="ph"><img src="'+esc(driveImg(p.url))+'" alt="" loading="lazy" onerror="this.classList.add(\'imgerr\')" onclick="event.stopPropagation();openPhoto(\''+esc(key)+'\','+idx+')" style="cursor:pointer">'+((phNoteCount(p)>1)?('<span class="phcap">💬 '+phNoteCount(p)+'</span>'):'')+phTagPill(p)+'<small>'+esc(p.by?firstName(p.by):(phName(p)||"photo"))+(p.at?(' · '+relTime(p.at)):'')+'</small>'+(phFirstNote(p)?('<span class="phnote">'+esc(phFirstNote(p))+'</span>'):'')+(wlMayDel(p)?'<button class="attdel" title="Remove" onclick="event.stopPropagation();wlDelAtt(\''+esc(key)+'\',\''+esc(p.url)+'\',\'photo\')">✕</button>':'')+(isMgrRole()?lanePill(p.aud):'')+'</div>';});
+  var _phKeep=6, _phHide=Math.max(0,_phTiles.length-_phKeep);
+  var phHTML='<label class="addph" id="phAddLbl" for="wlPhotoInput" onclick="if(!laneReady())return event.preventDefault();">'+phAddLabel()+'</label><input id="wlPhotoInput" type="file" accept="image/*" multiple style="display:none" onchange="wlAddPhotos(\''+esc(key)+'\',this)">'
+    +(_phTiles.length ? ((_phHide?('<div class="phmore" hidden>'+_phTiles.slice(0,_phHide).join("")+'</div>'):'')+_phTiles.slice(_phHide).join(""))
+                      : '<div style="font-size:13px;color:var(--muted);align-self:center">No photos yet.</div>');
+  var phFoldBtn=_phHide?('<button class="phfold" onclick="var m=this.parentNode.querySelector(\'.phmore\');m.hidden=!m.hidden;this.textContent=m.hidden?\'See all '+_phTiles.length+' photos\':\'Show fewer\'">See all '+_phTiles.length+' photos</button>'):'';
   // Images (even ones added via the 📎 button) show as thumbnails; real files (PDF/xls…) show as rows.
   var _docs=j.docs||[];
   var _imgDocs=_docs.filter(function(d){return isImgFile(d.name,d.url);});
@@ -7264,7 +7277,7 @@ function openWLJob(key){
         : ('◐ Logged by '+(_mine?'you':esc(_did))+' — still in hand'))+
       '</div></div>';
   } else if(acc && acc.by){
-    acceptHTML='<div class="sec"><div class="apprOn">✓ Accepted by '+esc(firstName(acc.by))+(acc.date?(' · '+esc(acc.date)):'')+'</div></div>';
+    acceptHTML='<div class="sec"><div class="apprOn">'+(isMgrRole()?('✓ Accepted by '+esc(firstName(acc.by))):'👷 Yours — accepted')+(acc.date?(' · '+esc(acc.date)):'')+'</div></div>';
   } else if(mineJob){
     // Urgent, unmissable call to accept a task Marine HQ has assigned to this crew member.
     acceptHTML='<div class="sec"><div class="acceptcall">'+
@@ -7276,7 +7289,7 @@ function openWLJob(key){
   }
   // Crew see a clear read-only "Assigned to" line (directors get the editable picker instead).
   // Crew only ever learn that it's THEIRS — who else is on it stays with management.
-  var crewAssignHTML = (!isMgrRole() && mineJob && !isWorkLog(j)) ?
+  var crewAssignHTML = (!isMgrRole() && mineJob && !isWorkLog(j) && !(acc&&acc.by)) ?
     ('<div class="sec"><div class="assignedto">👷 Assigned to <b>you</b>'+(acc&&acc.by?'':' · please accept above 🚨')+'</div></div>') : '';
   $("sheet").innerHTML=
     '<div class="sheet-hd"><div style="flex:1"><div style="font-size:11px;font-weight:bold;letter-spacing:.4px;color:#ffd7b0">'+esc(j.vessel)+(j.list?(" · "+esc(j.list)):"")+(j.code?(' &nbsp;<span class="jcode">'+esc(j.code)+'</span>'):'')+catChip(j.category)+'</div>'+
@@ -7302,7 +7315,7 @@ function openWLJob(key){
     crewAssignHTML+
     '<div class="sec"><h4>Status</h4><div class="pillrow">'+pills+'</div>'+(j.completed?('<div class="apprOn" style="margin-top:8px">✓ Completed '+esc(j.completed)+' <span class="wlnote-ed" style="cursor:pointer" onclick="openCompleteModal(\''+esc(key)+'\')">✎ Edit date</span></div>'):'')+'</div>'+
     laneHTML+
-    '<div class="sec"><h4>Photos</h4><div class="photos">'+phHTML+'</div><div class="tagrow" id="phTagRow">'+phTagRowHtml()+'</div>'+((j.photos&&j.photos.length)?bulkBar('photo',key):'')+'</div>'+
+    '<div class="sec"><h4>Photos</h4><div class="photos">'+phHTML+'</div>'+phFoldBtn+'<div class="tagrow" id="phTagRow">'+phTagRowHtml()+'</div>'+((j.photos&&j.photos.length)?bulkBar('photo',key):'')+'</div>'+
     '<div class="sec"><h4>Documents</h4><div class="docrow">'+docHTML+'</div>'+((j.docs&&j.docs.length)?bulkBar('doc',key):'')+'</div>'+
     '<div class="sec"><h4>Notes &amp; timeline</h4><div class="cmts">'+cmtHTML+'</div>'+
       '<textarea id="wlNote" class="fld-ta" placeholder="Add a note… (crew &amp; Marine HQ can both post here)"></textarea>'+
@@ -7580,7 +7593,7 @@ function wlVariationBlock(j,key){
     return '<div class="sec"><h4>Extra work found?</h4>'+
       '<p class="body" style="font-size:12.5px;color:var(--muted);margin:0 0 8px">'+
       (mgr ? 'Something outside the job’s scope? Raise a variation, price it and send it to the owner — nobody starts the extra work until it says <b>Approved</b>.'
-           : 'Found something that isn’t part of this job? Raise it here with a voice note and what it needs. Marine HQ prices it and sends it to the owner — <b>don’t start the extra work</b> until the card says Approved.')+'</p>'+
+           : 'Found something outside this job? Raise it here — Marine HQ prices it. <b>Don’t start the extra work</b> until the card says Approved.')+'</p>'+
       '<button class="jobbtn" style="background:var(--orange);margin-top:0" onclick="varOpen(\''+kk+'\')">💲 Raise a variation</button>'+histHTML+'</div>';
   }
   var s=v.status||"draft", d=v.decision||{};
@@ -10174,7 +10187,9 @@ function renameList(g){
    it adapts to any screen), and dim only the area under the branding. */
 function showSheet(){
   var hd=document.querySelector('#app header');
-  var off=hd?Math.max(0,Math.round(hd.getBoundingClientRect().bottom)):0;
+  // Desktop: the sheet sits under the app header. Phone: it takes the whole screen —
+  // the banner + header above it were a third of the height (Trish, 15 Sep 2026).
+  var off=(window.innerWidth<=640)?0:(hd?Math.max(0,Math.round(hd.getBoundingClientRect().bottom)):0);
   var ov=$("overlay"), s=$("sheet");
   ov.style.top=off+"px"; s.style.top=off+"px";
   ov.classList.add("show"); s.classList.add("show"); s.scrollTop=0;
