@@ -1727,7 +1727,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-15·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-15·c</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -5910,7 +5910,7 @@ function renderSegBody(){
       var okTxt=okBy?(' by '+esc(okBy)):'';
       var chip = st==="requested" ? '<span class="acptchip urgent">⏳ Waiting on Marine HQ</span>'
         : (st.indexOf("complete")>=0 ? ('<span class="acptchip ok">✓ Done</span>'+(okBy?(' <span class="acptchip ok">✓ Approved'+okTxt+'</span>'):''))
-        : '<span class="acptchip ok">✓ Approved'+okTxt+'</span>'+(who?(' <span class="acptchip">→ '+esc(who)+'</span>'):''));
+        : '<span class="acptchip ok">✓ Approved'+okTxt+'</span>');   // who it landed with is management's to know
       return segCard(j, chip);
     });
   }
@@ -6989,7 +6989,7 @@ function calShowDay(ts){
     var b=hubBucket(j.status), cls=hubCls(b);
     return '<div class="job brd-'+cls+(_isDoneJob(j)?" jobdone":"")+'" onclick="openFromUpdate(\''+esc(j.key)+'\',\''+esc(j.vessel)+'\')">'+
       '<div class="top"><div style="flex:1"><h3>'+esc(j.task||j.title||"(job)")+(j.code?' <span class="jcode">'+esc(j.code)+'</span>':'')+'</h3>'+
-      '<div style="font-size:12px;color:var(--muted);margin-top:2px">'+esc(j.vessel||"")+(j.allocatedTo?(" · "+esc(firstName(j.allocatedTo))):"")+'</div></div>'+
+      '<div style="font-size:12px;color:var(--muted);margin-top:2px">'+esc(j.vessel||"")+((isMgrRole()&&j.allocatedTo)?(" · "+esc(firstName(j.allocatedTo))):"")+'</div></div>'+
       '<span class="badge s-'+cls+'">'+(_isDoneJob(j)?"&#10003; ":"")+esc(j.status||b)+'</span></div></div>';
   }).join("");
   $("calDay").innerHTML=html;
@@ -7125,7 +7125,10 @@ function wlFactsHtml(j){
   } else {
     out += cell("Due", "no date", "soft");
   }
-  out += j.allocatedTo ? cell("On", firstNames(j.allocatedTo)) : cell("On", "nobody yet", "soft");
+  // Who it's on is a management view. Crew see "you" when it's theirs, otherwise
+  // nothing at all — never the other names (Trish, 15 Sep 2026).
+  if(isMgrRole()) out += j.allocatedTo ? cell("On", firstNames(j.allocatedTo)) : cell("On", "nobody yet", "soft");
+  else { var _meOn=(ME.name||"").toLowerCase().replace(/\s*\(test\)/,"").trim(); if(_meOn && (j.allocatedTo||"").toLowerCase().indexOf(_meOn)>=0) out += cell("On", "you"); }
 
   /* WHICH POT THIS COSTS. The whole point of the job card's works split is how
      much went on charters vs scheduled vs unscheduled vs upgrades, and the
@@ -7257,16 +7260,15 @@ function openWLJob(key){
     // Urgent, unmissable call to accept a task Marine HQ has assigned to this crew member.
     acceptHTML='<div class="sec"><div class="acceptcall">'+
       '<div class="ac-hd">🚨 Please accept this task</div>'+
-      '<p class="ac-tx">Marine HQ has assigned this job to <b>you</b>'+(_others.length?(' (with '+esc(_others.map(firstName).join(", "))+')'):'')+'. Tap below so they know you’ve got it.</p>'+
+      '<p class="ac-tx">Marine HQ has assigned this job to <b>you</b>. Tap below so they know you’ve got it.</p>'+
       '<button class="jobbtn complete acbtn" onclick="wlAccept(\''+esc(key)+'\')">✓ Accept this task</button></div></div>';
   } else if(isMgrRole() && j.allocatedTo){
     acceptHTML='<div class="sec"><div class="apprOn" style="background:#fdf3e3;color:#8a5a12;border-color:#f0dcb8">⏳ Awaiting acceptance from '+esc(firstNames(j.allocatedTo))+'</div></div>';
   }
   // Crew see a clear read-only "Assigned to" line (directors get the editable picker instead).
-  var crewAssignHTML = (!isMgrRole() && allocList.length && !isWorkLog(j)) ?
-    ('<div class="sec"><div class="assignedto">👷 Assigned to <b>'+
-      allocList.map(function(n){ return (n.toLowerCase()===_me) ? "you" : esc(firstName(n)); }).join(", ")+
-      '</b>'+(mineJob&&acc&&acc.by?'':(mineJob?' · please accept above 🚨':''))+'</div></div>') : '';
+  // Crew only ever learn that it's THEIRS — who else is on it stays with management.
+  var crewAssignHTML = (!isMgrRole() && mineJob && !isWorkLog(j)) ?
+    ('<div class="sec"><div class="assignedto">👷 Assigned to <b>you</b>'+(acc&&acc.by?'':' · please accept above 🚨')+'</div></div>') : '';
   $("sheet").innerHTML=
     '<div class="sheet-hd"><div style="flex:1"><div style="font-size:11px;font-weight:bold;letter-spacing:.4px;color:#ffd7b0">'+esc(j.vessel)+(j.list?(" · "+esc(j.list)):"")+(j.code?(' &nbsp;<span class="jcode">'+esc(j.code)+'</span>'):'')+catChip(j.category)+'</div>'+
       '<h3 id="wlTitleH">'+num+'. '+esc(j.task||"(job)")+(wlCanFix(j)?(' <span class="hd-ed" title="Edit the task name" onclick="wlEditTitle(\''+esc(key)+'\')">✎</span>'):'')+'</h3></div><button class="closeb" onclick="closeSheet()">✕</button></div>'+
@@ -7583,7 +7585,8 @@ function wlVariationBlock(j,key){
   } else if(s==="approved"){
     var inv=v.invoice||{}, invoiced=(inv.status==="invoiced");
     box='<div class="apprOn">✅ Approved — go ahead'+
-        '<div style="font-weight:400;font-size:12px;margin-top:3px">Signed '+esc(d.name||d.by||"the owner")+(d.at?(' · '+fmtDateTime(d.at)):'')+' via MyYacht'+(d.text?(' — “'+esc(d.text)+'”'):'')+'</div></div>'+
+        (mgr?('<div style="font-weight:400;font-size:12px;margin-top:3px">Signed '+esc(d.name||d.by||"the owner")+(d.at?(' · '+fmtDateTime(d.at)):'')+' via MyYacht'+(d.text?(' — “'+esc(d.text)+'”'):'')+'</div>')
+            :('<div style="font-weight:400;font-size:12px;margin-top:3px">Approved by the owner'+(d.at?(' · '+fmtDateTime(d.at)):'')+'</div>'))+'</div>'+
         (mgr?('<div class="apprOn" style="background:'+(invoiced?'#eef4fb':'#fdf3e3')+';color:'+(invoiced?'var(--navy)':'#8a5a12')+';border-color:'+(invoiced?'#d3e2f2':'#f0dcb8')+';margin-top:8px">'+
           (invoiced?('💳 Invoiced'+(inv.ref?(' · '+esc(inv.ref)):'')+(inv.at?(' · '+fmtDateTime(inv.at)):'')):('💳 To invoice — '+varMoney(v.inc)+' inc GST ('+varMoney(v.ex)+' ex)'))+'</div>'):'');
     if(mgr) btns=((v.signedPdf&&v.signedPdf.url)||(v.pdf&&v.pdf.url)?'<a class="jobbtn" style="display:block;text-align:center;background:#fff;color:var(--navy);border:1.5px solid var(--line);text-decoration:none" href="'+esc((v.signedPdf&&v.signedPdf.url)||v.pdf.url)+'" target="_blank" rel="noopener">📄 Open the signed record</a>':'')+
@@ -7592,7 +7595,7 @@ function wlVariationBlock(j,key){
          '<button class="jobbtn" style="background:#fff;color:var(--navy);border:1.5px solid var(--line)" onclick="varUpdate(\''+kk+'\',\'new\')">＋ Start another variation</button>';
   } else if(s==="declined"){
     box='<div class="apprOn" style="background:#fee2e2;color:#b91c1c;border-color:#fecaca">❌ Declined — leave the extra work'+
-        '<div style="font-weight:400;font-size:12px;margin-top:3px">'+esc(d.name||d.by||"The owner")+(d.at?(' · '+fmtDateTime(d.at)):'')+(d.text?(' — “'+esc(d.text)+'”'):'')+'</div></div>';
+        '<div style="font-weight:400;font-size:12px;margin-top:3px">'+(mgr?(esc(d.name||d.by||"The owner")+(d.at?(' · '+fmtDateTime(d.at)):'')+(d.text?(' — “'+esc(d.text)+'”'):'')):('The owner'+(d.at?(' · '+fmtDateTime(d.at)):'')))+'</div></div>';
     if(mgr) btns='<button class="jobbtn" style="background:var(--navy)" onclick="varUpdate(\''+kk+'\',\'reopen\')">↺ Reopen as a draft</button>'+
          '<button class="jobbtn" style="background:#fff;color:var(--navy);border:1.5px solid var(--line)" onclick="varUpdate(\''+kk+'\',\'new\')">＋ Start another variation</button>';
   } else {
