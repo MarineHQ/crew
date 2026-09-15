@@ -1727,7 +1727,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-15·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-15·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -6193,23 +6193,59 @@ function rptListsFor(){
   });
   return out;
 }
+/* ---- Which jobs belong on a month's report -----------------------------------
+   "Completed only" is a works report: the job's COMPLETION date decides, as it
+   always has. "Completed + in hand" and "All tasks" are a STATUS report (Trish,
+   15 Sep 2026): a job that sat on that month's list belongs on it even if it was
+   carried at Close month and finished later — it comes out as "Carried over",
+   with where it went and when it was eventually done. A job carried once from
+   0826 is now on the 0926 list with carried=1, so the months it sat on are read
+   back from its list name and carry count. "Not doing" jobs keep the month they
+   were closed on in their pinned note ("Closed on 0826 — not done"). */
+function rptListPeriod(nm){ var m=/\b(\d{4})\b/.exec(nm||""); if(!m) return null; var mo=+m[1].slice(0,2); return (mo>=1&&mo<=12)?m[1]:null; }
+function rptPrevPeriod(p){ var mo=+p.slice(0,2), yr=+p.slice(2); mo--; if(mo<1){ mo=12; yr=(yr+99)%100; } return ("0"+mo).slice(-2)+("0"+yr).slice(-2); }
+function rptPeriodLbl(p){ if(!p) return ""; var d=new Date(2000+(+p.slice(2)), +p.slice(0,2)-1, 1); return d.toLocaleDateString("en-AU",{month:"long",year:"numeric"}); }
+function rptJobMonths(j){ var p=rptListPeriod((j.list||j.project||"")+""); if(!p) return []; var out=[p]; for(var i=0;i<(+j.carried||0);i++){ p=rptPrevPeriod(p); out.push(p); } return out; }
+function rptClosedOn(j){ var m=/^Closed on (\d{4})\b/.exec((j.subNote||"")+""); return m?m[1]:null; }
+function rptRangeMonths(rng){
+  if(!rng||(!rng.from&&!rng.to)) return null;                         // all time
+  var to=rng.to?new Date(rng.to):new Date(), from=rng.from?new Date(rng.from):new Date(to.getFullYear()-2,to.getMonth(),1);
+  var out={}, d=new Date(from.getFullYear(),from.getMonth(),1), n=0;
+  while(d<=to && n++<60){ out[("0"+(d.getMonth()+1)).slice(-2)+("0"+(d.getFullYear()%100)).slice(-2)]=1; d.setMonth(d.getMonth()+1); }
+  return out;
+}
+// How a job stands for THIS report: {kind, ...}. kind = done | inhand | todo | carried | notdone | null (not on it).
+function rptStanding(j, rng){
+  var b=hubBucket(j.status), st=(j.status||"").toLowerCase(), cd=j.completed?new Date(j.completed+"T12:00:00"):null;
+  var dated=!!(rng&&(rng.from||rng.to));
+  var inWin=cd && (!rng.from||cd>=rng.from) && (!rng.to||cd<=rng.to);
+  if(!dated){                                                        // all time: today's status
+    if(st==="cancelled") return {kind:"notdone"};
+    return {kind:b==="Done"?"done":(b==="In progress"?"inhand":"todo")};
+  }
+  if(b==="Done" && inWin) return {kind:"done"};
+  var months=rptRangeMonths(rng), mine=rptJobMonths(j), now=mine[0]||null, on=mine.some(function(m){return months[m];});
+  if(st==="cancelled"){ var c=rptClosedOn(j); return (c&&months[c])?{kind:"notdone",closedOn:c}:{kind:null}; }
+  if(!on) return {kind:null};
+  if(b==="Done") return {kind:"carried",now:now,later:j.completed};          // finished, but in a later month
+  if(months[now]) return {kind:b==="In progress"?"inhand":"todo"};           // still on a list inside the window
+  return {kind:"carried",now:now,bucket:b};                                   // carried out of the window, still open
+}
 function rptJobs(){
   var vlc=(CURVESSEL||"").toLowerCase(), rng=rptDateRange();
+  var ORDER={done:0,inhand:1,carried:2,todo:3,notdone:4};
   return (CREWJOBS||[]).filter(function(j){
     if((j.vessel||"").toLowerCase()!==vlc) return false;
     if(RPT.list && RPT.list!=="all" && (((j.list||j.project||"")+"").trim())!==RPT.list) return false;
-    var b=hubBucket(j.status), st=(j.status||"").toLowerCase();
-    if(st==="cancelled"){ if(RPT.scope!=="all") return false; }
-    else if(RPT.scope==="done" && b!=="Done") return false;
-    else if(RPT.scope==="prog" && !(b==="Done"||b==="In progress")) return false;
-    if(rng && (rng.from||rng.to)){
-      var cd=j.completed?new Date(j.completed+"T12:00:00"):null;
-      if(!cd) return false;
-      if(rng.from && cd<rng.from) return false;
-      if(rng.to && cd>rng.to) return false;
-    }
-    return true;
-  });
+    var s=rptStanding(j, rng); j._rpt=s;
+    if(!s.kind) return false;
+    if(RPT.scope==="done") return s.kind==="done";
+    // Completed + in hand: a carried job counts as in hand — it was on the month
+    // and not finished — whether or not anyone had started it. Plain To do and
+    // Not done are "All tasks" only.
+    if(RPT.scope==="prog") return s.kind==="done"||s.kind==="inhand"||s.kind==="carried";
+    return true;                                                       // all tasks on the list
+  }).sort(function(a,b){ return (ORDER[a._rpt.kind]||0)-(ORDER[b._rpt.kind]||0); });
 }
 function rptRender(){
   var lists=rptListsFor();
@@ -6318,6 +6354,12 @@ function mhqPinBlock(extra){
     '})();<\/script>';
 }
 
+function rptCounts(jobs){
+  var c={}; jobs.forEach(function(j){ var k=(j._rpt&&j._rpt.kind)||"todo"; c[k]=(c[k]||0)+1; });
+  var bits=[]; if(c.done)bits.push(c.done+' completed'); if(c.inhand)bits.push(c.inhand+' in hand'); if(c.carried)bits.push(c.carried+' carried over');
+  if(c.todo)bits.push(c.todo+' to do'); if(c.notdone)bits.push(c.notdone+' not done');
+  return bits.length>1 ? (jobs.length+' jobs: '+bits.join(', ')) : (jobs.length+(jobs.length===1?' job':' jobs'));
+}
 function buildReport(){
   var jobs=rptJobs(); if(!jobs.length) return;
   var label={all:"Every job", done:"Completed works", prog:"Completed &amp; in hand"}[RPT.scope];
@@ -6328,11 +6370,16 @@ function buildReport(){
   var CATC={"scheduled":"sched","unscheduled":"unsched","upgrade":"upg",
     "charter / delivery":"del","delivery":"del","charter":"del","ops":"ops","operations":"ops"};
   var rows=jobs.map(function(j,ix){
-    var b=hubBucket(j.status);
-    var sfx=(b==="Done")?"done":(b==="In progress"?"inprog":"todo");
-    var stl=(b==="Done")?"Complete":(b==="In progress"?"In progress":"To do");
+    var s=j._rpt||rptStanding(j, rptDateRange()), k=s.kind;
+    var sfx=(k==="done")?"done":(k==="inhand"||k==="carried")?"inprog":(k==="notdone")?"notdone":"todo";
+    var stl=(k==="done")?"Complete":(k==="inhand")?"In progress":(k==="carried")?"Carried over":(k==="notdone")?"Not done":"To do";
     var cat=(j.category||"").trim(), cc=CATC[cat.toLowerCase()]||"";
-    var dstr=j.completed?rptDate(j.completed):"";
+    // On a status report the date pill is the completion date only when it fell
+    // inside the report; a job finished later says so in its own chip instead.
+    var dstr=(k==="done"||!rptRangeMonths(rptDateRange()))&&j.completed?rptDate(j.completed):"";
+    var stchip=(k==="carried")?('<span class="acptchip" style="background:#fdf1e3;color:#8a5a12">&rarr; carried into '+rptEsc(rptPeriodLbl(s.now)||s.now||"next month")+'</span>'+
+                 (s.later?('<span class="acptchip">&#10003; completed '+rptEsc(rptDate(s.later))+'</span>'):'<span class="acptchip" style="background:#eef2f6;color:#6b7a8d">still open</span>'))
+             :(k==="notdone")?('<span class="acptchip" style="background:#eef2f6;color:#6b7a8d">closed with '+rptEsc(rptPeriodLbl(s.closedOn)||"the month")+' &middot; not done</span>'):'';
     // Use driveImg untouched. Asking Google for =w600 to save bytes looked sensible
     // and was wrong: the SAME file serves at =w1600 and is refused at =w600, so the
     // report came out with no photos at all. Size is handled in CSS instead, and the
@@ -6366,7 +6413,7 @@ function buildReport(){
       '<div class="jtop"><div class="jmain">'+
         '<h3><span class="jnum">'+(ix+1)+'.</span> '+rptEsc(j.task||j.desc||"Task")+
           ' <span class="code">'+rptEsc(j.code||"")+'</span>'+(cc?(' <span class="jcat '+cc+'">'+rptEsc(cat)+'</span>'):'')+'</h3>'+
-        '<div class="jmeta">'+datep+who+(j.carried>1?('<span class="acptchip" style="background:#eef2f6;color:#6b7a8d">carried '+j.carried+'&times;</span>'):'')+'</div>'+
+        '<div class="jmeta">'+datep+stchip+who+(j.carried>1?('<span class="acptchip" style="background:#eef2f6;color:#6b7a8d">carried '+j.carried+'&times;</span>'):'')+'</div>'+
       '</div><span class="badge s-'+sfx+'">'+stl+'</span></div>'+
       ((j.desc&&j.desc!==j.task)?('<div class="desc">'+rptEsc(j.desc)+'</div>'):'')+
       (notes?('<div class="notes"><h4>Crew notes</h4>'+notes+'</div>'):'')+
@@ -6381,7 +6428,7 @@ function buildReport(){
     'img.bnr{display:block;width:100%;height:auto}'+
     'h1{font-size:21px;color:#1A2B5C;margin:16px 0 2px}.sub{color:#6b7a8d;font-size:12.5px;margin-bottom:16px}'+
     '.job{background:#fff;border:1px solid #e3e8ef;border-left:4px solid #7a869a;border-radius:12px;padding:12px 14px;margin-bottom:11px;page-break-inside:avoid}'+
-    '.brd-done{border-left-color:#1F7A54}.brd-inprog{border-left-color:#B77410}.brd-todo{border-left-color:#7a869a}'+
+    '.brd-done{border-left-color:#1F7A54}.brd-inprog{border-left-color:#B77410}.brd-todo{border-left-color:#7a869a}.brd-notdone{border-left-color:#c7cdd6}'+
     '.jtop{display:flex;align-items:flex-start;gap:10px}.jmain{flex:1;min-width:0}'+
     '.job h3{font-size:14.5px;margin:0;line-height:1.3;color:#1A2B5C;font-weight:700}'+
     '.jnum{color:#E87722;font-weight:900}'+
@@ -6389,7 +6436,7 @@ function buildReport(){
     '.jcat{display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;border-radius:9px;padding:1px 7px}'+
     '.jcat.sched{color:#0f6b52;background:#dcf3ea}.jcat.unsched{color:#9a3412;background:#fde4d3}.jcat.upg{color:#5b3ea8;background:#ece4fb}.jcat.del{color:#1e40af;background:#e0eaff}.jcat.ops{color:#334155;background:#e5eaf1}'+
     '.badge{font-size:10.5px;font-weight:800;padding:4px 11px;border-radius:20px;color:#fff;white-space:nowrap}'+
-    '.s-done{background:#1F7A54}.s-inprog{background:#B77410}.s-todo{background:#7a869a}'+
+    '.s-done{background:#1F7A54}.s-inprog{background:#B77410}.s-todo{background:#7a869a}.s-notdone{background:#9aa3ad}'+
     '.jmeta{margin-top:7px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}'+
     '.duechip{font-size:11px;font-weight:800;border-radius:8px;padding:2px 8px;background:#e6efff;color:#1d4ed8}'+
     '.acptchip{font-size:11px;font-weight:800;border-radius:8px;padding:2px 8px;background:#dcfce7;color:#166534}'+
@@ -6422,7 +6469,7 @@ function buildReport(){
     '</div></div>'+
     '<img class="bnr" src="'+rptEsc(base)+'banner.jpg" alt="Marine HQ">'+
     '<div class="wrap"><h1>'+rptEsc(CURVESSEL)+' &middot; '+rptEsc(rptPeriodLabel())+'</h1>'+
-    '<div class="sub">'+label+' &middot; '+jobs.length+(jobs.length===1?' job':' jobs')+' &middot; produced '+rptEsc(new Date().toLocaleDateString("en-AU",{day:"2-digit",month:"long",year:"numeric"}))+'</div>'+
+    '<div class="sub">'+label+' &middot; '+rptCounts(jobs)+' &middot; produced '+rptEsc(new Date().toLocaleDateString("en-AU",{day:"2-digit",month:"long",year:"numeric"}))+'</div>'+
     '<div class="noprint" style="font-size:11.5px;color:#6b7a8d;margin-bottom:14px">Tip: if Close doesn’t return you to the app, close this browser tab to go back.</div>'+
     rows+
     '</div>'+
