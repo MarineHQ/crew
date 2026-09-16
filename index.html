@@ -300,6 +300,7 @@
   /* Due is the schedule talking, not the work list — its own quiet blue. */
   .dnacc.duehd{background:#eaf1fa;border-color:#c6d8ee;color:#22406e;font-weight:800}
   .dnacc.duehd .n{background:rgba(34,64,110,.12)}
+  .dnacc.duehd.soonhd{background:#f3f5f8;border-color:#dde3ec;color:#5b6a84}
   .duerow.indue{background:#fff;border:1px solid var(--line);border-radius:10px;padding:9px 11px;margin:0 0 7px;display:flex;align-items:center;gap:9px}
   .duerow.indue .due-add{white-space:nowrap}
   .dnacc.unass{background:linear-gradient(120deg,#E87722,#d1620b);border-color:#c25a08;color:#fff;font-weight:800}
@@ -1859,7 +1860,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-17·i</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-17·j</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -6468,22 +6469,27 @@ function dueFold(g, vessel, period){
     if(hubBucket(j.status)==="Done") return;
     onList[(j.task||"").toLowerCase().trim()]=1;
   });
-  var due=DUE_ALL.filter(function(i){
+  var mine=DUE_ALL.filter(function(i){
     if((i.vessel||"").toLowerCase()!==vlc) return false;
-    if(onList[(i.item||"").toLowerCase().trim()]) return false;
-    return i._days<=31;                       // overdue, or due inside the month
+    return !onList[(i.item||"").toLowerCase().trim()];
   }).sort(function(a,b){ return a._t-b._t; });
-  if(!due.length) return "";
-  var k=g+"|due", open=!!WLDONE[k], kJs=k.replace(/\\/g,"\\\\").replace(/'/g,"\\'");
-  var rows=due.map(function(i){
+  var due=mine.filter(function(i){ return i._days<=31; });          // late, or landing this month
+  var soon=mine.filter(function(i){ return i._days>31 && i._days<=92; });  // the next quarter
+  return dueChunk(g,"due",'\ud83d\udcc5 Due \u2014 not started yet',due) +
+         dueChunk(g,"soon",'\ud83d\uddd3\ufe0f Upcoming \u2014 next 3 months',soon);
+}
+function dueChunk(g, kind, label, list){
+  if(!list.length) return "";
+  var k=g+"|"+kind, open=!!WLDONE[k], kJs=k.replace(/\\/g,"\\\\").replace(/'/g,"\\'");
+  var rows=list.map(function(i){
     var od=i._over, when=od?(Math.abs(i._days)+"d overdue"):(i._days<=0?"due now":("due in "+i._days+"d"));
     return '<div class="duerow indue"><div class="due-main"><div class="due-t">'+
       (i.code?('<span class="jcode">'+esc(i.code)+'</span> '):'')+esc(i.item)+'</div>'+
       '<div class="due-sub">'+esc(i.interval||"")+' \u00b7 '+esc(when)+' \u00b7 next '+esc(i.nextDue||"")+'</div></div>'+
       '<button class="due-add" onclick="event.stopPropagation();dueFoldPush(this,\''+esc((i.ref||"").toString().replace(/'/g,"\\'"))+'\',\''+esc((i.vessel||"").replace(/'/g,"\\'"))+'\',\''+esc((i.item||"").replace(/'/g,"\\'"))+'\',\''+esc((i.nextDue||""))+'\')">\u2795 Push to this list</button></div>';
   }).join("");
-  return '<div class="dnacc duehd'+(open?"":" closed")+'" onclick="event.stopPropagation();toggleDone(\''+esc(kJs)+'\')">'+
-    '<span class="car">\u25be</span><h4>\ud83d\udcc5 Due \u2014 not started yet</h4><span class="n">'+due.length+'</span></div>'+
+  return '<div class="dnacc duehd'+(kind==="soon"?" soonhd":"")+(open?"":" closed")+'" onclick="event.stopPropagation();toggleDone(\''+esc(kJs)+'\')">'+
+    '<span class="car">\u25be</span><h4>'+label+'</h4><span class="n">'+list.length+'</span></div>'+
     '<div class="dnbody'+(open?"":" closed")+'">'+rows+'</div>';
 }
 /* The schedule, fetched once in the background so the fold can draw. */
