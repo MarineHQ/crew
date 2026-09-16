@@ -1860,7 +1860,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-17·n</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-17·o</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2234,6 +2234,51 @@ button:active{ filter: brightness(.93); }
   <div class="cropwrap"><canvas id="cropCanvas"></canvas></div>
   <button class="go" onclick="cropConfirm()">✓ Use this crop</button>
   <button class="cancel" onclick="cropSkip()">Use the whole photo</button>
+</div></div>
+
+<!-- 🔌 A piece of kit on the boat: what it is, where it is, a photo of it.
+     Lives inside Vessel induction → Systems & equipment. -->
+<style>
+.vsreg{margin-top:10px}
+.vsgrp{margin-top:12px}
+.vsgrp>h5{margin:0 0 6px;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);font-weight:800}
+.vsit{background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px;cursor:pointer}
+.vsit b{display:block;font-size:14.5px;color:var(--navy)}
+.vsit .vsmod{font-size:12.5px;color:var(--muted);margin-top:1px}
+.vsit .vsloc{font-size:12.5px;margin-top:4px;color:#0f766e;font-weight:600}
+.vsit .vsloc.miss{color:#b45309;font-weight:700}
+.vsit .vscodes{margin-top:6px;display:flex;gap:4px;flex-wrap:wrap}
+.vsit .vscode{font-size:10.5px;font-weight:800;letter-spacing:.4px;background:#eef2f9;color:var(--navy);border-radius:999px;padding:2px 7px}
+.vsit .vsown{font-size:10.5px;font-weight:800;background:#e7f3ec;color:#0f6b3d;border-radius:999px;padding:2px 7px}
+.vsthumbs{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.vsthumbs img{width:58px;height:58px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
+.vsthumbs .vsnone{font-size:12px;color:#b45309;font-weight:700;align-self:center}
+.vsphoto{position:relative}
+.vsphoto button{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border:0;border-radius:50%;background:#b91c1c;color:#fff;font-size:11px;line-height:20px;padding:0;cursor:pointer}
+</style>
+<div class="modal" id="vsModal"><div class="card2">
+  <h3 id="vs_head">🔌 Kit on board</h3>
+  <p class="mhint" id="vs_hint"></p>
+  <label class="fld">System</label>
+  <select class="fld-in" id="vs_system"></select>
+  <label class="fld">What is it</label>
+  <input class="fld-in" id="vs_item" placeholder="e.g. Domestic battery bank">
+  <label class="fld">Make &amp; model <span class="fldhint">(optional)</span></label>
+  <input class="fld-in" id="vs_model" placeholder="e.g. Victron Skylla 24V 100A — 3 output">
+  <label class="fld">Where it is on board</label>
+  <textarea class="fld-ta" id="vs_location" placeholder="e.g. Under the saloon sole, forward of the engine room bulkhead"></textarea>
+  <label class="fld">Photos <span class="fldhint">— a picture saves the next person hunting</span></label>
+  <div class="vsthumbs" id="vs_thumbs"></div>
+  <div class="photos"><label class="addph" for="vs_file">📷<span>Add a photo</span></label></div>
+  <input type="file" id="vs_file" accept="image/*" capture="environment" multiple style="display:none" onchange="vsPicked(this)">
+  <label class="fld">Job codes it belongs to <span class="fldhint">(optional)</span></label>
+  <input class="fld-in" id="vs_codes" placeholder="e.g. 229.1, 229, 85">
+  <label class="fld">Notes <span class="fldhint">(optional)</span></label>
+  <textarea class="fld-ta" id="vs_notes"></textarea>
+  <label class="varat"><input type="checkbox" id="vs_owner"> Show this to the owner in MyYacht</label>
+  <button class="go" id="vs_save" onclick="vsSubmit()">✓ Save</button>
+  <button class="cancel" id="vs_del" style="background:#b91c1c;color:#fff;display:none" onclick="vsRemove()">Remove from the register</button>
+  <button class="cancel" onclick="closeModal('vsModal')">Cancel</button>
 </div></div>
 
 <!-- Directors: add a new task / new worklist -->
@@ -8177,7 +8222,7 @@ var VI_SECTIONS=[
   {h:"📍 Where & access", note:"Shows under every worklist and on every job page for this boat, so whoever is allocated the work knows where to go and how to get on. Current location is the same cell the owner sees in MyYacht and the fleet dashboard.", f:[["currentLocation","Current location — marina / port (e.g. Coral Sea Marina, Airlie Beach)"],["berthNo","Berth / pen (e.g. Berth 022, C-arm)"],["mapAddress","Street address for Maps — exact (e.g. 7402 Marine Drive East, Sanctuary Cove)"],["securityCode","Marina security / gate code (if the marina has one)"],["gateCode","Lock box code"],["keyLoc","Lock box / keys — where exactly (e.g. aft deck, port side, behind the fender)"],["access","Other access notes — alarms, shore power, who to call",1],["marinaContact","Marina office / contact (name + phone)"],["getThere","Getting there — parking, trolley, tender, tips",1]]},
   {h:"Particulars", f:[["owner","Owner"],["make","Make / model"],["year","Year built"],["builder","Builder"],["loa","Length (LOA)"],["beam","Beam"],["draft","Draft"],["hull","Hull material"],["flag","Flag"],["mmsi","MMSI"],["callsign","Call sign"],["berth","Home berth / marina"]]},
   {h:"Machinery", f:[["engines","Main engines (make/model × no.)"],["enghrs","Engine hours"],["generator","Generator(s)"],["thruster","Bow / stern thruster"]]},
-  {h:"Systems & equipment", f:[["watermaker","Watermaker (brand)"],["aircon","Air-conditioning"],["divecomp","Dive compressor"],["tender","Tender (make · own insurance?)"],["electronics","Electronics / nav"],["comms","Comms / Starlink"],["stabilisers","Stabilisers"]]},
+  {h:"Systems & equipment", reg:1, f:[["watermaker","Watermaker (brand)"],["aircon","Air-conditioning"],["divecomp","Dive compressor"],["tender","Tender (make · own insurance?)"],["electronics","Electronics / nav"],["comms","Comms / Starlink"],["stabilisers","Stabilisers"]]},
   {h:"Specialised items", note:"Anything unique to this boat that needs its own jobs — these become the boat-specific maintenance tasks.", f:[["specialised","Specialised gear / notes",1]]},
   {h:"Key dates", f:[["coc","Survey / CoC expiry"],["insurance","Insurance expiry"],["antifoulLast","Antifoul last done"],["antifoulInt","Antifoul interval"]]},
   {h:"Operating", f:[["profile","Private / charter · cruising area"],["notes","Notes",1]]}
@@ -8197,8 +8242,10 @@ function loadInduct(){
   apiGet("fn=vesselind&code="+encodeURIComponent(ME.code||"")+"&vessel="+encodeURIComponent(v)).then(function(j){
     if(TAB!=="induct" || CURVESSEL!==v) return;
     VI_DATA=(j&&j.ok&&j.data)||{}; VI_LOADED_V=v; VI_FROM=(j&&j.prefilled)||[];
+    if(VS_VESSEL!==v){ VS_ITEMS=[]; }        // don't show the last boat's kit while this one loads
     if(!VI_DATA.owner && ME && v){ /* pre-fill nothing risky; leave blank for director to confirm */ }
     renderInduct();
+    loadVS();
   }).catch(function(){ $("inductForm").innerHTML='<div class="empty">Couldn’t load. Try again.</div>'; });
 }
 function renderInduct(){
@@ -8213,12 +8260,13 @@ function renderInduct(){
         return '<label class="vifld"><span>'+esc(lbl)+from+'</span>'+
           (ta ? ('<textarea class="fld-ta" id="vi_'+key+'">'+esc(val)+'</textarea>')
               : ('<input class="fld-in" id="vi_'+key+'" value="'+esc(val)+'">'))+'</label>';
-      }).join("")+'</div>';
+      }).join("")+(s.reg?'<div class="vsreg" id="vsHost"></div>':'')+'</div>';
   }).join("");
   host.innerHTML=html+
     '<button class="jobbtn complete" style="background:var(--navy)" onclick="saveInduct()">✓ Save '+esc(v)+'’s induction</button>'+
     '<p class="body" style="font-size:12px;color:var(--muted);text-align:center;margin:8px 0 16px">Only you &amp; Jack can edit this. Specialised items here become '+esc(v)+'’s boat-specific maintenance tasks.</p>';
   if(VI_FOCUS){ var fk=VI_FOCUS; VI_FOCUS=""; setTimeout(function(){ try{ var el=$("vi_"+fk); if(el){ el.scrollIntoView({behavior:"smooth",block:"center"}); el.focus(); } }catch(e){} },60); }
+  renderVS();              // the register host is rebuilt with the form — refill it
 }
 function saveInduct(){
   var v=CURVESSEL, data={};
@@ -8228,6 +8276,157 @@ function saveInduct(){
     if(r&&r.ok){ VI_DATA=data; toast("✓ "+esc(v)+"’s induction saved — tap ✕ to go back"); renderInduct(); loadWhere(true); }
     else toast((r&&r.error)||"Couldn’t save");
   }).catch(function(){ toast("Couldn’t connect"); });
+}
+/* ============================================================================
+   🔌 THE SYSTEMS REGISTER — what is aboard, where it is, a photo of it
+   (Trish, 17 Sep 2026)
+
+   The seven boxes above hold ONE line each. Andiamo has FOUR battery banks —
+   Domestic, Port start, Stbd start, Bow thruster — and a charger, and none of
+   that fits in a box called "batteries". So underneath them sits a register:
+   one card per piece of kit, filed under its system, carrying where it is on
+   board and a picture of it.
+
+   The picture is the point. "Check the battery banks" sent to someone who has
+   never been on the boat is a treasure hunt; "under the saloon sole, forward of
+   the engine room bulkhead" with a photo of the actual bank is a job.
+
+   Same rows the sheet holds and the printed Vessel Particulars are built from —
+   change it here and the paperwork changes with it.
+   ============================================================================ */
+var VS_ITEMS=[], VS_SYSLIST=[], VS_VESSEL="";
+var VSM={ key:"", photos:[], staged:[] };
+
+function loadVS(){
+  var v=CURVESSEL; if(!v || v==="__all__") return;
+  var host=$("vsHost"); if(host && VS_VESSEL!==v) host.innerHTML='<div class="loadingbox"><span class="spin"></span> Loading her systems…</div>';
+  apiGet("fn=vesselsystems&code="+encodeURIComponent(ME.code||"")+"&email="+encodeURIComponent(ME.email||"")+"&vessel="+encodeURIComponent(v))
+    .then(function(j){
+      if(TAB!=="induct" || CURVESSEL!==v) return;
+      if(!j||!j.ok){ VS_ITEMS=[]; VS_VESSEL=v; renderVS(j&&j.error); return; }
+      VS_ITEMS=j.items||[]; VS_SYSLIST=j.systems||[]; VS_VESSEL=v; renderVS();
+    }).catch(function(){ renderVS("Couldn’t load — try again."); });
+}
+function vsSysName(code){
+  for(var i=0;i<VS_SYSLIST.length;i++) if(VS_SYSLIST[i][0]===code) return VS_SYSLIST[i][1];
+  return code||"Other";
+}
+function renderVS(err){
+  var host=$("vsHost"); if(!host) return;
+  if(err===undefined && !VS_VESSEL){ host.innerHTML=""; return; }
+  var head='<h4 style="margin:14px 0 2px">🔌 Systems register — her actual kit</h4>'+
+    '<p class="vinote">One card per piece of gear: what it is, where it is on board, and a photo. '+
+    'This is what the crew see when they are sent to work on it, and what the printed Vessel Particulars are built from.</p>';
+  if(err){ host.innerHTML=head+'<div class="empty">'+esc(err)+'</div>'; return; }
+
+  var groups={}, order=[];
+  VS_ITEMS.forEach(function(it){
+    var k=it.system||"—"; if(!groups[k]){ groups[k]=[]; order.push(k); } groups[k].push(it);
+  });
+  var body = order.length ? order.map(function(k){
+    return '<div class="vsgrp"><h5>'+esc(vsSysName(k))+'</h5>'+groups[k].map(vsCard).join("")+'</div>';
+  }).join("") : '<div class="empty">Nothing on her register yet — add the first piece of kit.</div>';
+
+  var noLoc=VS_ITEMS.filter(function(i){ return !i.location; }).length;
+  var noPic=VS_ITEMS.filter(function(i){ return !(i.photos&&i.photos.length); }).length;
+  var todo = (VS_ITEMS.length && (noLoc||noPic))
+    ? '<p class="vinote" style="color:#b45309;font-weight:700">'+
+      (noLoc?(noLoc+' still need "where it is"'):'')+(noLoc&&noPic?' · ':'')+(noPic?(noPic+' still need a photo'):'')+
+      ' — do it on the boat, with the camera.</p>' : '';
+
+  host.innerHTML=head+body+todo+
+    '<button class="jobbtn" style="background:var(--navy);margin-top:4px" onclick="vsNew()">＋ Add a system / piece of kit</button>';
+}
+function vsCard(it){
+  var loc = it.location
+    ? '<div class="vsloc">📍 '+esc(it.location)+'</div>'
+    : '<div class="vsloc miss">📍 Where is it? — tap to say</div>';
+  var pics = (it.photos&&it.photos.length)
+    ? '<div class="vsthumbs">'+it.photos.slice(0,4).map(function(p){ return '<img src="'+esc(p.url)+'" alt="">'; }).join("")+'</div>'
+    : '<div class="vsthumbs"><span class="vsnone">📷 No photo yet</span></div>';
+  var codes=(it.codes||"").split(/[,\s]+/).filter(Boolean);
+  var chips=(codes.length||it.showOwner) ? '<div class="vscodes">'+
+      codes.map(function(c){ return '<span class="vscode">'+esc(c)+'</span>'; }).join("")+
+      (it.showOwner?'<span class="vsown">Owner sees this</span>':'')+'</div>' : '';
+  return '<div class="vsit" onclick="vsOpen(\''+esc(it.key)+'\')">'+
+    '<b>'+esc(it.item)+'</b>'+
+    (it.model?('<div class="vsmod">'+esc(it.model)+'</div>'):'')+
+    loc+pics+chips+
+    (it.notes?('<div class="vsmod" style="margin-top:6px">'+esc(it.notes)+'</div>'):'')+'</div>';
+}
+function vsFill(it){
+  var sys=$("vs_system");
+  var list=VS_SYSLIST.length?VS_SYSLIST:[["ELEC","Electrical & electronics"]];
+  sys.innerHTML=list.map(function(x){ return '<option value="'+x[0]+'"'+((it.system||"ELEC")===x[0]?" selected":"")+'>'+esc(x[1])+'</option>'; }).join("");
+  $("vs_item").value=it.item||""; $("vs_model").value=it.model||"";
+  $("vs_location").value=it.location||""; $("vs_codes").value=it.codes||"";
+  $("vs_notes").value=it.notes||""; $("vs_owner").checked=!!it.showOwner;
+  $("vs_hint").textContent=CURVESSEL+(it.key?"":" — new");
+  $("vs_head").textContent=it.key?"🔌 "+(it.item||"Kit on board"):"🔌 Add a piece of kit";
+  $("vs_del").style.display=it.key?"":"none";
+  VSM={ key:it.key||"", photos:(it.photos||[]).slice(), staged:[] };
+  vsThumbs();
+  $("vsModal").classList.add("show");
+}
+function vsNew(){ vsFill({}); }
+function vsOpen(key){
+  var it=null; VS_ITEMS.forEach(function(x){ if(x.key===key) it=x; });
+  if(!it) return; vsFill(it);
+}
+function vsThumbs(){
+  var host=$("vs_thumbs"); if(!host) return;
+  var saved=VSM.photos.map(function(p,i){
+    return '<span class="vsphoto"><img src="'+esc(p.url)+'" alt="">'+
+      '<button type="button" onclick="vsDropPhoto('+i+')" title="Remove">✕</button></span>';
+  }).join("");
+  var pend=VSM.staged.map(function(f,i){
+    return '<span class="vsphoto"><img src="'+esc(f._u||"")+'" alt="" style="opacity:.6">'+
+      '<button type="button" onclick="vsDropStaged('+i+')" title="Remove">✕</button></span>';
+  }).join("");
+  host.innerHTML=saved+pend || '<span class="vsnone">No photo yet</span>';
+}
+function vsPicked(input){
+  var files=Array.prototype.slice.call(input.files||[]); input.value="";
+  files.forEach(function(f){ try{ f._u=URL.createObjectURL(f); }catch(e){} VSM.staged.push(f); });
+  vsThumbs();
+}
+function vsDropStaged(i){ var f=VSM.staged[i]; if(f&&f._u){ try{ URL.revokeObjectURL(f._u); }catch(e){} } VSM.staged.splice(i,1); vsThumbs(); }
+/* A saved photo is dropped on the NEXT save, not on the tap — so a mis-tap in
+   the modal is undone by cancelling, the same as every other field here. */
+function vsDropPhoto(i){ VSM.photos.splice(i,1); vsThumbs(); }
+function vsSubmit(){
+  var item=($("vs_item").value||"").trim();
+  if(!item){ toast("What is it called?"); return; }
+  var btn=$("vs_save"); btn.disabled=true; btn.textContent="Saving…";
+  var keep=VSM.photos.map(function(p){ return p.url; });
+  Promise.all(VSM.staged.map(function(f){ return fileToUpload(f, 1600, 0.85); }))
+    .then(function(ups){
+      return apiPost({ action:"vesselSystemSave", email:ME.email, code:ME.code,
+        key:VSM.key, vessel:CURVESSEL,
+        system:$("vs_system").value, item:item,
+        model:($("vs_model").value||"").trim(),
+        location:($("vs_location").value||"").trim(),
+        codes:($("vs_codes").value||"").trim(),
+        notes:($("vs_notes").value||"").trim(),
+        showOwner:$("vs_owner").checked,
+        keepPhotos:keep,
+        photos:ups.filter(Boolean) });
+    })
+    .then(function(r){
+      btn.disabled=false; btn.textContent="✓ Save";
+      if(r&&r.ok){ closeModal("vsModal"); toast("✓ Saved to "+CURVESSEL+"’s systems"); loadVS(); }
+      else toast((r&&r.error)||"Couldn’t save");
+    })
+    .catch(function(){ btn.disabled=false; btn.textContent="✓ Save"; toast("Couldn’t connect"); });
+}
+function vsRemove(){
+  if(!VSM.key) return;
+  if(!confirm("Remove this from "+CURVESSEL+"’s systems register?")) return;
+  apiPost({ action:"vesselSystemDelete", email:ME.email, code:ME.code, key:VSM.key })
+    .then(function(r){
+      if(r&&r.ok){ closeModal("vsModal"); toast("Removed"); loadVS(); }
+      else toast((r&&r.error)||"Couldn’t remove");
+    }).catch(function(){ toast("Couldn’t connect"); });
 }
 /* Manager-only: approve a completed job → push it to the owner's app.
    The owner-share state is shown WHATEVER the status — a task can be shared
