@@ -1820,7 +1820,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-16·m</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-16·n</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -5508,6 +5508,7 @@ function checkPendingAccepts(){
   var pend=(CREWJOBS||[]).filter(function(j){
     if(!j.allocatedTo || j.allocatedTo.toLowerCase().indexOf(me)<0) return false;
     if(j.accepted && j.accepted.by) return false;
+    if(wlAwaitingMHQ(j)) return false;          // not approved here yet — not theirs to accept
     return hubBucket(j.status)!=="Done";
   }).map(function(j){ return {j:j, off:false}; });
   // (2) tasks Marine HQ has offered that I can approve/accept.
@@ -5928,11 +5929,19 @@ function catChip(cat){
 var JOBSEG="all", CREWRAISED=[];
 function jobSetSeg(s){ JOBSEG=s; renderJobs(); }
 function segOffered(){ return (CREWOPEN||[]).filter(function(j){ return hubBucket(j.status)!=="Done"; }); }
+/* "Requested" means a crew member raised it and Marine HQ hasn't approved it
+   yet — asking the person named on it to accept it puts the cart before the
+   horse, and it is why Bruce was shown a Krystyna anode job to approve that no
+   director had passed (Trish, 16 Sep 2026). Same rule in the sign-in prompt. */
+function wlAwaitingMHQ(j){
+  var st=((j&&j.status)||"").toString().toLowerCase();
+  return st==="requested" || st==="cancelled" || st.indexOf("zoho")>=0;
+}
 function segToApprove(){
   var me=(ME.name||"").toLowerCase().replace(/\s*\(test\)/,"").trim(); if(!me) return [];
   return (CREWJOBS||[]).filter(function(j){
     return j.allocatedTo && j.allocatedTo.toLowerCase().indexOf(me)>=0
-        && hubBucket(j.status)!=="Done" && !(j.accepted && j.accepted.by);
+        && hubBucket(j.status)!=="Done" && !wlAwaitingMHQ(j) && !(j.accepted && j.accepted.by);
   });
 }
 /* Jobs parked on an owner's answer — set by a director via "Waiting on owner",
