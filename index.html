@@ -1085,7 +1085,14 @@
   .ph img,.ph .thumb{width:92px;height:70px;border-radius:9px;object-fit:cover;display:block}
   .ph .thumb{display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;background:linear-gradient(135deg,#42607f,#2b4763)}
   .ph small{display:block;font-size:9.5px;color:var(--muted);margin-top:3px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .addph{border:1px dashed var(--line);color:var(--muted);background:#fafbfc;width:92px;height:70px;border-radius:9px;font-size:11px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}
+  .addph{border:1.5px dashed #9fb6cc;color:var(--navy);background:#eef4fb;width:92px;height:70px;border-radius:9px;font-size:11.5px;font-weight:800;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-align:center;line-height:1.15}
+  .addph span{font-weight:800}
+  /* The file tile is deliberately NOT the photo tile: different colour, its own
+     icon, and it says what belongs in it. */
+  .addph.adddoc{border-color:#c9bfa6;background:#faf7ef;color:#7a6a45}
+  .tophoto{position:absolute;left:4px;bottom:22px;border:0;background:rgba(26,43,92,.92);color:#fff;
+    font-size:9.5px;font-weight:800;border-radius:7px;padding:3px 6px;cursor:pointer;letter-spacing:.02em}
+  .addph.adddoc i{font-style:normal;font-size:8.5px;font-weight:700;opacity:.8;letter-spacing:.02em}
 
   /* ---- photo tags · offline queue · quick shot · gallery (27 Aug 2026) ---- */
   .phtag{position:absolute;top:4px;right:4px;font-size:9px;font-weight:800;letter-spacing:.4px;
@@ -1813,7 +1820,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-16·l</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-16·m</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -7520,7 +7527,7 @@ function openWLJob(key){
   // behind one button so a 30-photo job doesn't push the notes off the bottom of the phone.
   var _phTiles=(j.photos||[]).map(function(p,idx){return '<div class="ph"><img src="'+esc(driveImg(p.url))+'" alt="" loading="lazy" onerror="this.classList.add(\'imgerr\')" onclick="event.stopPropagation();openPhoto(\''+esc(key)+'\','+idx+')" style="cursor:pointer">'+((phNoteCount(p)>1)?('<span class="phcap">💬 '+phNoteCount(p)+'</span>'):'')+phTagPill(p)+'<small>'+esc(p.by?firstName(p.by):(phName(p)||"photo"))+(p.at?(' · '+relTime(p.at)):'')+'</small>'+(phFirstNote(p)?('<span class="phnote">'+esc(phFirstNote(p))+'</span>'):'')+(wlMayDel(p)?'<button class="attdel" title="Remove" onclick="event.stopPropagation();wlDelAtt(\''+esc(key)+'\',\''+esc(p.url)+'\',\'photo\')">✕</button>':'')+(isMgrRole()?lanePill(p.aud):'')+'</div>';});
   var _phKeep=6, _phHide=Math.max(0,_phTiles.length-_phKeep);
-  var _docTile='<label class="addph" for="wlDocInput" onclick="if(!laneReady())return event.preventDefault();">📎<span>Add</span></label><input id="wlDocInput" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,image/*" multiple style="display:none" onchange="wlAddDocs(\''+esc(key)+'\',this)">';
+  var _docTile='<label class="addph adddoc" for="wlDocInput" onclick="if(!laneReady())return event.preventDefault();">📄<span>File</span><i>PDF, invoice, manual</i></label><input id="wlDocInput" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,image/*" multiple style="display:none" onchange="wlAddDocs(\''+esc(key)+'\',this)">';
   var phHTML='<label class="addph" id="phAddLbl" for="wlPhotoInput" onclick="if(!laneReady())return event.preventDefault();">'+phAddLabel()+'</label><input id="wlPhotoInput" type="file" accept="image/*" multiple style="display:none" onchange="wlAddPhotos(\''+esc(key)+'\',this)">'
     +_docTile
     +(_phTiles.length ? ((_phHide?('<div class="phmore" hidden>'+_phTiles.slice(0,_phHide).join("")+'</div>'):'')+_phTiles.slice(_phHide).join(""))
@@ -7531,7 +7538,7 @@ function openWLJob(key){
   var _imgDocs=_docs.filter(function(d){return isImgFile(d.name,d.url);});
   var _fileDocs=_docs.filter(function(d){return !isImgFile(d.name,d.url);});
   var docHTML=
-    (_imgDocs.length?('<div class="photos">'+_imgDocs.map(function(dd){return '<div class="ph"><img src="'+esc(driveImg(dd.url))+'" alt="" loading="lazy" onerror="this.classList.add(\'imgerr\')" onclick="window.open(\''+esc(driveView(dd.url))+'\',\'_blank\')" style="cursor:pointer"><small>'+esc(dd.by?firstName(dd.by):(dd.name||"photo"))+(dd.at?(' · '+relTime(dd.at)):'')+'</small>'+(wlMayDel(dd)?'<button class="attdel" title="Remove" onclick="event.stopPropagation();wlDelAtt(\''+esc(key)+'\',\''+esc(dd.url)+'\',\'doc\')">✕</button>':'')+(isMgrRole()?lanePill(dd.aud):'')+'</div>';}).join("")+'</div>'):'')
+    (_imgDocs.length?('<div class="photos">'+_imgDocs.map(function(dd){return '<div class="ph"><img src="'+esc(driveImg(dd.url))+'" alt="" loading="lazy" onerror="this.classList.add(\'imgerr\')" onclick="window.open(\''+esc(driveView(dd.url))+'\',\'_blank\')" style="cursor:pointer"><small>'+esc(dd.by?firstName(dd.by):(dd.name||"photo"))+(dd.at?(' · '+relTime(dd.at)):'')+'</small>'+(isMgrRole()?('<button class="tophoto" title="This is a photo \u2014 move it into Photos" onclick="event.stopPropagation();wlAttToPhoto(\''+esc(key)+'\',\''+esc(String(dd.url).replace(/'/g,"\\'"))+'\')">\u2192 Photos</button>'):'')+(wlMayDel(dd)?'<button class="attdel" title="Remove" onclick="event.stopPropagation();wlDelAtt(\''+esc(key)+'\',\''+esc(dd.url)+'\',\'doc\')">✕</button>':'')+(isMgrRole()?lanePill(dd.aud):'')+'</div>';}).join("")+'</div>'):'')
     +(_fileDocs.length?_fileDocs.map(function(dd){return '<div class="docrowitem"><a class="docitem" href="'+esc(driveView(dd.url))+'" target="_blank" rel="noopener"><span class="ic">📄</span><span class="docmain">'+esc(dd.name||"document")+(dd.by?('<span class="docby">'+esc(firstName(dd.by))+(dd.at?(' · '+fmtDateTime(dd.at)):'')+'</span>'):'')+'</span></a>'+(wlMayDel(dd)?'<button class="attdel doc" title="Remove" onclick="wlDelAtt(\''+esc(key)+'\',\''+esc(dd.url)+'\',\'doc\')">✕</button>':'')+(isMgrRole()?lanePill(dd.aud):'')+'</div>';}).join(""):'')
     +'';
   var cmtHTML=(j.comments&&j.comments.length ? j.comments.map(function(cm){
@@ -8631,6 +8638,17 @@ function wlNoteAud(key, at, lane){
 }
 function wlAddPhotos(key, input){ uploadFilesSeq(key, input, "crewJobPhotos", "photos", 1600, 0.7, PHTAG); }
 function wlAddDocs(key, input){ uploadFilesSeq(key, input, "crewJobDocs", "docs", 2000, 0.8); }
+/* A picture that was filed as a document. It already shows as a thumbnail here,
+   but it isn't a photo: no Before/After tag, no lightbox, and it never reaches a
+   works report. One tap puts it where it belongs (Trish, 16 Sep 2026). */
+function wlAttToPhoto(key, url){
+  toast("Moving to photos\u2026");
+  apiPost({action:"crewJobAttMove", email:ME.email, code:ME.code, jobKey:key, url:url, to:"photo"}).then(function(r){
+    if(!r||!r.ok){ toast((r&&r.error)||"Couldn\u2019t move it"); return; }
+    var j=wlFind(key); if(j){ j.photos=r.photos||[]; j.docs=r.docs||[]; }
+    toast("\u2713 Moved into Photos"); openWLJob(key); loadJobs();
+  }).catch(function(){ toast("Couldn\u2019t connect"); });
+}
 function wlDelAtt(key, url, kind){
   if(!confirm("Remove this "+(kind==="doc"?"document":"photo")+"?")) return;
   apiPost({action:"crewJobDeleteAttachment", email:ME.email, code:ME.code, jobKey:key, kind:kind, url:url}).then(function(r){
@@ -11351,7 +11369,10 @@ function setPhTag(t){
   var r=$("phTagRow"); if(r) r.innerHTML=phTagRowHtml();
   var l=$("phAddLbl"); if(l) l.innerHTML=phAddLabel();
 }
-function phAddLabel(){ return "📷<span>"+(PHTAG?("Add "+PH_TAGS[PHTAG].lbl):"Add")+"</span>"; }
+/* Two identical dashed squares side by side, both labelled "Add", was an
+   invitation to file a photo as a document — which is what crew have been doing
+   (Trish, 16 Sep 2026). They now say what they take, and look different. */
+function phAddLabel(){ return "📷<span>"+(PHTAG?("Add "+PH_TAGS[PHTAG].lbl):"Photo")+"</span>"; }
 function phTagRowHtml(){
   return '<span class="movelbl">Tag as:</span>'+
     ["before","after"].map(function(t){
