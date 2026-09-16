@@ -1860,7 +1860,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-17·k</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-17·l</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -7252,7 +7252,17 @@ function cmGo(){
     var held=(r.held||[]).length, moved=(r.moved||[]).length, done=(r.done||[]).length;
     toast("✓ "+CM.period+" closed — "+(done?(done+" done, "):"")+r.rolled.length+" carried, "+r.toYard.length+" to shipyard"+
           (held?(", "+held+" on hold"):"")+(moved?(", "+moved+" moved"):"")+", "+r.closed.length+" closed");
+    /* Mark it closed HERE as well, don't wait for the refresh. The records come
+       back from Google in its own time (5s+), and the boat picker re-opens on
+       the next line — so the boat you just closed was still sitting in August,
+       still offered (Trish, 17 Sep 2026: "closed Schaefer but it still shows in
+       August"). The fetch underneath then confirms it. */
+    (FLEETLISTS||[]).forEach(function(l){
+      if((l.vessel||"").toLowerCase()===cv.toLowerCase() && (l.period||"")===CM.period) l.state="closed";
+    });
+    ((r.lists)||[]).forEach(function(nm){ CLOSEDLISTS[((cv||"")+"|"+nm).toLowerCase()]=1; });
     _liFor=""; loadListInfo(CURVESSEL); loadClosedLists(); loadJobs();
+    try{ renderJobs(); }catch(e){}
     if(CMPICK.period) cmPickOpen(CMPICK.period);   // straight back to the list of boats still to do
   }).catch(function(){ b.disabled=false; toast("Couldn’t connect"); });
 }
