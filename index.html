@@ -1828,7 +1828,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-16·q</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-16·s</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -5982,6 +5982,19 @@ function segOffered(){ return (CREWOPEN||[]).filter(function(j){ return hubBucke
    yet — asking the person named on it to accept it puts the cart before the
    horse, and it is why Bruce was shown a Krystyna anode job to approve that no
    director had passed (Trish, 16 Sep 2026). Same rule in the sign-in prompt. */
+/* Is this job actually MINE to accept? A name on a job is not an assignment:
+   it isn't if the job is still waiting on Marine HQ, and it isn't if I put my
+   own name there by raising it and nobody has approved it yet. Shared by the
+   facts strip and the job page so the two can never say different things. */
+function wlIsMine(j){
+  var me=(ME&&ME.name||"").toLowerCase().replace(/\s*\(test\)/,"").trim();
+  if(!me || !j || !j.allocatedTo) return false;
+  if((j.allocatedTo||"").toLowerCase().indexOf(me)<0) return false;
+  if(wlAwaitingMHQ(j)) return false;
+  var raisedByMe=((j.raisedBy||"").toLowerCase().indexOf(me)>=0);
+  var approved=!!(j.reqOk && j.reqOk.by);
+  return !(raisedByMe && !approved);
+}
 function wlAwaitingMHQ(j){
   var st=((j&&j.status)||"").toString().toLowerCase();
   return st==="requested" || st==="cancelled" || st.indexOf("zoho")>=0;
@@ -7537,9 +7550,14 @@ function wlFactsHtml(j){
     // Crew get a two-line strip: Status · Due · (Yours, accepted). Cost pot and
     // "last moved" are management facts — they only made the page longer.
     var _meOn=(ME.name||"").toLowerCase().replace(/\s*\(test\)/,"").trim();
-    var _mineOn=_meOn && (j.allocatedTo||"").toLowerCase().indexOf(_meOn)>=0;
-    if(_mineOn && j.accepted && j.accepted.by) out += cell("Yours", "\u2713 accepted", "", "f-yes");
-    else if(_mineOn) out += cell("Yours", "tap to accept", "", "f-wait");
+    var _onIt=_meOn && (j.allocatedTo||"").toLowerCase().indexOf(_meOn)>=0;
+    if(_onIt && j.accepted && j.accepted.by)      out += cell("Yours", "\u2713 accepted", "", "f-yes");
+    else if(wlIsMine(j))                          out += cell("Yours", "tap to accept", "", "f-wait");
+    // On it, but not mine to accept — because I raised it, or Marine HQ hasn't
+    // approved it yet. Say which, rather than nag for an acceptance.
+    else if(_onIt && (((j.raisedBy||"").toLowerCase().indexOf(_meOn)>=0)))
+                                                  out += cell("Yours", "you raised it", "", "f-todo");
+    else if(_onIt)                                out += cell("Yours", "with Marine HQ", "", "f-todo");
     // However many cells there are, they sit on ONE row — never a grid with an
     // empty corner. Crew normally have two: Due, and that it's theirs.
     var _n=(out.match(/class="jfact/g)||[]).length;
@@ -7665,7 +7683,16 @@ function openWLJob(key){
      the "🚨 Please accept" nag off your own logged work) — it just shouldn't be
      read out as an acceptance. Trish, 29 Aug 2026. */
   var _me=(ME.name||"").toLowerCase().replace(/\s*\(test\)/,"").trim();
-  var mineJob = j.allocatedTo && _me && j.allocatedTo.toLowerCase().indexOf(_me)>=0;
+  /* "Please accept this task" belongs ONLY on work Marine HQ has HANDED to you
+     (Trish, 16 Sep 2026: Bruce opened a job he raised himself and was asked to
+     accept it). Two things make a name on a job not an assignment:
+       • the job is still waiting on Marine HQ (Requested) — nobody accepts work
+         that hasn't been approved yet; and
+       • you are the one who raised it, and it hasn't been approved — your own
+         name is on it because you reported it, not because you were given it.
+     Once a director approves it and it's still yours, the ask is right and it
+     comes back. */
+  var mineJob = wlIsMine(j);
   var acc = j.accepted;
   var _others=allocList.filter(function(n){return n.toLowerCase()!==_me;});
   var acceptHTML='';
