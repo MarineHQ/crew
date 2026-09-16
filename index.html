@@ -320,6 +320,18 @@
   .card2 .rjf{margin-top:8px}
   .rjmore{display:block;margin:8px 0 0;background:none;border:0;padding:0;
     color:var(--navy);font-weight:800;font-size:12.5px;cursor:pointer;font-family:inherit}
+  /* The suggestion-row styles live under .atmatch (the crew raise form). The
+     catalogue panel isn't inside it, so the rows came out unstyled and ran the
+     name, category and number together. Same look, its own scope. */
+  .catrows .atm-row{display:flex;align-items:center;gap:8px;width:100%;text-align:left;background:#fff;
+    border:1px solid var(--line);border-radius:9px;padding:9px 11px;margin-bottom:6px;cursor:pointer;
+    font-size:13px;font-family:inherit}
+  .catrows .atm-row-j{font-weight:700;color:var(--ink);flex:1;min-width:0}
+  .catrows .atm-row-c{font-size:10px;font-weight:800;color:#0f766e;background:#e6f4f0;border-radius:6px;
+    padding:1px 7px;white-space:nowrap}
+  .catnow{font-size:12.5px;color:var(--navy);font-weight:700}
+  .catrows{margin-top:8px;max-height:220px;overflow-y:auto}
+  .catnone{font-size:12.5px;color:var(--muted);padding:8px 2px}
   .rjdone{margin-top:10px;background:#eaf5ee;border:1px solid #cfe6da;border-radius:10px;padding:9px 11px;font-size:12.5px;color:#14432f}
   .rjdone b{display:block;margin-bottom:4px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#1f7a54}
   .rjdone span{display:block;padding:2px 0}
@@ -1828,7 +1840,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-16·s</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-16·u</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -7741,6 +7753,7 @@ function openWLJob(key){
     // The list itself is in the facts strip now; this stays as the way to MOVE it.
     ((j.subNote||wlCanFix(j))?('<div class="sec"><h4>Sub note</h4><div class="subnote-box'+(j.subNote?"":" empty")+'"'+(wlCanFix(j)?(' onclick="wlSetSubNote(\''+esc(key)+'\')"'):'')+'>'+(j.subNote?('📌 '+esc(j.subNote)):'＋ add a quick note')+(wlCanFix(j)?' <span class="wlnote-ed">✎</span>':'')+'</div></div>'):'')+
     reqBlock+
+    wlCatalogueBlock(j,key)+
     acceptHTML+
     crewAssignHTML+
     '<div class="sec"><h4>Status</h4><div class="pillrow">'+pills+'</div>'+(j.completed?('<div class="apprOn" style="margin-top:8px">✓ Completed '+esc(j.completed)+' <span class="wlnote-ed" style="cursor:pointer" onclick="openCompleteModal(\''+esc(key)+'\')">✎ Edit date</span></div>'):'')+'</div>'+
@@ -8279,6 +8292,109 @@ function wlManageStrip(j){
   if(v){ var st=v.status||'draft'; bits.push({draft:'💲 variation to price',sent:'💲 variation with owner',approved:'✅ variation approved',declined:'❌ variation declined'}[st]||''); }
   if(so.qc&&so.qc.by) bits.push('✅ QC signed');
   return bits.filter(Boolean).join(' · ');
+}
+/* FILE IT PROPERLY, BEFORE IT'S APPROVED (Trish, 16 Sep 2026).
+   Crew get catalogue suggestions as they type. This is management's half: the
+   job a crew member raised in their own words gets matched to a catalogue task
+   — or a new catalogue task is created from it — so it carries a real code, the
+   right category, and a place in the schedule. Their words stay as the record
+   of what was seen; only the filing changes. */
+var CATM={ key:"", q:"", items:[], busy:false, open:false, adding:false };
+function wlCatalogueBlock(j,key){
+  if(!isMgrRole()) return "";
+  var boat=/^[A-Z]{2,4}-[A-Z]+-\d/.test(j.code||"") ? "" : "boat";
+  var isLoose = !j.code || /-\d{4,}$/.test(j.code||"") ? true : false;
+  // A 9000-band code means it matched nothing in the catalogue.
+  var looseNum = ccNumOf(j.code);
+  var unfiled = (looseNum>=9000) || !j.code || (j.standard||"").toLowerCase()!=="standard";
+  var head = unfiled
+    ? '<h4>Not in the catalogue yet <span style="font-size:10px;font-weight:700;color:#b3261e">needs filing</span></h4>'
+    : '<h4>Catalogue</h4>';
+  var now = j.code
+    ? '<div class="catnow">Filed as <span class="jcode">'+esc(j.code)+'</span>'+(j.category?(' · '+esc(j.category)):'')+'</div>'
+    : '<div class="catnow">No code yet.</div>';
+  var body = (CATM.open && CATM.key===key)
+    ? ('<div id="catBox">'+catInner()+'</div>')
+    : ('<button class="jobbtn" style="background:'+(unfiled?'var(--orange)':'var(--navy)')+';margin-top:8px" onclick="catOpen(\''+esc(key)+'\',\''+esc((j.task||"").replace(/'/g,"\\'"))+'\')">'+
+       (unfiled?'🔎 Match it to the catalogue':'Change what it\u2019s filed under')+'</button>');
+  return '<div class="sec">'+head+now+body+'</div>';
+}
+function ccNumOf(code){ var m=/(\d+(?:\.\d+)?)\s*$/.exec((code||"").toString()); return m?parseFloat(m[1]):0; }
+function catOpen(key, title){
+  CATM={ key:key, q:title||"", items:[], busy:true, open:true, adding:false };
+  openWLJob(key); catSearch();
+}
+function catClose(){ CATM.open=false; var k=CATM.key; openWLJob(k); }
+function catInner(){
+  if(CATM.adding) return catAddForm();
+  var rows = CATM.busy ? '<div class="loadingbox"><span class="spin"></span> Looking…'
+    : (CATM.items.length
+        ? CATM.items.map(function(x){
+            return '<button type="button" class="atm-row" onclick="catPick('+x.num+')">'+
+              '<span class="atm-row-j">'+esc(x.job)+'</span>'+
+              (x.category?('<span class="atm-row-c">'+esc(x.category)+'</span>'):'')+
+              (x.code?('<span class="jcode">'+esc(x.code)+'</span>'):'')+'</button>'; }).join("")
+        : '<div class="catnone">Nothing in the catalogue looks like this.</div>');
+  return '<input class="fld-in" id="catQ" value="'+esc(CATM.q)+'" placeholder="Search the catalogue…" oninput="CATM.q=this.value;catSearch()">'+
+    '<div class="catrows">'+rows+(CATM.busy?'</div>':'')+'</div>'+
+    '<button class="jobbtn" style="background:var(--navy);margin-top:8px" onclick="catAdd()">＋ Not there — add it to the catalogue</button>'+
+    '<button class="jobbtn" style="background:none;color:var(--muted);margin-top:2px" onclick="catClose()">Cancel</button>';
+}
+function catSearch(){
+  clearTimeout(catSearch._t);
+  catSearch._t=setTimeout(function(){
+    var q=(CATM.q||"").trim(); if(q.length<2){ CATM.items=[]; CATM.busy=false; catPaint(); return; }
+    CATM.busy=true; catPaint();
+    apiGet("fn=catalogue&code="+encodeURIComponent(ME.code||"")+"&q="+encodeURIComponent(q))
+      .then(function(r){
+        CATM.items=((r&&r.results)||[]).filter(function(x){ return x.active!==false; }).slice(0,8)
+          .map(function(x){ return { num:x.num!=null?x.num:parseFloat(x.no), job:x.job, category:x.category, code:x.no }; });
+        CATM.busy=false; catPaint();
+      }).catch(function(){ CATM.busy=false; CATM.items=[]; catPaint(); });
+  }, 250);
+}
+function catPaint(){ var b=$("catBox"); if(b) b.innerHTML=catInner(); }
+function catPick(num){
+  toast("Filing…");
+  apiPost({action:"crewJobCatalogue", email:ME.email, code:ME.code, jobKey:CATM.key, matchNum:num})
+    .then(function(r){
+      if(!r||!r.ok){ toast((r&&r.error)||"Couldn’t file it"); return; }
+      toast("✓ Filed as "+r.code);
+      CATM.open=false; openWLJob(CATM.key); loadJobs();
+    }).catch(function(){ toast("Couldn’t connect"); });
+}
+function catAdd(){ CATM.adding=true; catPaint(); }
+function catAddForm(){
+  var j=wlFind(CATM.key)||{};
+  return '<p class="body" style="font-size:12.5px;color:var(--muted);margin:0 0 8px">A new catalogue task is shared by every boat. Give it the name you\u2019d want to see again next year.</p>'+
+    '<input class="fld-in" id="cat_title" value="'+esc(j.task||"")+'" placeholder="Job name">'+
+    '<select class="fld-in" id="cat_cat" style="margin-top:8px">'+
+      ["Scheduled Maintenance","Unscheduled Maintenance","Vessel Upgrades","Operations","Charter / Delivery"]
+        .map(function(c){ return '<option'+(c==="Unscheduled Maintenance"?' selected':'')+'>'+c+'</option>'; }).join("")+'</select>'+
+    '<input class="fld-in" id="cat_sub" style="margin-top:8px" placeholder="Sub-category — e.g. Stabiliser service">'+
+    '<select class="fld-in" id="cat_freq" style="margin-top:8px">'+
+      ["As required","Fortnightly","Monthly","Quarterly","3–6 monthly","Annually","One-off"]
+        .map(function(f){ return '<option>'+f+'</option>'; }).join("")+'</select>'+
+    '<select class="fld-in" id="cat_sys" style="margin-top:8px">'+
+      ["","DECK","HULL","RUN","ENG","ELEC","PLUMB","INT","TOYS","SAFE","OPS"]
+        .map(function(x){ return '<option value="'+x+'">'+(x||"System — pick one")+'</option>'; }).join("")+'</select>'+
+    '<input class="fld-in" id="cat_no" style="margin-top:8px" placeholder="Number (optional) — e.g. 52.2 to sit beside 52.1">'+
+    '<button class="jobbtn complete" style="margin-top:10px" onclick="catAddGo()">Add to the catalogue &amp; file this job</button>'+
+    '<button class="jobbtn" style="background:none;color:var(--muted);margin-top:2px" onclick="CATM.adding=false;catPaint()">Back</button>';
+}
+function catAddGo(){
+  var t=($("cat_title").value||"").trim(); if(!t){ toast("Give it a name"); return; }
+  var sys=$("cat_sys").value;
+  if(!sys){ toast("Pick a system — it decides the code"); return; }
+  toast("Adding…");
+  apiPost({action:"crewJobCatalogue", email:ME.email, code:ME.code, jobKey:CATM.key,
+    newStandard:{ title:t, category:$("cat_cat").value, sub:($("cat_sub").value||"").trim(),
+                  freq:$("cat_freq").value, system:sys, no:($("cat_no").value||"").trim() }})
+    .then(function(r){
+      if(!r||!r.ok){ toast((r&&r.error)||"Couldn’t add it"); return; }
+      toast("✓ Added to the catalogue · filed as "+r.code);
+      CATM.open=false; CATM.adding=false; openWLJob(CATM.key); loadJobs();
+    }).catch(function(){ toast("Couldn’t connect"); });
 }
 function wlApproveBlock(j,key){
   if(!/director|manager/i.test(ME.role||"")) return "";
