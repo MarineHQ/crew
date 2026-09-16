@@ -1813,7 +1813,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-16·k</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-16·l</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2001,7 +2001,7 @@ button:active{ filter: brightness(.93); }
      several boats and each closes on its own. -->
 <div class="modal" id="cmPickModal"><div class="card2">
   <h3 id="cmPickTitle">Close the month</h3>
-  <p class="mhint">A month closes one boat at a time — each has its own unfinished work to send somewhere. Pick a boat to see what would happen.</p>
+  <p class="mhint">A month closes one boat at a time — each has its own unfinished work to send somewhere. Pick a boat to see what would happen. <b>None of these are closed yet</b> — a boat already closed for this month isn’t listed.</p>
   <div id="cmPickBody"></div>
   <button class="cancel" onclick="closeModal('cmPickModal')">Not now</button>
 </div></div>
@@ -6336,8 +6336,12 @@ function cmPickOpen(period){
       var vJs=esc(b.vessel.replace(/'/g,"\\'"));
       return '<button class="cmpick'+(b.open?"":" clear")+'" onclick="cmPickGo(\''+vJs+'\')">'+
         '<span class="cmpv">'+esc(b.vessel)+'</span>'+
+        /* "all done" read as "already closed" (Trish asked, 16 Sep 2026) — and it
+           never meant that: a boat whose month IS closed is left out of this list
+           entirely. It means the work is finished and the month is still open.
+           So say what's left to do, not what's already happened. */
         '<span class="cmpn">'+(b.open ? (b.open+' still open')
-                                       : (b.known ? '\u2713 all done' : 'open it to see'))+'</span>'+
+                                       : (b.known ? 'ready to close' : 'open it to see'))+'</span>'+
         '<span class="cmpg">\u203a</span></button>';
     }).join("")
     : '<div class="empty">Nothing on '+esc(wlPeriodLabel(period))+' any more.</div>';
