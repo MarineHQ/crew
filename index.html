@@ -125,6 +125,7 @@
   .job.jobdone .desc,.job.jobdone .meta{color:#5b7a69}
   .listhd{font-size:12px;font-weight:bold;letter-spacing:.5px;text-transform:uppercase;color:var(--orange);margin:6px 2px 9px;padding-top:2px}
   .jnum{color:var(--orange);font-weight:900}
+  .jnum.un{color:var(--navy)}
   .jcode{display:inline-block;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px;font-weight:700;letter-spacing:.3px;color:var(--navy);background:#eef1f8;border:1px solid #dbe1f0;border-radius:5px;padding:1px 5px;vertical-align:middle}
   .jcode.bs{color:#8a5a12;background:#fdf3e3;border-color:#f0dcb8}
   .sheet-hd .jcode{color:#fff;background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.28)}
@@ -293,8 +294,11 @@
   .dnacc .n{background:rgba(26,43,92,.10);border-radius:12px;font-size:11.5px;font-weight:bold;padding:2px 8px}
   .dnacc .car{transition:transform .2s;font-size:13px;color:var(--orange)} .dnacc.closed .car{transform:rotate(-90deg)}
   .dnacc.sign{background:#fdf1e3;border-color:#f2d5b0;color:#8a5a12} .dnacc.sign .n{background:rgba(138,90,18,.12)}
-  /* Unassigned: needs a decision, so it reads blue-grey — not the green of done work. */
-  .dnacc.unass{background:#eef2f9;border-color:#ccd8ea;color:#31456e} .dnacc.unass .n{background:rgba(49,69,110,.12)}
+  /* Unassigned is work waiting on a decision — it stands out on its own, not as
+     a quieter version of the done folds (Trish, 17 Sep 2026). */
+  .dnacc.unass{background:linear-gradient(120deg,#E87722,#d1620b);border-color:#c25a08;color:#fff;font-weight:800}
+  .dnacc.unass .car{color:#fff} .dnacc.unass h4{color:#fff}
+  .dnacc.unass .n{background:rgba(255,255,255,.22);color:#fff}
   .dnbody.closed{display:none}
   .wldone-none{background:#f6f9f6;border:1px dashed #cfe0d4;border-radius:11px;padding:13px;text-align:center;color:var(--muted);font-size:12.5px;margin-bottom:9px}
   .tosign{background:#fff!important;color:#8a5a12!important}
@@ -1849,7 +1853,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-17·g</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-17·h</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -6224,11 +6228,13 @@ function renderSegBody(){
   el.innerHTML = list.length ? list.join("") : ('<div class="empty">'+empty+'</div>');
 }
 var WLNUM={};                       // list key -> the task's number on its list
-function wlJobCard(j, idx, noNum){
+function wlJobCard(j, idx, noNum, forceNo){
     /* The server stamps the task's number on its list (ccTaskNos_) so the crew
        app and the owner's app say the SAME number. WLNUM is the fallback for a
-       feed that hasn't got taskNo yet. */
-    var jNo = j.taskNo || WLNUM[j.key] || ((typeof idx==="number") ? (idx+1) : 0);
+       feed that hasn't got taskNo yet. forceNo overrides both — the Unassigned
+       fold counts U1, U2, U3 of its own rather than carrying on from the work
+       above it (Trish, 17 Sep 2026). */
+    var jNo = forceNo || j.taskNo || WLNUM[j.key] || ((typeof idx==="number") ? (idx+1) : 0);
     var b=hubBucket(j.status), done=b==="Done", cls=hubCls(b);
     if((j.status||"").toLowerCase()==="requested"){ b="Raised"; cls="req"; done=false; }
     var np=(j.photos&&j.photos.length)||0, hasNote=!!(j.notes&&j.notes.trim()), nd=(j.docs&&j.docs.length)||0;
@@ -6253,7 +6259,7 @@ function wlJobCard(j, idx, noNum){
     else if(!isMgrRole() && j.allocatedTo){ var _meLc=(ME.name||"").toLowerCase().replace(/\s*\(test\)/,"").trim(); if(_meLc && j.allocatedTo.toLowerCase().indexOf(_meLc)>=0){ codeChip += (j.accepted&&j.accepted.by) ? ' <span class="acptchip ok">✓ accepted</span>' : ' <span class="acptchip urgent">🚨 Accept</span>'; } }
     var upd = jobRecent(j) ? '<span class="upd">● updated '+relTime(j.updated)+'</span>' : '';
     return '<div class="job brd-'+cls+(done?" jobdone":"")+(jobRecent(j)?" jobnew":"")+'" onclick="openWLJob(\''+esc(j.key)+'\')">'+
-      '<div class="top"><div style="flex:1"><h3>'+((noNum===true||!jNo)?'':('<span class="jnum">'+jNo+'.</span> '))+esc(j.task||j.desc||"(job)")+codeChip+'</h3></div>'+
+      '<div class="top"><div style="flex:1"><h3>'+((noNum===true||!jNo)?'':('<span class="jnum'+(forceNo?' un':'')+'">'+jNo+'.</span> '))+esc(j.task||j.desc||"(job)")+codeChip+'</h3></div>'+
       '<span class="badge s-'+cls+'">'+(done?"&#10003; ":"")+esc(b)+'</span></div>'+
       cardBody(j)+'</div>';
 }
@@ -6286,7 +6292,9 @@ function doneBlock(g, kind, arr, label){
   var kJs=k.replace(/\\/g,"\\\\").replace(/'/g,"\\'");
   return '<div class="dnacc'+(kind==="sign"?" sign":"")+(kind==="unass"?" unass":"")+(open?"":" closed")+'" onclick="event.stopPropagation();toggleDone(\''+esc(kJs)+'\')">'+
     '<span class="car">&#9662;</span><h4>'+label+'</h4><span class="n">'+arr.length+'</span></div>'+
-    '<div class="dnbody'+(open?"":" closed")+'">'+arr.map(function(j,i){ return wlJobCard(j,i); }).join("")+'</div>';
+    '<div class="dnbody'+(open?"":" closed")+'">'+arr.map(function(j,i){
+      return (kind==="unass") ? wlJobCard(j,i,false,"U"+(i+1)) : wlJobCard(j,i);
+    }).join("")+'</div>';
 }
 function renderJobs(){
   renderJobSeg();
@@ -6355,7 +6363,7 @@ function wlGroupHTML(g, groups){
         ? '<div class="wldone-none">Nothing handed out yet &mdash; '+_unass.length+' waiting below.</div>'
         : '<div class="wldone-none">'+(jobs.length?'&#10003; Everything on this list is done &mdash; it&rsquo;s all filed below.':'Nothing on this list yet.')+'</div>';
     }
-    cards+=doneBlock(g,"unass",_unass,'&#128100; Unassigned &mdash; nobody on it yet');
+    cards+=doneBlock(g,"unass",_unass,'&#128100; Unassigned / raised jobs');
     cards+=doneBlock(g,"sign",toSign,(isMgrRole()?'&#10003; Done &mdash; waiting on sign-off':'&#10003; Done &mdash; with Marine HQ'));
     cards+=doneBlock(g,"filed",filed,'&#128193; Completed &amp; filed');
     var note=(LISTMETA&&LISTMETA[g])||"";
