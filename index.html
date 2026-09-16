@@ -1802,7 +1802,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-16·h</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-16·i</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -6196,7 +6196,15 @@ function wlGroupHTML(g, groups){
        list banner leads with the BOAT and drops the period: "Andiamo —
        Bundaberg Work List", boat first and bold. Trish, 16 Sep 2026: with a
        list expanded, the next boat's banner was reading as just another task. */
+    /* The month is always written on the section heading above, so the list
+       banner never repeats it (Trish, 16 Sep 2026: "we don't need 0926 any
+       more"). Crew, who get a flat list with no headings, keep it. */
     var shown = (rec&&rec.sub&&wlSectionOf(g)==="current") ? rec.sub : g;
+    if(isMgrRole() && !SCHEDVIEW && shown===g){
+      var sp=wlPeriodOfList(g);
+      if(sp) shown=g.replace(new RegExp("\\s*"+sp+"\\s*")," ").replace(/\s{2,}/g," ")
+                    .replace(/\s+[\u2014\u2013]\s*$/,"").trim();
+    }
     var boatHd = "";
     if(WLFLEET){
       var pp=wlPeriodOfList(g);
@@ -6210,7 +6218,7 @@ function wlGroupHTML(g, groups){
       var parts=bare.split(/\s+[\u2014\u2013]\s+/);
       var bSub=(parts.length>1) ? parts[parts.length-1].trim() : "";
       if(bSub && bSub.toLowerCase()===bBoat.toLowerCase()) bSub="";
-      boatHd='\ud83d\udee5 <b>'+esc(bBoat)+'</b>'+(bSub?('<span class="wlsub">'+esc(bSub)+'</span>'):'');
+      boatHd='<b>'+esc(bBoat)+'</b>'+(bSub?('<span class="wlsub">'+esc(bSub)+'</span>'):'');
     }
     var _act=jobs.filter(function(j){ return (j.status||'').toLowerCase()!=='cancelled'; });
     var _shared=_act.filter(function(j){ return j.shared; }).length;
