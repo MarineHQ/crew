@@ -1847,7 +1847,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-17·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-17·c</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -6221,7 +6221,9 @@ function renderSegBody(){
   if(cnt) cnt.textContent=list.length+(list.length===1?" job":" jobs");
   el.innerHTML = list.length ? list.join("") : ('<div class="empty">'+empty+'</div>');
 }
+var WLNUM={};                       // list key -> the task's number on its list
 function wlJobCard(j, idx, noNum){
+    var jNo = WLNUM[j.key] || ((typeof idx==="number") ? (idx+1) : 0);
     var b=hubBucket(j.status), done=b==="Done", cls=hubCls(b);
     if((j.status||"").toLowerCase()==="requested"){ b="Raised"; cls="req"; done=false; }
     var np=(j.photos&&j.photos.length)||0, hasNote=!!(j.notes&&j.notes.trim()), nd=(j.docs&&j.docs.length)||0;
@@ -6246,7 +6248,7 @@ function wlJobCard(j, idx, noNum){
     else if(!isMgrRole() && j.allocatedTo){ var _meLc=(ME.name||"").toLowerCase().replace(/\s*\(test\)/,"").trim(); if(_meLc && j.allocatedTo.toLowerCase().indexOf(_meLc)>=0){ codeChip += (j.accepted&&j.accepted.by) ? ' <span class="acptchip ok">✓ accepted</span>' : ' <span class="acptchip urgent">🚨 Accept</span>'; } }
     var upd = jobRecent(j) ? '<span class="upd">● updated '+relTime(j.updated)+'</span>' : '';
     return '<div class="job brd-'+cls+(done?" jobdone":"")+(jobRecent(j)?" jobnew":"")+'" onclick="openWLJob(\''+esc(j.key)+'\')">'+
-      '<div class="top"><div style="flex:1"><h3>'+(noNum?'':('<span class="jnum">'+(idx+1)+'.</span> '))+esc(j.task||j.desc||"(job)")+codeChip+'</h3></div>'+
+      '<div class="top"><div style="flex:1"><h3>'+((noNum===true||!jNo)?'':('<span class="jnum">'+jNo+'.</span> '))+esc(j.task||j.desc||"(job)")+codeChip+'</h3></div>'+
       '<span class="badge s-'+cls+'">'+(done?"&#10003; ":"")+esc(b)+'</span></div>'+
       cardBody(j)+'</div>';
 }
@@ -6278,7 +6280,7 @@ function doneBlock(g, kind, arr, label){
   var kJs=k.replace(/\\/g,"\\\\").replace(/'/g,"\\'");
   return '<div class="dnacc'+(kind==="sign"?" sign":"")+(open?"":" closed")+'" onclick="event.stopPropagation();toggleDone(\''+esc(kJs)+'\')">'+
     '<span class="car">&#9662;</span><h4>'+label+'</h4><span class="n">'+arr.length+'</span></div>'+
-    '<div class="dnbody'+(open?"":" closed")+'">'+arr.map(function(j,i){ return wlJobCard(j,i,true); }).join("")+'</div>';
+    '<div class="dnbody'+(open?"":" closed")+'">'+arr.map(function(j,i){ return wlJobCard(j,i); }).join("")+'</div>';
 }
 function renderJobs(){
   renderJobSeg();
@@ -6330,7 +6332,8 @@ function wlGroupHTML(g, groups){
     var openN=live.length;
     var newN=live.filter(jobRecent).length;
     var collapsed = WLCLOSED[g] ? " closed":"", bodyC = WLCLOSED[g] ? " closed":"";
-    var cards=live.map(wlJobCard).join("");
+    WLNUM={};  jobs.forEach(function(x,i){ if(x&&x.key) WLNUM[x.key]=i+1; });
+    var cards=live.map(function(x,i){ return wlJobCard(x,i); }).join("");
     if(!live.length) cards='<div class="wldone-none">'+(jobs.length?'&#10003; Everything on this list is done &mdash; it&rsquo;s all filed below.':'Nothing on this list yet.')+'</div>';
     cards+=doneBlock(g,"sign",toSign,(isMgrRole()?'&#10003; Done &mdash; waiting on sign-off':'&#10003; Done &mdash; with Marine HQ'));
     cards+=doneBlock(g,"filed",filed,'&#128193; Completed &amp; filed');
