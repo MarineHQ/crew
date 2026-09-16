@@ -6501,6 +6501,12 @@ function wlSections(order, groups){
     if(!mine){ buckets.foreign.push(g); return; }
     var sec=wlSectionOf(g)||"other"; buckets[sec].push(g);
   });
+  // Months read newest-first (Trish, 16 Sep 2026): the API returns them in
+  // creation order (0726 before 0826); a worklist should lead with the most
+  // recent month. Sort the month buckets by the MMYY in the list name, descending.
+  var _mk=function(g){ var m=/\b(\d{2})(\d{2})\b/.exec(g||""); return m?(+m[2]*100 + +m[1]):-1; };
+  buckets.closed.sort(function(a,b){ return _mk(b)-_mk(a); });
+  buckets.earlier.sort(function(a,b){ return _mk(b)-_mk(a); });
   var draw=function(arr){ return arr.map(function(g){ return wlGroupHTML(g, groups); }).join(""); };
   var G=LISTGROUPS, html="";
   var cur=G.current, curTitle=cur ? (esc(cur.vessel)+(cur.period?(' &middot; '+esc(cur.period)):'')) : esc(CURVESSEL);
