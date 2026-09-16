@@ -316,6 +316,10 @@
   .sheet.show{transform:translateY(0)}
   /* On a phone the sheet IS the screen: the brand banner and app header above it were a third of the height (Trish, 15 Sep 2026). */
   @media (max-width:640px){ .sheet{top:0;max-height:none;height:100%;border-radius:0} .sheet-hd{border-radius:0} }
+  .rjdone{margin-top:10px;background:#eaf5ee;border:1px solid #cfe6da;border-radius:10px;padding:9px 11px;font-size:12.5px;color:#14432f}
+  .rjdone b{display:block;margin-bottom:4px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#1f7a54}
+  .rjdone span{display:block;padding:2px 0}
+  .rjdone i{font-style:normal;font-family:ui-monospace,Menlo,monospace;font-size:10.5px;font-weight:700;background:#dcefe5;border-radius:4px;padding:1px 5px}
   .phfold{width:100%;margin:6px 0 0;border:1.5px solid var(--line);background:#fff;color:var(--navy);font-weight:700;font-size:12.5px;padding:8px;border-radius:9px;cursor:pointer}
   .phmore{display:contents}.phmore[hidden]{display:none!important}
   .chfold summary{list-style:none;cursor:pointer}.chfold summary::-webkit-details-marker{display:none}
@@ -1820,7 +1824,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-16·n</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-16·o</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1925,6 +1929,12 @@ button:active{ filter: brightness(.93); }
   <div class="photos staged" id="r_phGrid"></div>
   <input type="file" id="r_phIn" accept="image/*" multiple style="display:none" onchange="stagedAdd('r_ph',this)">
   <button class="go" onclick="submitRaise()">Send to Marine HQ</button>
+  <!-- Bruce put two findings in one job because raising a second meant going all
+       the way round again (Trish, 16 Sep 2026). This sends it and stays put with
+       the boat still chosen, so three things noticed in the engine room go in as
+       three jobs. -->
+  <button class="go alt2" style="background:#fff;color:var(--navy);border:1.5px solid var(--line)" onclick="submitRaise(true)">Send &amp; raise another</button>
+  <div id="r_done" class="rjdone" hidden></div>
   <button class="cancel" onclick="closeModal('raiseModal')">Cancel</button>
 </div></div>
 
@@ -9940,9 +9950,11 @@ function afterCreate(key, photos, docs){
 function openRaise(){
   $("r_vessel").innerHTML=vesselOpts(ME.vessels[0]); $("r_other").style.display="none"; $("r_other").value="";
   $("r_title").value=""; $("r_desc").value=""; stagedReset("r_ph");
+  RJSENT=[]; var _d=$("r_done"); if(_d){ _d.hidden=true; _d.innerHTML=""; }
   $("raiseModal").classList.add("show");
 }
-function submitRaise(){
+var RJSENT=[];                       // what went in during this sitting
+function submitRaise(again){
   var t=($("r_title").value||"").trim(); if(!t){ toast("Give the job a short title"); return; }
   var vsel=$("r_vessel").value, vessel;
   if(vsel==="__other__"){ vessel=($("r_other").value||"").trim(); if(!vessel){ toast("Type the yacht name"); return; } vessel="Other — "+vessel; }
@@ -9952,12 +9964,28 @@ function submitRaise(){
   toast("Raising job…");
   apiPost({action:"crewRaiseJob", email:ME.email, code:ME.code, vessel:vessel, title:t, desc:desc, matchNum:(RJNUM||"")}).then(function(r){
     if(!r||!r.ok){ toast((r&&r.error)||"Couldn’t raise the job"); return; }
+    STAGED["r_ph"]=[];                                 // handed to the upload — don't revoke the previews
+    afterCreate(r.key, files, null);
+    if(again){
+      /* Stay here with the boat still chosen. The title, detail and photos clear
+         so the next one starts empty, and what's gone in so far is listed above
+         the buttons — you can see you've sent three without leaving the form. */
+      RJSENT.push({ code:(r.code||""), title:t });
+      $("r_title").value=""; $("r_desc").value=""; stagedReset("r_ph"); RJNUM="";
+      var mm=$("r_match"); if(mm){ mm.style.display="none"; mm.innerHTML=""; }
+      var box=$("r_done");
+      if(box){ box.hidden=false;
+        box.innerHTML='<b>'+RJSENT.length+' sent</b>'+RJSENT.map(function(x){
+          return '<span>'+(x.code?('<i>'+esc(x.code)+'</i> '):'')+esc(x.title)+'</span>'; }).join(""); }
+      toast("✓ Sent — next one?");
+      $("r_title").focus();
+      loadJobs();
+      return;
+    }
     closeModal("raiseModal");
     toast(r.status==="Requested" ? "🔔 Sent to Marine HQ — awaiting approval" : ("✓ Job added — "+(r.code||"")));
     if(isMgrRole() && r.vessel) CURVESSEL=r.vessel;   // jump to that boat so it's visible
     go("jobs");
-    STAGED["r_ph"]=[];                                 // handed to the upload — don't revoke the previews
-    afterCreate(r.key, files, null);
   }).catch(function(){ toast("Couldn’t connect"); });
 }
 
