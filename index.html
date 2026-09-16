@@ -329,6 +329,10 @@
   .catrows .atm-row-j{font-weight:700;color:var(--ink);flex:1;min-width:0}
   .catrows .atm-row-c{font-size:10px;font-weight:800;color:#0f766e;background:#e6f4f0;border-radius:6px;
     padding:1px 7px;white-space:nowrap}
+  /* Both staged grids share ONE row, so the photo and file tiles sit side by
+     side exactly as they do on a task. */
+  .stagedrow{display:flex;gap:8px;flex-wrap:wrap;padding:9px 0 2px;align-items:flex-start}
+  .stagedrow > .photos{display:contents}
   .catnow{font-size:12.5px;color:var(--navy);font-weight:700}
   .catrows{margin-top:8px;max-height:220px;overflow-y:auto}
   .catnone{font-size:12.5px;color:var(--muted);padding:8px 2px}
@@ -1840,7 +1844,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-16·w</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-16·x</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1945,8 +1949,12 @@ button:active{ filter: brightness(.93); }
   <input class="fld-in rjf" id="r_other" placeholder="Type the yacht name" style="display:none">
   <input class="fld-in rjf" id="r_title" placeholder="What needs doing?" oninput="rjSuggest()" autocomplete="off">
   <div id="r_match" style="display:none"></div>
-  <div class="photos staged rjf" id="r_phGrid"></div>
+  <div class="stagedrow rjf">
+    <div class="photos staged" id="r_phGrid"></div>
+    <div class="photos staged" id="r_dcGrid"></div>
+  </div>
   <input type="file" id="r_phIn" accept="image/*" multiple style="display:none" onchange="stagedAdd('r_ph',this)">
+  <input type="file" id="r_dcIn" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,image/*" multiple style="display:none" onchange="stagedAdd('r_dc',this)">
   <button type="button" class="rjmore" id="r_moreBtn" onclick="rjMore()">＋ add detail</button>
   <textarea class="fld-ta rjf" id="r_desc" placeholder="Where it is, what you noticed…" hidden></textarea>
   <button class="go" onclick="submitRaise(true)">＋ Add &amp; next</button>
@@ -2141,11 +2149,12 @@ button:active{ filter: brightness(.93); }
       <input type="number" step="0.25" min="0" class="fld-in" id="wl_hours" placeholder="e.g. 1.5">
     </div>
   </div>
-  <label class="fld">Photos <span class="fldhint">(optional)</span></label>
-  <div class="photos staged" id="wl_phGrid"></div>
+  <label class="fld">Photos &amp; documents <span class="fldhint">(optional)</span></label>
+  <div class="stagedrow">
+    <div class="photos staged" id="wl_phGrid"></div>
+    <div class="photos staged" id="wl_dcGrid"></div>
+  </div>
   <input type="file" id="wl_phIn" accept="image/*" multiple style="display:none" onchange="stagedAdd('wl_ph',this)">
-  <label class="fld">Documents <span class="fldhint">(optional — receipts, reports, manuals)</span></label>
-  <div class="photos staged" id="wl_dcGrid"></div>
   <input type="file" id="wl_dcIn" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,image/*" multiple style="display:none" onchange="stagedAdd('wl_dc',this)">
   <button class="go" onclick="submitWorkLog()">✓ Log it</button>
   <button class="go alt2" onclick="submitWorkLog(true)">▶ Log it &amp; start the timer</button>
@@ -10182,7 +10191,12 @@ function stagedRender(b){
     return '<div class="ph">'+face+tag+'<small>'+esc(f.name||(isDocs?"document":"photo"))+'</small>'+note+
            '<button type="button" class="attdel" title="Remove" onclick="stagedDrop(\''+b+'\','+i+')">✕</button></div>';
   }).join("") +
-  '<label class="addph" for="'+b+'In">'+(isDocs?'📎<span>Add</span>':'＋<span>Add photo</span>')+'</label>' +
+  /* The SAME two tiles as the task page (Trish, 16 Sep 2026: "add photo, add
+     file the same everywhere"). Blue camera for a photo, cream paperclip for a
+     file, and the file one says what belongs in it — two identical "Add"
+     squares is what had crew filing pictures as documents. */
+  '<label class="addph'+(isDocs?' adddoc':'')+'" for="'+b+'In">'+
+    (isDocs ? '\ud83d\udcc4<span>File</span><i>PDF, invoice, manual</i>' : '\ud83d\udcf7<span>Photo</span>')+'</label>' +
   ((!isDocs && a.length) ? '<div class="staged-hint">Tap <b>Tag</b> to mark a photo Before or After — a tagged pair prints side by side in the works report. The note says what it shows; you can add more later, and only Marine HQ decides if it goes to the owner.</div>' : '');
 }
 /* Photos go up one call per tag, so each batch carries its own Before/After. */
@@ -10220,7 +10234,7 @@ function rjFinish(){
 }
 function openRaise(){
   $("r_vessel").innerHTML=vesselOpts(ME.vessels[0]); $("r_other").style.display="none"; $("r_other").value="";
-  $("r_title").value=""; $("r_desc").value=""; stagedReset("r_ph");
+  $("r_title").value=""; $("r_desc").value=""; stagedReset("r_ph"); stagedReset("r_dc");
   var _d0=$("r_desc"); if(_d0) _d0.hidden=true;
   var _mb=$("r_moreBtn"); if(_mb) _mb.style.display="";
   RJSENT=[]; var _d=$("r_done"); if(_d){ _d.hidden=true; _d.innerHTML=""; }
@@ -10233,18 +10247,18 @@ function submitRaise(again){
   if(vsel==="__other__"){ vessel=($("r_other").value||"").trim(); if(!vessel){ toast("Type the yacht name"); return; } vessel="Other — "+vessel; }
   else { vessel=vsel; }
   var desc=($("r_desc").value||"").trim();
-  var files=stagedFiles("r_ph");
+  var files=stagedFiles("r_ph"), rdocs=stagedFiles("r_dc");
   toast("Raising job…");
   apiPost({action:"crewRaiseJob", email:ME.email, code:ME.code, vessel:vessel, title:t, desc:desc, matchNum:(RJNUM||"")}).then(function(r){
     if(!r||!r.ok){ toast((r&&r.error)||"Couldn’t raise the job"); return; }
-    STAGED["r_ph"]=[];                                 // handed to the upload — don't revoke the previews
-    afterCreate(r.key, files, null);
+    STAGED["r_ph"]=[]; STAGED["r_dc"]=[];              // handed to the upload — don't revoke the previews
+    afterCreate(r.key, files, rdocs);
     if(again){
       /* Stay here with the boat still chosen. The title, detail and photos clear
          so the next one starts empty, and what's gone in so far is listed above
          the buttons — you can see you've sent three without leaving the form. */
       RJSENT.push({ code:(r.code||""), title:t });
-      $("r_title").value=""; $("r_desc").value=""; stagedReset("r_ph"); RJNUM="";
+      $("r_title").value=""; $("r_desc").value=""; stagedReset("r_ph"); stagedReset("r_dc"); RJNUM="";
       var dd=$("r_desc"); if(dd) dd.hidden=true;
       var mb=$("r_moreBtn"); if(mb) mb.style.display="";
       var mm=$("r_match"); if(mm){ mm.style.display="none"; mm.innerHTML=""; }
