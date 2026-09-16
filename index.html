@@ -233,6 +233,12 @@
   .cmlist{max-height:46vh;overflow-y:auto}
   .wlsec.now .secstate.live{background:rgba(255,255,255,.28)}
   .secstate.overdue{background:#b3261e;color:#fff}
+  .cmpick{width:100%;display:flex;align-items:center;gap:9px;text-align:left;margin-top:8px;
+    border:1.5px solid var(--line);background:#fff;border-radius:11px;padding:12px 13px;cursor:pointer;font-family:inherit}
+  .cmpick .cmpv{flex:1;font-size:14px;font-weight:800;color:var(--navy)}
+  .cmpick .cmpn{font-size:12px;font-weight:800;color:#8a5a12;background:#fff6e8;border-radius:8px;padding:3px 9px}
+  .cmpick.clear .cmpn{color:#1f7a54;background:#eaf5ee}
+  .cmpick .cmpg{color:var(--muted);font-weight:800}
   .permono{font-family:ui-monospace,Menlo,monospace;font-size:11px;font-weight:800;opacity:.75;margin-left:6px}
   .secstate{font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;background:rgba(255,255,255,.22);border-radius:5px;padding:2px 7px;margin-left:8px;vertical-align:middle}
   .wlsec.old .secstate{background:rgba(26,43,92,.10)}
@@ -1778,7 +1784,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-16·e</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-16·f</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1960,6 +1966,15 @@ button:active{ filter: brightness(.93); }
     <button class="go" id="sdGo" onclick="sdSubmit()">Submit my day</button>
   </div>
   <button class="cancel" id="sdClose" onclick="closeModal('submitDayModal')">Not yet</button>
+</div></div>
+
+<!-- Which boat's month are we closing? A month heading across the fleet covers
+     several boats and each closes on its own. -->
+<div class="modal" id="cmPickModal"><div class="card2">
+  <h3 id="cmPickTitle">Close the month</h3>
+  <p class="mhint">A month closes one boat at a time — each has its own unfinished work to send somewhere. Pick a boat to see what would happen.</p>
+  <div id="cmPickBody"></div>
+  <button class="cancel" onclick="closeModal('cmPickModal')">Not now</button>
 </div></div>
 
 <!-- Fixing a logged time. Forgetting to stop is the ordinary case, not the
@@ -6229,6 +6244,40 @@ function wlPeriodLabel(p){
   var d=new Date(2000+(+p.slice(2)), +p.slice(0,2)-1, 1);
   return d.toLocaleDateString("en-AU",{month:"long",year:"numeric"});
 }
+/* CLOSING A MONTH ACROSS THE FLEET. A month heading on All Yachts covers
+   several boats, and a month is closed one boat at a time — each has its own
+   unfinished work to send somewhere. So the button opens the boats in that
+   month with what each still has open; tap one and the normal Close month
+   preview runs for it. Come back and the list shows what's left. */
+var CMPICK={period:"", boats:[]};
+function cmPickOpen(period){
+  var el=$("cmPickBody"); if(!el) return;
+  var boats={};
+  (CREWJOBS||[]).forEach(function(j){
+    var g=(j.list||""); if(wlPeriodOfList(g)!==period) return;
+    var v=j.vessel||""; if(!v) return;
+    if(!boats[v]) boats[v]={vessel:v, open:0, total:0};
+    boats[v].total++;
+    if(hubBucket(j.status)!=="Done" && (j.status||"").toLowerCase()!=="cancelled") boats[v].open++;
+  });
+  var list=Object.keys(boats).map(function(k){return boats[k];})
+            .sort(function(a,b){ return b.open-a.open || a.vessel.localeCompare(b.vessel); });
+  CMPICK={period:period, boats:list};
+  $("cmPickTitle").textContent="Close "+wlPeriodLabel(period);
+  el.innerHTML = list.length ? list.map(function(b){
+      var vJs=esc(b.vessel.replace(/'/g,"\\'"));
+      return '<button class="cmpick'+(b.open?"":" clear")+'" onclick="cmPickGo(\''+vJs+'\')">'+
+        '<span class="cmpv">'+esc(b.vessel)+'</span>'+
+        '<span class="cmpn">'+(b.open? (b.open+' still open') : '\u2713 all done')+'</span>'+
+        '<span class="cmpg">\u203a</span></button>';
+    }).join("")
+    : '<div class="empty">Nothing on '+esc(wlPeriodLabel(period))+' any more.</div>';
+  $("cmPickModal").classList.add("show");
+}
+function cmPickGo(vessel){
+  closeModal("cmPickModal");
+  closeMonthDlg(CMPICK.period, vessel);
+}
 function wlFleetMonths(order, groups){
   var now=wlThisPeriod(), last=wlPrevPeriod(now);
   var byP={}, none=[];
@@ -6256,7 +6305,8 @@ function wlFleetMonths(order, groups){
     var pj=esc(p.replace(/'/g,"\\'"));
     // Close month is per boat, so across the fleet this offers the report and
     // says how many boats are involved — you close each from its own page.
-    var btn='<button class="secbtn" onclick="event.stopPropagation();reportDlg(\''+pj+'\')">Report</button>';
+    var btn='<button class="secbtn" onclick="event.stopPropagation();reportDlg(\''+pj+'\')">Report</button>'+
+            '<button class="secbtn" onclick="event.stopPropagation();cmPickOpen(\''+pj+'\')">Close month</button>';
     html+=wlSection("fm"+p, wlPeriodLabel(p)+' <span class="permono">'+esc(p)+'</span>'+tag,
                     openN+' open \u00b7 '+nB+(nB===1?' boat':' boats'), cls,
                     ls.map(function(g){ return wlGroupHTML(g, groups); }).join(""), isNow, btn);
@@ -6668,9 +6718,14 @@ function buildReport(){
    work into a month she's afloat just moves a job nobody can do), or close it
    as not done with the reason. Always previewed before it writes. */
 var CM={period:"", dispo:"roll", reason:"", preview:null};
-function closeMonthDlg(period){
-  CM={period:period, dispo:"roll", reason:"", preview:null}; CMNEW={};
-  $("closeMonthTitle").textContent = "Close "+CURVESSEL+" · "+period;
+/* A month can be closed from the fleet page now (Trish, 16 Sep 2026: "I can't
+   close it from the worklist page"), so the boat is an argument rather than
+   whatever happens to be selected. Everything downstream reads CM.vessel. */
+function closeMonthDlg(period, vessel){
+  var v=(vessel||CURVESSEL||"").toString();
+  if(v==="__all__"){ toast("Pick a boat to close"); return; }
+  CM={period:period, vessel:v, dispo:"roll", reason:"", preview:null}; CMNEW={};
+  $("closeMonthTitle").textContent = "Close "+v+" · "+period;
   $("cmBody").innerHTML='<div class="loadingbox"><span class="spin"></span> Working out what would happen…</div>';
   $("cmGo").style.display="none";
   $("closeMonthModal").classList.add("show");
@@ -6687,7 +6742,7 @@ var CMWAY={};                                    // job key -> "roll" | "yard" |
 function cmPreview(){
   $("cmBody").innerHTML='<div class="loadingbox"><span class="spin"></span> Working out what would happen…</div>';
   $("cmGo").style.display="none";
-  apiPost({action:"crewMonthClose", email:ME.email, code:ME.code, vessel:CURVESSEL,
+  apiPost({action:"crewMonthClose", email:ME.email, code:ME.code, vessel:(CM.vessel||CURVESSEL),
            period:CM.period, dispo:"roll", dry:true}).then(function(r){
     if(!r||!r.ok){ $("cmBody").innerHTML='<div class="empty">'+esc((r&&r.error)||"Couldn’t work that out")+'</div>'; return; }
     CM.preview=r; CMWAY={};
@@ -6710,7 +6765,7 @@ function cmJs(s){ return esc((s||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'"));
    being closed and aren't closed themselves. Shipyard and On hold have their
    own buttons so they're left out here. */
 function cmLists(){
-  var out=[], seen={}, vlc=(CURVESSEL||"").toLowerCase();
+  var out=[], seen={}, vlc=((CM&&CM.vessel)||CURVESSEL||"").toLowerCase();
   var closing={}; ((CM.preview&&CM.preview.lists)||[]).forEach(function(l){ closing[(l||"").toLowerCase()]=1; });
   Object.keys(LISTINFO||{}).forEach(function(k){
     var r=LISTINFO[k]; if(!r||!r.list) return;
@@ -6792,7 +6847,8 @@ function cmRender(){
 function cmGo(){
   var b=$("cmGo"); b.disabled=true; b.textContent="Closing…";
   var per={}; Object.keys(CMWAY).forEach(function(k){ if(k!=="*") per[k]=CMWAY[k]; });
-  apiPost({action:"crewMonthClose", email:ME.email, code:ME.code, vessel:CURVESSEL,
+  var cv=(CM.vessel||CURVESSEL);
+  apiPost({action:"crewMonthClose", email:ME.email, code:ME.code, vessel:cv,
            period:CM.period, dispo:"roll", perTask:per, reason:CM.reason}).then(function(r){
     b.disabled=false;
     if(!r||!r.ok){ toast((r&&r.error)||"Couldn’t close the month"); b.textContent="Close "+CM.period; return; }
@@ -6801,6 +6857,7 @@ function cmGo(){
     toast("✓ "+CM.period+" closed — "+(done?(done+" done, "):"")+r.rolled.length+" carried, "+r.toYard.length+" to shipyard"+
           (held?(", "+held+" on hold"):"")+(moved?(", "+moved+" moved"):"")+", "+r.closed.length+" closed");
     _liFor=""; loadListInfo(CURVESSEL); loadClosedLists(); loadJobs();
+    if(CMPICK.period) cmPickOpen(CMPICK.period);   // straight back to the list of boats still to do
   }).catch(function(){ b.disabled=false; toast("Couldn’t connect"); });
 }
 /* ---- Jobs on offer (crew): unassigned jobs anyone can claim ---- */
