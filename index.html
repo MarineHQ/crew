@@ -1860,7 +1860,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-17·l</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-17·m</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -6636,6 +6636,8 @@ function cmPickGo(vessel){
   closeModal("cmPickModal");
   closeMonthDlg(CMPICK.period, vessel);
 }
+/* Marine HQ's fictional showcase yacht — real to prospects, not to the fleet. */
+var DEMO_VESSELS_RE=/^\s*sea\s*(philly|filly|phily)\b/i;
 var WLFLEET=false;
 function wlFleetMonths(order, groups){
   WLFLEET=true;
@@ -6681,8 +6683,17 @@ function wlFleetMonthsInner(order, groups){
      wrong. They get their own heading. What is left under "No month" is a real
      list somebody forgot to date, and that IS worth chasing (Trish, 16 Sep 2026
      — "I want all worklists to have MMYY"). */
-  var wait=[], unfiled=[];
-  none.forEach(function(g){ (wlListIsWaiting(g) ? wait : unfiled).push(g); });
+  /* The demo boat is not a boat anybody forgot to date. Sea Philly is Marine
+     HQ's permanent showcase yacht and her list is a YEAR ("Sea Philly — 2026
+     Works"), so it can never carry a month — flagging it red under "needs a
+     month" was scolding us for something working as designed (Trish, 17 Sep
+     2026: "why is Sea Philly there?"). It gets its own quiet heading. */
+  var wait=[], unfiled=[], demo=[];
+  none.forEach(function(g){
+    var dv=(groups[g]||[]).some(function(j){ return DEMO_VESSELS_RE.test((j.vessel||"")); });
+    if(dv){ demo.push(g); return; }
+    (wlListIsWaiting(g) ? wait : unfiled).push(g);
+  });
   if(wait.length){
     var wN=wait.reduce(function(n,g){ return n+wlSplit(groups[g]).live.length; },0);
     html+=wlSection("fmwait", 'Waiting <span class="secstate waiting">Parked on purpose</span>',
@@ -6692,6 +6703,11 @@ function wlFleetMonthsInner(order, groups){
     var nN=unfiled.reduce(function(n,g){ return n+wlSplit(groups[g]).live.length; },0);
     html+=wlSection("fmnone", 'No month <span class="secstate overdue">Needs a month</span>',
                     nN+' open', 'old', unfiled.map(function(g){ return wlGroupHTML(g, groups); }).join(""), false);
+  }
+  if(demo.length){
+    var dN=demo.reduce(function(n,g){ return n+wlSplit(groups[g]).live.length; },0);
+    html+=wlSection("fmdemo", 'Demo boat <span class="secstate">Sample data</span>',
+                    dN+' open', 'old', demo.map(function(g){ return wlGroupHTML(g, groups); }).join(""), false);
   }
   return html || '<div class="wlnone">Nothing here.</div>';
 }
@@ -7150,13 +7166,22 @@ function cmJs(s){ return esc((s||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'"));
 function cmLists(){
   var out=[], seen={}, vlc=((CM&&CM.vessel)||CURVESSEL||"").toLowerCase();
   var closing={}; ((CM.preview&&CM.preview.lists)||[]).forEach(function(l){ closing[(l||"").toLowerCase()]=1; });
-  Object.keys(LISTINFO||{}).forEach(function(k){
-    var r=LISTINFO[k]; if(!r||!r.list) return;
+  /* LISTINFO is only loaded when a director has drilled into ONE boat. Closing
+     from the fleet page left this dropdown with nothing to offer but "＋ New
+     list…", so the only way forward was to invent a name — which is how two of
+     Everywhen's owner tasks ended up on a list called "1026" (Trish, 17 Sep
+     2026). FLEETLISTS is fleet-wide and always loaded for a director, so take
+     the boat's lists from there as well. */
+  function add(r){
+    if(!r||!r.list) return;
     if(r.vessel && (r.vessel||"").toLowerCase()!==vlc) return;
+    var k=(r.list||"").toLowerCase();
     if(r.state==="closed" || closing[k] || seen[k]) return;
     if(/^(coming for shipyard|on hold)$/i.test((r.sub||r.list||"").trim())) return;
     seen[k]=1; out.push(r.list);
-  });
+  }
+  Object.keys(LISTINFO||{}).forEach(function(k){ add(LISTINFO[k]); });
+  (FLEETLISTS||[]).forEach(add);
   out.sort(); return out;
 }
 function cmPickHTML(key){
