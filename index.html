@@ -1847,7 +1847,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-17·c</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-17·d</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -6223,7 +6223,10 @@ function renderSegBody(){
 }
 var WLNUM={};                       // list key -> the task's number on its list
 function wlJobCard(j, idx, noNum){
-    var jNo = WLNUM[j.key] || ((typeof idx==="number") ? (idx+1) : 0);
+    /* The server stamps the task's number on its list (ccTaskNos_) so the crew
+       app and the owner's app say the SAME number. WLNUM is the fallback for a
+       feed that hasn't got taskNo yet. */
+    var jNo = j.taskNo || WLNUM[j.key] || ((typeof idx==="number") ? (idx+1) : 0);
     var b=hubBucket(j.status), done=b==="Done", cls=hubCls(b);
     if((j.status||"").toLowerCase()==="requested"){ b="Raised"; cls="req"; done=false; }
     var np=(j.photos&&j.photos.length)||0, hasNote=!!(j.notes&&j.notes.trim()), nd=(j.docs&&j.docs.length)||0;
