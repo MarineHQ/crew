@@ -1844,7 +1844,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-16·x</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-17·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2201,7 +2201,8 @@ button:active{ filter: brightness(.93); }
     </div>
   </div>
   <label class="fld">Photo or PDF of the certificate <span class="fldhint" id="cert_fileHint">(optional but worth doing)</span></label>
-  <input type="file" id="cert_file" accept="image/*,application/pdf" onchange="certFilePicked(this)">
+  <div class="photos"><label class="addph" for="cert_file" id="cert_tile">📷<span>Photo</span><i>or PDF</i></label></div>
+  <input type="file" id="cert_file" accept="image/*,application/pdf" style="display:none" onchange="certFilePicked(this)">
   <div id="certScanNote" style="display:none;font-size:12px;font-weight:700;margin-top:6px"></div>
   <label class="fld">Notes <span class="fldhint">(optional)</span></label>
   <input class="fld-in" id="cert_notes" placeholder="e.g. renewal booked for March">
@@ -11488,7 +11489,11 @@ function certScanNote(msg, tone){
    gets scanned and saved — the crop when one was made, else the whole file. */
 var CERTSRC=null, CERTPICK=null, CROP={x:0,y:0,w:0,h:0}, cropDrag=null;
 function certFilePicked(input){
-  var f=(input.files||[])[0]; if(!f) { certScanNote(""); return; }
+  var f=(input.files||[])[0];
+  // the tile says what you picked — a hidden input shows nothing on its own
+  var _tile=document.getElementById("cert_tile");
+  if(_tile) _tile.innerHTML = f ? ('\u2713<span>'+esc((f.name||"file").slice(0,14))+'</span><i>tap to change</i>') : ('\uD83D\uDCF7<span>Photo</span><i>or PDF</i>');
+  if(!f) { certScanNote(""); return; }
   CERTPICK=null;
   if(!/^image\//i.test(f.type||"")){                 // a PDF goes straight to the scanner
     certScanNote("🔍 Reading the certificate…");
