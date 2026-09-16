@@ -1840,7 +1840,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-16·v</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-16·w</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -6431,6 +6431,15 @@ function wlPeriodOfList(name){
   var m=/\b(\d{2})(\d{2})\b/.exec(name||""); if(!m) return "";
   var mo=+m[1]; return (mo>=1&&mo<=12) ? (m[1]+m[2]) : "";
 }
+/* A waiting list by its own record (state) or by its name — the same names the
+   backend treats as waiting, so the two can't drift apart. */
+function wlListIsWaiting(name){
+  var lc=(name||"").toString().trim().toLowerCase();
+  var rec=(FLEETLISTS||[]).filter(function(r){ return (r.list||"").toString().trim().toLowerCase()===lc; })[0];
+  if(rec && (rec.state||"")==="waiting") return true;
+  var sub=lc.split(/\s+[\u2014\u2013]\s+/).pop();
+  return /^(raised jobs|coming for shipyard|next shipyard( period)?|work log|on hold)$/.test(sub);
+}
 function wlPeriodLabel(p){
   if(!p) return "No month";
   var d=new Date(2000+(+p.slice(2)), +p.slice(0,2)-1, 1);
@@ -6526,10 +6535,24 @@ function wlFleetMonthsInner(order, groups){
                     openN+' open \u00b7 '+nB+(nB===1?' boat':' boats'), cls,
                     ls.map(function(g){ return wlGroupHTML(g, groups); }).join(""), isNow, btn);
   });
-  if(none.length){
-    var nN=none.reduce(function(n,g){ return n+wlSplit(groups[g]).live.length; },0);
-    html+=wlSection("fmnone", 'No month <span class="secstate">Not on a month list</span>',
-                    nN+' open', 'old', none.map(function(g){ return wlGroupHTML(g, groups); }).join(""), false);
+  /* A list with no month is not automatically a problem. "Raised jobs", "On
+     hold" and "Coming for shipyard" are WAITING lists — work parked on purpose,
+     which is why they must never carry a month: September's raised jobs would
+     be stranded the moment October began, which is exactly how Work Log went
+     wrong. They get their own heading. What is left under "No month" is a real
+     list somebody forgot to date, and that IS worth chasing (Trish, 16 Sep 2026
+     — "I want all worklists to have MMYY"). */
+  var wait=[], unfiled=[];
+  none.forEach(function(g){ (wlListIsWaiting(g) ? wait : unfiled).push(g); });
+  if(wait.length){
+    var wN=wait.reduce(function(n,g){ return n+wlSplit(groups[g]).live.length; },0);
+    html+=wlSection("fmwait", 'Waiting <span class="secstate waiting">Parked on purpose</span>',
+                    wN+' waiting', 'wait', wait.map(function(g){ return wlGroupHTML(g, groups); }).join(""), false);
+  }
+  if(unfiled.length){
+    var nN=unfiled.reduce(function(n,g){ return n+wlSplit(groups[g]).live.length; },0);
+    html+=wlSection("fmnone", 'No month <span class="secstate overdue">Needs a month</span>',
+                    nN+' open', 'old', unfiled.map(function(g){ return wlGroupHTML(g, groups); }).join(""), false);
   }
   return html || '<div class="wlnone">Nothing here.</div>';
 }
