@@ -233,6 +233,17 @@
   .cmlist{max-height:46vh;overflow-y:auto}
   .wlsec.now .secstate.live{background:rgba(255,255,255,.28)}
   .secstate.overdue{background:#b3261e;color:#fff}
+  .cmdonehd{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+    color:#1f7a54;margin:16px 0 6px}
+  .cmdonelist{border:1px solid #cfe6da;border-radius:11px;overflow:hidden;background:#f4fbf7}
+  .cmdone{display:flex;align-items:baseline;gap:8px;padding:9px 11px;border-top:1px solid #dcefe5}
+  .cmdone:first-child{border-top:0}
+  .cmdone .cmdt{flex:1;font-size:13px;font-weight:700;color:#14432f;min-width:0;overflow-wrap:anywhere}
+  .cmdone .cmdc{font-family:ui-monospace,Menlo,monospace;font-size:10px;font-weight:700;
+    background:#e3f1ea;color:#1f7a54;border-radius:5px;padding:1px 5px;white-space:nowrap}
+  .cmdone .cmdd{font-size:11px;font-weight:700;color:#5b7a69;white-space:nowrap}
+  .cmdone.cx{background:#f5f6f8}.cmdone.cx .cmdt{color:#5b6b7d;text-decoration:line-through}
+  .cmdone.cx .cmdd{color:#8a94a0}
   .cmpick{width:100%;display:flex;align-items:center;gap:9px;text-align:left;margin-top:8px;
     border:1.5px solid var(--line);background:#fff;border-radius:11px;padding:12px 13px;cursor:pointer;font-family:inherit}
   .cmpick .cmpv{flex:1;font-size:14px;font-weight:800;color:var(--navy)}
@@ -1802,7 +1813,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-16·i</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-16·k</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -6297,11 +6308,24 @@ var CMPICK={period:"", boats:[]};
 function cmPickOpen(period){
   var el=$("cmPickBody"); if(!el) return;
   var boats={};
+  /* WHICH BOATS ARE IN THIS MONTH comes from the server's list records, not from
+     the jobs the browser happens to be holding (Trish, 16 Sep 2026). The job
+     cache is scoped and refreshed at different moments, so counting boats from
+     it listed Krystyna under August when her only August list had already gone —
+     and then the close found nothing to do and sat there. The records are the
+     same thing the close itself works from, so the two can't disagree. */
+  (FLEETLISTS||[]).forEach(function(r){
+    if((r.state||"")==="closed") return;
+    var per=(r.period||"")||wlPeriodOfList(r.list||"");
+    if(per!==period) return;
+    var v=(r.vessel||"").trim(); if(!v) return;
+    if(!boats[v]) boats[v]={vessel:v, open:0, total:0, known:false};
+  });
   (CREWJOBS||[]).forEach(function(j){
     var g=(j.list||""); if(wlPeriodOfList(g)!==period) return;
     var v=j.vessel||""; if(!v) return;
-    if(!boats[v]) boats[v]={vessel:v, open:0, total:0};
-    boats[v].total++;
+    if(!boats[v]) boats[v]={vessel:v, open:0, total:0, known:false};
+    boats[v].known=true; boats[v].total++;
     if(hubBucket(j.status)!=="Done" && (j.status||"").toLowerCase()!=="cancelled") boats[v].open++;
   });
   var list=Object.keys(boats).map(function(k){return boats[k];})
@@ -6312,7 +6336,8 @@ function cmPickOpen(period){
       var vJs=esc(b.vessel.replace(/'/g,"\\'"));
       return '<button class="cmpick'+(b.open?"":" clear")+'" onclick="cmPickGo(\''+vJs+'\')">'+
         '<span class="cmpv">'+esc(b.vessel)+'</span>'+
-        '<span class="cmpn">'+(b.open? (b.open+' still open') : '\u2713 all done')+'</span>'+
+        '<span class="cmpn">'+(b.open ? (b.open+' still open')
+                                       : (b.known ? '\u2713 all done' : 'open it to see'))+'</span>'+
         '<span class="cmpg">\u203a</span></button>';
     }).join("")
     : '<div class="empty">Nothing on '+esc(wlPeriodLabel(period))+' any more.</div>';
@@ -6881,10 +6906,23 @@ function cmRender(){
   var bits=[]; if(t.done)bits.push(t.done+' done'); if(t.roll)bits.push(t.roll+' carrying into '+esc(r.nextPeriod||"next month"));
   if(t.yard)bits.push(t.yard+' to shipyard'); if(t.hold)bits.push(t.hold+' on hold');
   if(t.list)bits.push(t.list+' to another list'); if(t.close)bits.push(t.close+' closed');
+  /* THE MONTH, READ BACK TO YOU (Trish, 16 Sep 2026: "I want the worklist to
+     come up with all the jobs"). The finished work was a number; now it is the
+     list, so you can see what you are closing before you close it. Nothing to
+     decide on these — they stay on the month as its record — so they sit under
+     the outstanding ones, ticked and quiet. */
+  var fin=(r.finished||[]);
+  var finRows = fin.length ? ('<div class="cmdonehd">\u2713 Finished \u2014 staying on '+esc(CM.period)+'</div>'+
+    '<div class="cmdonelist">'+fin.map(function(x){
+      return '<div class="cmdone'+(x.cancelled?' cx':'')+'"><span class="cmdt">'+esc(x.task)+'</span>'+
+        (x.code?('<span class="cmdc">'+esc(x.code)+'</span>'):'')+
+        '<span class="cmdd">'+(x.cancelled?'not done':esc(x.done||'done'))+'</span></div>';
+    }).join("")+'</div>') : '';
   $("cmBody").innerHTML=
     '<p class="mhint"><b>'+r.kept+'</b> finished — they stay on '+esc(CM.period)+' as the month’s record.<br>'+
     (moving?('<b>'+moving+'</b> unfinished — send each one where it belongs.'):'Nothing outstanding — the month is finished.')+'</p>'+
     (moving?(setAll+'<div class="cmlist">'+rows+'</div>'):'')+
+    finRows+
     (t.close ? ('<label class="fld">'+(t.close===1?'Why isn’t that one happening?':'Why aren’t those '+t.close+' happening?')+'</label>'+
        '<input class="fld-in" id="cmReason" placeholder="e.g. she went back in the water" value="'+esc(CM.reason)+'" oninput="CM.reason=this.value">') : '');
   $("cmGo").style.display="";
@@ -7010,7 +7048,7 @@ function loadListInfo(vessel){
 /* Fleet-wide list states (fn=worklists with no vessel) so the All Yachts screen can
    leave closed months out. Trish, 4 Sep 2026: only live worklists and unassigned
    tasks on that screen — a closed month lives in its boat's Closed months fold. */
-var CLOSEDLISTS={};
+var CLOSEDLISTS={}, FLEETLISTS=[];
 function loadClosedLists(){
   if(!isMgrRole()) return;
   apiGet("fn=worklists&code="+encodeURIComponent(ME.code||"")+"&email="+encodeURIComponent(ME.email||""))
@@ -7018,6 +7056,7 @@ function loadClosedLists(){
       if(!j||!j.ok) return;
       var m={}; (j.lists||[]).forEach(function(r){ if((r.state||"")==="closed") m[((r.vessel||"")+"|"+(r.list||"")).toLowerCase()]=1; });
       CLOSEDLISTS=m;
+      FLEETLISTS=(j.lists||[]);   // the server's own record of every list: vessel, period, state
       if(TAB==="jobs") renderJobs();
     }).catch(function(){});
 }
