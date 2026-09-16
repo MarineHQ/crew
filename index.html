@@ -312,6 +312,12 @@
   .sheet .body,.sheet .sec,.sheet p,.sheet .cmt-tx,.sheet .subnote-box,.sheet .v,
   .sheet h3,.sheet h4,.sheet .desc,.sheet li,.sheet td{overflow-wrap:anywhere;word-break:break-word}
   .sheet a{overflow-wrap:anywhere}
+  /* A link you can hit with a thumb. The map one is a chip, because the address
+     it replaces was 120 characters of query string. */
+  .lnk{color:#1d4ed8;font-weight:700;text-decoration:underline;text-underline-offset:2px}
+  .lnk.map{display:inline-block;text-decoration:none;background:#e6efff;color:#1d4ed8;
+    border:1px solid #c7dbff;border-radius:9px;padding:4px 10px;font-size:12.5px;
+    font-weight:800;margin:2px 0;white-space:nowrap}
   .sheet img,.sheet video,.sheet iframe{max-width:100%}
   .sheet pre,.sheet table{max-width:100%;overflow-x:auto;display:block}
 
@@ -1769,7 +1775,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-16·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-16·c</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2736,6 +2742,46 @@ var STAGE_OF = { todo:0, inprog:1, parts:1, done:2 };
 /* ================= helpers ================= */
 function $(id){ return document.getElementById(id); }
 function esc(s){ return (s||"").replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+/* PASTED LINKS ARE TAPPABLE (Trish, 16 Sep 2026: "can the map link be
+   clickable?"). Crew paste a maps link for a drop-off address into the job
+   description; it printed as 120 characters of raw URL that nobody could use
+   and that stretched the page. This takes text that has ALREADY been escaped
+   and turns any http(s):// or www. run into a real link.
+
+   Two things it has to get right:
+   • The text it receives has been through esc(), so an & in the URL is sitting
+     there as "&amp;" — the href has to be un-escaped again or every query
+     parameter after the first is lost.
+   • A full stop or bracket at the end of a sentence is punctuation, not part of
+     the address, so trailing ,.;:!? and a closing ) are handed back to the text.
+
+   A maps link renders as one "📍 Open in Maps" chip rather than its address —
+   it is the whole reason the line was unreadable. */
+var LINK_RE=/(https?:\/\/[^\s<]+|www\.[^\s<]+)/g;
+function linkify(escaped){
+  return (escaped||"").replace(LINK_RE, function(hit){
+    var tail="";
+    // Peel sentence punctuation off the end, including a closing bracket the
+    // address never opened. Repeat, because "…QLD)." is both.
+    for(;;){
+      var m=/[,.;:!?]$/.exec(hit);
+      if(m){ tail=m[0]+tail; hit=hit.slice(0,-1); continue; }
+      if(/\)$/.test(hit) && hit.indexOf("(")<0){ tail=")"+tail; hit=hit.slice(0,-1); continue; }
+      break;
+    }
+    if(!hit) return tail;
+    var href=hit.replace(/&amp;/g,"&").replace(/&quot;/g,'"');
+    if(!/^https?:/i.test(href)) href="https://"+href;
+    var isMap=/(^|\.)google\.[a-z.]+\/maps|maps\.google\.|maps\.app\.goo\.gl|goo\.gl\/maps|apple\.com\/maps/i.test(href);
+    var label=isMap ? "📍 Open in Maps"
+                    : hit.replace(/^https?:\/\//i,"").replace(/^www\./i,"");
+    if(!isMap && label.length>42) label=label.slice(0,40)+"…";
+    // Back into the attribute properly: a bare & is fine until the day someone
+    // pastes ?&copy=1 and the browser reads it as ©.
+    return '<a class="lnk'+(isMap?" map":"")+'" href="'+href.replace(/&/g,"&amp;").replace(/"/g,"&quot;")+
+           '" target="_blank" rel="noopener noreferrer">'+label+'</a>'+tail;
+  });
+}
 function initials(n){ var w=(n||"?").replace(/[^A-Za-z ]/g,"").trim().split(/\s+/).filter(Boolean); return ((w[0]||"?")[0]+((w[1]||"")[0]||"")).toUpperCase(); }
 function toast(m){ var t=$("toast"); t.textContent=m; t.classList.add("show"); clearTimeout(toast._t); toast._t=setTimeout(function(){t.classList.remove("show");},2800); }
 function crewById(id){ return CREW.filter(function(c){return c.id===id;})[0]; }
@@ -7170,7 +7216,7 @@ function wlFactsHtml(j){
            '<span class="v'+(cls?(" "+cls):"")+'" title="'+esc(v)+'">'+esc(v)+'</span></div>';
   }
   var out = "", _b = hubBucket(j.status);
-  out += cell("Status", wlBucketToStatus(j) || "To do", "",
+  if(isMgrRole()) out += cell("Status", wlBucketToStatus(j) || "To do", "",
               _b==="Done" ? "f-done" : (_b==="In progress" ? "f-prog" : "f-todo"));
   if(j.dueTs){
     var late = j.dueTs < Date.now() && hubBucket(j.status)!=="Done";
@@ -7188,9 +7234,10 @@ function wlFactsHtml(j){
     var _mineOn=_meOn && (j.allocatedTo||"").toLowerCase().indexOf(_meOn)>=0;
     if(_mineOn && j.accepted && j.accepted.by) out += cell("Yours", "\u2713 accepted", "", "f-yes");
     else if(_mineOn) out += cell("Yours", "tap to accept", "", "f-wait");
-    // Three cells on one row — never a two-column grid with an empty corner.
+    // However many cells there are, they sit on ONE row — never a grid with an
+    // empty corner. Crew normally have two: Due, and that it's theirs.
     var _n=(out.match(/class="jfact/g)||[]).length;
-    return '<div class="jfacts'+(_n===3?" three":"")+'">'+out+'</div>';
+    return _n ? ('<div class="jfacts'+(_n>1?" three":"")+'" style="grid-template-columns:repeat('+_n+',1fr)">'+out+'</div>') : '';
   }
 
   /* WHICH POT THIS COSTS. The whole point of the job card's works split is how
@@ -7341,11 +7388,12 @@ function openWLJob(key){
   var crewAssignHTML = (!isMgrRole() && mineJob && !isWorkLog(j) && !(acc&&acc.by)) ?
     ('<div class="sec"><div class="assignedto">👷 Assigned to <b>you</b>'+(acc&&acc.by?'':' · please accept above 🚨')+'</div></div>') : '';
   $("sheet").innerHTML=
-    '<div class="sheet-hd"><div style="flex:1"><div style="font-size:11px;font-weight:bold;letter-spacing:.4px;color:#ffd7b0">'+esc(j.vessel)+(j.list?(" · "+esc(j.list)):"")+(j.code?(' &nbsp;<span class="jcode">'+esc(j.code)+'</span>'):'')+catChip(j.category)+'</div>'+
-      '<h3 id="wlTitleH">'+num+'. '+esc(j.task||"(job)")+(wlCanFix(j)?(' <span class="hd-ed" title="Edit the task name" onclick="wlEditTitle(\''+esc(key)+'\')">✎</span>'):'')+'</h3></div><button class="closeb" onclick="closeSheet()">✕</button></div>'+
+    '<div class="sheet-hd"><div style="flex:1"><div style="font-size:11px;font-weight:bold;letter-spacing:.4px;color:#ffd7b0">'+esc(j.vessel)+
+        (isMgrRole()?((j.list?(" · "+esc(j.list)):"")+(j.code?(' &nbsp;<span class="jcode">'+esc(j.code)+'</span>'):'')+catChip(j.category)):'')+'</div>'+
+      '<h3 id="wlTitleH">'+(isMgrRole()?(num+'. '):'')+esc(j.task||"(job)")+(wlCanFix(j)?(' <span class="hd-ed" title="Edit the task name" onclick="wlEditTitle(\''+esc(key)+'\')">✎</span>'):'')+'</h3></div><button class="closeb" onclick="closeSheet()">✕</button></div>'+
     wlFactsHtml(j)+
     (function(){ if(!j.desc && !wlCanFix(j)) return '';
-      var b=j.desc?('<p class="body" id="wlDescText">'+esc(j.desc)+'</p>'):'<p class="body" id="wlDescText" style="color:var(--muted)">No description yet.</p>';
+      var b=j.desc?('<p class="body" id="wlDescText">'+linkify(esc(j.desc).replace(/\n/g,"<br>"))+'</p>'):'<p class="body" id="wlDescText" style="color:var(--muted)">No description yet.</p>';
       var ed=wlCanFix(j)?' <span class="wlnote-ed" style="cursor:pointer" onclick="wlEditDesc(\''+esc(key)+'\')">✎ Edit</span>':'';
       return '<div class="sec" id="wlDescSec"><h4>The job'+ed+'</h4>'+b+'</div>'; })()+
     // Where she is + how to get aboard — the first thing someone allocated a job
@@ -8097,7 +8145,7 @@ function fmtDateTime(ms){
 }
 /* ── @tag mentions ─────────────────────────────────────────── */
 var WLMENTIONS=[];   // names pending on the note being written
-function hlMentions(t){ return esc(t||"").replace(/\n/g,"<br>").replace(/@([A-Za-z][A-Za-z'’-]*(?:\s[A-Za-z][A-Za-z'’-]*)?)/g,'<span class="ment">@$1</span>'); }
+function hlMentions(t){ return linkify(esc(t||"").replace(/\n/g,"<br>")).replace(/@([A-Za-z][A-Za-z'’-]*(?:\s[A-Za-z][A-Za-z'’-]*)?)/g,'<span class="ment">@$1</span>'); }
 function fillTagPicker(){
   var p=$("tagPicker"); if(!p) return;
   var myName=(ME.name||"").toLowerCase().replace(/\s*\(test\)/,"").trim();
