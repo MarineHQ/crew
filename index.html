@@ -231,6 +231,9 @@
   .cmallb:active{background:#eef4fb}
   .cmallb.on{background:#0f766e;color:#fff;border-color:transparent}
   .cmlist{max-height:46vh;overflow-y:auto}
+  .wlsec.now .secstate.live{background:rgba(255,255,255,.28)}
+  .secstate.overdue{background:#b3261e;color:#fff}
+  .permono{font-family:ui-monospace,Menlo,monospace;font-size:11px;font-weight:800;opacity:.75;margin-left:6px}
   .secstate{font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;background:rgba(255,255,255,.22);border-radius:5px;padding:2px 7px;margin-left:8px;vertical-align:middle}
   .wlsec.old .secstate{background:rgba(26,43,92,.10)}
   .lstate{font-size:9px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;border-radius:5px;padding:2px 6px;margin-left:8px;vertical-align:middle;background:rgba(255,255,255,.22)}
@@ -1775,7 +1778,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-16·d</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-16·e</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -6116,7 +6119,9 @@ function renderJobs(){
   } else {
     list.forEach(function(j){ var g=allBoats?(j.list||((j.vessel||"Other")+" — Other jobs")):(j.list||"Other jobs"); if(!groups[g]){groups[g]=[];order.push(g); if(!(g in WLCLOSED)) WLCLOSED[g]=true;} groups[g].push(j); });
   }
-  el.innerHTML=renderOffer()+wlSections(order, groups);
+  // Unassigned goes UNDERNEATH the worklists, not above them (Trish, 16 Sep 2026):
+  // the months are the page; unassigned is the tray you go to when you want it.
+  el.innerHTML=wlSections(order, groups)+renderOffer();
 }
 /* One worklist, drawn as it always has been. Pulled out of renderJobs so the
    month / waiting / closed sections can each draw their own lists. */
@@ -6190,8 +6195,83 @@ function wlSection(key, title, count, cls, inner, dfltOpen, btn){
       '<span class="car">▾</span><h3>'+title+'</h3>'+(count?('<span class="n">'+count+'</span>'):'')+(btn||'')+'</div>'+
     '<div class="wlsecbody'+(open?"":" closed")+'">'+(inner||'<div class="wlnone">Nothing here.</div>')+'</div>';
 }
+/* ACROSS THE FLEET, BY MONTH (Trish, 16 Sep 2026) -------------------------------
+   "They're all scrambled all over the place as they come in. I want to identify
+    on the worklist page that these are last month's or the months before, and
+    these are current."
+
+   One boat already had months. All Yachts did not — it was every list on every
+   boat in whatever order they loaded, so nothing told you which months were
+   sitting there unclosed. Every list name carries its period ("Andiamo 0826 —
+   Bundaberg Work List"), so the months were already in the data; they just were
+   not being read.
+
+   Newest first, and each month says what it wants from you:
+     this month   orange  Current
+     last month   blue    Ready to close
+     older        grey + red tag   Overdue to close
+     no period    grey    No month   (Raised jobs, On hold, Zoho items)
+   Only this month opens by default; a month you open stays open. */
+function wlThisPeriod(){
+  var d=new Date();
+  return ("0"+(d.getMonth()+1)).slice(-2)+("0"+(d.getFullYear()%100)).slice(-2);
+}
+function wlPrevPeriod(p){
+  var mo=+p.slice(0,2), yr=+p.slice(2); mo--; if(mo<1){ mo=12; yr=(yr+99)%100; }
+  return ("0"+mo).slice(-2)+("0"+yr).slice(-2);
+}
+function wlPeriodOfList(name){
+  var m=/\b(\d{2})(\d{2})\b/.exec(name||""); if(!m) return "";
+  var mo=+m[1]; return (mo>=1&&mo<=12) ? (m[1]+m[2]) : "";
+}
+function wlPeriodLabel(p){
+  if(!p) return "No month";
+  var d=new Date(2000+(+p.slice(2)), +p.slice(0,2)-1, 1);
+  return d.toLocaleDateString("en-AU",{month:"long",year:"numeric"});
+}
+function wlFleetMonths(order, groups){
+  var now=wlThisPeriod(), last=wlPrevPeriod(now);
+  var byP={}, none=[];
+  order.forEach(function(g){
+    if(wlIsClosed(g, groups)) return;                     // closed months are the archive
+    var p=wlPeriodOfList(g);
+    if(!p){ none.push(g); return; }
+    (byP[p]=byP[p]||[]).push(g);
+  });
+  // Newest month first. 0126 is newer than 1225, so sort on year then month.
+  var periods=Object.keys(byP).sort(function(a,b){
+    return ((b.slice(2)+b.slice(0,2)) > (a.slice(2)+a.slice(0,2))) ? 1 : -1;
+  });
+  var html="";
+  periods.forEach(function(p){
+    var ls=byP[p];
+    var openN=ls.reduce(function(n,g){ return n+wlSplit(groups[g]).live.length; },0);
+    var boats={}; ls.forEach(function(g){ (groups[g]||[]).forEach(function(j){ if(j.vessel) boats[j.vessel]=1; }); });
+    var nB=Object.keys(boats).length;
+    var isNow=(p===now), isLast=(p===last);
+    var cls = isNow ? "now" : (isLast ? "wait" : "old");
+    var tag = isNow ? '<span class="secstate live">Current</span>'
+            : (isLast ? '<span class="secstate waiting">Ready to close</span>'
+                      : '<span class="secstate overdue">Overdue to close</span>');
+    var pj=esc(p.replace(/'/g,"\\'"));
+    // Close month is per boat, so across the fleet this offers the report and
+    // says how many boats are involved — you close each from its own page.
+    var btn='<button class="secbtn" onclick="event.stopPropagation();reportDlg(\''+pj+'\')">Report</button>';
+    html+=wlSection("fm"+p, wlPeriodLabel(p)+' <span class="permono">'+esc(p)+'</span>'+tag,
+                    openN+' open \u00b7 '+nB+(nB===1?' boat':' boats'), cls,
+                    ls.map(function(g){ return wlGroupHTML(g, groups); }).join(""), isNow, btn);
+  });
+  if(none.length){
+    var nN=none.reduce(function(n,g){ return n+wlSplit(groups[g]).live.length; },0);
+    html+=wlSection("fmnone", 'No month <span class="secstate">Not on a month list</span>',
+                    nN+' open', 'old', none.map(function(g){ return wlGroupHTML(g, groups); }).join(""), false);
+  }
+  return html || '<div class="wlnone">Nothing here.</div>';
+}
 function wlSections(order, groups){
   var single = isMgrRole() && CURVESSEL && CURVESSEL!=="__all__" && !SCHEDVIEW;
+  // All Yachts, director: months, newest first. Crew and Schedule keep the flat list.
+  if(!single && isMgrRole() && !SCHEDVIEW && CURVESSEL==="__all__") return wlFleetMonths(order, groups);
   if(!single || !LISTGROUPS) return order.filter(function(g){ return !wlIsClosed(g, groups); }).map(function(g){ return wlGroupHTML(g, groups); }).join("");
   var buckets={current:[], waiting:[], earlier:[], closed:[], other:[], foreign:[]};
   var vlc=(CURVESSEL||"").toLowerCase();
@@ -6728,7 +6808,13 @@ function cmGo(){
    so leaving it expanded means scrolling past it every single time to reach the
    lists you actually came for. The count stays on the header, so nothing is
    hidden — and whichever way you last left it is remembered per person. */
+/* ALWAYS starts collapsed (Trish, 16 Sep 2026: "I always want them not
+   expanded"). Opening it is a choice you make on the day, not a setting that
+   follows you around — fourteen unassigned tasks unfurled above the worklists
+   is what made the page unreadable. */
 var OFFERCLOSED=(function(){
+  try{ localStorage.removeItem("mhq_offers_open"); }catch(e){}
+  if(true) return true;
   try{ var v=localStorage.getItem("mhq_offers_open"); return v==="1" ? false : true; }
   catch(e){ return true; }
 })();
@@ -6761,7 +6847,8 @@ function renderOffer(){
     var due=j.dueTs?('<span class="duechip'+dueCls(j.dueTs,false)+'">📅 '+esc(dayLabel(j.dueTs))+(j.dueTime?(' '+esc(fmtTime12(j.dueTime))):'')+'</span>'):'';
     var kJs=(j.key||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
     var acts = mgr
-      ? '<button class="offerbtn" onclick="openWLJob(\''+esc(kJs)+'\')">Set up — assign or offer ›</button>'
+      ? '<button class="offerbtn" onclick="wlMoveList(\''+esc(kJs)+'\')">＋ Onto a worklist</button>'
+        + '<button class="offerask" onclick="openWLJob(\''+esc(kJs)+'\')">Set up ›</button>'
       : ('<button class="offerbtn" onclick="crewClaim(\''+esc(kJs)+'\')">✓ Accept</button>'+
          '<button class="offerask" onclick="openWLJob(\''+esc(kJs)+'\')">Ask / details ›</button>');
     var badge = mgr ? (j.offer
