@@ -245,15 +245,33 @@
   .lstate{font-size:9px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;border-radius:5px;padding:2px 6px;margin-left:8px;vertical-align:middle;background:rgba(255,255,255,.22)}
   /* A list INSIDE a section is contents, not a heading — orange on orange made the
      month and its lists read as the same thing. Pale inside, so the hierarchy shows. */
-  .wlsecbody .wlacc{background:#eef2f6;color:var(--navy);box-shadow:none;border:1px solid var(--line);margin:4px 0 9px}
-  .wlsecbody .wlacc .n{background:rgba(26,43,92,.10);color:var(--navy)}
+  /* A LIST BANNER IS NOT A TASK (Trish, 16 Sep 2026). Expanded, a pale banner
+     sitting between white task cards read as one more task, so you lost where
+     one boat's list ended and the next began. The banner is solid navy with the
+     boat's name on it, and the tasks underneath are indented inside a rail that
+     runs down from it — you can see at a glance what belongs to what. */
+  .wlsecbody .wlacc{background:var(--navy);color:#fff;box-shadow:0 2px 8px rgba(26,43,92,.20);
+    border:0;border-left:5px solid var(--orange);border-radius:11px;margin:16px 0 0;padding:12px 14px}
+  /* Chips were squeezing the title until a two-word boat broke across three
+     lines ("Ara / Roa / Work List"). The name gets the room; the chips wrap. */
+  .wlsecbody .wlacc{flex-wrap:wrap}
+  .wlsecbody .wlacc h3{font-size:14px;font-weight:800;flex:1 1 50%;min-width:50%}
+  .wlsecbody .wlacc h3 > b{white-space:nowrap}
+  /* Smaller chips so a boat with two of them still fits on one line. */
+  .wlsecbody .wlacc .n{font-size:11px;padding:2px 7px}
+  .wlsecbody .wlacc h3 b{font-weight:900}
+  .wlsecbody .wlacc .wlsub{display:block;font-size:11.5px;font-weight:600;opacity:.82;margin-top:1px}
+  .wlsecbody .wlbody{margin:0 0 4px 9px;padding:11px 0 1px 11px;border-left:2px solid #dbe3ec}
+  .wlsecbody .wlbody.closed{display:none}
+  .wlsecbody .wlacc .n{background:rgba(255,255,255,.18);color:#fff}
   .wlsecbody .wlacc .n.newn{background:var(--orange)!important;color:#fff!important}
-  .wlsecbody .wlacc .n.tosign{background:#fff!important;color:#8a5a12!important}
+  .wlsecbody .wlacc .n.tosign{background:#ffd7b0!important;color:#7a4a08!important}
+  .wlsecbody .wlacc .wledit{color:#ffd7b0}
   .wlacc .n.owned{background:#dbeafe;color:#1d4ed8}
   .wlsecbody .wlacc .n.owned{background:#dbeafe!important;color:#1d4ed8!important}
-  .wlsecbody .wlacc .car{color:var(--orange)}
-  .wlsecbody .wlacc .lstate{background:rgba(26,43,92,.10)}
-  .wlsecbody .wlacc .lstate.waiting{background:rgba(99,118,138,.16);color:var(--muted)}
+  .wlsecbody .wlacc .car{color:#ffd7b0}
+  .wlsecbody .wlacc .lstate{background:rgba(255,255,255,.18);color:#fff}
+  .wlsecbody .wlacc .lstate.waiting{background:rgba(255,255,255,.14);color:#e6ecf2}
   .wlsecbody .wlacc .wledit{color:var(--navy)}
   .wlacc.duewl{background:linear-gradient(135deg,#c0392b,#e05a3f);box-shadow:0 4px 12px rgba(192,57,43,.26)}
   .duenote{font-size:12px;color:var(--muted);line-height:1.5;margin:0 2px 9px}
@@ -1784,7 +1802,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-16·f</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-16·h</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -6174,13 +6192,31 @@ function wlGroupHTML(g, groups){
     // happens to be loaded in memory.
     var rec=isMgrRole()?LISTINFO[(g||"").toLowerCase()]:null, lst=rec&&rec.state;
     var stateTag = lst ? ('<span class="lstate '+lst+'">'+(lst==="live"?"Live":(lst==="waiting"?"Waiting":"Closed"))+'</span>') : '';
-    // inside a month the heading already carries the boat and period
+    /* Inside a fleet month the month is already the section heading, so the
+       list banner leads with the BOAT and drops the period: "Andiamo —
+       Bundaberg Work List", boat first and bold. Trish, 16 Sep 2026: with a
+       list expanded, the next boat's banner was reading as just another task. */
     var shown = (rec&&rec.sub&&wlSectionOf(g)==="current") ? rec.sub : g;
+    var boatHd = "";
+    if(WLFLEET){
+      var pp=wlPeriodOfList(g);
+      var bare=pp ? g.replace(new RegExp("\\s*"+pp+"\\s*")," ").replace(/\s{2,}/g," ").trim() : g;
+      var bBoat=(jobs[0]&&jobs[0].vessel)||bare;
+      /* The convention is "<Vessel> <MMYY> \u2014 <List name>", so the list name is
+         what follows the LAST spaced em-dash. Taking the first one broke on
+         "Other \u2014 Island gypsy \u2014 General"; subtracting the vessel string broke on
+         "Krystyna \u2014 General", whose boat is really "SS88 - Krystyna". A plain
+         hyphen inside a boat's name is left alone \u2014 only spaced dashes split. */
+      var parts=bare.split(/\s+[\u2014\u2013]\s+/);
+      var bSub=(parts.length>1) ? parts[parts.length-1].trim() : "";
+      if(bSub && bSub.toLowerCase()===bBoat.toLowerCase()) bSub="";
+      boatHd='\ud83d\udee5 <b>'+esc(bBoat)+'</b>'+(bSub?('<span class="wlsub">'+esc(bSub)+'</span>'):'');
+    }
     var _act=jobs.filter(function(j){ return (j.status||'').toLowerCase()!=='cancelled'; });
     var _shared=_act.filter(function(j){ return j.shared; }).length;
     var shareTag=(isMgrRole()&&_shared)?('<span class="n owned" title="Tasks the owner can see">👤 '+(_shared>=_act.length?'all shared':(_shared+' shared'))+'</span>'):'';
     return '<div class="wlacc'+collapsed+'" onclick="toggleWL(\''+esc(g)+'\')"><span class="car">▾</span>'+
-      '<h3>'+esc(shown)+stateTag+'</h3>'+(newN?'<span class="n newn">'+newN+' new</span>':'')+'<span class="n">'+openN+' open</span>'+
+      '<h3>'+(boatHd||esc(shown))+stateTag+'</h3>'+(newN?'<span class="n newn">'+newN+' new</span>':'')+'<span class="n">'+openN+' open</span>'+
       ((isMgrRole()&&toSign.length)?('<span class="n tosign">'+toSign.length+' to sign off</span>'):'')+shareTag+editIcon+'</div>'+
       noteRow+editMenu+
       '<div class="wlbody'+bodyC+'" data-g="'+esc(g)+'">'+whereRow+cards+'</div>';
@@ -6278,7 +6314,12 @@ function cmPickGo(vessel){
   closeModal("cmPickModal");
   closeMonthDlg(CMPICK.period, vessel);
 }
+var WLFLEET=false;
 function wlFleetMonths(order, groups){
+  WLFLEET=true;
+  try{ return wlFleetMonthsInner(order, groups); } finally { WLFLEET=false; }
+}
+function wlFleetMonthsInner(order, groups){
   var now=wlThisPeriod(), last=wlPrevPeriod(now);
   var byP={}, none=[];
   order.forEach(function(g){
