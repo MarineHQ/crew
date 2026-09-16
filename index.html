@@ -1847,7 +1847,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-17·d</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-17·e</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -7738,7 +7738,11 @@ function openWLJob(key){
     (_imgDocs.length?('<div class="photos">'+_imgDocs.map(function(dd){return '<div class="ph"><img src="'+esc(driveImg(dd.url))+'" alt="" loading="lazy" onerror="this.classList.add(\'imgerr\')" onclick="window.open(\''+esc(driveView(dd.url))+'\',\'_blank\')" style="cursor:pointer"><small>'+esc(dd.by?firstName(dd.by):(dd.name||"photo"))+(dd.at?(' · '+relTime(dd.at)):'')+'</small>'+(isMgrRole()?('<button class="tophoto" title="This is a photo \u2014 move it into Photos" onclick="event.stopPropagation();wlAttToPhoto(\''+esc(key)+'\',\''+esc(String(dd.url).replace(/'/g,"\\'"))+'\')">\u2192 Photos</button>'):'')+(wlMayDel(dd)?'<button class="attdel" title="Remove" onclick="event.stopPropagation();wlDelAtt(\''+esc(key)+'\',\''+esc(dd.url)+'\',\'doc\')">✕</button>':'')+(isMgrRole()?lanePill(dd.aud):'')+'</div>';}).join("")+'</div>'):'')
     +(_fileDocs.length?_fileDocs.map(function(dd){return '<div class="docrowitem"><a class="docitem" href="'+esc(driveView(dd.url))+'" target="_blank" rel="noopener"><span class="ic">📄</span><span class="docmain">'+esc(dd.name||"document")+(dd.by?('<span class="docby">'+esc(firstName(dd.by))+(dd.at?(' · '+fmtDateTime(dd.at)):'')+'</span>'):'')+'</span></a>'+(wlMayDel(dd)?'<button class="attdel doc" title="Remove" onclick="wlDelAtt(\''+esc(key)+'\',\''+esc(dd.url)+'\',\'doc\')">✕</button>':'')+(isMgrRole()?lanePill(dd.aud):'')+'</div>';}).join(""):'')
     +'';
-  var cmtHTML=(j.comments&&j.comments.length ? j.comments.map(function(cm){
+  /* Oldest first, by when it was SAID — not the order it happens to sit in the
+     cell. A note moved from another job carries its original date, so array
+     order and real order stopped agreeing (17 Sep 2026). */
+  var _cmts=(j.comments||[]).slice().sort(function(a,b){ return (parseInt(a.at,10)||0)-(parseInt(b.at,10)||0); });
+  var cmtHTML=(_cmts.length ? _cmts.map(function(cm){
     var mgr=/director|manager/i.test(cm.role||"");
     var tag=(cm.mentions&&cm.mentions.length)?'<span class="cmt-tag">🔔 '+cm.mentions.map(function(n){return esc(firstName(n));}).join(", ")+'</span>':'';
     var aud=(cm.aud==="owner"||cm.aud==="dir")?cm.aud:"crew";
