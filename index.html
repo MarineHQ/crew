@@ -293,6 +293,8 @@
   .dnacc .n{background:rgba(26,43,92,.10);border-radius:12px;font-size:11.5px;font-weight:bold;padding:2px 8px}
   .dnacc .car{transition:transform .2s;font-size:13px;color:var(--orange)} .dnacc.closed .car{transform:rotate(-90deg)}
   .dnacc.sign{background:#fdf1e3;border-color:#f2d5b0;color:#8a5a12} .dnacc.sign .n{background:rgba(138,90,18,.12)}
+  /* Unassigned: needs a decision, so it reads blue-grey — not the green of done work. */
+  .dnacc.unass{background:#eef2f9;border-color:#ccd8ea;color:#31456e} .dnacc.unass .n{background:rgba(49,69,110,.12)}
   .dnbody.closed{display:none}
   .wldone-none{background:#f6f9f6;border:1px dashed #cfe0d4;border-radius:11px;padding:13px;text-align:center;color:var(--muted);font-size:12.5px;margin-bottom:9px}
   .tosign{background:#fff!important;color:#8a5a12!important}
@@ -1847,7 +1849,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-17·f</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-17·g</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -6279,9 +6281,10 @@ function wlSplit(jobs){
 function doneBlock(g, kind, arr, label){
   if(!arr.length) return "";
   // Filtering to "Done" means you came looking for it — open the section for them.
-  var k=g+"|"+kind, open=(k in WLDONE) ? !!WLDONE[k] : (JOBFILTER==="Done");
+  // The Unassigned fold is not a "done" section: it never auto-opens.
+  var k=g+"|"+kind, open=(k in WLDONE) ? !!WLDONE[k] : (kind!=="unass" && JOBFILTER==="Done");
   var kJs=k.replace(/\\/g,"\\\\").replace(/'/g,"\\'");
-  return '<div class="dnacc'+(kind==="sign"?" sign":"")+(open?"":" closed")+'" onclick="event.stopPropagation();toggleDone(\''+esc(kJs)+'\')">'+
+  return '<div class="dnacc'+(kind==="sign"?" sign":"")+(kind==="unass"?" unass":"")+(open?"":" closed")+'" onclick="event.stopPropagation();toggleDone(\''+esc(kJs)+'\')">'+
     '<span class="car">&#9662;</span><h4>'+label+'</h4><span class="n">'+arr.length+'</span></div>'+
     '<div class="dnbody'+(open?"":" closed")+'">'+arr.map(function(j,i){ return wlJobCard(j,i); }).join("")+'</div>';
 }
@@ -6336,8 +6339,23 @@ function wlGroupHTML(g, groups){
     var newN=live.filter(jobRecent).length;
     var collapsed = WLCLOSED[g] ? " closed":"", bodyC = WLCLOSED[g] ? " closed":"";
     WLNUM={};  jobs.forEach(function(x,i){ if(x&&x.key) WLNUM[x.key]=i+1; });
-    var cards=live.map(function(x,i){ return wlJobCard(x,i); }).join("");
-    if(!live.length) cards='<div class="wldone-none">'+(jobs.length?'&#10003; Everything on this list is done &mdash; it&rsquo;s all filed below.':'Nothing on this list yet.')+'</div>';
+    /* Directors and ops get an UNASSIGNED fold at the foot of each list — work
+       raised on this boat that nobody is on yet (Trish, 17 Sep 2026). It sits
+       under the assigned work, opens closed, and is separate from the fleet-wide
+       Unassigned section further down the screen. Crew never see it: their feed
+       is their own jobs, and who else is on what is management's business. */
+    var _mineWork=live, _unass=[];
+    if(isMgrRole() && !SCHEDVIEW){
+      _unass = live.filter(function(x){ return !((x.allocatedTo||"").toString().trim()); });
+      _mineWork = live.filter(function(x){ return !!((x.allocatedTo||"").toString().trim()); });
+    }
+    var cards=_mineWork.map(function(x,i){ return wlJobCard(x,i); }).join("");
+    if(!_mineWork.length){
+      cards = _unass.length
+        ? '<div class="wldone-none">Nothing handed out yet &mdash; '+_unass.length+' waiting below.</div>'
+        : '<div class="wldone-none">'+(jobs.length?'&#10003; Everything on this list is done &mdash; it&rsquo;s all filed below.':'Nothing on this list yet.')+'</div>';
+    }
+    cards+=doneBlock(g,"unass",_unass,'&#128100; Unassigned &mdash; nobody on it yet');
     cards+=doneBlock(g,"sign",toSign,(isMgrRole()?'&#10003; Done &mdash; waiting on sign-off':'&#10003; Done &mdash; with Marine HQ'));
     cards+=doneBlock(g,"filed",filed,'&#128193; Completed &amp; filed');
     var note=(LISTMETA&&LISTMETA[g])||"";
