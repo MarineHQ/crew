@@ -1860,7 +1860,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-17·j</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-17·k</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -6590,16 +6590,25 @@ function cmPickOpen(period){
      it listed Krystyna under August when her only August list had already gone —
      and then the close found nothing to do and sat there. The records are the
      same thing the close itself works from, so the two can't disagree. */
+  /* A boat whose month is ALREADY CLOSED must not be offered again. Its finished
+     work stays on the closed list for the record, and the jobs loop below was
+     quietly re-admitting the boat on the strength of those rows — so Andiamo,
+     AT3 and Krystyna were being offered for an August they had already closed
+     (Trish, 17 Sep 2026). allClosed[v] stays true only while every list that
+     boat has on this month is closed. */
+  var allClosed={};
   (FLEETLISTS||[]).forEach(function(r){
-    if((r.state||"")==="closed") return;
     var per=(r.period||"")||wlPeriodOfList(r.list||"");
     if(per!==period) return;
     var v=(r.vessel||"").trim(); if(!v) return;
+    if((r.state||"")==="closed"){ if(!(v in allClosed)) allClosed[v]=true; return; }
+    allClosed[v]=false;
     if(!boats[v]) boats[v]={vessel:v, open:0, total:0, known:false};
   });
   (CREWJOBS||[]).forEach(function(j){
     var g=(j.list||""); if(wlPeriodOfList(g)!==period) return;
     var v=j.vessel||""; if(!v) return;
+    if(allClosed[v]===true) return;                 // that month is already closed for this boat
     if(!boats[v]) boats[v]={vessel:v, open:0, total:0, known:false};
     boats[v].known=true; boats[v].total++;
     if(hubBucket(j.status)!=="Done" && (j.status||"").toLowerCase()!=="cancelled") boats[v].open++;
