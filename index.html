@@ -1847,7 +1847,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-17·e</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-17·f</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -10269,6 +10269,33 @@ function openRaise(){
   $("raiseModal").classList.add("show");
 }
 var RJSENT=[];                       // what went in during this sitting
+/* Where a raised job belongs: the boat's own month list, not one fleet-wide
+   "Raised jobs" pile (Trish, 17 Sep 2026). "General" wins if the boat has one,
+   otherwise the live list for this month carrying the most work — the same rule
+   the backend uses (wlmMonthListFor_), so the two agree. */
+function rjTargetList(vessel){
+  var p=wlThisPeriod(), v=(vessel||"").toLowerCase();
+  var best="", bestN=-1;
+  (FLEETLISTS||[]).forEach(function(r){
+    if((r.vessel||"").toLowerCase()!==v) return;
+    if((r.period||"")!==p) return;
+    if((r.state||"")==="closed") return;
+    if(wlListIsWaiting(r.list)) return;                 // never a parked list
+    var score=/^general$/i.test((r.sub||"").trim()) ? 1e6 : ((r.total||r.open||0)+1);
+    if(score>bestN){ bestN=score; best=r.list||""; }
+  });
+  return best || (vessel+" "+p+" — General");
+}
+/* Until the backend files it there itself, a director's raise is moved onto the
+   boat's list and left unassigned — raising a job is not doing it. */
+function rjPlace(r, vessel){
+  if(!r || !r.key || !isMgrRole()) return Promise.resolve();
+  var want=rjTargetList(vessel);
+  if(!want || r.list===want) return Promise.resolve();
+  return apiPost({action:"crewJobList", email:ME.email, code:ME.code, jobKey:r.key, list:want})
+    .then(function(){ return apiPost({action:"crewJobAssign", email:ME.email, code:ME.code, jobKey:r.key, allocatedTo:""}); })
+    .catch(function(){});
+}
 function submitRaise(again){
   var t=($("r_title").value||"").trim(); if(!t){ toast("Give the job a short title"); return; }
   var vsel=$("r_vessel").value, vessel;
@@ -10280,6 +10307,7 @@ function submitRaise(again){
   apiPost({action:"crewRaiseJob", email:ME.email, code:ME.code, vessel:vessel, title:t, desc:desc, matchNum:(RJNUM||"")}).then(function(r){
     if(!r||!r.ok){ toast((r&&r.error)||"Couldn’t raise the job"); return; }
     STAGED["r_ph"]=[]; STAGED["r_dc"]=[];              // handed to the upload — don't revoke the previews
+    rjPlace(r, vessel).then(function(){ loadJobs(); });
     afterCreate(r.key, files, rdocs);
     if(again){
       /* Stay here with the boat still chosen. The title, detail and photos clear
