@@ -1048,17 +1048,20 @@
   .loadingbox{display:flex;align-items:center;justify-content:center;gap:9px;padding:26px 10px;color:var(--muted);font-size:14px}
   .spin{width:16px;height:16px;border:2px solid var(--line);border-top-color:var(--orange);border-radius:50%;display:inline-block;animation:spin .7s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
-  .lightbox{position:fixed;inset:0;background:rgba(8,12,24,.93);z-index:200;display:none;align-items:center;justify-content:center;padding:16px}
+  .lightbox{position:fixed;inset:0;background:rgba(8,12,24,.93);z-index:200;display:none;justify-content:center;
+    overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;
+    padding:calc(66px + env(safe-area-inset-top)) 16px calc(28px + env(safe-area-inset-bottom))}
   .lightbox.show{display:flex}
-  .lightbox img{max-width:100%;max-height:100%;object-fit:contain;border-radius:8px}
-  .lightclose{position:absolute;top:calc(14px + env(safe-area-inset-top));right:16px;width:40px;height:40px;border-radius:50%;border:0;background:rgba(255,255,255,.16);color:#fff;font-size:19px;font-weight:bold;cursor:pointer;z-index:3}
-  .lightnav{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:64px;border:0;background:rgba(255,255,255,.14);color:#fff;font-size:30px;line-height:1;cursor:pointer;z-index:3;border-radius:10px}
+  /* room for the bar underneath, and the picture never hides the ✕ */
+  .lightbox img{max-width:100%;max-height:58vh;object-fit:contain;border-radius:8px}
+  .lightclose{position:fixed;top:calc(12px + env(safe-area-inset-top));right:14px;width:44px;height:44px;border-radius:50%;border:1.5px solid rgba(255,255,255,.55);background:rgba(10,14,26,.82);color:#fff;font-size:20px;font-weight:bold;cursor:pointer;z-index:5;box-shadow:0 2px 10px rgba(0,0,0,.45)}
+  .lightnav{position:fixed;top:44%;transform:translateY(-50%);width:44px;height:64px;border:0;background:rgba(255,255,255,.14);color:#fff;font-size:30px;line-height:1;cursor:pointer;z-index:4;border-radius:10px}
   .lightnav.prev{left:8px} .lightnav.next{right:8px}
-  .lightstage{display:flex;flex-direction:column;align-items:center;gap:12px;max-width:100%;max-height:100%}
+  .lightstage{display:flex;flex-direction:column;align-items:center;gap:12px;max-width:100%;margin:auto 0;padding-bottom:10px}
   .lightbar{width:100%;max-width:520px}
   .lightmeta{color:#dfe6f2;font-size:12.5px;text-align:center;margin-bottom:8px}
   /* The note thread under a photo in the viewer. */
-  .lightnotes{max-height:34vh;overflow-y:auto;margin-bottom:8px;display:flex;flex-direction:column;gap:6px}
+  .lightnotes{margin-bottom:8px;display:flex;flex-direction:column;gap:6px}
   .lbn-empty{font-size:12px;color:#c9d3de}
   .lbn{background:rgba(255,255,255,.10);border-radius:9px;padding:7px 9px;border-left:3px solid rgba(255,255,255,.25)}
   .lbn.lane-owner{border-left-color:var(--orange)} .lbn.lane-dir{border-left-color:#c0392b}
@@ -1099,7 +1102,7 @@
   .lightcaprow{display:flex;gap:8px}
   .lightcaprow input{flex:1;border:0;border-radius:9px;padding:11px 12px;font-size:14px;font-family:inherit}
   .lightcaprow button{border:0;border-radius:9px;background:var(--orange);color:#fff;font-weight:bold;font-size:14px;padding:0 16px;cursor:pointer}
-  .lightcount{position:absolute;top:calc(20px + env(safe-area-inset-top));left:16px;color:#fff;font-size:13px;font-weight:bold;background:rgba(0,0,0,.3);border-radius:12px;padding:3px 10px;z-index:3}
+  .lightcount{position:fixed;top:calc(20px + env(safe-area-inset-top));left:16px;color:#fff;font-size:13px;font-weight:bold;background:rgba(0,0,0,.3);border-radius:12px;padding:3px 10px;z-index:3}
   .ph{position:relative}
   .phcap{position:absolute;top:52px;right:4px;left:auto;font-size:10px;font-weight:700;color:#fff;background:rgba(0,0,0,.55);border-radius:6px;padding:1px 5px}
   /* The note used to be a hover tooltip, which on a phone meant invisible. */
@@ -1844,7 +1847,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-17·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-17·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -5949,16 +5952,21 @@ function lbAfterNotes(r){
   renderLightbox(); if(openJobId===LB_KEY) openWLJob(LB_KEY);
   return true;
 }
+var LBNOTEBUSY=false;
 function lbAddNote(){
   var p=lbPhotoOk(); if(!p) return;
   var el=$("lightCap"), text=(el.value||"").trim(); if(!text){ toast("Type the note first"); return; }
+  if(LBNOTEBUSY) return;                       // one note per tap
+  LBNOTEBUSY=true;
+  var btn=document.querySelector(".lightcaprow button"); if(btn) btn.disabled=true;
+  function _done(){ LBNOTEBUSY=false; if(btn) btn.disabled=false; }
   apiPost({action:"crewJobPhotoNote", email:ME.email, code:ME.code, jobKey:LB_KEY, url:p.url,
            text:text, aud:LBSIDE, mentions:LBMENTIONS})
     .then(function(r){
       if(lbAfterNotes(r)) toast(LBMENTIONS.length ? "✓ Note added · they’ve been told" : "✓ Note added");
-      LBMENTIONS=[]; el.value=""; lbRenderTags();
+      LBMENTIONS=[]; el.value=""; lbRenderTags(); _done();
     })
-    .catch(function(){ toast("Couldn’t connect"); });
+    .catch(function(){ toast("Couldn’t connect"); _done(); });
 }
 function lbEditNote(at){
   var box=document.getElementById("lbntx-"+at), wrap=document.getElementById("lbn-"+at); if(!box||!wrap) return;
@@ -6354,20 +6362,28 @@ function wlGroupHTML(g, groups){
        list banner leads with the BOAT and drops the period: "Andiamo —
        Bundaberg Work List", boat first and bold. Trish, 16 Sep 2026: with a
        list expanded, the next boat's banner was reading as just another task. */
-    /* The month is always written on the section heading above, so the list
-       banner never repeats it (Trish, 16 Sep 2026: "we don't need 0926 any
-       more"). Crew, who get a flat list with no headings, keep it. */
+    /* EVERY list banner carries its month (Trish, 17 Sep 2026: "I want every
+       work list to have it — Andiamo 0926, Krystyna 0926, Ara Roa 0926").
+       It was stripped on 16 Sep because the month is also the section heading
+       above; with a long month open you cannot see that heading, and every
+       banner read as if it belonged to September. The month rides on the
+       banner itself now. */
     var shown = (rec&&rec.sub&&wlSectionOf(g)==="current") ? rec.sub : g;
-    if(isMgrRole() && !SCHEDVIEW && shown===g){
+    var shownP = "";
+    if(isMgrRole() && !SCHEDVIEW){
       var sp=wlPeriodOfList(g);
-      if(sp) shown=g.replace(new RegExp("\\s*"+sp+"\\s*")," ").replace(/\s{2,}/g," ")
-                    .replace(/\s+[\u2014\u2013]\s*$/,"").trim();
+      if(sp){
+        shownP = sp;
+        if(shown===g) shown=g.replace(new RegExp("\\s*"+sp+"\\s*")," ").replace(/\s{2,}/g," ")
+                              .replace(/\s+[\u2014\u2013]\s*$/,"").trim();
+      }
     }
     var boatHd = "";
     if(WLFLEET){
       var pp=wlPeriodOfList(g);
       var bare=pp ? g.replace(new RegExp("\\s*"+pp+"\\s*")," ").replace(/\s{2,}/g," ").trim() : g;
       var bBoat=(jobs[0]&&jobs[0].vessel)||bare;
+      var bPer=pp||"";
       /* The convention is "<Vessel> <MMYY> \u2014 <List name>", so the list name is
          what follows the LAST spaced em-dash. Taking the first one broke on
          "Other \u2014 Island gypsy \u2014 General"; subtracting the vessel string broke on
@@ -6376,13 +6392,14 @@ function wlGroupHTML(g, groups){
       var parts=bare.split(/\s+[\u2014\u2013]\s+/);
       var bSub=(parts.length>1) ? parts[parts.length-1].trim() : "";
       if(bSub && bSub.toLowerCase()===bBoat.toLowerCase()) bSub="";
-      boatHd='<b>'+esc(bBoat)+'</b>'+(bSub?('<span class="wlsub">'+esc(bSub)+'</span>'):'');
+      // "Andiamo 0926" — boat and month together, which is how she says it.
+      boatHd='<b>'+esc(bBoat)+(bPer?(' '+esc(bPer)):'')+'</b>'+(bSub?('<span class="wlsub">'+esc(bSub)+'</span>'):'');
     }
     var _act=jobs.filter(function(j){ return (j.status||'').toLowerCase()!=='cancelled'; });
     var _shared=_act.filter(function(j){ return j.shared; }).length;
     var shareTag=(isMgrRole()&&_shared)?('<span class="n owned" title="Tasks the owner can see">👤 '+(_shared>=_act.length?'all shared':(_shared+' shared'))+'</span>'):'';
     return '<div class="wlacc'+collapsed+'" onclick="toggleWL(\''+esc(g)+'\')"><span class="car">▾</span>'+
-      '<h3>'+(boatHd||esc(shown))+stateTag+'</h3>'+(newN?'<span class="n newn">'+newN+' new</span>':'')+'<span class="n">'+openN+' open</span>'+
+      '<h3>'+(boatHd||(esc(shown)+(shownP?('<span class="permono">'+esc(shownP)+'</span>'):"")))+stateTag+'</h3>'+(newN?'<span class="n newn">'+newN+' new</span>':'')+'<span class="n">'+openN+' open</span>'+
       ((isMgrRole()&&toSign.length)?('<span class="n tosign">'+toSign.length+' to sign off</span>'):'')+shareTag+editIcon+'</div>'+
       noteRow+editMenu+
       '<div class="wlbody'+bodyC+'" data-g="'+esc(g)+'">'+whereRow+cards+'</div>';
