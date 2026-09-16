@@ -5307,7 +5307,7 @@ function loadOwnerPreview(vessel){
     var html='<div class="ownerhd">👁️ Seeing <b>'+esc(vessel)+'</b> exactly as the owner does — only works you\'ve shared ('+jobs.length+').</div>';
     if(!jobs.length){ html+='<div class="empty">Nothing shared with this owner yet.<br>Approve a completed job and it appears here.</div>'; }
     if(done.length){ html+='<div class="listhd">✓ Works completed ('+done.length+')</div>'+done.map(ownerCard).join(""); }
-    if(open.length){ html+='<div class="listhd">In progress / requested ('+open.length+')</div>'+open.map(ownerCard).join(""); }
+    if(open.length){ html+='<div class="listhd">In hand / raised ('+open.length+')</div>'+open.map(ownerCard).join(""); }
     el.innerHTML=html;
   }).catch(function(){ el.innerHTML='<div class="empty">Couldn’t connect.</div>'; });
 }
@@ -6205,7 +6205,7 @@ function renderSegBody(){
 }
 function wlJobCard(j, idx, noNum){
     var b=hubBucket(j.status), done=b==="Done", cls=hubCls(b);
-    if((j.status||"").toLowerCase()==="requested"){ b="Requested"; cls="req"; done=false; }
+    if((j.status||"").toLowerCase()==="requested"){ b="Raised"; cls="req"; done=false; }
     var np=(j.photos&&j.photos.length)||0, hasNote=!!(j.notes&&j.notes.trim()), nd=(j.docs&&j.docs.length)||0;
     var codeChip = j.code ? ' <span class="jcode'+(j.standard==="Boat-specific"?" bs":"")+'">'+esc(j.code)+'</span>' : '';
     codeChip += catChip(j.category);
@@ -7660,7 +7660,7 @@ function openWLJob(key){
   var isReq=(j.status||"").toLowerCase()==="requested";
   var reqBlock = !isReq ? '' : (isMgrRole()
     ? '<div class="sec"><h4>New request</h4><p class="body" style="font-size:13px;color:var(--muted);margin-bottom:8px">Raised by crew — approve to make it an active job on the worklist.</p><button class="jobbtn complete" onclick="wlSetStatus(\''+esc(key)+'\',\'To do\')">✓ Approve — activate this job</button></div>'
-    : '<div class="sec"><div class="apprOn" style="background:#fdf3e3;color:#8a5a12;border-color:#f0dcb8">⏳ Requested — waiting for Marine HQ to approve.</div></div>');
+    : '<div class="sec"><div class="apprOn" style="background:#fdf3e3;color:#8a5a12;border-color:#f0dcb8">⏳ Raised — waiting for Marine HQ to approve.</div></div>');
   // Per ITEM, not per job: your own upload is yours to remove even after the
   // job has been shared with the owner, and someone else's never is (unless
   // you're a director). See wlMayDel above.
