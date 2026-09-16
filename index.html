@@ -1828,7 +1828,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-16·p</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-16·q</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2953,6 +2953,43 @@ function enterReal(crew, shift, quiet){
 // Stay signed in on this device (90-day style) — auto sign-in if remembered.
 // Marine HQ controls (test account + onboarding) only on the admin URL — crew get a clean login.
 (function initAdmin(){ try{ if(/[?&#]admin/i.test(location.href)){ var d=document.getElementById("demoBox"); if(d) d.classList.remove("hidden"); } }catch(_){} })();
+/* THE APP UPDATES ITSELF (Trish, 16 Sep 2026: "hasn't updated on the app though").
+   Everything was pushed and GitHub Pages was serving the new build — her phone
+   was holding the old HTML. There is no service worker to blame; it is the
+   ordinary browser cache, and the only cure on offer was a "tap to update" link
+   at the very bottom of the page, which nobody scrolls to.
+
+   So the app checks for itself. Shortly after boot it fetches its own page with
+   a cache-buster, reads the build stamp out of it, and if the published build
+   differs from the one running, reloads once. A sessionStorage flag makes it
+   ONCE per session — if the two somehow never agree, you get one wasted reload,
+   not a loop. Quiet on success: the only thing anyone notices is that the app is
+   current. */
+function mhqRunningBuild(){
+  var el=document.getElementById("buildStamp"); if(!el) return "";
+  var b=el.querySelector("b"); return b ? (b.textContent||"").trim() : "";
+}
+function mhqCheckForUpdate(){
+  var mine=mhqRunningBuild(); if(!mine) return;
+  var url=location.pathname+"?v="+Date.now();
+  fetch(url, { cache:"no-store" }).then(function(r){ return r.ok ? r.text() : ""; }).then(function(html){
+    if(!html) return;
+    var m=/id="buildStamp"[\s\S]{0,200}?<b>([^<]+)<\/b>/.exec(html);
+    var live=m ? m[1].trim() : "";
+    if(!live || live===mine) return;
+    var once="mhq_reloaded_for_"+live;
+    try{ if(sessionStorage.getItem(once)) return; sessionStorage.setItem(once,"1"); }catch(e){ return; }
+    location.replace(location.pathname+"?v="+Date.now());
+  }).catch(function(){});
+}
+// After the first paint, so it never delays the screen the person came for.
+setTimeout(mhqCheckForUpdate, 4000);
+// And whenever they come back to it — a phone left on the dock all day is the
+// usual way an old build stays around.
+document.addEventListener("visibilitychange", function(){
+  if(!document.hidden) setTimeout(mhqCheckForUpdate, 1500);
+});
+
 (function initSession(){
   try{
     // 1. A tapped magic link — verify it, keep the 90-day session, tidy the URL.
