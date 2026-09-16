@@ -1860,7 +1860,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-17·m</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-17·n</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -6438,6 +6438,7 @@ function wlGroupHTML(g, groups){
          hyphen inside a boat's name is left alone \u2014 only spaced dashes split. */
       var parts=bare.split(/\s+[\u2014\u2013]\s+/);
       var bSub=(parts.length>1) ? parts[parts.length-1].trim() : "";
+      if(!pp && !bSub && bare && bare.toLowerCase()!==bBoat.toLowerCase()) bSub=bare;
       if(bSub && bSub.toLowerCase()===bBoat.toLowerCase()) bSub="";
       // "Andiamo 0926" — boat and month together, which is how she says it.
       boatHd='<b>'+esc(bBoat)+(bPer?(' '+esc(bPer)):'')+'</b>'+(bSub?('<span class="wlsub">'+esc(bSub)+'</span>'):'');
@@ -6696,8 +6697,8 @@ function wlFleetMonthsInner(order, groups){
   });
   if(wait.length){
     var wN=wait.reduce(function(n,g){ return n+wlSplit(groups[g]).live.length; },0);
-    html+=wlSection("fmwait", 'Waiting <span class="secstate waiting">Parked on purpose</span>',
-                    wN+' waiting', 'wait', wait.map(function(g){ return wlGroupHTML(g, groups); }).join(""), false);
+    html+=wlSection("fmwait", '\ud83d\udee0 Shipyard &amp; on hold <span class="secstate waiting">Waiting on a yard period</span>',
+                    wN+' parked', 'wait', wait.map(function(g){ return wlGroupHTML(g, groups); }).join(""), false);
   }
   if(unfiled.length){
     var nN=unfiled.reduce(function(n,g){ return n+wlSplit(groups[g]).live.length; },0);
