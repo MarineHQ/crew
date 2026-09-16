@@ -303,10 +303,35 @@
   .sec + .sec{margin-top:8px}
 
   /* At a glance — the facts you open a job to check, before any scrolling. */
+  /* LOCKED TO THE WIDTH OF THE PHONE (Trish, 16 Sep 2026). One pasted maps link
+     in a job description is a single unbreakable word — it stretched the sheet
+     and the whole task slid sideways. Long words break, nothing sets a min-width
+     wider than the screen, and the sheet itself refuses to scroll across. */
+  html,body{max-width:100%;overflow-x:hidden}
+  .sheet{overflow-x:hidden;overscroll-behavior:contain}
+  .sheet .body,.sheet .sec,.sheet p,.sheet .cmt-tx,.sheet .subnote-box,.sheet .v,
+  .sheet h3,.sheet h4,.sheet .desc,.sheet li,.sheet td{overflow-wrap:anywhere;word-break:break-word}
+  .sheet a{overflow-wrap:anywhere}
+  .sheet img,.sheet video,.sheet iframe{max-width:100%}
+  .sheet pre,.sheet table{max-width:100%;overflow-x:auto;display:block}
+
   .jfacts{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:1px;
           background:var(--line);border:1px solid var(--line);border-radius:10px;
           overflow:hidden;margin:8px 10px}
-  .jfact{background:#fff;padding:8px 11px;min-width:0}
+  .jfact{background:#fff;padding:8px 9px;min-width:0}
+  /* Crew get exactly three facts, so they sit on ONE row — two columns left a
+     dead square in the corner. Each one carries its own colour: you read the
+     state off the strip without reading the words. */
+  .jfacts.three{grid-template-columns:repeat(3,1fr)}
+  .jfacts.three .jfact{padding:7px 8px}
+  .jfacts.three .jfact .v{font-size:12.5px}
+  .jfact.f-todo{background:#f6f8fa}   .jfact.f-todo .v{color:#5b6b7d}
+  .jfact.f-prog{background:#fff6e8}   .jfact.f-prog .v{color:#8a5a12}
+  .jfact.f-done{background:#eaf5ee}   .jfact.f-done .v{color:#1f7a54}
+  .jfact.f-late{background:#fdeceb}   .jfact.f-late .v{color:#b3261e}
+  .jfact.f-due{background:#eef4fb}    .jfact.f-due .v{color:#1d4ed8}
+  .jfact.f-yes{background:#eaf5ee}    .jfact.f-yes .v{color:#1f7a54}
+  .jfact.f-wait{background:#fff6e8}   .jfact.f-wait .v{color:#8a5a12}
   .jfact .k{display:block;font-size:9.5px;font-weight:800;letter-spacing:.6px;
             text-transform:uppercase;color:var(--muted);margin-bottom:2px}
   .jfact .v{font-size:13px;font-weight:700;color:var(--navy);overflow:hidden;
@@ -465,7 +490,8 @@
     font-weight:700;padding:7px 11px;border-radius:9px;cursor:pointer;touch-action:manipulation}
   .sdedit:active{background:#f4f7fc}
   .sdc{width:100%;border:1px solid var(--line);border-radius:9px;padding:9px 11px;font-size:13px;
-    font-family:inherit;color:var(--navy);margin:0 0 8px}
+    font-family:inherit;color:var(--navy);margin:0 0 8px;resize:vertical;line-height:1.45}
+  .sdday{resize:vertical;line-height:1.45}
   .sdtot{background:#eef3fa;border:1px solid #d8e2f0;border-radius:11px;padding:12px;text-align:center;margin-top:12px}
   .sdtot b{display:block;font-size:24px;color:var(--navy);line-height:1.1}
   .sdtot span{font-size:11.5px;color:var(--muted)}
@@ -1743,7 +1769,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-15·f</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-16·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1918,6 +1944,8 @@ button:active{ filter: brightness(.93); }
   <input type="date" class="fld-in" id="sdDate" onchange="openSubmitDay($('sdDate').value)">
   <div id="sdBody"></div>
   <div id="sdSend">
+    <label class="fld">How did today go? <span class="fldhint">(optional — it goes on the job card)</span></label>
+    <textarea class="fld-in sdday" id="sdDayNote" rows="2" placeholder="Weather, what held you up, what's left for next time…"></textarea>
     <label class="fld">Anything used from stock? <span class="fldhint">(optional)</span></label>
     <input class="fld-in" id="sdProducts" placeholder="e.g. 2 × Semco, polish pads">
     <button class="go" id="sdGo" onclick="sdSubmit()">Submit my day</button>
@@ -4551,7 +4579,7 @@ function sdRender(){
       '</div>'+
       alsoHtml+
       (done?(e.note?('<p class="sdnote">'+esc(e.note)+'</p>'):''):
-        '<input class="sdc" id="sdc-'+eid+'" placeholder="What did you do? Anything worth noting about this one?" value="'+esc(e.note||'')+'">'+
+        '<textarea class="sdc" id="sdc-'+eid+'" rows="2" placeholder="What did you do on this one? It prints under the job on the card.">'+esc(e.note||'')+'</textarea>'+
         (e.jobKey?('<div class="sdask"><span class="q">Finished this job?</span>'+
           '<button class="done'+(pick==="Complete"?" on":"")+'" onclick="sdPick(\''+eid+'\',\'Complete\')">\u2713 Yes \u2014 complete</button>'+
           '<button class="going'+(pick==="In Progress"?" on":"")+'" onclick="sdPick(\''+eid+'\',\'In Progress\')">Still in hand</button>'+
@@ -4625,7 +4653,8 @@ function sdSubmit(){
   var go=$("sdGo"); if(go){ go.disabled=true; go.textContent="Sending\u2026"; }
   apiPost({action:"crewSubmitDay", email:ME.email, code:ME.code, date:SDDATE,
            comments:comments, statuses:statuses,
-           products:($("sdProducts").value||"").trim()}).then(function(r){
+           products:($("sdProducts").value||"").trim(),
+           dayNote:(($("sdDayNote")||{}).value||"").trim()}).then(function(r){
     if(!r||!r.ok){ toast((r&&r.error)||"Couldn\u2019t submit"); sdRender(); return; }
     toast("Day submitted \u2014 "+chFmt(r.hours)+" across "+r.jobs+" job"+(r.jobs===1?"":"s")+
           (r.marked?(" \u00b7 "+r.marked+" marked complete"):""));
@@ -7134,15 +7163,18 @@ function wlSetCategory(key){
 }
 
 function wlFactsHtml(j){
-  function cell(k, v, cls){
-    return '<div class="jfact"><span class="k">'+k+'</span>'+
+  // `tone` colours the whole cell (f-todo / f-prog / f-done / f-late / f-due /
+  // f-yes / f-wait); `cls` still styles just the value, for "soft".
+  function cell(k, v, cls, tone){
+    return '<div class="jfact'+(tone?(" "+tone):"")+'"><span class="k">'+k+'</span>'+
            '<span class="v'+(cls?(" "+cls):"")+'" title="'+esc(v)+'">'+esc(v)+'</span></div>';
   }
-  var out = "";
-  out += cell("Status", wlBucketToStatus(j) || "To do");
+  var out = "", _b = hubBucket(j.status);
+  out += cell("Status", wlBucketToStatus(j) || "To do", "",
+              _b==="Done" ? "f-done" : (_b==="In progress" ? "f-prog" : "f-todo"));
   if(j.dueTs){
     var late = j.dueTs < Date.now() && hubBucket(j.status)!=="Done";
-    out += cell("Due", dayLabel(j.dueTs)+(j.dueTime?(" "+fmtTime12(j.dueTime)):""), late?"late":"");
+    out += cell("Due", dayLabel(j.dueTs)+(j.dueTime?(" "+fmtTime12(j.dueTime)):""), late?"late":"", late?"f-late":"f-due");
   } else {
     out += cell("Due", "no date", "soft");
   }
@@ -7154,9 +7186,11 @@ function wlFactsHtml(j){
     // "last moved" are management facts — they only made the page longer.
     var _meOn=(ME.name||"").toLowerCase().replace(/\s*\(test\)/,"").trim();
     var _mineOn=_meOn && (j.allocatedTo||"").toLowerCase().indexOf(_meOn)>=0;
-    if(_mineOn && j.accepted && j.accepted.by) out += cell("Yours", "\u2713 accepted"+(j.accepted.date?(" "+j.accepted.date):""));
-    else if(_mineOn) out += cell("Yours", "not accepted yet", "late");
-    return '<div class="jfacts">'+out+'</div>';
+    if(_mineOn && j.accepted && j.accepted.by) out += cell("Yours", "\u2713 accepted", "", "f-yes");
+    else if(_mineOn) out += cell("Yours", "tap to accept", "", "f-wait");
+    // Three cells on one row — never a two-column grid with an empty corner.
+    var _n=(out.match(/class="jfact/g)||[]).length;
+    return '<div class="jfacts'+(_n===3?" three":"")+'">'+out+'</div>';
   }
 
   /* WHICH POT THIS COSTS. The whole point of the job card's works split is how
@@ -7605,7 +7639,7 @@ function wlVariationBlock(j,key){
   var hist=(j.signoff&&j.signoff.variations&&j.signoff.variations.length)||0;
   var histHTML = (mgr&&hist) ? '<p class="body" style="font-size:12px;color:var(--muted);margin:8px 0 0">'+hist+' earlier variation'+(hist>1?'s':'')+' on this job — filed on the Variations tab of the sheet.</p>' : '';
   if(!v && !mgr){
-    return '<div class="sec"><button class="jobbtn" style="background:var(--orange);margin:0" onclick="varOpen(\''+kk+'\')">💲 Found extra work? Raise a variation</button></div>';
+    return '<div class="sec"><button class="jobbtn" style="background:var(--orange);margin:0" onclick="varOpen(\''+kk+'\')">Found extra work? Raise a variation for approval</button></div>';
   }
   if(!v){
     return '<div class="sec"><h4>Extra work found?</h4>'+
