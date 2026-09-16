@@ -316,6 +316,10 @@
   .sheet.show{transform:translateY(0)}
   /* On a phone the sheet IS the screen: the brand banner and app header above it were a third of the height (Trish, 15 Sep 2026). */
   @media (max-width:640px){ .sheet{top:0;max-height:none;height:100%;border-radius:0} .sheet-hd{border-radius:0} }
+  /* Three fields, close together — the form should read as one quick action. */
+  .card2 .rjf{margin-top:8px}
+  .rjmore{display:block;margin:8px 0 0;background:none;border:0;padding:0;
+    color:var(--navy);font-weight:800;font-size:12.5px;cursor:pointer;font-family:inherit}
   .rjdone{margin-top:10px;background:#eaf5ee;border:1px solid #cfe6da;border-radius:10px;padding:9px 11px;font-size:12.5px;color:#14432f}
   .rjdone b{display:block;margin-bottom:4px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#1f7a54}
   .rjdone span{display:block;padding:2px 0}
@@ -1824,7 +1828,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-16·o</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-16·p</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1914,28 +1918,26 @@ button:active{ filter: brightness(.93); }
   <button class="jobbtn" style="background:none;color:var(--muted);margin-top:4px" onclick="closeCompleteModal()">Cancel</button>
 </div></div>
 
+<!-- RAISE A JOB, IN THREE TAPS (Trish, 16 Sep 2026: "shorter and quicker — just
+     boat, what needs doing and pic, then next job, so they can raise 3 or 4 or 5
+     at once"). Labels are gone into the fields, Detail is folded away behind a
+     link, and there is ONE button: it sends this one and the next blank is
+     already waiting with the boat still set. Done closes — and sends whatever is
+     still typed in, so a job is never lost by tapping the wrong thing. -->
 <div class="modal" id="raiseModal"><div class="card2">
   <h3>Raise a job</h3>
-  <p class="mhint">Spotted something that needs doing? Send it to Marine HQ — they'll review and schedule it.</p>
-  <label class="fld">Vessel</label>
-  <select class="fld-in" id="r_vessel" onchange="onVesselPick('r_vessel','r_other')"></select>
-  <input class="fld-in" id="r_other" placeholder="Type the yacht name" style="display:none;margin-top:8px">
-  <label class="fld">What needs doing?</label>
-  <input class="fld-in" id="r_title" placeholder="Start typing — e.g. teak, polish, bilge" oninput="rjSuggest()" autocomplete="off">
+  <p class="mhint">Boat, what needs doing, a photo. Send it and the next one's ready.</p>
+  <select class="fld-in rjf" id="r_vessel" onchange="onVesselPick('r_vessel','r_other')"></select>
+  <input class="fld-in rjf" id="r_other" placeholder="Type the yacht name" style="display:none">
+  <input class="fld-in rjf" id="r_title" placeholder="What needs doing?" oninput="rjSuggest()" autocomplete="off">
   <div id="r_match" style="display:none"></div>
-  <label class="fld">Detail (optional)</label>
-  <textarea class="fld-ta" id="r_desc" placeholder="Where it is, what you noticed…"></textarea>
-  <label class="fld">Photos <span class="fldhint">(optional)</span></label>
-  <div class="photos staged" id="r_phGrid"></div>
+  <div class="photos staged rjf" id="r_phGrid"></div>
   <input type="file" id="r_phIn" accept="image/*" multiple style="display:none" onchange="stagedAdd('r_ph',this)">
-  <button class="go" onclick="submitRaise()">Send to Marine HQ</button>
-  <!-- Bruce put two findings in one job because raising a second meant going all
-       the way round again (Trish, 16 Sep 2026). This sends it and stays put with
-       the boat still chosen, so three things noticed in the engine room go in as
-       three jobs. -->
-  <button class="go alt2" style="background:#fff;color:var(--navy);border:1.5px solid var(--line)" onclick="submitRaise(true)">Send &amp; raise another</button>
+  <button type="button" class="rjmore" id="r_moreBtn" onclick="rjMore()">＋ add detail</button>
+  <textarea class="fld-ta rjf" id="r_desc" placeholder="Where it is, what you noticed…" hidden></textarea>
+  <button class="go" onclick="submitRaise(true)">＋ Add &amp; next</button>
   <div id="r_done" class="rjdone" hidden></div>
-  <button class="cancel" onclick="closeModal('raiseModal')">Cancel</button>
+  <button class="cancel" onclick="rjFinish()">Done</button>
 </div></div>
 
 <!-- Stopped your last job — are you leaving the boat, or moving to the next one? -->
@@ -9947,9 +9949,24 @@ function afterCreate(key, photos, docs){
 }
 
 /* ================= raise a job ================= */
+function rjMore(){
+  var d=$("r_desc"), b=$("r_moreBtn");
+  d.hidden=!d.hidden; if(b) b.style.display=d.hidden?"":"none";
+  if(!d.hidden) d.focus();
+}
+/* Done doesn't throw away what's on screen. If a title is typed it goes in first,
+   because tapping Done with a job half-entered and losing it is the one thing
+   that would stop crew trusting this. */
+function rjFinish(){
+  if(($("r_title").value||"").trim()) { submitRaise(false); return; }
+  closeModal("raiseModal");
+  if(RJSENT.length){ toast("\u2713 "+RJSENT.length+" job"+(RJSENT.length>1?"s":"")+" sent to Marine HQ"); go("jobs"); }
+}
 function openRaise(){
   $("r_vessel").innerHTML=vesselOpts(ME.vessels[0]); $("r_other").style.display="none"; $("r_other").value="";
   $("r_title").value=""; $("r_desc").value=""; stagedReset("r_ph");
+  var _d0=$("r_desc"); if(_d0) _d0.hidden=true;
+  var _mb=$("r_moreBtn"); if(_mb) _mb.style.display="";
   RJSENT=[]; var _d=$("r_done"); if(_d){ _d.hidden=true; _d.innerHTML=""; }
   $("raiseModal").classList.add("show");
 }
@@ -9972,12 +9989,14 @@ function submitRaise(again){
          the buttons — you can see you've sent three without leaving the form. */
       RJSENT.push({ code:(r.code||""), title:t });
       $("r_title").value=""; $("r_desc").value=""; stagedReset("r_ph"); RJNUM="";
+      var dd=$("r_desc"); if(dd) dd.hidden=true;
+      var mb=$("r_moreBtn"); if(mb) mb.style.display="";
       var mm=$("r_match"); if(mm){ mm.style.display="none"; mm.innerHTML=""; }
       var box=$("r_done");
       if(box){ box.hidden=false;
         box.innerHTML='<b>'+RJSENT.length+' sent</b>'+RJSENT.map(function(x){
           return '<span>'+(x.code?('<i>'+esc(x.code)+'</i> '):'')+esc(x.title)+'</span>'; }).join(""); }
-      toast("✓ Sent — next one?");
+      toast("✓ Added — next one");
       $("r_title").focus();
       loadJobs();
       return;
