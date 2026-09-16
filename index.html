@@ -1840,7 +1840,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-16·u</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-16·v</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -1881,6 +1881,8 @@ button:active{ filter: brightness(.93); }
       <div class="lightmeta" id="lightMeta"></div>
       <div class="lightlane" id="lightLane" style="display:none"></div>
       <div class="lightlane" id="lightTag" style="display:none"></div>
+      <!-- Wrong job? Move the photo, don't delete and re-shoot it. -->
+      <div class="lightlane" id="lightMoveJob" style="display:none"></div>
       <div class="lightnotes" id="lightNotes"></div>
       <div class="lightcaprow"><input id="lightCap" placeholder="Add a note — e.g. see the rust here"><button onclick="lbAddNote()">Add</button></div>
       <div class="lbtagrow" id="lightTagRow"></div>
@@ -5731,6 +5733,7 @@ var LB_KEY="", LB_PHOTOS=[], LB_I=0;
 function firstName(n){ return (n||"").toString().split(" ")[0].replace(/\(test\)/i,"").trim()||(n||""); }
 function firstNames(s){ return (s||"").toString().split(",").map(function(x){return firstName(x.trim());}).filter(String).join(", "); }
 function openPhoto(key, idx){
+  MJ={ open:false, busy:false };          // never open a photo with the mover already showing
   var j=wlFind(key);
   if(!j||!j.photos||!j.photos.length) return;
   LB_KEY=key; LB_PHOTOS=j.photos; LB_I=Math.max(0, Math.min(idx||0, LB_PHOTOS.length-1));
@@ -5777,11 +5780,55 @@ function renderLightbox(){
       ll.style.display="";
     } else ll.style.display="none";
   }
+  /* MOVE IT TO ANOTHER JOB (Trish, 16 Sep 2026). A photo taken against the wrong
+     job — easy when one note covers three findings — was only fixable by deleting
+     it and asking whoever took it to shoot it again. Directors get the boat's
+     other open jobs here; the picture moves with its notes, its lane and its
+     author. */
+  var mj=$("lightMoveJob");
+  if(mj){
+    if(isMgrRole() && LB_KEY){
+      mj.innerHTML = MJ.open
+        ? ('<span class="movelbl">Move to:</span>'+mjOptions())
+        : ('<button class="movebtn" onclick="event.stopPropagation();MJ.open=true;renderLightbox()">\u2192 Move to another job</button>');
+      mj.style.display="";
+    } else mj.style.display="none";
+  }
   var cr=document.querySelector(".lightcaprow"); if(cr) cr.style.display = LB_KEY ? "" : "none";
   $("lightCount").textContent=LB_PHOTOS.length>1 ? (LB_I+1)+' / '+LB_PHOTOS.length : '';
   var multi=LB_PHOTOS.length>1;
   var pv=document.querySelector('.lightnav.prev'), nx=document.querySelector('.lightnav.next');
   if(pv) pv.style.display=multi?"":"none"; if(nx) nx.style.display=multi?"":"none";
+}
+/* The other jobs on this boat, so a misfiled photo has somewhere to go. Done
+   jobs are included — a photo of finished work belongs on the job that was
+   finished. The job it is already on is left out. */
+var MJ={ open:false, busy:false };
+function mjOptions(){
+  var cur=wlFind(LB_KEY)||{};
+  var v=(cur.vessel||"").toLowerCase();
+  var list=(CREWJOBS||[]).filter(function(j){
+    return j.key!==LB_KEY && (j.vessel||"").toLowerCase()===v
+        && (j.status||"").toLowerCase()!=="cancelled" && j.source!=="register";
+  }).slice(0,12);
+  if(!list.length) return '<span class="taghint">No other jobs on '+esc(cur.vessel||"this boat")+'.</span>';
+  return list.map(function(j){
+    return '<button class="movebtn" onclick="event.stopPropagation();mjGo(\''+esc(String(j.key).replace(/'/g,"\\'"))+'\')">'+
+      (j.code?('<span class="jcode">'+esc(j.code)+'</span> '):'')+esc((j.task||"job").slice(0,34))+'</button>';
+  }).join('')+'<button class="movebtn" onclick="event.stopPropagation();MJ.open=false;renderLightbox()">Cancel</button>';
+}
+function mjGo(toKey){
+  if(MJ.busy) return; MJ.busy=true;
+  var p=LB_PHOTOS[LB_I]; if(!p){ MJ.busy=false; return; }
+  toast("Moving\u2026");
+  apiPost({action:"crewJobAttMoveTo", email:ME.email, code:ME.code,
+           fromKey:LB_KEY, toKey:toKey, url:p.url, as:"photo"})
+    .then(function(r){
+      MJ.busy=false; MJ.open=false;
+      if(!r||!r.ok){ toast((r&&r.error)||"Couldn\u2019t move it"); return; }
+      toast("\u2713 Moved to \u201c"+(r.to||"the other job")+"\u201d");
+      closePhoto(); openWLJob(LB_KEY); loadJobs();
+    }).catch(function(){ MJ.busy=false; toast("Couldn\u2019t connect"); });
 }
 function lbGo(dir){ if(!LB_PHOTOS.length)return; LB_I=(LB_I+dir+LB_PHOTOS.length)%LB_PHOTOS.length; renderLightbox(); }
 /* The note thread under the photo. Same rules as a job note: anyone may add,
