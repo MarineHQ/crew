@@ -171,8 +171,9 @@
   .wlbody.closed{display:none}
   /* One boat, three headings. The month leads (orange, like the list headers it
      contains); waiting and closed recede so live work reads as the live work. */
-  .wlsec{border-radius:12px;padding:12px 14px;margin:10px 0 9px;cursor:pointer;display:flex;align-items:center;gap:9px;color:#fff}
-  .wlsec h3{margin:0;font-size:14.5px;flex:1;line-height:1.25;font-weight:bold}
+  .wlsec{border-radius:12px;padding:12px 14px;margin:10px 0 9px;cursor:pointer;display:flex;align-items:center;gap:9px;color:#fff;flex-wrap:wrap}
+  .wlsec h3{margin:0;font-size:14.5px;flex:1 1 58%;min-width:0;line-height:1.25;font-weight:bold;overflow-wrap:anywhere}
+  .wlsec .secbtn{flex:0 0 auto;margin-top:1px}
   .wlsec .n{background:rgba(255,255,255,.2);border-radius:12px;font-size:11px;font-weight:bold;padding:2px 9px;white-space:nowrap}
   .wlsec .car{transition:transform .2s;font-size:14px}
   .wlsec.closed .car{transform:rotate(-90deg)}
@@ -296,6 +297,11 @@
   .dnacc.sign{background:#fdf1e3;border-color:#f2d5b0;color:#8a5a12} .dnacc.sign .n{background:rgba(138,90,18,.12)}
   /* Unassigned is work waiting on a decision — it stands out on its own, not as
      a quieter version of the done folds (Trish, 17 Sep 2026). */
+  /* Due is the schedule talking, not the work list — its own quiet blue. */
+  .dnacc.duehd{background:#eaf1fa;border-color:#c6d8ee;color:#22406e;font-weight:800}
+  .dnacc.duehd .n{background:rgba(34,64,110,.12)}
+  .duerow.indue{background:#fff;border:1px solid var(--line);border-radius:10px;padding:9px 11px;margin:0 0 7px;display:flex;align-items:center;gap:9px}
+  .duerow.indue .due-add{white-space:nowrap}
   .dnacc.unass{background:linear-gradient(120deg,#E87722,#d1620b);border-color:#c25a08;color:#fff;font-weight:800}
   .dnacc.unass .car{color:#fff} .dnacc.unass h4{color:#fff}
   .dnacc.unass .n{background:rgba(255,255,255,.22);color:#fff}
@@ -1853,7 +1859,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-17·h</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-17·i</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -5235,7 +5241,7 @@ function toggleDuePanel(){ var p=$("duePanel"); if(!p)return; p.classList.toggle
 function loadDuePanel(){
   var el=$("dueList"); if(!el)return;
   el.innerHTML='<div class="loadingbox"><span class="spin"></span> Loading what\'s due…</div>';
-  apiGet("fn=maintenance").then(function(r){
+  apiGet("fn=maintenance&key="+encodeURIComponent(ME.code||"")).then(function(r){
     var now=Date.now();
     DUE_ALL=((r&&r.items)||[]).filter(function(i){return i.nextDue;});
     DUE_ALL.forEach(function(i){ var d=_parseDMY(i.nextDue); i._t=d?d.getTime():Infinity; i._days=d?Math.round((d.getTime()-now)/86400000):9999; i._over=/overdue/i.test(i.status||"")||i._days<0; });
@@ -5506,7 +5512,14 @@ function mineSetSeg(s){ MINESEG=s; renderMine(); }
 // Count on the My Tasks tab button, so a director sees pending approvals without
 // opening the tab. Same .tabbadge treatment as the Worklist count.
 function renderMineTabBadge(){
-  setNavBadge("mine", isMgrRole() ? (REQJOBS||[]).length : 0);
+  var me=(ME&&ME.name||"").toLowerCase().replace(/\s*\(test\)/,"").trim();
+  var n=0;
+  if(me) n=(CREWJOBS||[]).filter(function(j){
+    if(hubBucket(j.status)==="Done") return false;
+    var a=(j.allocatedTo||"").toString().toLowerCase();
+    return !!a && a.indexOf(me)>=0;
+  }).length;
+  setNavBadge("mine", n);
 }
 function reqTs(j){ var m=/(\d{10,})/.exec((j&&j.key)||""); return m?+m[1]:0; }   // key is "wl:<ms>"
 // The approval queue: everything a crew member (or owner) has raised that isn't on
@@ -6364,6 +6377,7 @@ function wlGroupHTML(g, groups){
         : '<div class="wldone-none">'+(jobs.length?'&#10003; Everything on this list is done &mdash; it&rsquo;s all filed below.':'Nothing on this list yet.')+'</div>';
     }
     cards+=doneBlock(g,"unass",_unass,'&#128100; Unassigned / raised jobs');
+    cards+=dueFold(g, (jobs[0]&&jobs[0].vessel)||"", wlPeriodOfList(g));
     cards+=doneBlock(g,"sign",toSign,(isMgrRole()?'&#10003; Done &mdash; waiting on sign-off':'&#10003; Done &mdash; with Marine HQ'));
     cards+=doneBlock(g,"filed",filed,'&#128193; Completed &amp; filed');
     var note=(LISTMETA&&LISTMETA[g])||"";
@@ -6443,6 +6457,57 @@ function wlGroupHTML(g, groups){
    closed. Only for a director looking at ONE boat: across the fleet "the
    current month" means nothing, and crew keep the plain list they have.
    Falls back to the flat list whenever the records haven't loaded. */
+function dueFold(g, vessel, period){
+  if(!isMgrRole() || SCHEDVIEW || !vessel || period!==wlThisPeriod()) return "";
+  if(!DUE_ALL.length){ loadDueQuiet(); return ""; }
+  var vlc=vessel.toLowerCase();
+  // already on a work list for this boat? then it isn't "waiting to be started"
+  var onList={};
+  (CREWJOBS||[]).forEach(function(j){
+    if((j.vessel||"").toLowerCase()!==vlc) return;
+    if(hubBucket(j.status)==="Done") return;
+    onList[(j.task||"").toLowerCase().trim()]=1;
+  });
+  var due=DUE_ALL.filter(function(i){
+    if((i.vessel||"").toLowerCase()!==vlc) return false;
+    if(onList[(i.item||"").toLowerCase().trim()]) return false;
+    return i._days<=31;                       // overdue, or due inside the month
+  }).sort(function(a,b){ return a._t-b._t; });
+  if(!due.length) return "";
+  var k=g+"|due", open=!!WLDONE[k], kJs=k.replace(/\\/g,"\\\\").replace(/'/g,"\\'");
+  var rows=due.map(function(i){
+    var od=i._over, when=od?(Math.abs(i._days)+"d overdue"):(i._days<=0?"due now":("due in "+i._days+"d"));
+    return '<div class="duerow indue"><div class="due-main"><div class="due-t">'+
+      (i.code?('<span class="jcode">'+esc(i.code)+'</span> '):'')+esc(i.item)+'</div>'+
+      '<div class="due-sub">'+esc(i.interval||"")+' \u00b7 '+esc(when)+' \u00b7 next '+esc(i.nextDue||"")+'</div></div>'+
+      '<button class="due-add" onclick="event.stopPropagation();dueFoldPush(this,\''+esc((i.ref||"").toString().replace(/'/g,"\\'"))+'\',\''+esc((i.vessel||"").replace(/'/g,"\\'"))+'\',\''+esc((i.item||"").replace(/'/g,"\\'"))+'\',\''+esc((i.nextDue||""))+'\')">\u2795 Push to this list</button></div>';
+  }).join("");
+  return '<div class="dnacc duehd'+(open?"":" closed")+'" onclick="event.stopPropagation();toggleDone(\''+esc(kJs)+'\')">'+
+    '<span class="car">\u25be</span><h4>\ud83d\udcc5 Due \u2014 not started yet</h4><span class="n">'+due.length+'</span></div>'+
+    '<div class="dnbody'+(open?"":" closed")+'">'+rows+'</div>';
+}
+/* The schedule, fetched once in the background so the fold can draw. */
+var _dueQuiet=false;
+function loadDueQuiet(){
+  if(_dueQuiet) return; _dueQuiet=true;
+  apiGet("fn=maintenance&key="+encodeURIComponent(ME.code||""))
+    .then(function(r){
+      var now=Date.now();
+      DUE_ALL=((r&&r.items)||[]).filter(function(i){return i.nextDue;});
+      DUE_ALL.forEach(function(i){ var d=_parseDMY(i.nextDue); i._t=d?d.getTime():Infinity;
+        i._days=d?Math.round((d.getTime()-now)/86400000):9999; i._over=/overdue/i.test(i.status||"")||i._days<0; });
+      if(TAB==="jobs") renderJobs();
+    }).catch(function(){});
+}
+function dueFoldPush(btn, ref, vessel, item, nextDue){
+  btn.disabled=true; btn.textContent="Pushing\u2026";
+  apiPost({action:"crewRaiseJob", email:ME.email, code:ME.code, vessel:vessel, title:item,
+           desc:"Scheduled maintenance \u2014 due "+nextDue, category:"Scheduled", maintRef:ref})
+    .then(function(r){
+      if(r&&r.ok){ btn.textContent="\u2713 On the list"; btn.classList.add("added"); toast("\u2713 Pushed \u2014 now assign it"); loadJobs(); }
+      else { btn.disabled=false; btn.textContent="\u2795 Push to this list"; toast((r&&r.error)||"Couldn\u2019t push"); }
+    }).catch(function(){ btn.disabled=false; btn.textContent="\u2795 Push to this list"; toast("Couldn\u2019t connect"); });
+}
 function wlSectionOf(name){
   var G=LISTGROUPS; if(!G) return null;
   var lc=(name||"").toLowerCase();
