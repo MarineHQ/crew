@@ -1775,7 +1775,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-16·c</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-16·d</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -5853,7 +5853,12 @@ function closePhoto(){ $("lightbox").classList.remove("show"); var im=$("lightIm
 })();
 /* Work the crew LOGGED (already done, never on a worklist) rather than work they
    were given. ccWorkLog_ files every one of these on the "Work Log" list. */
-function isWorkLog(j){ return ((j&&j.list)||"")==="Work Log"; }
+/* A logged job now lives on the month's list, so the list name no longer tells
+   you it was logged after the fact — the sub-note does, and it does for the old
+   "Work Log" rows too (Trish, 16 Sep 2026). */
+function isWorkLog(j){
+  return ((j&&j.list)||"")==="Work Log" || /^work log\b/i.test(((j&&j.subNote)||""));
+}
 function hubBucket(st){ st=(st||"").toLowerCase(); if(st.indexOf("progress")>=0)return"In progress"; if(st.indexOf("complete")>=0||st.indexOf("done")>=0)return"Done"; return"To do"; }
 function hubCls(b){ return b==="Done"?"done":(b==="In progress"?"inprog":"todo"); }
 function catChip(cat){
