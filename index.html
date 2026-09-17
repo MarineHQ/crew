@@ -5453,6 +5453,8 @@ var MHQPush = (function(){
     os(function(OneSignal){
       OneSignal.init({
         appId: ONESIGNAL_APP_ID,
+        // No "Thanks for subscribing!" — crew get told about work, not greeted.
+        welcomeNotification: { disable: true },
         serviceWorkerPath: base.replace(/^\//,"")+"OneSignalSDKWorker.js",
         serviceWorkerParam: { scope: base },
         autoResubscribe: true
