@@ -1780,6 +1780,14 @@ button:active{ filter: brightness(.93); }
       <div id="inductForm"></div>
     </div>
 
+    <!-- 🔌 SYSTEMS — the boat's kit list. Directors, ops and engineers only. -->
+    <div id="tab-sys" class="hidden">
+      <div class="hello" id="sysHello"></div>
+      <div id="vesselBarS" class="vesselbar"></div>
+      <div class="subbar"><h2>Systems</h2><span class="count" id="sysCount"></span></div>
+      <div id="sysHost"></div>
+    </div>
+
     <!-- CHECKLISTS -->
     <div id="tab-check" class="hidden">
       <div class="subbar"><h2>Checklists</h2><span class="count" id="clCount"></span></div>
@@ -1860,7 +1868,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-17·o</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-17·p</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -3135,14 +3143,24 @@ function bootExpired(){
    only visible sub-tab is one tab shows that tab's label and no sub-row. */
 var NAVGROUPS = [
   ["work",  "Activity", [["jobs","Worklist"],["mine","My Tasks",true],["photos","Photos"],["updates","Updates"],["off","Off-Fleet"],["trip","Trip Log"],["cal","Calendar"]]],
-  ["fleet", "Fleet",    [["fleet","Fleet",true],["maint","Maintenance",true],["vessel","Engine & Parts"],["induct","Induction",true]]],
+  ["fleet", "Fleet",    [["fleet","Fleet",true],["maint","Maintenance",true],["vessel","Engine & Parts"],["induct","Induction",true],["sys","Systems","sys"]]],
   ["day",   "My Day",   [["hours","Time"]]],
   ["guides","Guides",   [["check","Checklists"],["sop","SOP"]]]
 ];
 // Profile lives OFF the tab bar — the 👤 button next to Sign out and the avatar
 // both open it, so navGroupOf() returning null just means "no group lit up".
 var NAVBADGES = {};                       // tab id -> count, painted by renderNav
-function navKids(g){ return g[2].filter(function(k){ return !k[2] || isMgrRole(); }); }
+/* A tab's third slot is its gate: nothing = everyone, true = directors/managers,
+   "sys" = the systems list (directors, ops and engineers — Trish, 17 Sep 2026). */
+function navKids(g){ return g[2].filter(function(k){
+  if(!k[2]) return true;
+  if(k[2]==="sys") return canSeeSystems();
+  return isMgrRole();
+}); }
+/* Loose on purpose — the Role cell is typed by hand, so "Operations Manager",
+   "Ops", "Engineer" and "Chief Engineer" all pass. Someone sitting on plain
+   "Crew" does not: fix their Role cell rather than widening this. */
+function canSeeSystems(){ return /director|manager|ops\b|operations|engineer/i.test((ME&&ME.role)||""); }
 function navGroupOf(tab){
   for(var i=0;i<NAVGROUPS.length;i++){
     var kids=NAVGROUPS[i][2];
@@ -3176,12 +3194,12 @@ function navGroup(g){
 }
 function go(tab){
   TAB=tab;
-  ["jobs","mine","photos","updates","cal","fleet","maint","induct","check","off","trip","hours","vessel","sop","profile"].forEach(function(t){ $("tab-"+t).classList.toggle("hidden", t!==tab); });
+  ["jobs","mine","photos","updates","cal","fleet","maint","induct","sys","check","off","trip","hours","vessel","sop","profile"].forEach(function(t){ $("tab-"+t).classList.toggle("hidden", t!==tab); });
   renderNav();
   $("actBar").classList.toggle("hidden", tab!=="jobs");
   document.body.classList.toggle("has-actbar", tab==="jobs");
   if(tab==="updates"){ try{ MHQPush.render(); }catch(e){} }
-  var titles={jobs:["Marine HQ Crew","Your jobs, checklists & hours"],mine:["My Tasks","Just what's assigned or offered to you"],photos:["Photos","Every shot on this yacht — newest first"],updates:["Updates","Crew activity — newest first"],cal:["Calendar","Scheduled jobs by day"],fleet:["Fleet","Director view — whole operation"],maint:["Maintenance","Care schedule — directors control"],induct:["Vessel induction","Particulars & specialised gear"],check:["Checklists","Tick & sign off"],off:["Off-Fleet","Deliveries, polishes & callouts"],trip:["Trip Log","Passages — tanks out, hours in"],hours:["Time clock","Clock in · EOD · hours"],vessel:["Engine & parts","Hour meters & spares on board"],sop:["SOP & guides","Marine HQ standards"],profile:["My profile","You & your certificates"]};
+  var titles={jobs:["Marine HQ Crew","Your jobs, checklists & hours"],mine:["My Tasks","Just what's assigned or offered to you"],photos:["Photos","Every shot on this yacht — newest first"],updates:["Updates","Crew activity — newest first"],cal:["Calendar","Scheduled jobs by day"],fleet:["Fleet","Director view — whole operation"],maint:["Maintenance","Care schedule — directors control"],induct:["Vessel induction","Particulars & specialised gear"],sys:["Systems","Her kit — what it is, where it is"],check:["Checklists","Tick & sign off"],off:["Off-Fleet","Deliveries, polishes & callouts"],trip:["Trip Log","Passages — tanks out, hours in"],hours:["Time clock","Clock in · EOD · hours"],vessel:["Engine & parts","Hour meters & spares on board"],sop:["SOP & guides","Marine HQ standards"],profile:["My profile","You & your certificates"]};
   $("hdrTitle").textContent=titles[tab][0]; $("hdrSub").textContent=titles[tab][1];
   if(tab==="jobs") loadJobs();
   if(tab==="mine"){ renderMine(); loadJobs(); }   // instant from cache, then refresh (loadJobs re-renders mine)
@@ -3191,6 +3209,7 @@ function go(tab){
   if(tab==="maint") loadMaint();
   if(tab==="fleet"){ renderWhereFleet(); loadWhere(); }
   if(tab==="induct") loadInduct();
+  if(tab==="sys") loadSystems();
   if(tab==="hours"){ renderClock(); loadShifts(); }
   if(tab==="check") loadChecklists();
   if(tab==="off") loadOffFleet();
@@ -3282,7 +3301,7 @@ function loadFleetVessels(){
     }).catch(function(){});
 }
 function renderVesselBar(){
-  var hosts=[$("vesselBar"),$("vesselBarM"),$("vesselBarI")];
+  var hosts=[$("vesselBar"),$("vesselBarM"),$("vesselBarI"),$("vesselBarS")];
   var show=isMgrRole() && FLEETVESSELS.length>=2;
   var html="";
   if(show){
@@ -3293,7 +3312,7 @@ function renderVesselBar(){
   }
   hosts.forEach(function(h){ if(h) h.innerHTML=html; });
 }
-function pickVessel(v){ CURVESSEL=v; WLCLOSED={}; WLSEC={}; loadListInfo(v); loadClosedLists(); renderVesselBar(); if(TAB==="maint"){ if(v==="__all__") loadFleetCare(); else loadCare(v); } else if(TAB==="induct") loadInduct(); else loadJobs(); }
+function pickVessel(v){ CURVESSEL=v; WLCLOSED={}; WLSEC={}; loadListInfo(v); loadClosedLists(); renderVesselBar(); if(TAB==="maint"){ if(v==="__all__") loadFleetCare(); else loadCare(v); } else if(TAB==="induct") loadInduct(); else if(TAB==="sys") loadSystems(); else loadJobs(); }
 // Open the Command Centre, passing the director's code so it unlocks (no 2nd passcode).
 /* ============================================================
    TASK TIMER — start / stop on a job, and the end-of-day check.
@@ -8297,27 +8316,42 @@ function saveInduct(){
 var VS_ITEMS=[], VS_SYSLIST=[], VS_VESSEL="";
 var VSM={ key:"", photos:[], staged:[] };
 
+function vsHosts(){ return ["vsHost","sysHost"].map(function(id){ return $(id); }).filter(Boolean); }
 function loadVS(){
   var v=CURVESSEL; if(!v || v==="__all__") return;
-  var host=$("vsHost"); if(host && VS_VESSEL!==v) host.innerHTML='<div class="loadingbox"><span class="spin"></span> Loading her systems…</div>';
+  if(VS_VESSEL!==v) vsHosts().forEach(function(h){ h.innerHTML='<div class="loadingbox"><span class="spin"></span> Loading her systems…</div>'; });
   apiGet("fn=vesselsystems&code="+encodeURIComponent(ME.code||"")+"&email="+encodeURIComponent(ME.email||"")+"&vessel="+encodeURIComponent(v))
     .then(function(j){
-      if(TAB!=="induct" || CURVESSEL!==v) return;
-      if(!j||!j.ok){ VS_ITEMS=[]; VS_VESSEL=v; renderVS(j&&j.error); return; }
+      if((TAB!=="induct" && TAB!=="sys") || CURVESSEL!==v) return;
+      if(j&&j.locked&&j.reason==="role"){ VS_ITEMS=[]; VS_VESSEL=v; renderVS("Her systems are kept for directors, ops and engineers. If that should include you, ask Trish to update your role."); return; }
+      if(!j||!j.ok){ VS_ITEMS=[]; VS_VESSEL=v; renderVS((j&&j.error)||"Couldn’t load — try again."); return; }
       VS_ITEMS=j.items||[]; VS_SYSLIST=j.systems||[]; VS_VESSEL=v; renderVS();
     }).catch(function(){ renderVS("Couldn’t load — try again."); });
+}
+/* The Systems tab: same register, its own screen, so her whole kit can be
+   browsed without going through the induction form. */
+function loadSystems(){
+  if(!canSeeSystems()){ go("jobs"); return; }
+  loadFleetVessels();
+  if(!CURVESSEL || CURVESSEL==="__all__"){ CURVESSEL=(FLEETVESSELS&&FLEETVESSELS[0]) || (ME.vessels&&ME.vessels[0]) || CURVESSEL; }
+  renderVesselBar();
+  $("sysHello").innerHTML="🔌 <b>Her systems</b> — what is aboard, where it is, and a photo of it."+
+    "<br><span style=\"font-size:12px;color:var(--muted)\">The kit list the schedule and the spares register both point at. "+
+    (isMgrRole()?"Tap any item to edit it, or add what is missing.":"Read-only — ask a director to add or change anything.")+"</span>";
+  renderVS();                     // whatever is cached, instantly
+  loadVS();                       // then the live copy
 }
 function vsSysName(code){
   for(var i=0;i<VS_SYSLIST.length;i++) if(VS_SYSLIST[i][0]===code) return VS_SYSLIST[i][1];
   return code||"Other";
 }
 function renderVS(err){
-  var host=$("vsHost"); if(!host) return;
-  if(err===undefined && !VS_VESSEL){ host.innerHTML=""; return; }
+  var hosts=vsHosts(); if(!hosts.length) return;
+  if(err===undefined && !VS_VESSEL){ hosts.forEach(function(h){ h.innerHTML=""; }); return; }
   var head='<h4 style="margin:14px 0 2px">🔌 Systems register — her actual kit</h4>'+
     '<p class="vinote">One card per piece of gear: what it is, where it is on board, and a photo. '+
     'This is what the crew see when they are sent to work on it, and what the printed Vessel Particulars are built from.</p>';
-  if(err){ host.innerHTML=head+'<div class="empty">'+esc(err)+'</div>'; return; }
+  if(err){ hosts.forEach(function(h){ h.innerHTML=head+'<div class="empty">'+esc(err)+'</div>'; }); return; }
 
   var groups={}, order=[];
   VS_ITEMS.forEach(function(it){
@@ -8334,13 +8368,17 @@ function renderVS(err){
       (noLoc?(noLoc+' still need "where it is"'):'')+(noLoc&&noPic?' · ':'')+(noPic?(noPic+' still need a photo'):'')+
       ' — do it on the boat, with the camera.</p>' : '';
 
-  host.innerHTML=head+body+todo+
-    '<button class="jobbtn" style="background:var(--navy);margin-top:4px" onclick="vsNew()">＋ Add a system / piece of kit</button>';
+  var addBtn = isMgrRole()
+    ? '<button class="jobbtn" style="background:var(--navy);margin-top:4px" onclick="vsNew()">＋ Add a system / piece of kit</button>'
+    : '';
+  var html=head+body+todo+addBtn;
+  hosts.forEach(function(h){ h.innerHTML=html; });
+  var c=$("sysCount"); if(c) c.textContent=VS_ITEMS.length ? (VS_ITEMS.length+" item"+(VS_ITEMS.length>1?"s":"")) : "";
 }
 function vsCard(it){
   var loc = it.location
     ? '<div class="vsloc">📍 '+esc(it.location)+'</div>'
-    : '<div class="vsloc miss">📍 Where is it? — tap to say</div>';
+    : ('<div class="vsloc miss">📍 Where is it? '+(isMgrRole()?'— tap to say':'— not recorded yet')+'</div>');
   var pics = (it.photos&&it.photos.length)
     ? '<div class="vsthumbs">'+it.photos.slice(0,4).map(function(p){ return '<img src="'+esc(p.url)+'" alt="">'; }).join("")+'</div>'
     : '<div class="vsthumbs"><span class="vsnone">📷 No photo yet</span></div>';
@@ -8348,7 +8386,8 @@ function vsCard(it){
   var chips=(codes.length||it.showOwner) ? '<div class="vscodes">'+
       codes.map(function(c){ return '<span class="vscode">'+esc(c)+'</span>'; }).join("")+
       (it.showOwner?'<span class="vsown">Owner sees this</span>':'')+'</div>' : '';
-  return '<div class="vsit" onclick="vsOpen(\''+esc(it.key)+'\')">'+
+  var tap = isMgrRole() ? (' onclick="vsOpen(\''+esc(it.key)+'\')"') : '';
+  return '<div class="vsit"'+tap+(isMgrRole()?'':' style="cursor:default"')+'>'+
     '<b>'+esc(it.item)+'</b>'+
     (it.model?('<div class="vsmod">'+esc(it.model)+'</div>'):'')+
     loc+pics+chips+
