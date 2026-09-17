@@ -1893,8 +1893,8 @@ button:active{ filter: brightness(.93); }
 <!-- Photos still on the phone waiting for signal. Tap to try them now. -->
 <div class="qpill hidden" id="qPill" onclick="MHQQ.drain(true)"></div>
 
-<!-- Quick shot: camera first, job second -->
-<input type="file" id="qsInput" accept="image/*" capture="environment" multiple style="display:none" onchange="qsPicked(this)">
+<!-- Quick shot: camera OR several from the library, job second -->
+<input type="file" id="qsInput" accept="image/*" multiple style="display:none" onchange="qsPicked(this)">
 <div class="modal" id="quickShotModal"><div class="card2">
   <h3>Where does this photo go?</h3>
   <div id="qsBody"></div>
