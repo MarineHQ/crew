@@ -1656,6 +1656,7 @@ button:active{ filter: brightness(.93); }
     <div id="tab-jobs">
       <div class="hello" id="jobsHello"></div>
       <div id="vesselBar" class="vesselbar"></div>
+      <div id="copHostJobs" class="copwrap"></div>
       <!-- Sub-tabs. Directors: All work | Raised by crew. Crew: My worklist |
            Offered to me | To approve | My raised jobs. -->
       <div class="assignrow" id="jobSeg" style="margin:0 4px 12px"></div>
@@ -1768,6 +1769,7 @@ button:active{ filter: brightness(.93); }
     <div id="tab-maint" class="hidden">
       <div class="hello" id="maintHello"></div>
       <div id="vesselBarM" class="vesselbar"></div>
+      <div id="copHostMaint" class="copwrap"></div>
       <div class="subbar"><h2>Maintenance</h2><span class="count" id="maintCount"></span></div>
       <div id="maintList"></div>
     </div>
@@ -1784,6 +1786,7 @@ button:active{ filter: brightness(.93); }
     <div id="tab-sys" class="hidden">
       <div class="hello" id="sysHello"></div>
       <div id="vesselBarS" class="vesselbar"></div>
+      <div id="copHostSys" class="copwrap"></div>
       <div class="subbar"><h2>Systems</h2><span class="count" id="sysCount"></span></div>
       <div id="sysHost"></div>
     </div>
@@ -2248,6 +2251,29 @@ button:active{ filter: brightness(.93); }
      Lives inside Vessel induction → Systems & equipment. -->
 <style>
 .vsreg{margin-top:10px}
+/* ⚠️ CONDITIONS OF OPERATION — how she has to be RUN right now.
+   Loud on purpose. This is not a note and not a job: it is the one thing the
+   person standing on the boat has to do, or something will not work. It sits
+   above the worklist so it is read before the first job is opened, and it goes
+   the minute the job that ends it is signed off. */
+.copwrap{margin:0 4px 14px}
+.copbar{display:flex;align-items:center;gap:8px;margin:0 0 8px}
+.copbar h4{margin:0;font-size:11.5px;letter-spacing:1.2px;text-transform:uppercase;color:#8a5a08;font-weight:800}
+.copbar .copadd{margin-left:auto;font-size:11.5px;font-weight:800;color:var(--navy);background:#eef2f9;border:0;border-radius:999px;padding:5px 10px;cursor:pointer}
+.copit{position:relative;background:#fffaf0;border:1.5px solid #f0c987;border-left:5px solid var(--amber);
+       border-radius:12px;padding:11px 13px 11px 14px;margin-bottom:9px;box-shadow:0 2px 8px rgba(183,116,16,.10)}
+.copit.tap{cursor:pointer}
+.copit .coptitle{display:block;font-size:14.5px;font-weight:800;color:#7c4a03;line-height:1.25}
+.copit .coprule{font-size:13.5px;color:var(--ink);margin-top:5px;line-height:1.45}
+.copit .copwhy{font-size:12.5px;color:var(--muted);margin-top:6px;line-height:1.4}
+.copit .copwhy b{color:#8a5a08}
+.copit .copmeta{margin-top:8px;display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+.copit .copjob{font-size:11px;font-weight:800;background:#eef2f9;color:var(--navy);border-radius:999px;padding:3px 9px;border:0;cursor:pointer;text-align:left}
+.copit .copjob.flat{cursor:default}
+.copit .copage{font-size:11px;font-weight:700;color:var(--muted)}
+.copit .copown{font-size:10.5px;font-weight:800;background:#e7f3ec;color:#0f6b3d;border-radius:999px;padding:3px 8px}
+.copit .copint{font-size:10.5px;font-weight:800;background:#eceff3;color:#5b6775;border-radius:999px;padding:3px 8px}
+.copit .copdone{font-size:11px;font-weight:800;background:var(--ok);color:#fff;border:0;border-radius:999px;padding:4px 10px;cursor:pointer;margin-left:auto}
 .vsgrp{margin-top:12px}
 .vsgrp>h5{margin:0 0 6px;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);font-weight:800}
 .vsit{background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px;cursor:pointer}
@@ -2287,6 +2313,31 @@ button:active{ filter: brightness(.93); }
   <button class="go" id="vs_save" onclick="vsSubmit()">✓ Save</button>
   <button class="cancel" id="vs_del" style="background:#b91c1c;color:#fff;display:none" onclick="vsRemove()">Remove from the register</button>
   <button class="cancel" onclick="closeModal('vsModal')">Cancel</button>
+</div></div>
+
+<!-- Directors: a condition of operation — how she has to be run right now -->
+<div class="modal" id="copModal"><div class="card2">
+  <h3 id="cop_head">⚠️ Condition of operation</h3>
+  <p class="mhint" id="cop_hint"></p>
+  <label class="fld">What it is</label>
+  <input class="fld-in" id="cop_title" placeholder="e.g. Master stateroom air-conditioning">
+  <label class="fld">System</label>
+  <select class="fld-in" id="cop_system"></select>
+  <label class="fld">The condition <span class="fldhint">— what has to be done to make it work</span></label>
+  <textarea class="fld-ta" id="cop_cond" placeholder="e.g. Only runs while the saloon forward port AC panel is switched ON. It does not have to be cooling — just on, not on standby."></textarea>
+  <label class="fld">Why <span class="fldhint">(optional — the fault behind it)</span></label>
+  <textarea class="fld-ta" id="cop_why" placeholder="e.g. A fault in the master's pump relay."></textarea>
+  <label class="fld">The job that will end it <span class="fldhint">(optional)</span></label>
+  <input class="fld-in" id="cop_job" placeholder="e.g. Air-conditioning — master stateroom pump relay" list="cop_jobOpts" autocomplete="off" oninput="copJobTyped()">
+  <datalist id="cop_jobOpts"></datalist>
+  <label class="varat"><input type="checkbox" id="cop_owner" checked> Show this to the owner in MyYacht</label>
+  <p class="mhint" style="margin-top:2px">Leave this ticked unless it is purely internal — a condition of operation is usually the answer to a question the owner is about to ask.</p>
+  <label class="varat"><input type="checkbox" id="cop_notify" checked> Tell the owner now — notification &amp; email</label>
+  <p class="mhint" style="margin-top:2px">Goes out the moment you save. Ticked by default on a new one; left clear when you are editing, so fixing a typo never sends the same warning twice.</p>
+  <button class="go" id="cop_save" onclick="copSubmit()">✓ Save</button>
+  <button class="cancel" id="cop_done" style="background:var(--ok);color:#fff;display:none" onclick="copResolve()">✓ Resolved — she runs normally again</button>
+  <button class="cancel" id="cop_del" style="background:#b91c1c;color:#fff;display:none" onclick="copRemove()">Delete (typed in error)</button>
+  <button class="cancel" onclick="closeModal('copModal')">Cancel</button>
 </div></div>
 
 <!-- Directors: add a new task / new worklist -->
@@ -3202,6 +3253,7 @@ function go(tab){
   var titles={jobs:["Marine HQ Crew","Your jobs, checklists & hours"],mine:["My Tasks","Just what's assigned or offered to you"],photos:["Photos","Every shot on this yacht — newest first"],updates:["Updates","Crew activity — newest first"],cal:["Calendar","Scheduled jobs by day"],fleet:["Fleet","Director view — whole operation"],maint:["Maintenance","Care schedule — directors control"],induct:["Vessel induction","Particulars & specialised gear"],sys:["Systems","Her kit — what it is, where it is"],check:["Checklists","Tick & sign off"],off:["Off-Fleet","Deliveries, polishes & callouts"],trip:["Trip Log","Passages — tanks out, hours in"],hours:["Time clock","Clock in · EOD · hours"],vessel:["Engine & parts","Hour meters & spares on board"],sop:["SOP & guides","Marine HQ standards"],profile:["My profile","You & your certificates"]};
   $("hdrTitle").textContent=titles[tab][0]; $("hdrSub").textContent=titles[tab][1];
   if(tab==="jobs") loadJobs();
+  if(tab==="jobs"||tab==="maint"||tab==="sys") loadCOP();   // how she has to be run, above the list
   if(tab==="mine"){ renderMine(); loadJobs(); }   // instant from cache, then refresh (loadJobs re-renders mine)
   if(tab==="photos") loadGallery();
   if(tab==="updates") renderUpdates();
@@ -3283,6 +3335,7 @@ function loadJobs(){
   startActivityWatch();   // fire the activity fetch in PARALLEL with jobs (not after)
   apiGet(url)
     .then(function(j){ CREWJOBS=((j&&j.jobs)||[]).filter(notOffFleet); if(!isMgrRole() || allBoats) CREWOPEN=((j&&j.openJobs)||[]).filter(notOffFleet); if(j&&j.listMeta)LISTMETA=j.listMeta; JOBSVESSEL=allBoats?"all yachts":((j&&j.vessel)||v); if(j&&j.raisedJobs) CREWRAISED=j.raisedJobs.filter(notOffFleet); _cSet(_ck("jobs",vk), CREWJOBS); _cSet(_ck("jobsat",vk), Date.now()); if(allBoats) setRequests(CREWJOBS); renderJobs(); updateJobsBadge(); renderVesselBar(); renderMine(); checkPendingAccepts(); }).catch(function(){});
+  loadCOP();
   loadFleetVessels();
   // On All Yachts the main fetch already returns fleet-wide unassigned — only fetch
   // separately when a director has drilled into ONE boat (so the section stays fleet-wide).
@@ -3312,7 +3365,7 @@ function renderVesselBar(){
   }
   hosts.forEach(function(h){ if(h) h.innerHTML=html; });
 }
-function pickVessel(v){ CURVESSEL=v; WLCLOSED={}; WLSEC={}; loadListInfo(v); loadClosedLists(); renderVesselBar(); if(TAB==="maint"){ if(v==="__all__") loadFleetCare(); else loadCare(v); } else if(TAB==="induct") loadInduct(); else if(TAB==="sys") loadSystems(); else loadJobs(); }
+function pickVessel(v){ CURVESSEL=v; WLCLOSED={}; WLSEC={}; loadListInfo(v); loadClosedLists(); renderVesselBar(); loadCOP(); if(TAB==="maint"){ if(v==="__all__") loadFleetCare(); else loadCare(v); } else if(TAB==="induct") loadInduct(); else if(TAB==="sys") loadSystems(); else loadJobs(); }
 // Open the Command Centre, passing the director's code so it unlocks (no 2nd passcode).
 /* ============================================================
    TASK TIMER — start / stop on a job, and the end-of-day check.
@@ -8469,6 +8522,215 @@ function vsRemove(){
       else toast((r&&r.error)||"Couldn’t remove");
     }).catch(function(){ toast("Couldn’t connect"); });
 }
+/* ============================================================================
+   ⚠️ CONDITIONS OF OPERATION — how she has to be RUN right now
+   (Trish, 17 Sep 2026)
+
+   "add master state room AC operational only when saloon forward port AC panel
+    on … until pump relay issue is resolved."
+
+   A boat can be perfectly serviceable and still only work if you know the one
+   thing to do. That knowledge lived in a crew member's head and in a text
+   message — so the owner stepped aboard, the master cabin was hot, and it
+   looked like we had missed something.
+
+   It sits ABOVE the worklist, not inside it, because it has to be read before
+   the first job is opened. Every active crew member sees it; only a director
+   writes it. It goes the minute the job that ends it is signed off —
+   Resolved, not deleted, so the record of how she was run survives.
+
+   THE FALLBACK BELOW is temporary. The rows live in the "Conditions of
+   Operation" tab and come down the wire like everything else; until the Apps
+   Script deployment carries fn=conditions, the app falls back to this copy so
+   the crew are not waiting on a deploy to be told how to run the boat. The
+   moment the endpoint answers, live data wins and this is ignored.
+   ========================================================================== */
+var COP_ITEMS=[], COP_VESSEL="", COP_MGR=false, COP_SYSLIST=[], COP_LIVE=false;
+var COPM={ key:"" };
+
+var COP_FALLBACK = {
+  "andiamo": [{
+    key:"", title:"Master stateroom air-conditioning", system:"ELEC",
+    condition:"The master stateroom air-conditioning only runs while the saloon forward port AC panel is switched ON. It does not have to be cooling and it does not have to be set to anything in particular — it just has to be ON, not on standby.",
+    why:"A fault in the master's pump relay. Until that is repaired, the master's pump only gets power while the saloon forward port unit is running.",
+    job:"Air-conditioning — master stateroom pump relay", jobKey:"",
+    active:true, showOwner:true, raised:0, by:"Marine HQ"
+  }]
+};
+function copFallback(v){
+  if(v==="__all__"){
+    var all=[];
+    Object.keys(COP_FALLBACK).forEach(function(k){
+      COP_FALLBACK[k].forEach(function(c){ var o={}; for(var f in c) o[f]=c[f]; o.vessel=o.vessel||k.charAt(0).toUpperCase()+k.slice(1); all.push(o); });
+    });
+    return all;
+  }
+  return (COP_FALLBACK[(v||"").toLowerCase().trim()]||[]).slice();
+}
+
+function copHosts(){ return ["copHostJobs","copHostMaint","copHostSys"].map(function(id){ return $(id); }).filter(Boolean); }
+
+function loadCOP(){
+  if(!ME) return;
+  var v=CURVESSEL || ((ME.vessels&&ME.vessels[0])||"");
+  /* A director sitting on All Yachts still gets them — a condition on any boat
+     in the fleet is exactly the kind of thing that must not need drilling in
+     to find. Each card then carries the yacht's name. */
+  if(!v) { COP_ITEMS=[]; COP_VESSEL=""; renderCOP(); return; }
+  if(v==="__all__" && !isMgrRole()){ COP_ITEMS=[]; COP_VESSEL=""; renderCOP(); return; }
+  if(COP_VESSEL!==v){ COP_ITEMS=copFallback(v); COP_VESSEL=v; renderCOP(); }
+  apiGet("fn=conditions&code="+encodeURIComponent(ME.code||"")+"&email="+encodeURIComponent(ME.email||"")+"&vessel="+encodeURIComponent(v))
+    .then(function(j){
+      if(CURVESSEL!==v) return;
+      if(!j || !j.ok){ COP_ITEMS=copFallback(v); COP_VESSEL=v; renderCOP(); return; }   // endpoint not live yet
+      COP_LIVE=true;
+      COP_ITEMS=j.conditions||[]; COP_SYSLIST=j.systems||COP_SYSLIST; COP_MGR=!!j.mgr; COP_VESSEL=v;
+      renderCOP();
+    })
+    .catch(function(){ if(CURVESSEL===v && !COP_LIVE){ COP_ITEMS=copFallback(v); COP_VESSEL=v; renderCOP(); } });
+}
+
+function copAge(ms){
+  if(!ms) return "";
+  var d=Math.floor((Date.now()-ms)/86400000);
+  if(d<=0) return "raised today";
+  if(d===1) return "1 day";
+  if(d<14) return d+" days";
+  if(d<60) return Math.round(d/7)+" weeks";
+  return Math.round(d/30)+" months";
+}
+
+function renderCOP(){
+  var hosts=copHosts(); if(!hosts.length) return;
+  var mgr=isMgrRole();
+  var live=COP_ITEMS.filter(function(c){ return c.active!==false; });
+  var canAdd = mgr && COP_VESSEL && COP_VESSEL!=="__all__";
+  if(!live.length && !canAdd){ hosts.forEach(function(h){ h.innerHTML=""; }); return; }
+
+  var head='<div class="copbar"><h4>⚠️ Conditions of operation</h4>'+
+    (canAdd ? '<button class="copadd" onclick="copNew()">＋ Add</button>' : '')+'</div>';
+
+  var body = live.length
+    ? live.map(copCard).join("")
+    : '<div class="copit" style="background:#f7f9fc;border-color:var(--line);border-left-color:var(--line);box-shadow:none">'+
+      '<span class="coprule" style="color:var(--muted)">'+(COP_VESSEL==="__all__"?"Nothing special on the fleet — every boat runs the way she should.":("Nothing special — "+esc(COP_VESSEL)+" runs the way she should."))+'</span></div>';
+
+  hosts.forEach(function(h){ h.innerHTML=head+body; });
+}
+
+function copCard(c){
+  var mgr=isMgrRole();
+  var tap = (mgr && c.key) ? (' tap" onclick="copOpen(\''+esc(c.key)+'\')') : '"';
+  var jobChip="";
+  if(c.job || c.jobKey){
+    var label=esc(c.job||"the open job");
+    var known=false;
+    try{ known = !!(c.jobKey && typeof wlFind==="function" && wlFind(c.jobKey)); }catch(e){}
+    jobChip = known
+      ? '<button class="copjob" onclick="event.stopPropagation();openWLJob(\''+esc(c.jobKey)+'\')">🔧 '+label+'</button>'
+      : '<span class="copjob flat">🔧 '+label+'</span>';
+  }
+  var age=copAge(c.raised);
+  var boat=(COP_VESSEL==="__all__" && c.vessel) ? ('<span class="copage" style="color:#8a5a08">'+esc(c.vessel)+' \u00b7 </span>') : '';
+  return '<div class="copit'+tap+'">'+
+    '<span class="coptitle">'+boat+esc(c.title||"Condition of operation")+'</span>'+
+    '<div class="coprule">'+esc(c.condition||"")+'</div>'+
+    (c.why?('<div class="copwhy"><b>Why:</b> '+esc(c.why)+'</div>'):'')+
+    '<div class="copmeta">'+jobChip+
+      (age?('<span class="copage">'+esc(age)+'</span>'):'')+
+      (c.showOwner===false?'<span class="copint">Internal only</span>':'<span class="copown">Owner sees this</span>')+
+      ((mgr && c.key)?('<button class="copdone" onclick="event.stopPropagation();copResolveKey(\''+esc(c.key)+'\')">✓ Resolved</button>'):'')+
+    '</div></div>';
+}
+
+/* ---- the director's side ---- */
+function copSysList(){
+  if(COP_SYSLIST.length) return COP_SYSLIST;
+  if(typeof VS_SYSLIST!=="undefined" && VS_SYSLIST.length) return VS_SYSLIST;
+  return [["ELEC","Electrical & electronics"],["ENG","Engines & engine room"],["PLUMB","Plumbing & water"],
+          ["INT","Interior"],["DECK","Deck & topsides"],["OPS","Operations"]];
+}
+/* The open jobs on this boat, offered as you type, so a condition can be tied
+   to the job that ends it without copying a key by hand. */
+function copJobOpts(){
+  var dl=$("cop_jobOpts"); if(!dl) return;
+  var seen={}, opts=[];
+  (typeof CREWJOBS!=="undefined"?CREWJOBS:[]).forEach(function(j){
+    if(!j || !j.task) return;
+    if(j.vessel && COP_VESSEL && j.vessel!==COP_VESSEL) return;
+    var t=(j.task||"")+(j.desc?(" — "+j.desc):"");
+    if(seen[t]) return; seen[t]=j.key||"1"; opts.push(t);
+  });
+  COPM.jobIndex=seen;
+  dl.innerHTML=opts.slice(0,60).map(function(t){ return '<option value="'+esc(t)+'">'; }).join("");
+}
+function copJobTyped(){
+  var v=($("cop_job").value||"").trim();
+  COPM.jobKey = (COPM.jobIndex && COPM.jobIndex[v] && COPM.jobIndex[v]!=="1") ? COPM.jobIndex[v] : "";
+}
+function copFill(c){
+  var sys=$("cop_system");
+  sys.innerHTML=copSysList().map(function(x){ return '<option value="'+x[0]+'"'+((c.system||"ELEC")===x[0]?" selected":"")+'>'+esc(x[1])+'</option>'; }).join("");
+  $("cop_title").value=c.title||""; $("cop_cond").value=c.condition||"";
+  $("cop_why").value=c.why||""; $("cop_job").value=c.job||"";
+  $("cop_owner").checked=(c.showOwner!==false);
+  $("cop_notify").checked=!c.key;          // new → tell them; editing → don't re-send
+  $("cop_hint").textContent=COP_VESSEL+(c.key?"":" — new. This shows on her crew screens and, ticked below, in the owner's app.");
+  $("cop_head").textContent=c.key?("⚠️ "+(c.title||"Condition of operation")):"⚠️ Add a condition of operation";
+  $("cop_done").style.display=c.key?"":"none";
+  $("cop_del").style.display=c.key?"":"none";
+  COPM={ key:c.key||"", jobKey:c.jobKey||"", jobIndex:{} };
+  copJobOpts();
+  $("copModal").classList.add("show");
+}
+function copNew(){
+  if(!COP_VESSEL || COP_VESSEL==="__all__"){ toast("Pick the yacht first"); return; }
+  copFill({});
+}
+function copOpen(key){
+  var c=null; COP_ITEMS.forEach(function(x){ if(x.key===key) c=x; });
+  if(!c) return; copFill(c);
+}
+function copSubmit(){
+  var title=($("cop_title").value||"").trim(), cond=($("cop_cond").value||"").trim();
+  if(!title){ toast("What is it called?"); return; }
+  if(!cond){ toast("What has to be done to run her?"); return; }
+  var btn=$("cop_save"); btn.disabled=true; btn.textContent="Saving…";
+  apiPost({ action:"conditionSave", email:ME.email, code:ME.code,
+    condKey:COPM.key, vessel:COP_VESSEL,
+    title:title, system:$("cop_system").value, condition:cond,
+    why:($("cop_why").value||"").trim(),
+    job:($("cop_job").value||"").trim(), jobKey:COPM.jobKey||"",
+    showOwner:$("cop_owner").checked,
+    notify:($("cop_notify").checked && $("cop_owner").checked) })
+    .then(function(r){
+      btn.disabled=false; btn.textContent="✓ Save";
+      if(r&&r.ok){ closeModal("copModal");
+        toast(r.notified ? ("✓ Saved — the owner has been told") : ("✓ Saved — showing on "+COP_VESSEL+"’s screens"));
+        loadCOP(); }
+      else toast((r&&r.error)||"Couldn’t save");
+    })
+    .catch(function(){ btn.disabled=false; btn.textContent="✓ Save"; toast("Couldn’t connect"); });
+}
+function copResolve(){ if(COPM.key) copResolveKey(COPM.key, true); }
+function copResolveKey(key, fromModal){
+  if(!confirm("Mark this resolved?\n\nIt comes off the crew screens and the owner’s app straight away, and the owner is told she runs normally again. The record of it stays on the sheet.")) return;
+  apiPost({ action:"conditionResolve", email:ME.email, code:ME.code, condKey:key })
+    .then(function(r){
+      if(r&&r.ok){ if(fromModal) closeModal("copModal"); toast("✓ Cleared — she runs normally again"); loadCOP(); }
+      else toast((r&&r.error)||"Couldn’t update");
+    }).catch(function(){ toast("Couldn’t connect"); });
+}
+function copRemove(){
+  if(!COPM.key) return;
+  if(!confirm("Delete this condition entirely?\n\nIf the fault is fixed, use “Resolved” instead — that keeps the record.")) return;
+  apiPost({ action:"conditionDelete", email:ME.email, code:ME.code, condKey:COPM.key })
+    .then(function(r){
+      if(r&&r.ok){ closeModal("copModal"); toast("Deleted"); loadCOP(); }
+      else toast((r&&r.error)||"Couldn’t delete");
+    }).catch(function(){ toast("Couldn’t connect"); });
+}
+
 /* Manager-only: approve a completed job → push it to the owner's app.
    The owner-share state is shown WHATEVER the status — a task can be shared
    without ever going through Complete (a whole work list shared at onboarding),
