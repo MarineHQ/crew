@@ -303,6 +303,16 @@
   .dnacc.duehd.soonhd{background:#f3f5f8;border-color:#dde3ec;color:#5b6a84}
   .duerow.indue{background:#fff;border:1px solid var(--line);border-radius:10px;padding:9px 11px;margin:0 0 7px;display:flex;align-items:center;gap:9px}
   .duerow.indue .due-add{white-space:nowrap}
+  /* COMPLETED & FILED reads as a RESULT, not as an archive (Trish, 19 Sep 2026:
+     "make the complete expandable sections stand out more ... more green").
+     It was the same pale grey strip as every other fold, so a list with
+     everything done looked like a list with nothing on it. Solid green, white
+     text, its own shadow — the same weight as the orange Unassigned banner, so
+     the two ends of a list read as equals. Marked, not dimmed. */
+  .dnacc.filed{background:linear-gradient(120deg,#1F7A54,#155f41);border-color:#12543a;color:#fff;font-weight:800;
+               box-shadow:0 3px 10px rgba(31,122,84,.26)}
+  .dnacc.filed h4,.dnacc.filed .car{color:#fff}
+  .dnacc.filed .n{background:rgba(255,255,255,.22);color:#fff}
   .dnacc.unass{background:linear-gradient(120deg,#E87722,#d1620b);border-color:#c25a08;color:#fff;font-weight:800}
   .dnacc.unass .car{color:#fff} .dnacc.unass h4{color:#fff}
   .dnacc.unass .n{background:rgba(255,255,255,.22);color:#fff}
@@ -6468,7 +6478,7 @@ function doneBlock(g, kind, arr, label){
   // The Unassigned fold is not a "done" section: it never auto-opens.
   var k=g+"|"+kind, open=(k in WLDONE) ? !!WLDONE[k] : (kind!=="unass" && JOBFILTER==="Done");
   var kJs=k.replace(/\\/g,"\\\\").replace(/'/g,"\\'");
-  return '<div class="dnacc'+(kind==="sign"?" sign":"")+(kind==="unass"?" unass":"")+(open?"":" closed")+'" onclick="event.stopPropagation();toggleDone(\''+esc(kJs)+'\')">'+
+  return '<div class="dnacc'+(kind==="sign"?" sign":"")+(kind==="unass"?" unass":"")+(kind==="filed"?" filed":"")+(open?"":" closed")+'" onclick="event.stopPropagation();toggleDone(\''+esc(kJs)+'\')">'+
     '<span class="car">&#9662;</span><h4>'+label+'</h4><span class="n">'+arr.length+'</span></div>'+
     '<div class="dnbody'+(open?"":" closed")+'">'+arr.map(function(j,i){
       return (kind==="unass") ? wlJobCard(j,i,false,"U"+(i+1)) : wlJobCard(j,i);
