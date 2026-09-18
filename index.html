@@ -2262,6 +2262,31 @@ button:active{ filter: brightness(.93); }
 .copbar .copadd{margin-left:auto;font-size:11.5px;font-weight:800;color:var(--navy);background:#eef2f9;border:0;border-radius:999px;padding:5px 10px;cursor:pointer}
 .copit{position:relative;background:#fffaf0;border:1.5px solid #f0c987;border-left:5px solid var(--amber);
        border-radius:12px;padding:11px 13px 11px 14px;margin-bottom:9px;box-shadow:0 2px 8px rgba(183,116,16,.10)}
+/* FOLDS TO ITS HEADING (Trish, 18 Sep 2026). Open, each one runs to a
+   paragraph plus photos and pushes the worklist off the screen — and a
+   director on All Yachts can be looking at several boats' worth. The heading
+   still names the boat, the number and what is affected, so nothing is lost by
+   folding the detail away until it is wanted. <details> so the browser does the
+   work and it still opens with no JS. A single condition on a single boat
+   starts OPEN: a condition is there to be read, and one of them costs nothing. */
+/* TWO DELIBERATE ROWS. One flex row of chips will not fit a phone alongside a
+   title like "Master stateroom air-conditioning", and letting it wrap put the
+   chevron on a line of its own. So: the small stuff on top (number, boat, how
+   long, the chevron), the title under it, full width. */
+.copit>summary.cophead{list-style:none;cursor:pointer;display:block}
+.copit>summary.cophead::-webkit-details-marker{display:none}
+.copit .copline{display:flex;align-items:center;gap:8px}
+.copit>summary.cophead .coptitle{display:block;margin-top:5px}
+.copit .copwarn{font-size:14px;flex:0 0 auto;line-height:1}
+.copit .copline .copage{margin-left:auto;white-space:nowrap}
+.copit .copchev{color:#b07a24;font-size:12px;transition:transform .15s ease;flex:0 0 auto;margin-left:6px}
+.copit[open] .copchev{transform:rotate(180deg)}
+.copit .copbody{margin-top:6px}
+/* WHICH BOAT. Directors work across the fleet, so every condition says whose
+   it is — not only on All Yachts. Crew see one boat and don't need telling. */
+.copit .copboat{font-size:10.5px;font-weight:800;letter-spacing:.3px;background:#fff;border:1px solid #f0c987;color:#8a5a08;border-radius:999px;padding:3px 8px;flex:none}
+.copgrp{margin-bottom:4px}
+.copgrp>h5{margin:10px 0 6px;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:#8a5a08;font-weight:800}
 .copit.tap{cursor:pointer}
 .copit .coptitle{display:block;font-size:14.5px;font-weight:800;color:#7c4a03;line-height:1.25}
 .copit .coprule{font-size:13.5px;color:var(--ink);margin-top:5px;line-height:1.45}
@@ -8642,17 +8667,35 @@ function renderCOP(){
   var head='<div class="copbar"><h4>⚠️ Conditions of operation</h4>'+
     (canAdd ? '<button class="copadd" onclick="copNew()">＋ Add</button>' : '')+'</div>';
 
-  var body = live.length
-    ? live.map(copCard).join("")
-    : '<div class="copit" style="background:#f7f9fc;border-color:var(--line);border-left-color:var(--line);box-shadow:none">'+
+  /* GROUPED BY BOAT when a director is on All Yachts, so the fleet's conditions
+     read as a list per yacht rather than one run-on pile. On a single boat the
+     heading would just repeat the boat bar, so it is left off. */
+  var solo = (live.length===1 && COP_VESSEL!=="__all__");
+  var body;
+  if (!live.length) body = null;
+  else if (COP_VESSEL==="__all__"){
+    var byBoat={}, order=[];
+    live.forEach(function(c){
+      var b=c.vessel||"—"; if(!byBoat[b]){ byBoat[b]=[]; order.push(b); } byBoat[b].push(c);
+    });
+    order.sort();
+    body = order.map(function(b){
+      return '<div class="copgrp"><h5>'+esc(b)+'</h5>'+
+        byBoat[b].map(function(c){ return copCard(c, false); }).join("")+'</div>';
+    }).join("");
+  } else {
+    body = live.map(function(c){ return copCard(c, solo); }).join("");
+  }
+  body = (body !== null)
+    ? body
+    : '<div class="copit" style="background:#f7f9fc;border-color:var(--line);border-left-color:var(--line);box-shadow:none;padding:11px 14px">'+
       '<span class="coprule" style="color:var(--muted)">'+(COP_VESSEL==="__all__"?"Nothing special on the fleet — every boat runs the way she should.":("Nothing special — "+esc(COP_VESSEL)+" runs the way she should."))+'</span></div>';
 
   hosts.forEach(function(h){ h.innerHTML=head+body; });
 }
 
-function copCard(c){
+function copCard(c, startOpen){
   var mgr=isMgrRole();
-  var tap = (mgr && c.key) ? (' tap" onclick="copOpen(\''+esc(c.key)+'\')') : '"';
   var jobChip="";
   if(c.job || c.jobKey){
     var label=esc(c.job||"the open job");
@@ -8663,22 +8706,41 @@ function copCard(c){
       : '<span class="copjob flat">🔧 '+label+'</span>';
   }
   var age=copAge(c.raised);
-  var boat=(COP_VESSEL==="__all__" && c.vessel) ? ('<span class="copage" style="color:#8a5a08">'+esc(c.vessel)+' \u00b7 </span>') : '';
+  /* Named on every card a director sees. On All Yachts the group heading
+     already says it, so the chip would be saying it twice. */
+  /* A row fetched for one boat doesn't always repeat the boat's name, so fall
+     back to the boat being looked at — the chip must never be the thing that
+     goes missing. */
+  var vname = c.vessel || (COP_VESSEL!=="__all__" ? COP_VESSEL : "");
+  var boat=(mgr && vname && COP_VESSEL!=="__all__")
+    ? ('<span class="copboat">'+esc(vname)+'</span>') : '';
   var codeChip = c.code ? ('<span class="copcode">'+esc(c.code)+'</span>') : '';
   var shots = (c.photos&&c.photos.length)
     ? ('<div class="copshots">'+c.photos.slice(0,3).map(function(ph){
         return '<img src="'+esc(ph.url)+'" alt="'+esc(ph.name||"")+'" loading="lazy" onerror="this.style.display=\'none\'" onclick="event.stopPropagation();window.open(this.src,\'_blank\')">';
       }).join("")+'</div>') : '';
-  return '<div class="copit'+tap+'">'+
-    '<span class="coptitle">'+codeChip+boat+esc(c.title||"Condition of operation")+'</span>'+
+  /* The whole card used to open the editor on tap. It cannot now — the tap
+     belongs to the fold — so editing is its own ✎ button in the footer. */
+  var editBtn = (mgr && c.key)
+    ? ('<button class="copjob" onclick="event.stopPropagation();copOpen(\''+esc(c.key)+'\')">✎ Edit</button>') : '';
+  return '<details class="copit"'+(startOpen?' open':'')+'>'+
+    '<summary class="cophead">'+
+      '<div class="copline">'+
+        '<span class="copwarn" aria-hidden="true">\u26a0\ufe0f</span>'+
+        codeChip+boat+
+        (age?('<span class="copage">'+esc(age)+'</span>'):'<span style="margin-left:auto"></span>')+
+        '<span class="copchev" aria-hidden="true">\u25be</span>'+
+      '</div>'+
+      '<span class="coptitle">'+esc(c.title||"Condition of operation")+'</span>'+
+    '</summary>'+
+    '<div class="copbody">'+
     '<div class="coprule">'+esc(c.condition||"")+'</div>'+
     shots+
     (c.why?('<div class="copwhy"><b>Why:</b> '+esc(c.why)+'</div>'):'')+
-    '<div class="copmeta">'+jobChip+
-      (age?('<span class="copage">'+esc(age)+'</span>'):'')+
+    '<div class="copmeta">'+jobChip+editBtn+
       (c.showOwner===false?'<span class="copint">Internal only</span>':'<span class="copown">Owner sees this</span>')+
       ((mgr && c.key)?('<button class="copdone" onclick="event.stopPropagation();copResolveKey(\''+esc(c.key)+'\')">✓ Resolved</button>'):'')+
-    '</div></div>';
+    '</div></div></details>';
 }
 
 /* ---- the director's side ---- */
