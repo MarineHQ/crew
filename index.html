@@ -2273,6 +2273,19 @@ button:active{ filter: brightness(.93); }
 .copit .copage{font-size:11px;font-weight:700;color:var(--muted)}
 .copit .copown{font-size:10.5px;font-weight:800;background:#e7f3ec;color:#0f6b3d;border-radius:999px;padding:3px 8px}
 .copit .copint{font-size:10.5px;font-weight:800;background:#eceff3;color:#5b6775;border-radius:999px;padding:3px 8px}
+.copit .copcode{font-size:10.5px;font-weight:800;letter-spacing:.6px;background:#8a5a08;color:#fff;border-radius:999px;padding:3px 8px;margin-right:6px;vertical-align:2px}
+.copit .copshots{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+.copit .copshots img{width:calc(33.333% - 4px);height:78px;object-fit:cover;border-radius:8px;border:1px solid #f0c987;cursor:zoom-in}
+.copphoto{position:relative}
+.copphoto button{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border:0;border-radius:50%;background:#b91c1c;color:#fff;font-size:11px;line-height:20px;padding:0;cursor:pointer}
+.copthumbs{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0}
+.copthumbs img{width:76px;height:60px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
+.copnone{font-size:12px;color:var(--muted)}
+/* The condition, shown ON the job it is tied to — so a crew member who opens
+   the AC job is told how the boat has to be run before they touch anything. */
+.copjobbox{background:#fffaf0;border:1.5px solid #f0c987;border-left:5px solid var(--amber);border-radius:10px;padding:10px 12px;margin:0 0 12px}
+.copjobbox b{display:block;font-size:13.5px;color:#7c4a03}
+.copjobbox .r{font-size:13px;color:var(--ink);margin-top:4px;line-height:1.45}
 .copit .copdone{font-size:11px;font-weight:800;background:var(--ok);color:#fff;border:0;border-radius:999px;padding:4px 10px;cursor:pointer;margin-left:auto}
 .vsgrp{margin-top:12px}
 .vsgrp>h5{margin:0 0 6px;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);font-weight:800}
@@ -2327,9 +2340,15 @@ button:active{ filter: brightness(.93); }
   <textarea class="fld-ta" id="cop_cond" placeholder="e.g. Only runs while the saloon forward port AC panel is switched ON. It does not have to be cooling — just on, not on standby."></textarea>
   <label class="fld">Why <span class="fldhint">(optional — the fault behind it)</span></label>
   <textarea class="fld-ta" id="cop_why" placeholder="e.g. A fault in the master's pump relay."></textarea>
+  <label class="fld">Photos <span class="fldhint">— a picture of the panel beats any description</span></label>
+  <div class="copthumbs" id="cop_thumbs"></div>
+  <div class="photos"><label class="addph" for="cop_file">📷<span>Add a photo</span></label></div>
+  <input type="file" id="cop_file" accept="image/*" capture="environment" multiple style="display:none" onchange="copPicked(this)">
   <label class="fld">The job that will end it <span class="fldhint">(optional)</span></label>
   <input class="fld-in" id="cop_job" placeholder="e.g. Air-conditioning — master stateroom pump relay" list="cop_jobOpts" autocomplete="off" oninput="copJobTyped()">
   <datalist id="cop_jobOpts"></datalist>
+  <label class="fld">Job code <span class="fldhint">(optional — e.g. AND-ELEC-0116; the condition then shows on that job)</span></label>
+  <input class="fld-in" id="cop_jobcode" placeholder="AND-ELEC-0116" autocomplete="off">
   <label class="varat"><input type="checkbox" id="cop_owner" checked> Show this to the owner in MyYacht</label>
   <p class="mhint" style="margin-top:2px">Leave this ticked unless it is purely internal — a condition of operation is usually the answer to a question the owner is about to ask.</p>
   <label class="varat"><input type="checkbox" id="cop_notify" checked> Tell the owner now — notification &amp; email</label>
@@ -8111,6 +8130,10 @@ function openWLJob(key){
         (isMgrRole()?((j.list?(" · "+esc(j.list)):"")+(j.code?(' &nbsp;<span class="jcode">'+esc(j.code)+'</span>'):'')+catChip(j.category)):'')+'</div>'+
       '<h3 id="wlTitleH">'+(isMgrRole()?(num+'. '):'')+esc(j.task||"(job)")+(wlCanFix(j)?(' <span class="hd-ed" title="Edit the task name" onclick="wlEditTitle(\''+esc(key)+'\')">✎</span>'):'')+'</h3></div><button class="closeb" onclick="closeSheet()">✕</button></div>'+
     wlFactsHtml(j)+
+    // How the boat has to be RUN, when this is the job that will end it. Above
+    // the description on purpose: whoever opens this job should be told before
+    // they touch anything.
+    copForJobHtml(j)+
     (function(){ if(!j.desc && !wlCanFix(j)) return '';
       var b=j.desc?('<p class="body" id="wlDescText">'+linkify(esc(j.desc).replace(/\n/g,"<br>"))+'</p>'):'<p class="body" id="wlDescText" style="color:var(--muted)">No description yet.</p>';
       var ed=wlCanFix(j)?' <span class="wlnote-ed" style="cursor:pointer" onclick="wlEditDesc(\''+esc(key)+'\')">✎ Edit</span>':'';
@@ -8546,14 +8569,23 @@ function vsRemove(){
    moment the endpoint answers, live data wins and this is ignored.
    ========================================================================== */
 var COP_ITEMS=[], COP_VESSEL="", COP_MGR=false, COP_SYSLIST=[], COP_LIVE=false;
-var COPM={ key:"" };
+var COPM={ key:"", photos:[], staged:[] };
 
+/* The two panel photographs Trish took on board, carried in the app itself so
+   the condition is complete before the Apps Script deploy lands. Drop the files
+   into coo/ and they show; a missing file simply does not render. Once the
+   endpoint answers, the sheet's own photos take over. */
+var COP_SEED_PHOTOS = [
+  { name:"Ventilation panel — SALOON AIR CON Fwd Port on", url:"coo/andiamo-ventilation-panel.jpg" },
+  { name:"Dometic panel — STATUS: STDBY", url:"coo/andiamo-dometic-standby.jpg" }
+];
 var COP_FALLBACK = {
   "andiamo": [{
-    key:"", title:"Master stateroom air-conditioning", system:"ELEC",
-    condition:"The master stateroom air-conditioning only runs while the saloon forward port AC panel is switched ON. It does not have to be cooling and it does not have to be set to anything in particular — it just has to be ON, not on standby.",
-    why:"A fault in the master's pump relay. Until that is repaired, the master's pump only gets power while the saloon forward port unit is running.",
-    job:"Air-conditioning — master stateroom pump relay", jobKey:"",
+    key:"", code:"COO-AND-001", title:"Master stateroom air-conditioning", system:"ELEC",
+    condition:"The master stateroom air-conditioning — CABIN AIR CON → Port Master State on the Ventilation page — only runs while SALOON AIR CON → Fwd Port is switched on. Fwd Port has to be ON and running: it does not have to be cooling, and it does not have to be set to anything in particular, but it must not be sitting on standby (STDBY on its Dometic panel).",
+    why:"A fault in the master's pump relay. Until that is repaired, the master's pump only gets power while the saloon Fwd Port unit is running.",
+    job:"Air-conditioning — master stateroom pump relay", jobKey:"", jobCode:"",
+    photos:COP_SEED_PHOTOS,
     active:true, showOwner:true, raised:0, by:"Marine HQ"
   }]
 };
@@ -8632,9 +8664,15 @@ function copCard(c){
   }
   var age=copAge(c.raised);
   var boat=(COP_VESSEL==="__all__" && c.vessel) ? ('<span class="copage" style="color:#8a5a08">'+esc(c.vessel)+' \u00b7 </span>') : '';
+  var codeChip = c.code ? ('<span class="copcode">'+esc(c.code)+'</span>') : '';
+  var shots = (c.photos&&c.photos.length)
+    ? ('<div class="copshots">'+c.photos.slice(0,3).map(function(ph){
+        return '<img src="'+esc(ph.url)+'" alt="'+esc(ph.name||"")+'" loading="lazy" onerror="this.style.display=\'none\'" onclick="event.stopPropagation();window.open(this.src,\'_blank\')">';
+      }).join("")+'</div>') : '';
   return '<div class="copit'+tap+'">'+
-    '<span class="coptitle">'+boat+esc(c.title||"Condition of operation")+'</span>'+
+    '<span class="coptitle">'+codeChip+boat+esc(c.title||"Condition of operation")+'</span>'+
     '<div class="coprule">'+esc(c.condition||"")+'</div>'+
+    shots+
     (c.why?('<div class="copwhy"><b>Why:</b> '+esc(c.why)+'</div>'):'')+
     '<div class="copmeta">'+jobChip+
       (age?('<span class="copage">'+esc(age)+'</span>'):'')+
@@ -8668,6 +8706,53 @@ function copJobTyped(){
   var v=($("cop_job").value||"").trim();
   COPM.jobKey = (COPM.jobIndex && COPM.jobIndex[v] && COPM.jobIndex[v]!=="1") ? COPM.jobIndex[v] : "";
 }
+/* THE CONDITION, SHOWN ON THE JOB IT IS TIED TO.
+   A condition points at the job that will end it — so the job has to point
+   back, or the person who finally fixes the relay never learns that half the
+   boat has been running on a workaround. Matched on the worklist row key or on
+   the catalogue job code, whichever the director filled in. */
+function copForJob(j){
+  if(!j) return [];
+  var code=(j.code||"").toString().trim().toUpperCase();
+  return (COP_ITEMS||[]).filter(function(c){
+    if(c.active===false) return false;
+    if(c.jobKey && j.key && c.jobKey===j.key) return true;
+    return !!(code && (c.jobCode||"").toString().trim().toUpperCase()===code);
+  });
+}
+function copForJobHtml(j){
+  var hits=copForJob(j); if(!hits.length) return '';
+  return hits.map(function(c){
+    return '<div class="copjobbox">'+
+      '<b>⚠️ '+(c.code?(esc(c.code)+' — '):'')+esc(c.title||"Condition of operation")+'</b>'+
+      '<div class="r">'+esc(c.condition||"")+'</div>'+
+      '<div class="r" style="color:var(--muted);font-size:12.5px">This stays in force until this job is signed off.</div>'+
+    '</div>';
+  }).join("");
+}
+
+function copThumbs(){
+  var host=$("cop_thumbs"); if(!host) return;
+  var saved=COPM.photos.map(function(p,i){
+    return '<span class="copphoto"><img src="'+esc(p.url)+'" alt="" onerror="this.style.opacity=.25">'+
+      '<button type="button" onclick="copDropPhoto('+i+')" title="Remove">✕</button></span>';
+  }).join("");
+  var pend=COPM.staged.map(function(f,i){
+    return '<span class="copphoto"><img src="'+esc(f._u||"")+'" alt="" style="opacity:.6">'+
+      '<button type="button" onclick="copDropStaged('+i+')" title="Remove">✕</button></span>';
+  }).join("");
+  host.innerHTML=saved+pend || '<span class="copnone">No photo yet</span>';
+}
+function copPicked(input){
+  var files=Array.prototype.slice.call(input.files||[]); input.value="";
+  files.forEach(function(f){ try{ f._u=URL.createObjectURL(f); }catch(e){} COPM.staged.push(f); });
+  copThumbs();
+}
+function copDropStaged(i){ var f=COPM.staged[i]; if(f&&f._u){ try{ URL.revokeObjectURL(f._u); }catch(e){} } COPM.staged.splice(i,1); copThumbs(); }
+/* A saved photo goes on the NEXT save, not on the tap — cancelling the modal
+   undoes it, the same as every other field here. */
+function copDropPhoto(i){ COPM.photos.splice(i,1); copThumbs(); }
+
 function copFill(c){
   var sys=$("cop_system");
   sys.innerHTML=copSysList().map(function(x){ return '<option value="'+x[0]+'"'+((c.system||"ELEC")===x[0]?" selected":"")+'>'+esc(x[1])+'</option>'; }).join("");
@@ -8676,11 +8761,14 @@ function copFill(c){
   $("cop_owner").checked=(c.showOwner!==false);
   $("cop_notify").checked=!c.key;          // new → tell them; editing → don't re-send
   $("cop_hint").textContent=COP_VESSEL+(c.key?"":" — new. This shows on her crew screens and, ticked below, in the owner's app.");
-  $("cop_head").textContent=c.key?("⚠️ "+(c.title||"Condition of operation")):"⚠️ Add a condition of operation";
+  $("cop_head").textContent=c.key?("⚠️ "+(c.code?(c.code+" — "):"")+(c.title||"Condition of operation")):"⚠️ Add a condition of operation";
   $("cop_done").style.display=c.key?"":"none";
   $("cop_del").style.display=c.key?"":"none";
-  COPM={ key:c.key||"", jobKey:c.jobKey||"", jobIndex:{} };
+  $("cop_jobcode").value=c.jobCode||"";
+  COPM={ key:c.key||"", jobKey:c.jobKey||"", jobIndex:{},
+         photos:(c.photos||[]).slice(), staged:[] };
   copJobOpts();
+  copThumbs();
   $("copModal").classList.add("show");
 }
 function copNew(){
@@ -8696,17 +8784,24 @@ function copSubmit(){
   if(!title){ toast("What is it called?"); return; }
   if(!cond){ toast("What has to be done to run her?"); return; }
   var btn=$("cop_save"); btn.disabled=true; btn.textContent="Saving…";
-  apiPost({ action:"conditionSave", email:ME.email, code:ME.code,
-    condKey:COPM.key, vessel:COP_VESSEL,
-    title:title, system:$("cop_system").value, condition:cond,
-    why:($("cop_why").value||"").trim(),
-    job:($("cop_job").value||"").trim(), jobKey:COPM.jobKey||"",
-    showOwner:$("cop_owner").checked,
-    notify:($("cop_notify").checked && $("cop_owner").checked) })
+  var keep=COPM.photos.map(function(p){ return p.url; });
+  Promise.all(COPM.staged.map(function(f){ return fileToUpload(f, 1600, 0.85); }))
+  .then(function(ups){
+    return apiPost({ action:"conditionSave", email:ME.email, code:ME.code,
+      condKey:COPM.key, vessel:COP_VESSEL,
+      title:title, system:$("cop_system").value, condition:cond,
+      why:($("cop_why").value||"").trim(),
+      job:($("cop_job").value||"").trim(), jobKey:COPM.jobKey||"",
+      jobCode:($("cop_jobcode").value||"").trim().toUpperCase(),
+      keepPhotos:keep, photos:ups.filter(Boolean),
+      showOwner:$("cop_owner").checked,
+      notify:($("cop_notify").checked && $("cop_owner").checked) });
+  })
     .then(function(r){
       btn.disabled=false; btn.textContent="✓ Save";
       if(r&&r.ok){ closeModal("copModal");
-        toast(r.notified ? ("✓ Saved — the owner has been told") : ("✓ Saved — showing on "+COP_VESSEL+"’s screens"));
+        toast(r.notified ? ((r.code||"Saved")+" — the owner has been told")
+                         : ("✓ "+(r.code||"Saved")+" — showing on "+COP_VESSEL+"’s screens"));
         loadCOP(); }
       else toast((r&&r.error)||"Couldn’t save");
     })
