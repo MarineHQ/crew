@@ -8774,6 +8774,33 @@ function copJobTyped(){
    back, or the person who finally fixes the relay never learns that half the
    boat has been running on a workaround. Matched on the worklist row key or on
    the catalogue job code, whichever the director filled in. */
+/* THE JOB IS DONE — DOES SHE RUN NORMALLY AGAIN?  (Trish, 19 Sep 2026:
+   "provide an option so when that task is done does that remove the condition
+   of operation as well")
+
+   ASKED, NEVER ASSUMED. A condition is a promise to the owner about how their
+   boat behaves, and a job can be ticked for all sorts of reasons — the part
+   arrived, one of three faults was cleared, someone tidied the list. Clearing
+   the condition off the back of a tick would quietly tell an owner the cabin is
+   fixed when nobody has checked. So the tick opens a question, and the person
+   who did the work answers it.
+
+   Saying yes runs the same resolve as the ✓ button: the condition leaves both
+   apps and the owner is told she runs normally again. Saying no leaves it
+   standing, and the job is still complete either way. */
+function copOfferResolve(j){
+  var hits=copForJob(j);
+  if(!hits.length) return;
+  hits.forEach(function(c){
+    if(!c.key) return;                       // nothing to resolve until it is a real row
+    var msg = (c.code?(c.code+" — "):"")+(c.title||"A condition of operation")+
+      "\n\nThat job was holding this in place:\n\n\u201c"+(c.condition||"")+"\u201d"+
+      "\n\nIs she back to normal?\n\nOK  — clear it, and tell the owner she runs normally again."+
+      "\nCancel — leave it standing (the job stays complete).";
+    if(confirm(msg)) copResolveKey(c.key, false, true);
+  });
+}
+
 function copForJob(j){
   if(!j) return [];
   var code=(j.code||"").toString().trim().toUpperCase();
@@ -8871,8 +8898,8 @@ function copSubmit(){
     .catch(function(){ btn.disabled=false; btn.textContent="✓ Save"; toast("Couldn’t connect"); });
 }
 function copResolve(){ if(COPM.key) copResolveKey(COPM.key, true); }
-function copResolveKey(key, fromModal){
-  if(!confirm("Mark this resolved?\n\nIt comes off the crew screens and the owner’s app straight away, and the owner is told she runs normally again. The record of it stays on the sheet.")) return;
+function copResolveKey(key, fromModal, preConfirmed){
+  if(!preConfirmed && !confirm("Mark this resolved?\n\nIt comes off the crew screens and the owner’s app straight away, and the owner is told she runs normally again. The record of it stays on the sheet.")) return;
   apiPost({ action:"conditionResolve", email:ME.email, code:ME.code, condKey:key })
     .then(function(r){
       if(r&&r.ok){ if(fromModal) closeModal("copModal"); toast("✓ Cleared — she runs normally again"); loadCOP(); }
@@ -9480,7 +9507,9 @@ function wlApprove(key, share){
 }
 function wlSetStatus(key,st,completedDate){
   apiPost({action:"crewJobStatus", email:ME.email, code:ME.code, jobKey:key, status:st, completedDate:completedDate||""}).then(function(r){
-    if(r&&r.ok){ toast(st==="Complete"?("✓ Complete"+(r.completed?(" · dated "+r.completed):"")):("Set to "+st)); var j=wlFind(key); if(j){ j.status=(st==="In hand"?"In Progress":st); if(st==="Complete")j.completed=r.completed||""; else j.completed=""; } openWLJob(key); loadJobs(); }
+    if(r&&r.ok){ toast(st==="Complete"?("✓ Complete"+(r.completed?(" · dated "+r.completed):"")):("Set to "+st)); var j=wlFind(key); if(j){ j.status=(st==="In hand"?"In Progress":st); if(st==="Complete")j.completed=r.completed||""; else j.completed=""; } openWLJob(key); loadJobs();
+      /* This job may be the one holding a condition of operation in place. */
+      if(st==="Complete") copOfferResolve(j||{key:key}); }
     else toast((r&&r.error)||"Couldn’t update");
   }).catch(function(){ toast("Couldn’t connect"); });
 }
