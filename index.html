@@ -2269,7 +2269,9 @@ button:active{ filter: brightness(.93); }
 .copwrap{margin:0 4px 14px}
 .copbar{display:flex;align-items:center;gap:8px;margin:0 0 8px}
 .copbar h4{margin:0;font-size:11.5px;letter-spacing:1.2px;text-transform:uppercase;color:#8a5a08;font-weight:800}
-.copbar .copref{font-weight:800;color:#b07a24;letter-spacing:.6px}
+/* The heading is uppercased by .copbar h4, which turned Trish's "CoO-" into
+   "COO-" — the exact spelling she asked for, undone by a text-transform. */
+.copbar .copref{font-weight:800;color:#b07a24;letter-spacing:.6px;text-transform:none}
 .copbar .copadd{margin-left:auto;font-size:11.5px;font-weight:800;color:var(--navy);background:#eef2f9;border:0;border-radius:999px;padding:5px 10px;cursor:pointer}
 .copit{position:relative;background:#fffaf0;border:1.5px solid #f0c987;border-left:5px solid var(--amber);
        border-radius:12px;padding:11px 13px 11px 14px;margin-bottom:9px;box-shadow:0 2px 8px rgba(183,116,16,.10)}
@@ -2395,7 +2397,7 @@ button:active{ filter: brightness(.93); }
   <label class="varat"><input type="checkbox" id="cop_notify" checked> Tell the owner now — notification &amp; email</label>
   <p class="mhint" style="margin-top:2px">Goes out the moment you save. Ticked by default on a new one; left clear when you are editing, so fixing a typo never sends the same warning twice.</p>
   <button class="go" id="cop_save" onclick="copSubmit()">✓ Save</button>
-  <button class="cancel" id="cop_done" style="background:var(--ok);color:#fff;display:none" onclick="copResolve()">✓ Resolved — she runs normally again</button>
+  <button class="cancel" id="cop_done" style="background:var(--ok);color:#fff;display:none" onclick="copResolve()">Mark resolved — she runs normally again</button>
   <button class="cancel" id="cop_del" style="background:#b91c1c;color:#fff;display:none" onclick="copRemove()">Delete (typed in error)</button>
   <button class="cancel" onclick="closeModal('copModal')">Cancel</button>
 </div></div>
@@ -8755,7 +8757,12 @@ function copCard(c, startOpen){
     (c.why?('<div class="copwhy"><b>Why:</b> '+esc(c.why)+'</div>'):'')+
     '<div class="copmeta">'+jobChip+editBtn+
       (c.showOwner===false?'<span class="copint">Internal only</span>':'<span class="copown">Owner sees this</span>')+
-      ((mgr && c.key)?('<button class="copdone" onclick="event.stopPropagation();copResolveKey(\''+esc(c.key)+'\')">✓ Resolved</button>'):'')+
+      /* "Mark resolved", never "✓ Resolved" (Trish, 20 Sep 2026: "still says
+         resolved which it isn't"). A green pill with a tick reads as a badge
+         announcing the condition is CLEARED — the opposite of what the card is
+         there to say. Every label on this card is now a verb or a fact, never
+         a state the boat is not in. */
+      ((mgr && c.key)?('<button class="copdone" onclick="event.stopPropagation();copResolveKey(\''+esc(c.key)+'\')">Mark resolved</button>'):'')+
     '</div></div></details>';
 }
 
@@ -8923,7 +8930,7 @@ function copResolveKey(key, fromModal, preConfirmed){
 }
 function copRemove(){
   if(!COPM.key) return;
-  if(!confirm("Delete this condition entirely?\n\nIf the fault is fixed, use “Resolved” instead — that keeps the record.")) return;
+  if(!confirm("Delete this condition entirely?\n\nIf the fault is fixed, use “Mark resolved” instead — that keeps the record.")) return;
   apiPost({ action:"conditionDelete", email:ME.email, code:ME.code, condKey:COPM.key })
     .then(function(r){
       if(r&&r.ok){ closeModal("copModal"); toast("Deleted"); loadCOP(); }
