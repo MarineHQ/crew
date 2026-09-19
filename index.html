@@ -2353,7 +2353,7 @@ button:active{ filter: brightness(.93); }
   <label class="fld">Photos <span class="fldhint">— a picture saves the next person hunting</span></label>
   <div class="vsthumbs" id="vs_thumbs"></div>
   <div class="photos"><label class="addph" for="vs_file">📷<span>Add a photo</span></label></div>
-  <input type="file" id="vs_file" accept="image/*" capture="environment" multiple style="display:none" onchange="vsPicked(this)">
+  <input type="file" id="vs_file" accept="image/*" multiple style="display:none" onchange="vsPicked(this)">
   <label class="fld">Job codes it belongs to <span class="fldhint">(optional)</span></label>
   <input class="fld-in" id="vs_codes" placeholder="e.g. 229.1, 229, 85">
   <label class="fld">Notes <span class="fldhint">(optional)</span></label>
@@ -2379,7 +2379,12 @@ button:active{ filter: brightness(.93); }
   <label class="fld">Photos <span class="fldhint">— a picture of the panel beats any description</span></label>
   <div class="copthumbs" id="cop_thumbs"></div>
   <div class="photos"><label class="addph" for="cop_file">📷<span>Add a photo</span></label></div>
-  <input type="file" id="cop_file" accept="image/*" capture="environment" multiple style="display:none" onchange="copPicked(this)">
+  <!-- NO capture= HERE. On a phone, capture="environment" opens the camera and
+       ONLY the camera: no Photo Library, no Choose File. Half these photos are
+       already on the phone — the panel shot taken on board an hour earlier, a
+       picture someone sent. Without it, iOS offers the camera AND the library.
+       (Trish, 20 Sep 2026; the Quick Shot lost its capture= for the same reason.) -->
+  <input type="file" id="cop_file" accept="image/*" multiple style="display:none" onchange="copPicked(this)">
   <label class="fld">The job that will end it <span class="fldhint">(optional)</span></label>
   <input class="fld-in" id="cop_job" placeholder="e.g. Air-conditioning — master stateroom pump relay" list="cop_jobOpts" autocomplete="off" oninput="copJobTyped()">
   <datalist id="cop_jobOpts"></datalist>
