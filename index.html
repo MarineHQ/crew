@@ -2308,6 +2308,11 @@ button:active{ filter: brightness(.93); }
 .copit .copmeta{margin-top:8px;display:flex;gap:5px;flex-wrap:wrap;align-items:center}
 .copit .copjob{font-size:11px;font-weight:800;background:#eef2f9;color:var(--navy);border-radius:999px;padding:3px 9px;border:0;cursor:pointer;text-align:left}
 .copit .copjob.flat{cursor:default}
+/* The linked job's state, in the worklist's three words and its three colours. */
+.copit .copst{margin-left:7px;font-size:10px;font-weight:800;letter-spacing:.3px;border-radius:999px;padding:2px 7px;color:#fff}
+.copit .copst.todo{background:var(--grey)}
+.copit .copst.inhand{background:var(--amber)}
+.copit .copst.done{background:var(--ok)}
 .copit .copage{font-size:11px;font-weight:700;color:var(--muted)}
 .copit .copown{font-size:10.5px;font-weight:800;background:#e7f3ec;color:#0f6b3d;border-radius:999px;padding:3px 8px}
 .copit .copint{font-size:10.5px;font-weight:800;background:#eceff3;color:#5b6775;border-radius:999px;padding:3px 8px}
@@ -8714,14 +8719,33 @@ function renderCOP(){
 
 function copCard(c, startOpen){
   var mgr=isMgrRole();
+  /* LINKED TO A JOB — said in words, with that job's OWN status in the app's own
+     vocabulary (Trish, 20 Sep 2026: "in the yellow box of the CoO show it is
+     linked to a job ... want to be consistent").
+
+     A bare wrench and a title read as a note about the AC. This says the
+     condition is tied to a job, names it, and tells you where that job is up to
+     — To do / In hand / Complete, the same three words the worklist uses, not a
+     fourth vocabulary invented for this card. Tapping it opens the job. */
   var jobChip="";
   if(c.job || c.jobCode || c.jobKey){
-    var label=esc(c.job||"the open job")+(c.jobCode?(' <b>'+esc(c.jobCode)+'</b>'):'');
-    var known=false;
-    try{ known = !!(c.jobKey && typeof wlFind==="function" && wlFind(c.jobKey)); }catch(e){}
-    jobChip = known
-      ? '<button class="copjob" onclick="event.stopPropagation();openWLJob(\''+esc(c.jobKey)+'\')">🔧 '+label+'</button>'
-      : '<span class="copjob flat">🔧 '+label+'</span>';
+    var jj=null;
+    try{
+      if(c.jobKey && typeof wlFind==="function") jj=wlFind(c.jobKey);
+      if(!jj && c.jobCode && typeof CREWJOBS!=="undefined"){
+        var want=(c.jobCode||"").toString().trim().toUpperCase();
+        jj=(CREWJOBS||[]).filter(function(x){ return (x.code||"").toString().trim().toUpperCase()===want; })[0]||null;
+      }
+    }catch(e){}
+    var st = jj ? wlBucketToStatus(jj) : "";
+    var stCls = st==="Complete" ? "done" : (st==="In hand" ? "inhand" : "todo");
+    var label = esc(c.job||(jj&&(jj.task||jj.title))||"the open job")+
+                (c.jobCode?(' <b>'+esc(c.jobCode)+'</b>'):'');
+    var inner = '🔧 Linked to job · '+label+
+                (st?('<span class="copst '+stCls+'">'+esc(st)+'</span>'):'');
+    jobChip = jj
+      ? '<button class="copjob" onclick="event.stopPropagation();openWLJob(\''+esc(jj.key)+'\')">'+inner+'</button>'
+      : '<span class="copjob flat">'+inner+'</span>';
   }
   var age=copAge(c.raised);
   /* Named on every card a director sees. On All Yachts the group heading
