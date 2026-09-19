@@ -8708,8 +8708,8 @@ function renderCOP(){
 function copCard(c, startOpen){
   var mgr=isMgrRole();
   var jobChip="";
-  if(c.job || c.jobKey){
-    var label=esc(c.job||"the open job");
+  if(c.job || c.jobCode || c.jobKey){
+    var label=esc(c.job||"the open job")+(c.jobCode?(' <b>'+esc(c.jobCode)+'</b>'):'');
     var known=false;
     try{ known = !!(c.jobKey && typeof wlFind==="function" && wlFind(c.jobKey)); }catch(e){}
     jobChip = known
