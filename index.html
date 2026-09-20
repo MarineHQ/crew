@@ -8896,12 +8896,19 @@ function copFill(c){
   $("cop_why").value=c.why||""; $("cop_job").value=c.job||"";
   $("cop_owner").checked=(c.showOwner!==false);
   $("cop_notify").checked=!c.key;          // new → tell them; editing → don't re-send
-  $("cop_hint").textContent=COP_VESSEL+(c.key?"":" — new. This shows on her crew screens and, ticked below, in the owner's app.");
+  $("cop_hint").textContent=(c.vessel||COP_VESSEL)+(c.key?"":" — new. This shows on her crew screens and, ticked below, in the owner's app.");
   $("cop_head").textContent=c.key?("⚠️ "+(c.code?(c.code+" — "):"")+(c.title||"Condition of operation")):"⚠️ Add a condition of operation";
   $("cop_done").style.display=c.key?"":"none";
   $("cop_del").style.display=c.key?"":"none";
   $("cop_jobcode").value=c.jobCode||"";
+  /* THE CONDITION'S OWN BOAT, not the boat bar's current filter. Editing one
+     from All Yachts used to save vessel="__all__" — the row then belonged to no
+     yacht, vanished from the crew screens AND from the owner's app, and its
+     photos were filed under an "__all__" folder in Drive. That is exactly what
+     happened to CoO-AND-001 on 20 Sep 2026. (Trish: "pics aren't on client
+     portal ... there should only be 1.") */
   COPM={ key:c.key||"", jobKey:c.jobKey||"", jobIndex:{},
+         vessel:(c.vessel||(COP_VESSEL!=="__all__"?COP_VESSEL:"")),
          photos:(c.photos||[]).slice(), staged:[] };
   copJobOpts();
   copThumbs();
@@ -8909,7 +8916,7 @@ function copFill(c){
 }
 function copNew(){
   if(!COP_VESSEL || COP_VESSEL==="__all__"){ toast("Pick the yacht first"); return; }
-  copFill({});
+  copFill({ vessel:COP_VESSEL });
 }
 function copOpen(key){
   var c=null; COP_ITEMS.forEach(function(x){ if(x.key===key) c=x; });
@@ -8924,7 +8931,7 @@ function copSubmit(){
   Promise.all(COPM.staged.map(function(f){ return fileToUpload(f, 1600, 0.85); }))
   .then(function(ups){
     return apiPost({ action:"conditionSave", email:ME.email, code:ME.code,
-      condKey:COPM.key, vessel:COP_VESSEL,
+      condKey:COPM.key, vessel:COPM.vessel||COP_VESSEL,
       title:title, system:$("cop_system").value, condition:cond,
       why:($("cop_why").value||"").trim(),
       job:($("cop_job").value||"").trim(), jobKey:COPM.jobKey||"",
@@ -8937,7 +8944,7 @@ function copSubmit(){
       btn.disabled=false; btn.textContent="✓ Save";
       if(r&&r.ok){ closeModal("copModal");
         toast(r.notified ? ((r.code||"Saved")+" — the owner has been told")
-                         : ("✓ "+(r.code||"Saved")+" — showing on "+COP_VESSEL+"’s screens"));
+                         : ("✓ "+(r.code||"Saved")+" — showing on "+(COPM.vessel||COP_VESSEL)+"’s screens"));
         loadCOP(); }
       else toast((r&&r.error)||"Couldn’t save");
     })
