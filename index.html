@@ -115,6 +115,8 @@
   .more-b{border-top:1px solid var(--line)}.more-b .sec{margin:8px 0 0;border:0;border-radius:0;border-top:1px dashed var(--line);padding:11px 13px}.more-b .sec:first-child{border-top:0}
   .jobbtn.complete{background:var(--ok);color:#fff}
   .jobbtn.reopen{background:#fff;color:var(--muted);border:1px solid var(--line)!important}
+  /* .jobbtn sets color:#fff and no background — a bare one is white on white. */
+  .jobbtn.receipt{background:var(--navy);color:#fff}
   /* A finished job is MARKED, never dimmed or struck out — Trish, 1 Sep 2026.
      Fading it and ruling a line through the title make completed work harder to
      read than the work still outstanding, which is backwards. Green wash, green
@@ -1020,7 +1022,7 @@
   .calhd{display:flex;align-items:center;justify-content:space-between;margin:4px 0 10px}
   .caltitle{font-size:16px;font-weight:800;color:var(--navy)}
   .calnav{border:1px solid var(--line);background:#fff;color:var(--navy);width:38px;height:38px;border-radius:10px;font-size:20px;font-weight:800;cursor:pointer}
-  .calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+  .calgrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
   .caldow{text-align:center;font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;padding-bottom:2px}
   .calcell{position:relative;aspect-ratio:1/1;border:1px solid var(--line);border-radius:9px;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;min-height:38px}
   .calcell.empty{border:none;background:transparent;cursor:default}
@@ -1031,6 +1033,30 @@
   .calcell.over{background:#fde8e6;border-color:#f4b6b0}
   .calcell.sel{outline:3px solid var(--orange);outline-offset:-1px}
   .calcell .caln{position:absolute;top:3px;right:4px;background:var(--navy);color:#fff;font-size:9px;font-weight:800;border-radius:9px;min-width:15px;height:15px;line-height:15px;text-align:center;padding:0 2px}
+  /* The yacht's own calendar — charters, guest arrivals & departures, shipyard
+     periods — beside the scheduled jobs. A dot per event on the month grid. */
+  .cevdots{position:absolute;bottom:3px;left:0;right:0;display:flex;justify-content:center;gap:3px}
+  .cevdot{width:5px;height:5px;border-radius:50%;display:inline-block}
+  .calviews{display:flex;gap:6px;justify-content:center;margin:0 0 10px}
+  .calvbtn{border:1.5px solid var(--line);background:#fff;color:var(--muted);font-size:11px;font-weight:800;
+    padding:6px 16px;border-radius:20px;cursor:pointer;text-transform:uppercase;letter-spacing:.5px;font-family:inherit}
+  .calvbtn.on{background:var(--orange);border-color:var(--orange);color:#fff}
+  .cweek{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+  .cwrow{display:flex;gap:10px;background:#fff;border:1px solid var(--line);border-radius:11px;padding:9px 11px;align-items:flex-start;cursor:pointer}
+  .cwrow.today{border-color:var(--orange);background:#fff8f1}
+  .cwday{flex:none;width:38px;text-align:center}
+  .cwdow{display:block;font-size:9px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
+  .cwnum{display:block;font-size:17px;font-weight:800;color:var(--navy);line-height:1.15}
+  .cwbody{flex:1;min-width:0}
+  .cwnone{font-size:12px;color:var(--muted)}
+  .cevcard{border-radius:8px;padding:7px 9px;margin-bottom:6px;border-top:3px solid var(--navy);background:#f3f6fb}
+  .cevcard:last-child{margin-bottom:0}
+  .cevbadge{display:inline-block;font-size:9px;font-weight:800;letter-spacing:1px;color:#fff;padding:2px 7px;border-radius:4px;text-transform:uppercase;margin-bottom:4px}
+  .cevt{font-size:13px;font-weight:800;color:var(--navy);line-height:1.25}
+  .cevs{font-size:11.5px;color:var(--muted);margin-top:2px}
+  .cevnote{display:block;font-size:11px;font-weight:700;color:#1F7A43;background:#E7F6EC;border-radius:5px;padding:3px 6px;margin-top:5px}
+  .cevband{display:flex;align-items:center;gap:8px;border-radius:8px;padding:6px 10px;margin-bottom:8px;border-left:3px solid var(--navy);background:#f3f6fb}
+  .cevbandt{font-size:12px;font-weight:800;color:var(--navy);min-width:0}
   .calcell.over .caln{background:#b3261e}
   .ph .lanepill{position:absolute;top:4px;left:4px;margin:0}
   .tagchips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
@@ -1704,8 +1730,12 @@ button:active{ filter: brightness(.93); }
     <div id="tab-cal" class="hidden">
       <div class="subbar"><h2>Calendar</h2></div>
       <p class="hello" id="calHello">Scheduled jobs by day.</p>
-      <div class="calhd"><button class="calnav" onclick="calMove(-1)">‹</button><div id="calTitle" class="caltitle"></div><button class="calnav" onclick="calMove(1)">›</button></div>
-      <div class="calgrid" id="calGrid"></div>
+      <div class="calviews" id="calViews"></div>
+      <div id="calMonthWrap">
+        <div class="calhd"><button class="calnav" onclick="calMove(-1)">‹</button><div id="calTitle" class="caltitle"></div><button class="calnav" onclick="calMove(1)">›</button></div>
+        <div class="calgrid" id="calGrid"></div>
+      </div>
+      <div id="calWeekWrap" class="hidden"></div>
       <div id="calDay"></div>
     </div>
 
@@ -1881,7 +1911,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-17·p</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-23·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2196,6 +2226,65 @@ button:active{ filter: brightness(.93); }
   <button class="go" onclick="submitWorkLog()">✓ Log it</button>
   <button class="go alt2" onclick="submitWorkLog(true)">▶ Log it &amp; start the timer</button>
   <button class="cancel" onclick="closeModal('workLogModal')">Cancel</button>
+</div></div>
+
+<!-- RECEIPTS — the docket in your pocket, filed.
+     Crew buy things: a tin of Semco, a set of pads, a bag of ice. Until this
+     screen the docket went in a glovebox and three things went wrong — the
+     owner was never charged, the job card showed labour with no materials
+     against it, and anyone who paid out of their own pocket had to remember to
+     chase it. One photo now answers all three (Trish, 18 Sep 2026). -->
+<div class="modal" id="rcptModal"><div class="card2">
+  <h3>🧾 Add a receipt</h3>
+  <p class="mhint">Photograph the docket. It's read for you, filed against the boat's job, and priced onto the job card — and if you paid for it yourself, it goes in for reimbursement.</p>
+
+  <div id="rc_jobline"></div>
+
+  <label class="fld">The receipt</label>
+  <div class="stagedrow"><div class="photos staged" id="rc_phGrid"></div></div>
+  <input type="file" id="rc_phIn" accept="image/*,.pdf" capture="environment" style="display:none" onchange="rcptPick(this)">
+  <div id="rc_read" class="mhint" style="display:none"></div>
+
+  <div id="rc_vesselWrap">
+    <label class="fld">Vessel</label>
+    <select class="fld-in" id="rc_vessel" onchange="onVesselPick('rc_vessel','rc_other')"></select>
+    <input class="fld-in" id="rc_other" placeholder="Type the yacht name" style="display:none;margin-top:8px">
+  </div>
+
+  <label class="fld">What was it for? <span class="fldhint">(this is what the owner reads on the invoice)</span></label>
+  <textarea class="fld-ta" id="rc_desc" placeholder="e.g. 2 x Semco Gold teak sealer, 3 applicator pads"></textarea>
+
+  <label class="fld">Shop <span class="fldhint">(optional)</span></label>
+  <input class="fld-in" id="rc_supplier" placeholder="e.g. Whitworths, BCF, Bunnings">
+
+  <div style="display:flex;gap:8px">
+    <div style="flex:1">
+      <label class="fld">Date on the docket</label>
+      <input type="date" class="fld-in" id="rc_date">
+    </div>
+    <div style="max-width:140px">
+      <label class="fld">Amount <span class="fldhint">(inc GST)</span></label>
+      <input type="number" step="0.01" min="0" class="fld-in" id="rc_amount" placeholder="e.g. 148.50">
+    </div>
+  </div>
+
+  <!-- The question the whole screen exists for. No default: guessing this wrong
+       either bills an owner twice or quietly loses a crew member their money. -->
+  <label class="fld">Who paid for it?</label>
+  <div class="assignrow" id="rc_paid"></div>
+  <div id="rc_paidWho" style="display:none">
+    <label class="fld">Paid by</label>
+    <select class="fld-in" id="rc_paidName"></select>
+    <p class="body" style="font-size:12px;color:var(--muted);margin-top:6px">This goes into the Invoice Tracker as a reimbursement, so it gets paid back.</p>
+  </div>
+
+  <div id="rc_catWrap">
+    <label class="fld">Scheduled or unscheduled?</label>
+    <div class="assignrow" id="rc_cat"></div>
+  </div>
+
+  <button class="go" onclick="submitReceipt()">🧾 Log the receipt</button>
+  <button class="cancel" onclick="closeModal('rcptModal')">Cancel</button>
 </div></div>
 
 <!-- Crew profile: add / edit a certificate or ticket -->
@@ -3201,17 +3290,41 @@ document.addEventListener("visibilitychange", function(){
   if(!document.hidden) setTimeout(mhqCheckForUpdate, 1500);
 });
 
+/* A tapped sign-in link asks for one tap before it is spent (scanners open
+   links, they don't tap). Calls go() once, then gets out of the way. */
+function mhqLinkGate(token, go){
+  try{
+    var w=document.createElement("div");
+    w.style.cssText="position:fixed;inset:0;z-index:99999;background:#0b2b3c;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px;text-align:center;font:inherit";
+    var t=document.createElement("div");
+    t.style.cssText="font-size:17px;line-height:1.45;max-width:20em";
+    t.textContent="Welcome back. Tap below to sign in to the Marine HQ Crew app.";
+    var b=document.createElement("button");
+    b.type="button";
+    b.textContent="Sign me in";
+    b.style.cssText="background:#f28c28;color:#fff;border:0;border-radius:10px;padding:14px 28px;font-size:17px;font-weight:700;min-width:200px";
+    b.onclick=function(){ b.disabled=true; b.textContent="Signing you in…"; try{ w.remove(); }catch(_){ } go(); };
+    w.appendChild(t); w.appendChild(b);
+    document.body.appendChild(w);
+  }catch(_){ go(); }   // can't draw it — never lock anyone out over a gate
+}
+
 (function initSession(){
   try{
     // 1. A tapped magic link — verify it, keep the 90-day session, tidy the URL.
     var token=""; try{ token=new URLSearchParams(location.search).get("token")||""; }catch(_){}
     if(token){
-      apiGet("fn=verifylink&token=" + encodeURIComponent(token)).then(function(j){
-        try{ history.replaceState({}, "", location.pathname); }catch(_){}
-        if(j && j.ok && j.crew){ setCrewSess(j.session||""); enterReal(j.crew, j.shift); }
-        else if(j && j.reason==="used") toast("That link has already been used — enter your email for a fresh one.");
-        else toast("That link has expired — enter your email for a fresh one.");
-      }).catch(function(){ toast("Couldn't connect — check your signal and try again."); });
+      /* Wait for a real tap before spending the token. An email security scanner
+         opens links on its own and would burn this one before the person got to
+         it — that is what locked Michael out of MyYacht on 19 Sep 2026. */
+      mhqLinkGate(token, function(){
+        apiGet("fn=verifylink&token=" + encodeURIComponent(token)).then(function(j){
+          try{ history.replaceState({}, "", location.pathname); }catch(_){}
+          if(j && j.ok && j.crew){ setCrewSess(j.session||""); enterReal(j.crew, j.shift); }
+          else if(j && j.reason==="used") toast("That link has already been used — enter your email for a fresh one.");
+          else toast("That link has expired — enter your email for a fresh one.");
+        }).catch(function(){ toast("Couldn't connect — check your signal and try again."); });
+      });
       return;
     }
     // 2. Already signed in on this device (90-day session).
@@ -7815,16 +7928,135 @@ function dayBucket(ts){ if(!ts)return{k:"9",label:"📋 No day set"}; var n=_day
    what's assigned & scheduled to them. */
 var _MO_FULL=["January","February","March","April","May","June","July","August","September","October","November","December"];
 var CAL_JOBS=[], CAL_MONTH=null, CAL_SEL=null;
+
+/* ── The yacht's own calendar ────────────────────────────────────────────
+   Charters, guest arrivals & departures, shipyard periods — read off the
+   Google calendars and shown beside the scheduled jobs. Directors and
+   managers get every boat; crew get only the yachts they're on, and that is
+   decided on the SERVER (FleetGate), never here — the browser is only ever
+   sent what the person asking is entitled to.                            */
+var CAL_EVENTS=[], CAL_VIEW="month", CAL_WOFF=0;
+var _CEVMON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+var CEV_STYLE={CHARTER:{bg:"#E8EEFA",fg:"#3D6DC4"},SHIPYARD:{bg:"#F9E7E5",fg:"#C0392B"},
+  SURVEY:{bg:"#F3EAF7",fg:"#8E4FA8"},DELIVERY:{bg:"#E5F4F8",fg:"#1F8FA9"},
+  "OWNER TRIP":{bg:"#E7F6EC",fg:"#2E9E5B"},JOB:{bg:"#E8F8EF",fg:"#27AE60"},
+  INSURANCE:{bg:"#FDF5E0",fg:"#B8860B"},ARRIVAL:{bg:"#E7F6EC",fg:"#1F7A43"},
+  DEPARTURE:{bg:"#FDEEE3",fg:"#C2410C"}};
+/* Tolerates the vessel prefix the events are actually named with —
+   "EW - CHARTER — Everywhen (Trip 3)". */
+var CEV_RE=/^(?:[A-Z]{2,5}\s*[-–—]\s*)?(CHARTER|SHIPYARD|SURVEY|DELIVERY|OWNER TRIP|INSURANCE|ARRIVAL|DEPARTURE|ARR|DEP|JOB)\b[\s—:–-]*/i;
+function cevType(ev){ var m=(ev.title||"").match(CEV_RE); if(!m) return "";
+  var t=m[1].toUpperCase(); if(t==="ARR")t="ARRIVAL"; if(t==="DEP")t="DEPARTURE"; return t; }
+function cevLabel(ev){ var t=(ev.title||""), m=t.match(CEV_RE);
+  var l=m?t.substring(m[0].length).trim():t; return l.replace(/✓|\[done\]/gi,"").trim()||t; }
+function cevStyle(ev){ return CEV_STYLE[cevType(ev)]||{bg:"#eef1f6",fg:"#1a2b5c"}; }
+function cevBadge(t){ return t==="JOB"?"WORK DONE":t==="ARRIVAL"?"ARR":t==="DEPARTURE"?"DEP":t; }
+function cevTime(d){ var h=d.getHours(),mi=("0"+d.getMinutes()).slice(-2); return (h%12||12)+":"+mi+(h<12?"am":"pm"); }
+function cevSpan(ev){ return (ev.end-ev.start)>86400000*1.5; }   // runs across more than a day
+function cevRange(ev){ var a=new Date(ev.start), b=new Date(ev.end-(ev.allDay?86400000:0));
+  return a.getDate()+" "+_CEVMON[a.getMonth()]+" – "+b.getDate()+" "+_CEVMON[b.getMonth()]; }
+function cevOn(dayStart){ var de=dayStart+86400000;
+  return CAL_EVENTS.filter(function(ev){ return ev.start<de && ev.end>dayStart; }); }
+function cevDay0(ts){ var d=new Date(ts); d.setHours(0,0,0,0); return d.getTime(); }
+
+function cevCard(ev){
+  var ty=cevType(ev), st=cevStyle(ev), parts=cevLabel(ev).split(/\s+·\s+/), title=parts.shift();
+  var sub=[];
+  if(!ev.allDay) sub.push(cevTime(new Date(ev.start)));
+  else if(cevSpan(ev)) sub.push(cevRange(ev));
+  // A director is looking at every boat, so name her — unless the title says it already.
+  if(isMgrRole() && ev.vessel && cevLabel(ev).toLowerCase().indexOf(ev.vessel.toLowerCase())<0) sub.push(ev.vessel);
+  sub=sub.concat(parts);
+  return '<div class="cevcard" style="background:'+st.bg+';border-top-color:'+st.fg+'">'+
+    (ty?'<span class="cevbadge" style="background:'+st.fg+'">'+esc(cevBadge(ty))+'</span>':'')+
+    '<div class="cevt">'+esc(title)+'</div>'+
+    (sub.length?'<div class="cevs">'+esc(sub.join(" · "))+'</div>':'')+
+    (ev.note?'<span class="cevnote">'+esc(ev.note)+'</span>':'')+'</div>';
+}
+/* Anything running across the week sits in a band rather than repeating on every day. */
+function cevBandRow(ev){
+  var ty=cevType(ev), st=cevStyle(ev);
+  return '<div class="cevband" style="background:'+st.bg+';border-left-color:'+st.fg+'">'+
+    (ty?'<span class="cevbadge" style="background:'+st.fg+';margin-bottom:0">'+esc(cevBadge(ty))+'</span>':'')+
+    '<span class="cevbandt">'+esc(cevLabel(ev))+
+      (isMgrRole()&&ev.vessel&&cevLabel(ev).toLowerCase().indexOf(ev.vessel.toLowerCase())<0?" · "+esc(ev.vessel):"")+
+      ' · '+esc(cevRange(ev))+'</span></div>';
+}
+function cevDots(evs){
+  if(!evs.length) return "";
+  return '<span class="cevdots">'+evs.slice(0,4).map(function(ev){
+    return '<i class="cevdot" style="background:'+cevStyle(ev).fg+'"></i>'; }).join("")+'</span>';
+}
+
+function calViewBtns(){
+  var b=function(v,l){ return '<button class="calvbtn'+(CAL_VIEW===v?" on":"")+
+    '" onclick="setCrewCalView(\''+v+'\')">'+l+'</button>'; };
+  return b("month","Month")+b("week","Week");
+}
+function setCrewCalView(v){ CAL_VIEW=v; if(v==="week") CAL_WOFF=0; renderCalAll(); }
+function renderCalAll(){
+  if($("calViews")) $("calViews").innerHTML=calViewBtns();
+  if($("calMonthWrap")) $("calMonthWrap").className=(CAL_VIEW==="month")?"":"hidden";
+  if($("calWeekWrap"))  $("calWeekWrap").className =(CAL_VIEW==="week") ?"":"hidden";
+  if(CAL_VIEW==="week") renderCalWeek(); else renderCal();
+}
+function calWeekMove(d){ CAL_WOFF+=d; renderCalWeek(); }
+function renderCalWeek(){
+  var DOW=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+  var today=new Date(); today.setHours(0,0,0,0);
+  var start=new Date(today.getTime());
+  start.setDate(start.getDate()-((start.getDay()+6)%7)+CAL_WOFF*7);
+  var end=new Date(start.getTime()); end.setDate(end.getDate()+6);
+  var ws=start.getTime(), we=ws+7*86400000;
+  var spans=CAL_EVENTS.filter(function(ev){ return ev.start<we && ev.end>ws && cevSpan(ev); });
+  var h='<div class="calhd"><button class="calnav" onclick="calWeekMove(-1)">‹</button>'+
+        '<div class="caltitle">'+start.getDate()+" "+_CEVMON[start.getMonth()]+" – "+
+        end.getDate()+" "+_CEVMON[end.getMonth()]+'</div>'+
+        '<button class="calnav" onclick="calWeekMove(1)">›</button></div>';
+  h+=spans.map(cevBandRow).join("")+'<div class="cweek">';
+  for(var i=0;i<7;i++){
+    var d=new Date(start.getTime()); d.setDate(d.getDate()+i);
+    var ds=d.getTime(), noon=ds+12*36e5;
+    var evs=cevOn(ds).filter(function(ev){ return !cevSpan(ev); })
+                     .sort(function(a,b){ return a.start-b.start; });
+    var jobs=CAL_JOBS.filter(function(j){ return _sameDay(j.dueTs, noon); });
+    var body=evs.map(cevCard).join("")+jobs.map(cevJobCard).join("");
+    h+='<div class="cwrow'+(ds===today.getTime()?" today":"")+'" onclick="calShowDay('+noon+')">'+
+       '<div class="cwday"><span class="cwdow">'+DOW[i]+'</span><span class="cwnum">'+d.getDate()+'</span></div>'+
+       '<div class="cwbody">'+(body||'<span class="cwnone">Nothing on</span>')+'</div></div>';
+  }
+  $("calWeekWrap").innerHTML=h+'</div>';
+}
+/* A scheduled job, in the same card shape as a calendar event. */
+function cevJobCard(j){
+  var b=hubBucket(j.status);
+  return '<div class="cevcard" style="background:#fff;border-top-color:#94a3b8">'+
+    '<span class="cevbadge" style="background:#64748b">JOB</span>'+
+    '<div class="cevt">'+esc(j.task||j.title||"(job)")+'</div>'+
+    '<div class="cevs">'+esc([j.vessel||"", j.status||b].filter(String).join(" · "))+'</div></div>';
+}
 function _sameDay(ts,ts2){ var a=new Date(ts),b=new Date(ts2); return a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate(); }
 function _isDoneJob(j){ return hubBucket(j.status)==="Done"; }
 function loadCal(){
   var el=$("calGrid"); if(el) el.innerHTML='<div class="loadingbox"><span class="spin"></span> Loading…</div>';
-  if($("calHello")) $("calHello").textContent = isMgrRole() ? "Every yacht's scheduled jobs, by day." : "Your scheduled jobs, by day.";
+  if($("calHello")) $("calHello").textContent = isMgrRole()
+    ? "Every yacht — charters, guests and scheduled jobs, by day."
+    : "Your yachts — charters, guests and your scheduled jobs, by day.";
   var q = isMgrRole() ? "&all=1&mine=0" : "&mine=1";
-  apiGet("fn=crewjobs&code="+encodeURIComponent(ME.code||"")+"&email="+encodeURIComponent(ME.email||"")+q).then(function(j){
+  var jobsP = apiGet("fn=crewjobs&code="+encodeURIComponent(ME.code||"")+"&email="+encodeURIComponent(ME.email||"")+q);
+  /* code= is what identifies a crew member to the gate; key= is what a director
+     or manager is recognised by. Sending both means one call serves everyone,
+     and the SERVER decides which boats come back. */
+  var calP  = apiGet("fn=calendar&days=60&code="+encodeURIComponent(ME.code||"")+
+                     "&key="+encodeURIComponent(ME.code||""))
+                .then(function(c){ return (c&&c.events)||[]; })
+                .catch(function(){ return []; });   // the calendar never blocks the jobs
+  Promise.all([jobsP, calP]).then(function(r){
+    var j=r[0];
     CAL_JOBS=((j&&j.jobs)||[]).filter(function(x){ return x.dueTs; });
+    CAL_EVENTS=r[1]||[];
     if(!CAL_MONTH){ var t=new Date(); CAL_MONTH=new Date(t.getFullYear(),t.getMonth(),1); }
-    renderCal();
+    renderCalAll();
     var td=new Date(); calShowDay(new Date(td.getFullYear(),td.getMonth(),td.getDate(),12,0,0).getTime());
   }).catch(function(){ if(el) el.innerHTML='<div class="empty">Couldn’t load.</div>'; });
 }
@@ -7840,15 +8072,20 @@ function renderCal(){
   for(var day=1;day<=dim;day++){
     var ts=new Date(y,m,day,12,0,0).getTime(), n=counts[day]||0;
     var isToday=_sameDay(ts, today.getTime()+12*36e5);
-    cells+='<div class="calcell'+(isToday?" today":"")+(n?" has":"")+(over[day]?" over":"")+(CAL_SEL===ts?" sel":"")+'" onclick="calShowDay('+ts+')"><span class="cald">'+day+'</span>'+(n?'<span class="caln">'+n+'</span>':'')+'</div>';
+    var devs=cevOn(new Date(y,m,day).getTime());
+    cells+='<div class="calcell'+(isToday?" today":"")+((n||devs.length)?" has":"")+(over[day]?" over":"")+(CAL_SEL===ts?" sel":"")+'" onclick="calShowDay('+ts+')"><span class="cald">'+day+'</span>'+(n?'<span class="caln">'+n+'</span>':'')+cevDots(devs)+'</div>';
   }
   $("calGrid").innerHTML=cells;
 }
 function calShowDay(ts){
-  CAL_SEL=ts; renderCal();
+  CAL_SEL=ts;
+  if(CAL_VIEW==="week") renderCalWeek(); else renderCal();
+  var evs=cevOn(cevDay0(ts)).sort(function(a,b){ return a.start-b.start; });
   var list=CAL_JOBS.filter(function(j){ return _sameDay(j.dueTs, ts); }).sort(function(a,b){ return (_isDoneJob(a)-_isDoneJob(b)); });
-  var html='<div class="listhd">'+esc(dayLabel(ts))+' <span style="color:var(--muted)">('+list.length+')</span></div>';
-  if(!list.length){ html+='<div class="empty" style="padding:16px">Nothing scheduled for this day.</div>'; }
+  var html='<div class="listhd">'+esc(dayLabel(ts))+' <span style="color:var(--muted)">('+(list.length+evs.length)+')</span></div>';
+  if(evs.length) html+=evs.map(cevCard).join("");
+  if(!list.length && !evs.length){ html+='<div class="empty" style="padding:16px">Nothing scheduled for this day.</div>'; }
+  else if(!list.length){ /* calendar events only — nothing more to add */ }
   else html+=list.map(function(j){
     var b=hubBucket(j.status), cls=hubCls(b);
     return '<div class="job brd-'+cls+(_isDoneJob(j)?" jobdone":"")+'" onclick="openFromUpdate(\''+esc(j.key)+'\',\''+esc(j.vessel)+'\')">'+
@@ -8035,7 +8272,8 @@ function wlFactsHtml(j){
 function openWLJob(key){
   var j=wlFind(key); if(!j)return;
   openJobId=key; WLMENTIONS=[]; WLLANE=""; PHTAG=""; WHERE_OPEN="";
-  try{ chLoad(); chJobLoad(key, true); }catch(e){}   // the box below must reflect the sheet   // a Before left on last week must not mislabel today
+  try{ chLoad(); chJobLoad(key, true); }catch(e){}
+  try{ if(!RCPTS[key]) rcptLoad(key); }catch(e){}   // receipts for this job, lazily   // the box below must reflect the sheet   // a Before left on last week must not mislabel today
   var pool=(j.oj && typeof OFITEMS!=="undefined" && OFITEMS.length) ? OFITEMS : CREWJOBS;
   var inList=pool.filter(function(x){return (x.list||"")===(j.list||"");}); var num=inList.indexOf(j)+1;
   var cur=wlBucketToStatus(j);
@@ -8205,6 +8443,11 @@ function openWLJob(key){
     laneHTML+
     '<div class="sec"><h4>Photos &amp; documents</h4><div class="photos">'+phHTML+'</div>'+phFoldBtn+'<div class="tagrow" id="phTagRow">'+phTagRowHtml()+'</div>'+((j.photos&&j.photos.length)?bulkBar('photo',key):'')+
       '<div class="docrow" style="margin-top:8px">'+docHTML+'</div>'+((j.docs&&j.docs.length)?bulkBar('doc',key):'')+'</div>'+
+    /* Receipts sit with the work they were bought for, not in a separate pile —
+       a docket is evidence for the materials line on that job's invoice. */
+    '<div class="sec"><h4>Receipts</h4><div class="docrow" id="rcptBox">'+rcptListHtml(key)+'</div>'+
+      '<button class="jobbtn receipt" style="margin-top:10px" onclick="openReceipt(\''+esc(key)+'\')">🧾 Add a receipt</button>'+
+      '<p class="body" style="font-size:12px;color:var(--muted);margin-top:7px">Bought something for this job? Photograph the docket — it\u2019s read for you, priced onto the job card, and if you paid for it yourself it goes in for reimbursement.</p></div>'+
     '<div class="sec"><h4>Notes &amp; timeline</h4><div class="cmts">'+cmtHTML+'</div>'+
       '<textarea id="wlNote" class="fld-ta" placeholder="Add a note… (crew &amp; Marine HQ can both post here)"></textarea>'+
       '<div id="tagChips" class="tagchips"></div>'+
@@ -11276,6 +11519,192 @@ function wlogRenderStat(){
   $("wl_dayLbl").textContent = (WLOGSTAT==="Complete") ? "Day you did it" : "Day you started";
 }
 function wlogSetStat(s){ WLOGSTAT=s; wlogRenderStat(); }
+/* =====================================================================
+   RECEIPTS (front end) — see #rcptModal above for why this screen exists.
+   The form is deliberately short: a photo, what it was, how much, and WHO
+   PAID. Everything else is either read off the docket or inherited from the
+   job it was raised from.
+   ===================================================================== */
+var RCPTJOB = "";          // the job key this receipt belongs to ("" = standalone)
+var RCPTFILE = null;       // {name, dataUrl} — the docket, already downscaled
+var RCPTPAID = "";         // "mhq" | "owner" | "crew" — no default on purpose
+var RCPTCAT  = "Unscheduled";
+var RCPTS    = {};         // jobKey -> receipts already logged against it
+var RCPTBUSY = false;
+
+var RCPT_PAID_OPTS = [
+  ["mhq",   "🏢 Marine HQ", "We paid the shop — it goes on the owner's job card."],
+  ["owner", "👤 The owner", "They paid the shop themselves — recorded, not charged again."],
+  ["crew",  "👷 I did",     "Out of your own pocket — raised for reimbursement."]
+];
+
+function rcptRenderPaid(){
+  var el=$("rc_paid"); if(!el) return;
+  el.innerHTML = RCPT_PAID_OPTS.map(function(o){
+    return '<button type="button" class="aopt'+(RCPTPAID===o[0]?" on":"")+'" onclick="rcptSetPaid(\''+o[0]+'\')">'+o[1]+(RCPTPAID===o[0]?" ✓":"")+'</button>';
+  }).join("");
+  var hint=RCPT_PAID_OPTS.filter(function(o){return o[0]===RCPTPAID;})[0];
+  el.insertAdjacentHTML("beforeend", hint
+    ? '<p class="body" style="font-size:12px;color:var(--muted);margin-top:7px;width:100%">'+esc(hint[2])+'</p>'
+    : '<p class="body" style="font-size:12px;color:var(--muted);margin-top:7px;width:100%">Pick one — it decides whether the owner is charged and whether anyone gets paid back.</p>');
+  $("rc_paidWho").style.display = (RCPTPAID==="crew") ? "block" : "none";
+}
+function rcptSetPaid(v){ RCPTPAID=v; rcptRenderPaid(); }
+
+function rcptRenderCat(){
+  var el=$("rc_cat"); if(!el) return;
+  el.innerHTML = WLCATS.map(function(c){
+    return '<button type="button" class="aopt'+(RCPTCAT===c?" on":"")+'" onclick="RCPTCAT=\''+c+'\';rcptRenderCat()">'+c+(RCPTCAT===c?" ✓":"")+'</button>';
+  }).join("");
+}
+
+/* Raised from a job → the job answers for vessel, code and category, so those
+   rows come off the form entirely rather than sitting there as three more
+   chances to file it against the wrong boat. */
+function openReceipt(jobKey){
+  RCPTJOB = jobKey || "";
+  RCPTFILE = null; RCPTPAID = ""; RCPTCAT = "Unscheduled"; RCPTBUSY = false;
+  var j = RCPTJOB ? wlFind(RCPTJOB) : null;
+  $("rc_desc").value=""; $("rc_supplier").value=""; $("rc_amount").value="";
+  $("rc_phGrid").innerHTML=""; $("rc_read").style.display="none"; $("rc_read").innerHTML="";
+  var d=new Date(), p=function(n){return (n<10?"0":"")+n;};
+  $("rc_date").value=d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate());
+
+  if(j){
+    $("rc_jobline").innerHTML='<div class="offstate">🔗 Against <b>'+esc(j.title||"this job")+'</b>'+
+      (j.code?(' · '+esc(j.code)):'')+' · '+esc(j.vessel||"")+
+      (j.category?('<br><span style="color:var(--muted)">Filed as '+esc(j.category)+' — same as the job.</span>'):'')+'</div>';
+    $("rc_vesselWrap").style.display="none";
+    $("rc_catWrap").style.display="none";
+    RCPTCAT = j.category || "Unscheduled";
+  } else {
+    $("rc_jobline").innerHTML="";
+    $("rc_vesselWrap").style.display="block";
+    $("rc_catWrap").style.display="block";
+    $("rc_vessel").innerHTML=vesselOpts(ME.vessels[0]);
+    $("rc_other").style.display="none"; $("rc_other").value="";
+  }
+
+  /* Normally you paid it yourself, but a director logging a docket on someone
+     else's behalf needs to name them or the wrong person gets reimbursed. */
+  $("rc_paidName").innerHTML = (CREWNAMES||[]).map(function(c){
+    return '<option'+(((c.name||"")===ME.name)?' selected':'')+'>'+esc(c.name||"")+'</option>';
+  }).join("") || ('<option>'+esc(ME.name||"")+'</option>');
+
+  rcptRenderPaid(); rcptRenderCat();
+  rcptRenderFile();
+  $("rcptModal").classList.add("show");
+}
+
+function rcptRenderFile(){
+  var el=$("rc_phGrid"); if(!el) return;
+  el.innerHTML = (RCPTFILE
+    ? ('<div class="ph">'+(/^data:image\//.test(RCPTFILE.dataUrl||"")
+        ? '<img src="'+esc(RCPTFILE.dataUrl)+'" alt="">'
+        : '<div class="thumb">📄</div>')+
+       '<small>'+esc(RCPTFILE.name||"receipt")+'</small>'+
+       '<button type="button" class="attdel" title="Remove" onclick="RCPTFILE=null;rcptRenderFile();$(\'rc_read\').style.display=\'none\'">✕</button></div>')
+    : '') +
+    '<label class="addph" for="rc_phIn">📷<span>'+(RCPTFILE?"Replace":"Receipt")+'</span><i>photo or PDF</i></label>';
+}
+
+/* Picked → downscaled → sent to be read. The read writes nothing anywhere; it
+   just fills the form in so the crew member corrects rather than types. It is
+   allowed to fail (no API key, bad photo, no signal) — the form still works. */
+function rcptPick(input){
+  var f=(input.files||[])[0]; input.value="";
+  if(!f) return;
+  $("rc_read").style.display="block";
+  $("rc_read").innerHTML="📷 Getting the receipt ready…";
+  fileToUpload(f, 1800, 0.85).then(function(up){
+    if(!up){ $("rc_read").innerHTML="Couldn't read that file — try another photo."; return; }
+    RCPTFILE=up; rcptRenderFile();
+    $("rc_read").innerHTML="🔎 Reading the docket…";
+    return apiPost({action:"crewReceiptRead", email:ME.email, code:ME.code, file:up}).then(function(r){
+      if(!r || !r.ok || !r.read || !r.fields){
+        $("rc_read").innerHTML="Couldn't read it automatically — just fill it in below.";
+        return;
+      }
+      var fl=r.fields;
+      if(fl.description && !$("rc_desc").value.trim()) $("rc_desc").value=fl.description;
+      if(fl.supplier && !$("rc_supplier").value.trim()) $("rc_supplier").value=fl.supplier;
+      if(fl.total && !$("rc_amount").value) $("rc_amount").value=fl.total;
+      /* The docket writes DD/MM/YYYY; the date input wants YYYY-MM-DD. */
+      var dm=/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec((fl.receipt_date||"").trim());
+      if(dm){ var pp=function(n){return (n<10?"0":"")+n;};
+              $("rc_date").value=dm[3]+"-"+pp(+dm[2])+"-"+pp(+dm[1]); }
+      $("rc_read").innerHTML = (fl.is_receipt===false)
+        ? "⚠️ That doesn't look like a receipt — check it before you log it."
+        : "✓ Read it — check the details below and fix anything that's wrong.";
+    });
+  }).catch(function(){ $("rc_read").innerHTML="Couldn't read it automatically — just fill it in below."; });
+}
+
+function submitReceipt(){
+  if(RCPTBUSY) return;
+  if(!RCPTFILE){ toast("Take a photo of the receipt first"); return; }
+  var amt=parseFloat($("rc_amount").value||0)||0;
+  if(!amt){ toast("How much was it?"); return; }
+  if(!RCPTPAID){ toast("Who paid for it?"); return; }
+  var vessel="";
+  if(!RCPTJOB){
+    vessel=$("rc_vessel").value;
+    if(vessel==="__other__") vessel=($("rc_other").value||"").trim();
+    if(!vessel){ toast("Which boat is it for?"); return; }
+  }
+  RCPTBUSY=true; toast("Logging the receipt…");
+  apiPost({action:"crewReceipt", email:ME.email, code:ME.code,
+           jobKey:RCPTJOB, vessel:vessel, category:RCPTCAT,
+           desc:($("rc_desc").value||"").trim(),
+           supplier:($("rc_supplier").value||"").trim(),
+           date:$("rc_date").value, amount:amt,
+           paidBy:RCPTPAID,
+           paidName:(RCPTPAID==="crew" ? ($("rc_paidName").value||ME.name) : ""),
+           file:RCPTFILE
+  }).then(function(r){
+    RCPTBUSY=false;
+    if(!r || !r.ok){ toast((r&&r.error) ? r.error : "Couldn't log it — try again"); return; }
+    closeModal("rcptModal");
+    toast(r.reimbursement ? ("🧾 Logged — $"+amt.toFixed(2)+" raised for reimbursement")
+                          : ("🧾 Receipt logged — $"+amt.toFixed(2)));
+    if(r.reimbursementError) toast("Logged, but the reimbursement didn't raise — tell Marine HQ");
+    if(RCPTJOB){ delete RCPTS[RCPTJOB]; rcptLoad(RCPTJOB); }
+  }).catch(function(){ RCPTBUSY=false; toast("Couldn't log it — try again"); });
+}
+
+/* The job card's own list. Loaded lazily per job so opening a card doesn't pull
+   the whole register down with it. */
+function rcptLoad(key){
+  if(!key) return;
+  apiPost({action:"crewReceipts", email:ME.email, code:ME.code, jobKey:key}).then(function(r){
+    RCPTS[key] = (r && r.ok) ? (r.receipts||[]) : [];
+    rcptPaint(key);
+  }).catch(function(){});
+}
+function rcptPaint(key){
+  var box=$("rcptBox"); if(!box || openJobId!==key) return;
+  box.innerHTML=rcptListHtml(key);
+}
+function rcptListHtml(key){
+  var list=RCPTS[key];
+  if(!list) return '<div style="font-size:13px;color:var(--muted)">Loading…</div>';
+  if(!list.length) return '<div style="font-size:13px;color:var(--muted)">No receipts on this job yet.</div>';
+  var paidLbl={mhq:"🏢 Marine HQ",owner:"👤 Owner",crew:"👷"};
+  return list.map(function(rc){
+    var who=(rc.paidBy==="crew") ? ("👷 "+esc(firstName(rc.paidName||rc.by||""))) : (paidLbl[rc.paidBy]||"");
+    /* The charge is what the OWNER is billed — cost plus the standard parts
+       rate. Crew see what was spent; only directors see what it's sold at. */
+    var chg = (isMgrRole() && rc.charge && rc.paidBy!=="owner")
+      ? ('<span class="docby">charged $'+rc.charge.toFixed(2)+' ex GST</span>') : '';
+    var reimb = rc.reimbursement ? ('<span class="docby">💳 '+esc(rc.reimbursement)+'</span>') : '';
+    return '<div class="docrowitem"><a class="docitem" href="'+esc(driveView(rc.url))+'" target="_blank" rel="noopener">'+
+      '<span class="ic">🧾</span><span class="docmain">$'+rc.amount.toFixed(2)+' · '+esc(rc.desc||"receipt")+
+      (rc.supplier?(' — '+esc(rc.supplier)):'')+
+      '<span class="docby">'+who+(rc.date?(' · '+esc(rc.date)):'')+(rc.category?(' · '+esc(rc.category)):'')+'</span>'+
+      chg+reimb+'</span></a></div>';
+  }).join("");
+}
+
 function openWorkLog(){
   $("wl_vessel").innerHTML=vesselOpts(ME.vessels[0]); $("wl_other").style.display="none"; $("wl_other").value="";
   $("wl_title").value=""; $("wl_desc").value=""; $("wl_hours").value="";
