@@ -970,6 +970,21 @@
   .offpills{display:flex;gap:6px;overflow-x:auto;padding:2px 0 10px;-webkit-overflow-scrolling:touch}
   .offpills .opill{flex:0 0 auto;background:#fff;border:1px solid var(--line);color:var(--navy);font-size:12.5px;font-weight:700;border-radius:999px;padding:6px 12px;cursor:pointer;white-space:nowrap}
   .offpills .opill.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+  /* WHAT THIS JOB INCLUDED — one job, one block of hours, a tick-list of what
+     it actually covered. Rows are big enough to hit with a thumb on the dock. */
+  .incrow{display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid var(--line);cursor:pointer}
+  .incrow:last-of-type{border-bottom:none}
+  .incbox{flex:0 0 22px;width:22px;height:22px;border-radius:6px;border:2px solid #c3ccd8;background:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;color:#fff}
+  .incrow.on .incbox{background:var(--orange);border-color:var(--orange)}
+  .incmain{flex:1;min-width:0}
+  .inctitle{display:block;font-size:13.5px;font-weight:700;color:var(--navy);line-height:1.25}
+  .incrow:not(.on) .inctitle{color:#8b97a6;font-weight:600}
+  .incsub{display:block;font-size:11px;color:var(--muted);margin-top:1px}
+  .inchint{font-size:12px;color:var(--muted);margin:2px 2px 9px}
+  .incelse{display:flex;gap:7px;margin-top:11px}
+  .incelse input{flex:1;min-width:0}
+  .incelse button{flex:0 0 auto}
   .bundlehd{font-size:12px;font-weight:800;color:var(--navy);letter-spacing:.3px;margin:2px 2px 8px;text-transform:uppercase}
   .bundlebox{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 13px;margin:2px 0 14px}
   .bundlebox .bb-list{max-height:220px;overflow-y:auto;margin-bottom:10px}
@@ -1951,7 +1966,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-26·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-26·c</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -8494,6 +8509,7 @@ function openWLJob(key){
   var j=wlFind(key); if(!j)return;
   openJobId=key; WLMENTIONS=[]; WLLANE=""; PHTAG=""; WHERE_OPEN="";
   try{ chLoad(); chJobLoad(key, true); }catch(e){}
+  try{ wlIncLoad(key); }catch(e){}                 // what this job included (tick-list)
   try{ if(!RCPTS[key]) rcptLoad(key); }catch(e){}   // receipts for this job, lazily   // the box below must reflect the sheet   // a Before left on last week must not mislabel today
   var pool=(j.oj && typeof OFITEMS!=="undefined" && OFITEMS.length) ? OFITEMS : CREWJOBS;
   var inList=pool.filter(function(x){return (x.list||"")===(j.list||"");}); var num=inList.indexOf(j)+1;
@@ -8645,6 +8661,10 @@ function openWLJob(key){
       var b=j.desc?('<p class="body" id="wlDescText">'+linkify(esc(j.desc).replace(/\n/g,"<br>"))+'</p>'):'<p class="body" id="wlDescText" style="color:var(--muted)">No description yet.</p>';
       var ed=wlCanFix(j)?' <span class="wlnote-ed" style="cursor:pointer" onclick="wlEditDesc(\''+esc(key)+'\')">✎ Edit</span>':'';
       return '<div class="sec" id="wlDescSec"><h4>The job'+ed+'</h4>'+b+'</div>'; })()+
+    /* What this one job covered. Filled in after the card opens (wlIncLoad) —
+       the tick-list comes from the Bundles tab and is not worth holding up the
+       card for. Empty, and it stays empty: most jobs have no bundle. */
+    '<div id="wlIncSec"></div>'+
     // Where she is + how to get aboard — the first thing someone allocated a job
     // on a boat they don't know needs. Hidden for crew when nothing is set;
     // directors get a "tap to add" prompt instead.
@@ -10081,6 +10101,77 @@ function renderTagChips(){
   el.innerHTML=WLMENTIONS.map(function(n){
     return '<span class="tagchip">🔔 '+esc(firstName(n))+'<button onclick="toggleMention(\''+esc(n.replace(/'/g,"\\'"))+'\')">✕</button></span>';
   }).join("");
+}
+/* ---- WHAT THIS JOB INCLUDED ------------------------------------------------
+   Trish, 26 Sep 2026: "there's a job like interior detail and then they
+   pre-select vacuum, heads, wipe over, galley, fridge... so they can bundle the
+   detail up without adding 15 minutes for head, 15 minutes for vacuum."
+
+   ONE job, ONE block of hours, and a tick-list saying what it actually covered
+   — because sometimes they don't make the beds but still do the interior.
+   The list lives on the Bundles tab (fn=jobbundle); the ticks live on the job
+   (crewJobIncluded) and tick each sub-task off the boat's schedule when the
+   job is recorded Complete.
+
+   Everything arrives ticked the first time: it is far less tapping to untick
+   the two you skipped than to tick the eight you did. Once saved, their own
+   choice is what comes back. */
+var WLINC={};                       // jobKey -> {bundle, tasks:[{no,job,freq,on}]}
+function wlIncLoad(key){
+  var el=$("wlIncSec"); if(el) el.innerHTML="";
+  apiGet("fn=jobbundle&code="+encodeURIComponent(ME.code||"")+"&email="+encodeURIComponent(ME.email||"")+
+         "&jobKey="+encodeURIComponent(key))
+    .then(function(j){
+      if(!j||!j.ok||!j.bundle||!(j.tasks||[]).length) return;   // no bundle: draw nothing at all
+      WLINC[key]=j;
+      if(openJobId===key) wlIncRender(key);
+    }).catch(function(){});
+}
+function wlIncRender(key){
+  var el=$("wlIncSec"), b=WLINC[key]; if(!el||!b) return;
+  var on=b.tasks.filter(function(t){return t.on;}).length;
+  var rows=b.tasks.map(function(t){
+    var nJs=String(t.no).replace(/\\/g,"").replace(/'/g,"");
+    return '<div class="incrow'+(t.on?' on':'')+'" onclick="wlIncToggle(\''+esc(key)+'\',\''+esc(nJs)+'\')">'+
+      '<span class="incbox">'+(t.on?'&#10003;':'')+'</span>'+
+      '<span class="incmain"><span class="inctitle">'+esc(t.job)+'</span>'+
+      '<span class="incsub">'+esc(t.code||("No. "+t.no))+(t.freq?(' \u00b7 '+esc(t.freq)):'')+'</span></span></div>';
+  }).join("");
+  el.className="sec";
+  el.innerHTML='<h4>What this included <span style="font-size:11px;font-weight:600;color:var(--muted)">\u00b7 '+on+' of '+b.tasks.length+'</span></h4>'+
+    '<p class="inchint">Tick off what this job actually covered \u2014 untick anything you didn\u2019t do. It stays one job and one block of hours.</p>'+
+    rows+
+    '<div class="incelse"><input id="wlIncElse" class="fld-in" type="text" placeholder="Anything else you did?" '+
+      'onkeydown="if(event.key===\'Enter\'){event.preventDefault();wlIncElse(\''+esc(key)+'\');}">'+
+      '<button class="aopt" onclick="wlIncElse(\''+esc(key)+'\')">Add</button></div>';
+}
+function wlIncToggle(key, no){
+  var b=WLINC[key]; if(!b) return;
+  for(var i=0;i<b.tasks.length;i++){ if(String(b.tasks[i].no)===String(no)){ b.tasks[i].on=!b.tasks[i].on; break; } }
+  wlIncRender(key);                                  // paint straight away, save behind it
+  clearTimeout(wlIncToggle._t);
+  wlIncToggle._t=setTimeout(function(){ wlIncSave(key); }, 700);
+}
+function wlIncSave(key){
+  var b=WLINC[key]; if(!b) return;
+  var inc=b.tasks.filter(function(t){return t.on;}).map(function(t){return t.no;});
+  apiPost({action:"crewJobIncluded", email:ME.email, code:ME.code, jobKey:key, included:inc})
+    .then(function(r){ if(!r||!r.ok) toast((r&&r.error)||"Couldn\u2019t save what was included"); })
+    .catch(function(){ toast("Couldn\u2019t connect \u2014 ticks not saved"); });
+}
+/* "Anything else?" goes on as a NOTE, not into the description: a description is
+   the director's statement of the job, and crew are locked out of editing it
+   (ccJobDesc_ is managers-only). A note is theirs, it is dated, and it sits in
+   the crew lane like everything else they add. */
+function wlIncElse(key){
+  var el=$("wlIncElse"), text=(el&&el.value||"").trim();
+  if(!text){ toast("Type what else you did first"); return; }
+  if(el) el.disabled=true;
+  apiPost({action:"crewJobComment", email:ME.email, code:ME.code, jobKey:key, text:text, aud:WLLANE})
+    .then(function(r){
+      if(r&&r.ok){ toast("Added"); var j=wlFind(key); if(j)j.comments=r.comments||[]; openWLJob(key); loadJobs(); }
+      else { toast((r&&r.error)||"Couldn\u2019t add"); if(el) el.disabled=false; }
+    }).catch(function(){ toast("Couldn\u2019t connect"); if(el) el.disabled=false; });
 }
 function wlAddComment(key){
   var el=$("wlNote"), text=(el&&el.value||"").trim();
