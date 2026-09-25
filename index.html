@@ -1085,6 +1085,25 @@
   .fl-sub{font-size:12.5px;color:var(--muted);margin-top:2px;line-height:1.35}
   .fl-go{font-size:24px;color:var(--orange);font-weight:bold;flex:0 0 auto}
   .soonpill{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:#fff;background:var(--muted);border-radius:8px;padding:1px 6px;vertical-align:middle;margin-left:5px}
+  /* 🔑 ACCESS CODES (directors) — every sign-in code we issue, on a phone.
+     Codes sit under a blur until they're asked for, so a glance over the
+     shoulder on a dock doesn't hand somebody the fleet. */
+  .acbar{display:flex;gap:8px;align-items:center;margin:2px 0 11px}
+  .acbar input{flex:1;min-width:0;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font-size:15px;background:#fff}
+  .acshow{flex:0 0 auto;background:var(--navy);color:#fff;border:0;border-radius:10px;padding:11px 13px;font-size:13.5px;font-weight:700;cursor:pointer}
+  .acshow.on{background:var(--orange)}
+  .acsec{font-size:12px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);margin:16px 0 8px}
+  .acrow{display:flex;align-items:center;gap:11px;background:#fff;border:1px solid var(--line);border-radius:11px;padding:11px 12px;margin-bottom:8px}
+  .acrow.off{background:#f7f8fa;opacity:.75}
+  .ac-main{flex:1;min-width:0}
+  .ac-t{font-size:14.5px;font-weight:bold;color:var(--navy)}
+  .ac-sub{font-size:11.5px;color:var(--muted);margin-top:2px;line-height:1.35;word-break:break-word}
+  .ac-code{flex:0 0 auto;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:16px;font-weight:800;color:var(--navy);
+           background:#eef4ff;border:1px solid #d5e2f7;border-radius:9px;padding:8px 11px;cursor:pointer;letter-spacing:1px}
+  .ac-code.hid{filter:blur(6px);user-select:none}
+  .ac-code.none{background:#f2f4f7;border-color:var(--line);color:var(--muted);font-size:12px;font-weight:600;letter-spacing:0;filter:none}
+  .ac-deadpill{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:#fff;background:#c0392b;border-radius:8px;padding:1px 6px;margin-left:5px;vertical-align:middle}
+  .ac-pa{font-size:11.5px;color:var(--navy);background:#fff6ee;border:1px solid #f4d9c0;border-radius:8px;padding:5px 8px;margin-top:6px;line-height:1.35}
   .ownerhd{background:#eef4ff;border:1px solid #d5e2f7;border-radius:10px;padding:10px 12px;font-size:13px;color:var(--navy);margin:4px 0 11px;line-height:1.4}
   .duerow{display:flex;align-items:center;gap:9px;background:#fff;border:1px solid var(--line);border-radius:11px;padding:11px 12px;margin-bottom:8px}
   .due-main{flex:1;min-width:0}
@@ -1802,6 +1821,19 @@ button:active{ filter: brightness(.93); }
         <button class="jobbtn" style="background:var(--orange);margin:4px 0 10px" onclick="openFullOwnerPortal()">🔓 Open their FULL MyYacht portal ↗</button>
         <div id="ownerPreviewList"></div>
       </div>
+      <div class="fleetlink" onclick="toggleCodes()">
+        <div class="fl-ic">🔑</div>
+        <div class="fl-main"><div class="fl-t">Access codes</div><div class="fl-sub">Every crew code, owner PIN and portal login — directors only</div></div>
+        <div class="fl-go">›</div>
+      </div>
+      <div id="codesPanel" class="hidden">
+        <div class="ownerhd"><b>Directors only.</b> Straight off the Fleet Data sheet, every time you open it — change a code there and it is right here. Tap a code to copy it. Nothing is kept on this phone.</div>
+        <div class="acbar">
+          <input id="acQ" type="search" placeholder="Name, yacht or owner…" oninput="acRender()" autocomplete="off">
+          <button class="acshow" id="acShowBtn" onclick="acToggleShow()">👁 Show</button>
+        </div>
+        <div id="codesList"></div>
+      </div>
       <div id="whereFleet"></div>
     </div>
 
@@ -1911,7 +1943,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-23·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-25·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -5594,6 +5626,143 @@ function openMaintSchedule(vessel){
   window.open(planUrlFor(vessel), "_blank");
 }
 // View as owner — director previews a vessel's MyYacht portal as the client sees it.
+/* ================= 🔑 ACCESS CODES (directors) =================
+   Trish, 25 Sep 2026: "so I can quickly reference them when I'm out and
+   about". Every sign-in code Marine HQ issues, in one list, on a phone.
+
+   It is a READ of the Fleet Data sheet each time the panel is opened —
+   the Crew tab for crew codes, Portal Access for owner PINs, brokers and
+   delegates, and the Script Property behind the fleet dashboard. There is
+   no second copy anywhere, so a code changed in the sheet is right here
+   next time; nothing has to be "kept updated".
+
+   Three deliberate choices, because this screen hands over the lot:
+     · the gate is server-side (apiAccessCodes refuses anyone who isn't a
+       director/manager) — hiding the button would stop nobody;
+     · the codes come up blurred and one tap shows them for 90 seconds, so
+       a glance over the shoulder on a dock gets nothing;
+     · "accesscodes" is off API_CACHE_FNS, so no phone stores a copy, and
+       the panel drops what it fetched the moment it is closed.
+   Every read is logged to the Sign-Ins tab: who looked, and when. */
+var ACDATA=null, ACSHOW=false, AC_T=null;
+
+function toggleCodes(){
+  var p=$("codesPanel"); if(!p) return;
+  p.classList.toggle("hidden");
+  if(p.classList.contains("hidden")){ acForget(); return; }
+  acLoad();
+}
+/* Closing the panel forgets everything — data out of memory, codes re-blurred. */
+function acForget(){
+  ACDATA=null; ACSHOW=false; clearTimeout(AC_T);
+  var b=$("acShowBtn"); if(b){ b.classList.remove("on"); b.innerHTML="👁 Show"; }
+  var l=$("codesList"); if(l) l.innerHTML="";
+  var q=$("acQ"); if(q) q.value="";
+}
+function acLoad(){
+  var el=$("codesList"); if(!el) return;
+  el.innerHTML='<div class="loadingbox"><span class="spin"></span> Loading the codes…</div>';
+  apiGet("fn=accesscodes&code="+encodeURIComponent((ME&&ME.code)||"")).then(function(r){
+    if(!r||!r.ok){
+      /* The screen ships before the Google side goes live, so say which it is
+         rather than "couldn't load" — the backend answers "unknown fn" until
+         the Apps Script deploy lands. */
+      var m = (r&&r.locked) ? "Directors only — your sign-in doesn’t open this."
+            : (r&&/unknown fn/i.test(r.error||"")) ? "The codes list is being switched on.<br>It goes live with the next update."
+            : "Couldn’t load the codes. Close this and open it again.";
+      el.innerHTML='<div class="empty">'+m+'</div>';
+      return;
+    }
+    ACDATA=r; acRender();
+  }).catch(function(){ el.innerHTML='<div class="empty">Couldn’t reach Google. Try again in a moment.</div>'; });
+}
+/* Show for 90 seconds, then blur again on its own — she won't remember to. */
+function acToggleShow(){
+  ACSHOW=!ACSHOW;
+  var b=$("acShowBtn");
+  if(b){ b.classList.toggle("on",ACSHOW); b.innerHTML=ACSHOW?"🙈 Hide":"👁 Show"; }
+  clearTimeout(AC_T);
+  if(ACSHOW) AC_T=setTimeout(function(){ if(ACSHOW) acToggleShow(); }, 90000);
+  acRender();
+}
+function acCopy(el){
+  var c=el.getAttribute("data-c")||"";
+  if(!c) return;
+  try{ navigator.clipboard.writeText(c).then(function(){ toast("Copied"); }); }
+  catch(e){ toast("Couldn’t copy — read it off the screen"); }
+}
+function acCodeHtml(code, missing){
+  if(!code) return '<div class="ac-code none">'+esc(missing||"no code")+'</div>';
+  return '<div class="ac-code'+(ACSHOW?"":" hid")+'" data-c="'+esc(code)+'" onclick="acCopy(this)">'+esc(code)+'</div>';
+}
+function acRender(){
+  var el=$("codesList"); if(!el||!ACDATA) return;
+  var q=(($("acQ")&&$("acQ").value)||"").trim().toLowerCase();
+  function hit(){ 
+    if(!q) return true;
+    for(var i=0;i<arguments.length;i++){ if((arguments[i]||"").toString().toLowerCase().indexOf(q)>=0) return true; }
+    return false;
+  }
+  var h="", n=0;
+
+  var crew=(ACDATA.crew||[]).filter(function(c){ return hit(c.name,c.role,c.vessels,c.email); });
+  if(crew.length){
+    n+=crew.length;
+    h+='<div class="acsec">Crew — '+crew.length+'</div>';
+    h+=crew.map(function(c){
+      var sub=[c.role,c.vessels].filter(Boolean).join(" · ");
+      return '<div class="acrow'+(c.active?"":" off")+'">'+
+        '<div class="ac-main"><div class="ac-t">'+esc(c.name)+(c.active?"":'<span class="ac-deadpill">off</span>')+'</div>'+
+        (sub?'<div class="ac-sub">'+esc(sub)+'</div>':"")+
+        (c.email?'<div class="ac-sub">'+esc(c.email)+'</div>':"")+
+        '</div>'+acCodeHtml(c.code,"not set")+'</div>';
+    }).join("");
+  }
+
+  var owners=(ACDATA.owners||[]).filter(function(o){
+    return hit(o.vessel,o.owner,o.email,(o.delegates||[]).map(function(d){return d.name+" "+d.email;}).join(" "));
+  });
+  if(owners.length){
+    n+=owners.length;
+    h+='<div class="acsec">Owners — MyYacht PIN</div>';
+    h+=owners.map(function(o){
+      var pa=(o.delegates||[]).map(function(d){
+        return '<div class="ac-pa">Also signs in: <b>'+esc(d.name)+'</b> — '+esc(d.email)+' (their own email link, not the PIN)</div>';
+      }).join("");
+      return '<div class="acrow">'+
+        '<div class="ac-main"><div class="ac-t">'+esc(o.vessel||o.owner)+'</div>'+
+        '<div class="ac-sub">'+esc([o.owner,o.email].filter(Boolean).join(" · "))+'</div>'+pa+
+        '</div>'+acCodeHtml(o.pin,"no PIN")+'</div>';
+    }).join("");
+  }
+
+  var brokers=(ACDATA.brokers||[]).filter(function(b){ return hit(b.owner,b.vessel,b.email,b.boats); });
+  if(brokers.length){
+    n+=brokers.length;
+    h+='<div class="acsec">Brokers</div>';
+    h+=brokers.map(function(b){
+      return '<div class="acrow">'+
+        '<div class="ac-main"><div class="ac-t">'+esc(b.owner||b.vessel)+'</div>'+
+        '<div class="ac-sub">'+esc(b.boats||"")+'</div>'+
+        (b.email?'<div class="ac-sub">'+esc(b.email)+'</div>':"")+
+        '</div>'+acCodeHtml(b.pin,"no PIN")+'</div>';
+    }).join("");
+  }
+
+  if(!q && ACDATA.fleetPass!==undefined){
+    h+='<div class="acsec">Fleet dashboard</div>'+
+       '<div class="acrow"><div class="ac-main"><div class="ac-t">fleet.marinehq.com.au</div>'+
+       '<div class="ac-sub">Your own director code opens it too</div></div>'+
+       acCodeHtml(ACDATA.fleetPass,"not set")+'</div>';
+  }
+
+  if(!h) h='<div class="empty">Nothing matches “'+esc(q)+'”.</div>';
+  else if(!q) h+='<div class="ac-sub" style="margin:12px 2px 4px">Owners sign in at '+esc((ACDATA.portal&&ACDATA.portal.owner)||"")+
+                 ' · crew at '+esc((ACDATA.portal&&ACDATA.portal.crew)||"")+'<br>Read '+esc(ACDATA.at||"")+
+                 '. To change a code, edit it in the Fleet Data sheet — Crew tab, or Portal Access.</div>';
+  el.innerHTML=h;
+}
+
 function toggleOwnerPreview(){
   var p=$("ownerPreviewPanel"); if(!p) return;
   p.classList.toggle("hidden");
