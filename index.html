@@ -184,6 +184,14 @@
   .wlsec.old{background:#e6ecf2;color:var(--navy)}
   .wlsec.old .n{background:rgba(26,43,92,.10)}
   .wlsecbody{padding-left:2px}
+  /* A BOAT ROW INSIDE A FLEET MONTH (Trish, 26 Sep 2026) — one level under the
+     month and one above its worklists, so a boat holding three lists reads as
+     one thing instead of three strangers scattered among the other boats'. */
+  .wlsec.boat{background:#fff;color:var(--navy);border:1.5px solid rgba(26,43,92,.18);
+    box-shadow:0 1px 4px rgba(26,43,92,.08);margin:9px 0 5px}
+  .wlsec.boat h3{font-size:14px;font-weight:800}
+  .wlsec.boat .n{background:rgba(26,43,92,.09)}
+  .wlsec.boat + .wlsecbody{padding-left:9px;border-left:2px solid #e2e8f0;margin-left:5px}
   .wlsecbody.closed{display:none}
   .wlnone{color:var(--muted);font-size:12.5px;padding:4px 2px 10px}
   .secbtn{background:rgba(255,255,255,.9);color:var(--navy);border:0;border-radius:8px;padding:5px 11px;font-size:11.5px;font-weight:bold;cursor:pointer;font-family:inherit;white-space:nowrap}
@@ -1943,7 +1951,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-25·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-26·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -7107,6 +7115,50 @@ function cmPickGo(vessel){
 }
 /* Marine HQ's fictional showcase yacht — real to prospects, not to the fleet. */
 var DEMO_VESSELS_RE=/^\s*sea\s*(philly|filly|phily)\b/i;
+/* INSIDE A MONTH, GROUP BY BOAT (Trish, 26 Sep 2026) --------------------------
+   "There's three work lists in 0926 for Everywhen, so they need to be together,
+    otherwise they're going to be lost... when you press Everywhen, show that
+    there's three work lists, and then you can go into the specific one."
+
+   A month across the fleet drew every list flat, in load order, so Everywhen's
+   three September lists sat scattered between Andiamo's and Sea Ya's. Now each
+   month holds one row per BOAT, closed; opening it shows just that boat's
+   lists, and opening one of those shows its jobs. Three taps, each of them
+   narrowing. The single-boat view already grouped this way (wlSections) — this
+   brings All Yachts into line with it. */
+function wlFleetBoatOf(g, groups){
+  var jobs=groups[g]||[];
+  for(var i=0;i<jobs.length;i++){ if(jobs[i] && jobs[i].vessel) return jobs[i].vessel; }
+  /* No jobs to read the boat off (an empty list still has a heading). Fall back
+     to the name, which is "<Vessel> <MMYY> \u2014 <List>" by convention — cut at the
+     period rather than at a dash, because a boat can have one in her own name
+     ("SS88 - Krystyna", "Other \u2014 Island gypsy"). */
+  var p=wlPeriodOfList(g);
+  if(p){ var ix=(g||"").indexOf(p); if(ix>0) return g.slice(0,ix).trim(); }
+  return ((g||"").split(/\s+[\u2014\u2013]\s+/)[0]||"").trim() || "Other";
+}
+function wlFleetBoats(p, ls, groups){
+  var byV={}, vOrder=[];
+  ls.forEach(function(g){
+    var v=wlFleetBoatOf(g, groups);
+    if(!byV[v]){ byV[v]=[]; vOrder.push(v); }
+    byV[v].push(g);
+  });
+  /* One boat in the month is a fold wrapped around a fold — draw her lists
+     straight, the way the month has always looked. */
+  if(vOrder.length<2) return ls.map(function(g){ return wlGroupHTML(g, groups); }).join("");
+  vOrder.sort(function(a,b){ return a.localeCompare(b); });
+  return vOrder.map(function(v){
+    var gs=byV[v];
+    var openN=gs.reduce(function(n,g){ return n+wlSplit(groups[g]).live.length; },0);
+    /* The key goes inside an onclick string, so anything that could close the
+       quote (an apostrophe in a boat's name) is flattened out of it. */
+    var key="fb"+p+"_"+v.replace(/[^a-z0-9]+/gi,"_");
+    return wlSection(key, esc(v),
+      gs.length+(gs.length===1?" list":" lists")+" \u00b7 "+openN+" open",
+      "boat", gs.map(function(g){ return wlGroupHTML(g, groups); }).join(""), false);
+  }).join("");
+}
 var WLFLEET=false;
 function wlFleetMonths(order, groups){
   WLFLEET=true;
@@ -7143,7 +7195,7 @@ function wlFleetMonthsInner(order, groups){
             '<button class="secbtn" onclick="event.stopPropagation();cmPickOpen(\''+pj+'\')">Close month</button>';
     html+=wlSection("fm"+p, wlPeriodLabel(p)+' <span class="permono">'+esc(p)+'</span>'+tag,
                     openN+' open \u00b7 '+nB+(nB===1?' boat':' boats'), cls,
-                    ls.map(function(g){ return wlGroupHTML(g, groups); }).join(""), isNow, btn);
+                    wlFleetBoats(p, ls, groups), isNow, btn);
   });
   /* A list with no month is not automatically a problem. "Raised jobs", "On
      hold" and "Coming for shipyard" are WAITING lists — work parked on purpose,
