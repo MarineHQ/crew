@@ -1966,7 +1966,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-26·c</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-29·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -5633,7 +5633,12 @@ function addDueToWorklist(btn, idx){
 // mode (no PIN needed — the server authorises the director code).
 function openFullOwnerPortal(){
   var v=($("ownerVesselSel")||{}).value||""; if(!v){ toast("Pick a client first"); return; }
-  var url="https://myyacht-marinehq.netlify.app/?preview="+encodeURIComponent(ME.code||"")+"&vessel="+encodeURIComponent(v);
+  // &fleet= lets MyYacht quietly pre-load the other boats once this one is up,
+  // so the next "view as owner" opens instantly on any of them.
+  var sel=$("ownerVesselSel"), fleet=[];
+  if(sel) for(var i=0;i<sel.options.length;i++){ if(sel.options[i].value!==v) fleet.push(sel.options[i].value); }
+  var url="https://myyacht-marinehq.netlify.app/?preview="+encodeURIComponent(ME.code||"")+"&vessel="+encodeURIComponent(v)+
+          (fleet.length?"&fleet="+encodeURIComponent(fleet.join("|")):"");
   window.open(url, "_blank");
 }
 // The actual per-vessel maintenance schedule page (same one the client sees embedded).
@@ -5798,6 +5803,15 @@ function toggleOwnerPreview(){
     var ordered=mine.concat(vessels.filter(function(v){ return mine.indexOf(v)<0; }));
     sel.innerHTML=ordered.map(function(v){return '<option>'+esc(v)+'</option>';}).join("");
     if(ordered.length){ sel.value=ordered[0]; loadOwnerPreview(ordered[0]); }
+    // Quietly fetch every other boat's owner view behind the first, one at a
+    // time, so switching boats in the picker is instant (apiGet keeps each copy).
+    var rest=ordered.slice(1), k=0;
+    (function warm(){
+      if(k>=rest.length || p.classList.contains("hidden")) return;
+      var v=rest[k++];
+      apiGet("fn=worklist&key="+encodeURIComponent(ME.code||"")+"&asOwner="+encodeURIComponent(v))
+        .catch(function(){}).then(function(){ setTimeout(warm, 800); });
+    })();
   }
 }
 function loadOwnerPreview(vessel){
