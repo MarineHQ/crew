@@ -1966,7 +1966,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-09-29·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-06·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2176,6 +2176,7 @@ button:active{ filter: brightness(.93); }
   <h3>Fix this entry</h3>
   <p class="mhint" id="ehWhat">—</p>
   <div id="ehBundle"></div>
+  <button type="button" class="ahb-add" onclick="ehChangeJob()">\u21c4 Wrong job? Move these hours to a different job</button>
   <label class="fld">Day it was done</label>
   <input type="date" class="fld-in" id="ehDate">
   <div class="ahmode">
@@ -2200,6 +2201,9 @@ button:active{ filter: brightness(.93); }
   <div class="ehcalc" id="ehCalc">—</div>
   <label class="fld">Note <span class="fldhint">(optional)</span></label>
   <input class="fld-in" id="ehNote" placeholder="e.g. port side only">
+  <label class="fld">Photos <span class="fldhint">(optional \u2014 they go on the job)</span></label>
+  <div class="stagedrow"><div class="photos staged" id="eh_phGrid"></div></div>
+  <input type="file" id="eh_phIn" accept="image/*" multiple style="display:none" onchange="stagedAdd('eh_ph',this)">
   <button class="go" onclick="ehSave()">Save</button>
   <button class="cancel" onclick="closeModal('editHoursModal')">Cancel</button>
 </div></div>
@@ -3884,7 +3888,7 @@ function chSubmitJobNow(key){
    day had to be deleted and typed again, and a block could never gain a job
    after the fact — which is how Trish ended up with an AT3 job stranded on the
    29th that belonged with the 26th. */
-var EHALSO = [], EHADDING = false, EHHOURSONLY = false, EHJOBKEY = "";
+var EHALSO = [], EHADDING = false, EHHOURSONLY = false, EHJOBKEY = "", EHORIGKEY = "", EHSWAP = false, EHPROD = "";
 
 /* A job being folded into a block may already have an entry of its own sitting
    somewhere unsent — which is exactly Trish's case: an AT3 job logged on the
@@ -3925,6 +3929,36 @@ function ehRenderBundle(){
 }
 function ehDropAlso(i){ EHALSO.splice(i,1); ehRenderBundle(); }
 
+/* WRONG JOB. Until now the only fix was delete and re-log. Same picker as "add
+   another job", but the choice REPLACES the entry's main job. Nothing is saved
+   until Save: the new entry is made first and the old one removed only if that
+   worked, so a bad connection can't lose the hours. Only unsubmitted entries get
+   here at all - a submitted one is refused by the server. */
+function ehChangeJob(){
+  EHSWAP = true;
+  closeModal("editHoursModal");
+  ahOpen(); EHSWAP = true;
+  $("ahWhat").textContent = "Which job should these hours be on?";
+  $("ahSearch").value=""; ahFilter();
+}
+function ehTakeSwap(key){
+  var j=ahJobOf(key);
+  if(!j){ toast("Couldn\u2019t find that job"); return; }
+  var ac=ahCatKey(ahCatOf(j));
+  var bad=EHALSO.filter(function(a){ var k=ahCatKey(a.cat); return ac && k && k!==ac; })[0];
+  if(bad){
+    alert("\u201c"+(j.task||"That job")+"\u201d is "+ahCatOf(j)+", but \u201c"+bad.task+"\u201d in this block is "+bad.cat+
+          ".\n\nThose are kept apart. Take the other job off the block first, or pick a "+bad.cat+" job.");
+    return;
+  }
+  EHALSO = EHALSO.filter(function(a){ return a.key!==key; });   // it is the main job now
+  EHJOBKEY = key; EHSWAP = false;
+  closeModal("addHoursModal");
+  $("ehWhat").innerHTML = "<b>Moving to:</b> "+esc(j.task||"this job")+" \u00b7 "+esc(j.vessel||"");
+  $("editHoursModal").classList.add("show");
+  ehRenderBundle();
+}
+
 /* Adding a job to an existing block reuses the add panel's picker: close this,
    open that in "also" mode, and come back when one is chosen. */
 function ehAddAnother(){
@@ -3962,7 +3996,8 @@ function ehOpen(entryId){
   if(!e) return;
   EHID=entryId;
   $("ehWhat").innerHTML=esc(e.task||"this job")+" \u00b7 "+esc(e.crew||"")+" \u00b7 "+esc(e.date||"");
-  EHJOBKEY = e.jobKey || "";
+  EHJOBKEY = e.jobKey || ""; EHORIGKEY = EHJOBKEY; EHSWAP = false; EHPROD = e.products || "";
+  stagedReset("eh_ph");
   EHALSO = (e.alsoTasks||"").split("\n").map(function(x){ return x.trim(); }).filter(Boolean)
     .map(function(txt, n){
       var bit = txt.split(" \u00b7 ");
@@ -4015,16 +4050,40 @@ function ehSave(){
     body.start=$("ehStart").value; body.finish=$("ehFinish").value;
     body.breakMins=(parseInt($("ehBreak").value,10)||0);
   }
-  apiPost(body).then(function(r){
-    if(!r||!r.ok){ toast((r&&r.error)||"Couldn\u2019t save"); return; }
-    toast("Updated \u2014 "+chFmt(r.hours));
+  var photos=stagedFiles("eh_ph");
+  var swapped = !!EHJOBKEY && EHJOBKEY!==EHORIGKEY;
+  function done(r, jobKey){
+    toast((swapped?"Moved \u2014 ":"Updated \u2014 ")+chFmt(r.hours));
     closeModal("editHoursModal");
+    if(photos.length && jobKey){ STAGED["eh_ph"]=[]; uploadStaged(jobKey, photos); }
     chLoad(true); if(openJobId) chJobLoad(openJobId, true);
     // the submit screen is showing the numbers they just changed — reload it
     if($("submitDayModal") && $("submitDayModal").classList.contains("show")) openSubmitDay(SDDATE);
     else if(MHDATA) mhLoad();
     chUnsubLoad();
-  });
+  }
+  if(!swapped){
+    apiPost(body).then(function(r){
+      if(!r||!r.ok){ toast((r&&r.error)||"Couldn\u2019t save"); return; }
+      done(r, EHJOBKEY);
+    });
+    return;
+  }
+  /* Moving to another job: make the new entry first, remove the old one only once
+     that has worked. If the delete then fails there is a duplicate to tidy, which
+     is recoverable; the other way round would be lost hours. */
+  var j=ahJobOf(EHJOBKEY)||{};
+  apiPost({action:"crewHoursLog", email:ME.email, code:ME.code, jobKey:EHJOBKEY,
+           vessel:(j.vessel||""), task:(j.task||""), jobCode:(j.code||""), cat:ahCatOf(j),
+           also:body.also, date:body.date, note:body.note, products:(EHPROD||""),
+           start:body.start||"", finish:body.finish||"", hours:(EHHOURSONLY?body.hours:""),
+           breakMins:body.breakMins||0}).then(function(r){
+    if(!r||!r.ok){ toast((r&&r.error)||"Couldn\u2019t move it \u2014 nothing was changed"); return; }
+    return apiPost({action:"crewHoursDelete", email:ME.email, code:ME.code, entryId:EHID}).then(function(d){
+      if(!d||!d.ok) toast("Moved, but the old entry is still there \u2014 delete it in \u23f1 My hours");
+      done(r, EHJOBKEY);
+    });
+  }).catch(function(){ toast("Couldn\u2019t connect \u2014 nothing was changed"); });
 }
 function chBoxHtml(key){
   var mine=(CHTIMER&&CHTIMER.running&&CHTIMER.jobKey===key);
@@ -4389,6 +4448,7 @@ function ahSetWhat(){
 }
 
 function ahOpen(key){
+  EHSWAP = false;
   AHKEY = key || null;
   AHALSO = []; AHADDING = false;
   try{ ahMode(false); var hh=$("ahHours"); if(hh) hh.value=""; }catch(_){}
@@ -4610,6 +4670,7 @@ function ahCatHtml(shown, q){
 function ahShowSent(){ AHSHOWSENT=!AHSHOWSENT; ahFilter(); }
 function ahOpenNoHours(){ ahOpen(); AHNOHRS=true; AHONLYDUE=false; AHBOAT=""; ahFilter(); }
 function ahChoose(key){
+  if(EHSWAP){ ehTakeSwap(key); return; }          // moving an entry to another job
   if(EHADDING){ ehTakeJob(key); return; }      // adding to an entry already saved
   if(AHADDING){ ahAlsoChoose(key); return; }   // second job for the same block
   ahOpen(key);
@@ -12126,6 +12187,22 @@ function submitWorkLog(startTimer){
     if(also.length) return wlLogBlock(r, also, vessel, hrs, photos, docs);
     closeModal("workLogModal");
     toast((r.status==="In hand"?"◐ Logged — still in hand":"✓ Logged")+(r.code?(" — "+r.code):""));
+    /* HOURS TYPED HERE USED TO BE A NOTE ONLY. crewWorkLog writes "· 5 hrs" on the
+       job card as text and never makes a Crew Hours row, so nothing reached Submit
+       my day or the EOD sheet (Tyrone, Flagship 29 Sep 2026: 5 hrs logged, none
+       billed). Make the real entry for the day they said, so it can be edited or
+       deleted in My hours and goes out when they submit. */
+    var hv=parseFloat(hrs)||0;
+    if(hv>0 && r.key){
+      var dayDone=$("wl_done").value||"";
+      apiPost({action:"crewHoursLog", email:ME.email, code:ME.code, jobKey:r.key,
+               vessel:(r.vessel||vessel), task:t, jobCode:(r.code||""), cat:(r.category||""),
+               date:dayDone, hours:hv}).then(function(h){
+        if(h&&h.ok){ toast("\u2713 Logged \u2014 "+chFmt(h.hours)+" added to My hours, ready to submit"); }
+        else { toast("Job logged, but the hours didn\u2019t save \u2014 add them from \u23f1 My hours"); }
+        chLoad(true); chUnsubLoad();
+      }).catch(function(){ toast("Job logged, but the hours didn\u2019t save \u2014 add them from \u23f1 My hours"); });
+    }
     if(isMgrRole() && r.vessel) CURVESSEL=r.vessel;
     go("jobs");
     STAGED["wl_ph"]=[]; STAGED["wl_dc"]=[];            // handed to the upload — don't revoke the previews
