@@ -1966,7 +1966,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-06·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-06·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -11816,6 +11816,7 @@ function submitRaise(again){
   if(vsel==="__other__"){ vessel=($("r_other").value||"").trim(); if(!vessel){ toast("Type the yacht name"); return; } vessel="Other — "+vessel; }
   else { vessel=vsel; }
   var desc=($("r_desc").value||"").trim();
+  if(!RJNUM){ var ra=catAlias(t, desc); t=ra.title; desc=ra.desc; }
   var files=stagedFiles("r_ph"), rdocs=stagedFiles("r_dc");
   toast("Raising job…");
   apiPost({action:"crewRaiseJob", email:ME.email, code:ME.code, vessel:vessel, title:t, desc:desc, matchNum:(RJNUM||"")}).then(function(r){
@@ -12160,6 +12161,28 @@ function wlLogBlock(first, also, vessel, hrs, photos, docs){
 /* Work that was never on a worklist still gets timed. Someone who starts an
    unplanned job should not have to guess the hours afterwards — they log it and
    the timer starts on the job that was just created. */
+/* HOUSE RULES FOR WHAT CREW TYPE (Trish, 6 Oct 2026). A crew member types
+   "Washdown" and the job must land on the catalogue's wash down (-0001), not on a
+   one-off 9000-series code that someone then has to fix by hand. The server's
+   matcher compares WHOLE WORDS, so "washdown" never met "wash down" and Tyrone's
+   Sea Ya washdown became SY-9001. Their own words move into the detail (the
+   comment on the job), and the heading is the catalogue's. A rule only fires when
+   nobody picked a catalogue job themselves, and not for the specific cases the
+   catalogue has its own entry for (tender, engine room, bilge, canvas, cushions,
+   carpets). Add the next "they always mean this" word here, one line each. */
+var CAT_ALIASES=[
+  { rx:/\bwash[\s\-]*down\b/i, not:/tender|engine|bilge|canvas|cushion|carpet/i, heading:"Full vessel wash down" }
+];
+function catAlias(title, desc){
+  title=(title||"").trim(); desc=(desc||"").trim();
+  for(var i=0;i<CAT_ALIASES.length;i++){
+    var a=CAT_ALIASES[i], hay=title;       // the TITLE only: a note that mentions a wash down is not one
+    if(!a.rx.test(hay) || (a.not && a.not.test(hay))) continue;
+    if(title.toLowerCase()===a.heading.toLowerCase()) return { title:title, desc:desc };
+    return { title:a.heading, desc: title + (desc ? " \u2014 "+desc : "") };
+  }
+  return { title:title, desc:desc };
+}
 function submitWorkLog(startTimer){
   /* The block's first job, whether it is in the box or only remembered — the box
      is borrowed by the picker while extra jobs are being added. */
@@ -12170,6 +12193,8 @@ function submitWorkLog(startTimer){
   else { vessel=vsel; }
   var photos=stagedFiles("wl_ph");
   var docs=stagedFiles("wl_dc");
+  var wlDesc=($("wl_desc").value||"").trim();
+  var al=catAlias(t, wlDesc); t=al.title; wlDesc=al.desc;     // "washdown" -> the catalogue's wash down
   var also = (startTimer ? [] : WLALSO.slice());   // a running timer is one job by definition
   var hrs  = startTimer ? "" : ($("wl_hours").value||"");
   if(also.length && !(parseFloat(hrs)>0)){
@@ -12177,7 +12202,7 @@ function submitWorkLog(startTimer){
   }
   toast("Logging…");
   apiPost({action:"crewWorkLog", email:ME.email, code:ME.code, vessel:vessel, title:t,
-           desc:($("wl_desc").value||"").trim(),
+           desc:wlDesc,
            doneOn:$("wl_done").value||"",
            /* The hours go on ONE entry covering the block, made below — not on
               each job, which would bill the block once per job. */
