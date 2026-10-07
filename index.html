@@ -1966,7 +1966,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-06·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-08·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -4938,7 +4938,8 @@ function mhTodoHtml(){
         '</span></div>'+
         '<div class="h">'+(run?'\u2014':chFmt(e.hours))+'</div>'+
         (run?'<span class="chpill open">running</span>'
-            :'<button class="ed" onclick="event.stopPropagation();ehOpen(\''+esc(e.entryId)+'\')">\u270e</button>')+
+            :'<button class="ed" onclick="event.stopPropagation();ehOpen(\''+esc(e.entryId)+'\')">\u270e</button>'+
+              '<button class="ed del" title="Delete this entry" onclick="event.stopPropagation();chDel(\''+esc(e.entryId)+'\')">\u2715</button>')+
         '</div>';
     }).join("");
     return '<div class="mhday">'+
@@ -5054,12 +5055,13 @@ function chEdit(entryId){
 /* A wrong tap shouldn't need a director. Crew can remove their own entry right
    up until the day lands on a job card — after that it's a real record. */
 function chDel(entryId, fromJob){
-  var e=(CHDAY&&CHDAY.entries||[]).filter(function(x){return x.entryId===entryId;})[0];
+  var e=(CHDAY&&CHDAY.entries||[]).concat(CHUNSENT||[]).filter(function(x){return x.entryId===entryId;})[0];
   var what = e ? (chFmt(e.hours)+" on "+(e.task||"this job")) : "this entry";
   if(!confirm("Delete "+what+"?")) return;
   apiPost({action:"crewHoursDelete", email:ME.email, code:ME.code, entryId:entryId}).then(function(r){
     if(!r||!r.ok){ toast((r&&r.error)||"Couldn\u2019t delete"); return; }
     toast("Deleted"); chLoad(true); if(fromJob&&openJobId) chJobLoad(openJobId,true);
+    if($("submitDayModal") && $("submitDayModal").classList.contains("show")) openSubmitDay(SDDATE);
   });
 }
 /* A phone that slept, an app switched away from, a screen turned off — the timer
@@ -5177,7 +5179,8 @@ function sdRender(){
           '<span>'+(e.code?(esc(e.code)+' \u00b7 '):'')+when+'</span></div>'+
         '<div class="sdh">'+(e.running?'\u2014':chNum(e.hours))+'<small>hrs</small></div>'+
         (done?'<span class="sdsent">sent</span>'
-             :(e.running?'':'<button class="sdedit" onclick="ehOpen(\''+eid+'\')">\u270e</button>'))+
+             :(e.running?'':'<button class="sdedit" onclick="ehOpen(\''+eid+'\')">\u270e</button>'+
+               '<button class="sdedit" title="Delete this entry" style="color:#c0392b;margin-left:6px" onclick="chDel(\''+eid+'\')">\u2715</button>'))+
       '</div>'+
       alsoHtml+
       (done?(e.note?('<p class="sdnote">'+esc(e.note)+'</p>'):''):
