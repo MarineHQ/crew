@@ -1966,7 +1966,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-08·c</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-08·d</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -13139,11 +13139,21 @@ var CERTS=[], TEAMCERTS=null, CERTROSTER=[], certEditId="";
 var INDUCT_TITLE="Gold Coast City Marina Induction";
 var INDUCT_URL="https://gccm.com.au/online-induction-for-external-contractors/";
 function isInductCert(c){ return /marina\s+induction/i.test((c&&c.title)||""); }
-function myInduct(){ return (CERTS||[]).filter(isInductCert)[0]||null; }
+// Only a CURRENT induction counts: an expired one puts the banner back.
+function myInduct(){ return (CERTS||[]).filter(function(c){ return isInductCert(c) && certStatus(c).cls!=="exp"; })[0]||null; }
+function myInductAny(){ return (CERTS||[]).filter(isInductCert)[0]||null; }
 function inductBanner(){
-  if(!ME || isMgrRole() || myInduct()) return "";
+  if(!ME || isMgrRole()) return "";
+  var cur=myInduct();
+  if(cur){
+    var st=certStatus(cur);
+    if(st.cls!=="soon") return "";
+    return '<div class="guideprompt" style="background:#fdf1de;border-color:#ecc98c;color:#8a5200;cursor:default">⏰ Your Gold Coast City Marina induction '+esc(st.label)+'. Renew it before it runs out.'+
+      '<div style="margin-top:10px"><a href="'+INDUCT_URL+'" target="_blank" rel="noopener" style="background:#1A2B5C;color:#fff;padding:9px 14px;border-radius:9px;font-weight:700;text-decoration:none">Renew the induction ↗</a></div></div>';
+  }
   return '<div class="guideprompt" style="background:#fdeaea;border-color:#e9b3b3;color:#8a1f1f;cursor:default">'+
-    '⚠️ <b>Important:</b> do the Gold Coast City Marina online induction, then upload the certificate they email you. Without it you can’t get into the marina and you’re not covered by insurance.'+
+    (myInductAny() ? '⚠️ <b>Your Gold Coast City Marina induction has expired.</b> Do it again, then upload the new certificate. Without a current one you can’t get into the marina and you’re not covered by insurance.'
+      : '⚠️ <b>Important:</b> do the Gold Coast City Marina online induction, then upload the certificate they email you. Without it you can’t get into the marina and you’re not covered by insurance.')+
     '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">'+
     '<a href="'+INDUCT_URL+'" target="_blank" rel="noopener" style="background:#1A2B5C;color:#fff;padding:9px 14px;border-radius:9px;font-weight:700;text-decoration:none">1 · Do the induction ↗</a>'+
     '<a onclick="openInductUpload()" style="background:#E87722;color:#fff;padding:9px 14px;border-radius:9px;font-weight:700;cursor:pointer">2 · Upload my certificate</a></div></div>';
@@ -13282,11 +13292,11 @@ function inductTable(){
     var c=(TEAMCERTS||[]).filter(function(x){ return isInductCert(x) && key(x.crew)===key(n); })[0];
     var d=c?(c.issued||c.added||""):"";
     return '<tr><td style="padding:7px 10px;border-top:1px solid var(--line)">'+esc(n)+'</td>'+
-      '<td style="padding:7px 10px;border-top:1px solid var(--line)">'+(c?('<span class="certpill ok">✓ On file</span>'):'<span class="certpill exp">✗ Not uploaded</span>')+'</td>'+
+      '<td style="padding:7px 10px;border-top:1px solid var(--line)">'+(c?('<span class="certpill '+certStatus(c).cls+'">'+(certStatus(c).cls==="exp"?"✗ ":"✓ ")+esc(certStatus(c).label)+'</span>'):'<span class="certpill exp">✗ Not uploaded</span>')+'</td>'+
       '<td style="padding:7px 10px;border-top:1px solid var(--line)">'+(c?(esc(d?fmtDate(d):"")+(c.file?' · <a href="'+esc(c.file.url)+'" target="_blank" rel="noopener">view ↗</a>':'')):'')+'</td></tr>';
   }).join("");
   return '<table style="width:100%;border-collapse:collapse;font-size:13px;background:#fff;border:1px solid var(--line);border-radius:12px"><tr style="text-align:left;color:var(--muted);font-size:11px;text-transform:uppercase">'+
-    '<th style="padding:8px 10px">Crew</th><th style="padding:8px 10px">Induction</th><th style="padding:8px 10px">Date</th></tr>'+rows+'</table>';
+    '<th style="padding:8px 10px">Crew</th><th style="padding:8px 10px">Induction</th><th style="padding:8px 10px">Done</th></tr>'+rows+'</table>';
 }
 function openCertModal(id){
   var c=null;
@@ -13454,6 +13464,7 @@ function certScan_(p){
 function submitCert(){
   var title=$("cert_title").value.trim();
   if(!title){ toast("Give the certificate a name"); return; }
+  if(/marina\s+induction/i.test(title) && !$("cert_expires").value){ toast("Add the expiry date from the certificate — that’s how we remind you to renew"); return; }
   var btn=$("certSaveBtn"); btn.disabled=true; btn.textContent="Saving…";
   function done(){ btn.disabled=false; btn.textContent="✓ Save certificate"; }
   var body={ action:"crewCertSave", email:ME.email, code:ME.code, all:isMgrRole()?"1":"",
