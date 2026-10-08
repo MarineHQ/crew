@@ -1966,7 +1966,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-08·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-08·c</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2354,6 +2354,7 @@ button:active{ filter: brightness(.93); }
     <label class="fld">Who's it for?</label>
     <select class="fld-in" id="cert_for"></select>
   </div>
+  <a id="certInductLink" href="https://gccm.com.au/online-induction-for-external-contractors/" target="_blank" rel="noopener" style="display:none;margin:0 0 10px;background:#1A2B5C;color:#fff;padding:10px 14px;border-radius:9px;font-weight:700;text-decoration:none;text-align:center">Haven’t done it yet? Do the marina induction ↗</a>
   <label class="fld">Certificate</label>
   <input class="fld-in" id="cert_title" list="certSuggest" placeholder="e.g. Coxswain Grade 1 NC">
   <datalist id="certSuggest">
@@ -13136,18 +13137,23 @@ var CERTS=[], TEAMCERTS=null, CERTROSTER=[], certEditId="";
    won't cover them) without it. It's filed as a normal certificate so it rides the
    same upload, Drive filing and team table; crew just get a banner until it's on file. */
 var INDUCT_TITLE="Gold Coast City Marina Induction";
+var INDUCT_URL="https://gccm.com.au/online-induction-for-external-contractors/";
 function isInductCert(c){ return /marina\s+induction/i.test((c&&c.title)||""); }
 function myInduct(){ return (CERTS||[]).filter(isInductCert)[0]||null; }
 function inductBanner(){
   if(!ME || isMgrRole() || myInduct()) return "";
-  return '<div class="guideprompt" style="background:#fdeaea;border-color:#e9b3b3;color:#8a1f1f" onclick="openInductUpload()">'+
-    '⚠️ <b>Important:</b> upload your Gold Coast City Marina induction certificate. Without it you can’t get into the marina and you’re not covered by insurance. Tap here.</div>';
+  return '<div class="guideprompt" style="background:#fdeaea;border-color:#e9b3b3;color:#8a1f1f;cursor:default">'+
+    '⚠️ <b>Important:</b> do the Gold Coast City Marina online induction, then upload the certificate they email you. Without it you can’t get into the marina and you’re not covered by insurance.'+
+    '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">'+
+    '<a href="'+INDUCT_URL+'" target="_blank" rel="noopener" style="background:#1A2B5C;color:#fff;padding:9px 14px;border-radius:9px;font-weight:700;text-decoration:none">1 · Do the induction ↗</a>'+
+    '<a onclick="openInductUpload()" style="background:#E87722;color:#fff;padding:9px 14px;border-radius:9px;font-weight:700;cursor:pointer">2 · Upload my certificate</a></div></div>';
 }
 function openInductUpload(){
   go("profile"); openCertModal();
   $("cert_title").value=INDUCT_TITLE;
   $("cert_issued").value=TODAY||"";
   $("cert_notes").value="Emailed to me when I finished the induction";
+  $("certInductLink").style.display="";
 }
 
 // The header avatar shows the profile photo when there is one, initials when not.
@@ -13168,7 +13174,7 @@ function renderProfile(){
     '<div class="profphoto-links"><a onclick="pickProfilePhoto()">📷 '+(ME.photo?"Change photo":"Add a photo")+'</a>'+
     (ME.photo?'<a onclick="removeProfilePhoto()">Remove</a>':'')+'</div>'+
     '</div></div>'+
-    '<input type="file" id="profPhotoInput" accept="image/*" style="display:none" onchange="uploadProfilePhoto(this)">';
+    '<input type="file" id="profPhotoInput" accept="image/*" style="display:none" onchange="uploadProfilePhoto(this)">'+inductBanner();
   renderCerts();
 }
 function pickProfilePhoto(){ var i=$("profPhotoInput"); if(i) i.click(); }
@@ -13288,6 +13294,7 @@ function openCertModal(id){
   if(c && !certMine(c) && !isMgrRole()) return;
   certEditId=c?c.id:"";
   $("certMTitle").textContent=c?"🎓 Edit certificate":"🎓 Add a certificate";
+  $("certInductLink").style.display="none";
   $("cert_title").value=c?(c.title||""):"";
   $("cert_number").value=c?(c.number||""):"";
   $("cert_issued").value=c?(c.issued||""):"";
