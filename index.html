@@ -1966,7 +1966,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-08·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-08·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2357,6 +2357,7 @@ button:active{ filter: brightness(.93); }
   <label class="fld">Certificate</label>
   <input class="fld-in" id="cert_title" list="certSuggest" placeholder="e.g. Coxswain Grade 1 NC">
   <datalist id="certSuggest">
+    <option value="Gold Coast City Marina Induction"></option>
     <option value="Coxswain Grade 1 NC"></option>
     <option value="Coxswain Grade 2 NC"></option>
     <option value="Master <24m NC"></option>
@@ -3293,6 +3294,7 @@ function enterReal(crew, shift, quiet){
     else { ME.clock.in=false; }
     $("signedInAs").textContent = "Signed in as " + ME.name;
     try{ setHdrAv(); renderNav(); renderClock(); updateStrip(); }catch(e){}
+    try{ loadCerts(); }catch(e){}
     return;
   }
   // Wipe the previous session's lists. REQJOBS is director-only data — never let it
@@ -3306,7 +3308,7 @@ function enterReal(crew, shift, quiet){
   try{ MHQPush.signIn(ME.code); }catch(e){}      // tie push on this phone to this person
   try{ chLoad(); }catch(e){}                     // running timer + today's hours
   $("login").classList.add("hidden"); $("app").classList.remove("hidden");
-  go("jobs"); refreshAll();
+  go("jobs"); refreshAll(); try{ loadCerts(); }catch(e){}
   try{ MHQQ.refresh().then(function(){ MHQQ.drain(); }); }catch(e){}   // photos parked on this phone last time
 }
 // Stay signed in on this device (90-day style) — auto sign-in if remembered.
@@ -6886,7 +6888,7 @@ function renderJobs(){
   var first=(ME.name||"").split(" ")[0].replace(/\(test\)/,"").trim();
   var openN=CREWJOBS.filter(function(j){return hubBucket(j.status)!=="Done";}).length;
   $("jobsHello").innerHTML="Hi <b>"+esc(first)+"</b> — <b>"+openN+"</b> open "+(openN===1?"job":"jobs")+(isMgrRole()?(" on <b>"+esc(JOBSVESSEL||"your vessel")+"</b>"):" assigned to you")+"."+
-    (ME.signedAt ? "" : '<div class="guideprompt" onclick="openGuide()">📋 Please read &amp; sign the Crew Onboarding Guide — tap here.</div>')
+    (ME.signedAt ? "" : '<div class="guideprompt" onclick="openGuide()">📋 Please read &amp; sign the Crew Onboarding Guide — tap here.</div>')+inductBanner()
     + chUnsubHtml(true);
   var _atb=$("addTaskBtn"); if(_atb) _atb.style.display=isMgrRole()?"":"none";
   var _agb=$("agentBtn"); if(_agb) _agb.style.display=(isMgrRole()&&AGENTREADY)?"":"none";
@@ -13130,6 +13132,23 @@ function flagSpare(k,status){
    or PDF of the certificate). Directors also see the whole team's, with
    expired / expiring-soon flags, and can file one on a crew member's behalf. */
 var CERTS=[], TEAMCERTS=null, CERTROSTER=[], certEditId="";
+/* Gold Coast City Marina induction — the marina won't let crew in (and insurance
+   won't cover them) without it. It's filed as a normal certificate so it rides the
+   same upload, Drive filing and team table; crew just get a banner until it's on file. */
+var INDUCT_TITLE="Gold Coast City Marina Induction";
+function isInductCert(c){ return /marina\s+induction/i.test((c&&c.title)||""); }
+function myInduct(){ return (CERTS||[]).filter(isInductCert)[0]||null; }
+function inductBanner(){
+  if(!ME || isMgrRole() || myInduct()) return "";
+  return '<div class="guideprompt" style="background:#fdeaea;border-color:#e9b3b3;color:#8a1f1f" onclick="openInductUpload()">'+
+    '⚠️ <b>Important:</b> upload your Gold Coast City Marina induction certificate. Without it you can’t get into the marina and you’re not covered by insurance. Tap here.</div>';
+}
+function openInductUpload(){
+  go("profile"); openCertModal();
+  $("cert_title").value=INDUCT_TITLE;
+  $("cert_issued").value=TODAY||"";
+  $("cert_notes").value="Emailed to me when I finished the induction";
+}
 
 // The header avatar shows the profile photo when there is one, initials when not.
 function setHdrAv(){
@@ -13223,6 +13242,7 @@ function applyCerts(certs, roster){
 }
 function renderCerts(){
   var el=$("certList"); if(!el) return;
+  try{ if(TAB==="jobs" && typeof renderJobs==="function"){ var ib=inductBanner(); if(ib!==(window._ibShown||"")){ window._ibShown=ib; renderJobs(); } } }catch(e){}
   var mine=CERTS.slice().sort(certSort);
   $("certCount").textContent=mine.length?String(mine.length):"";
   el.innerHTML = mine.length ? mine.map(certCard).join("")
@@ -13235,7 +13255,8 @@ function renderTeamCerts(){
   var others=TEAMCERTS.filter(function(c){ return !certMine(c); });
   var byCrew={}; others.forEach(function(c){ (byCrew[c.crew]=byCrew[c.crew]||[]).push(c); });
   var flagged=others.filter(function(c){ var s=certStatus(c); return s.cls==="exp"||s.cls==="soon"; });
-  var html='<div class="subbar" style="padding-top:24px"><h2>Team certificates</h2><span class="count">'+others.length+'</span></div>';
+  var html='<div class="subbar" style="padding-top:24px"><h2>Marina induction</h2><span class="count">GCCM</span></div>'+inductTable();
+  html+='<div class="subbar" style="padding-top:24px"><h2>Team certificates</h2><span class="count">'+others.length+'</span></div>';
   html+= flagged.length
     ? '<p class="hello" style="padding-top:0">⚠️ '+flagged.length+' certificate'+(flagged.length>1?'s':'')+' expired or due within 90 days.</p>'
     : '<p class="hello" style="padding-top:0">Everything the team has loaded, grouped by person.</p>';
@@ -13247,6 +13268,19 @@ function renderTeamCerts(){
   var missing=(CERTROSTER||[]).filter(function(n){ return !have[((n||"")+"").toLowerCase().split(/[\s(]/)[0]]; });
   if(missing.length) html+='<p class="hello">Nothing on file yet for: <b>'+missing.map(esc).join(", ")+'</b>.</p>';
   el.innerHTML=html;
+}
+function inductTable(){
+  var names=(CERTROSTER||[]).slice(); (TEAMCERTS||[]).forEach(function(c){ if(names.indexOf(c.crew)<0 && !/marine hq/i.test(c.crew||"")) names.push(c.crew); });
+  var key=function(n){ return ((n||"")+"").toLowerCase().split(/[\s(]/)[0]; };
+  var rows=names.filter(function(n){ return !/marine hq/i.test(n||""); }).sort().map(function(n){
+    var c=(TEAMCERTS||[]).filter(function(x){ return isInductCert(x) && key(x.crew)===key(n); })[0];
+    var d=c?(c.issued||c.added||""):"";
+    return '<tr><td style="padding:7px 10px;border-top:1px solid var(--line)">'+esc(n)+'</td>'+
+      '<td style="padding:7px 10px;border-top:1px solid var(--line)">'+(c?('<span class="certpill ok">✓ On file</span>'):'<span class="certpill exp">✗ Not uploaded</span>')+'</td>'+
+      '<td style="padding:7px 10px;border-top:1px solid var(--line)">'+(c?(esc(d?fmtDate(d):"")+(c.file?' · <a href="'+esc(c.file.url)+'" target="_blank" rel="noopener">view ↗</a>':'')):'')+'</td></tr>';
+  }).join("");
+  return '<table style="width:100%;border-collapse:collapse;font-size:13px;background:#fff;border:1px solid var(--line);border-radius:12px"><tr style="text-align:left;color:var(--muted);font-size:11px;text-transform:uppercase">'+
+    '<th style="padding:8px 10px">Crew</th><th style="padding:8px 10px">Induction</th><th style="padding:8px 10px">Date</th></tr>'+rows+'</table>';
 }
 function openCertModal(id){
   var c=null;
