@@ -1247,8 +1247,9 @@
   .qpill.hidden{display:none}
   .clockbtn.qshot{background:#fff;color:var(--navy);border:2px solid var(--navy);margin-top:8px}
 
-  .tpstrip{display:flex;gap:7px;overflow-x:auto;margin:9px 0 2px;padding-bottom:2px}
-  .tpth{position:relative;flex:0 0 auto;width:62px;height:62px;border-radius:9px;overflow:hidden;border:1.5px solid var(--line);background:#eef2f7;cursor:pointer}
+  .tpstrip{display:flex;gap:7px;overflow-x:auto;margin:9px 0 2px;padding-bottom:2px;align-items:flex-start}
+  .tpstrip .addph{flex:0 0 auto}
+  .tpth{position:relative;flex:0 0 auto;width:92px;height:70px;border-radius:9px;overflow:hidden;border:1.5px solid var(--line);background:#eef2f7;cursor:pointer}
   .tpth img{width:100%;height:100%;object-fit:cover;display:block}
   .tpth .tpb{position:absolute;left:0;right:0;bottom:0;font-size:8.5px;font-weight:800;text-align:center;color:#fff;background:rgba(26,43,92,.82);padding:1px 0;letter-spacing:.3px}
   .tpth.sh .tpb{background:rgba(31,122,84,.9)}
@@ -1973,7 +1974,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-10·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-10·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2831,7 +2832,7 @@ button:active{ filter: brightness(.93); }
     <label class="fld">Notes <span class="fldhint">(opt)</span></label>
     <input class="fld-in" id="tl_notes" placeholder="e.g. flat crossing, 24 kn">
     <label class="fld">Photos <span class="fldhint">(opt &mdash; internal until a director shares them)</span></label>
-    <div class="tpadd" onclick="tripPickForm('tl')">&#128247; Add photos</div><div class="tpfiles" id="tl_pfiles"></div>
+    <div class="tpstrip"><div class="addph" onclick="tripPickForm('tl')">&#128247;<span>Photo</span></div></div><div class="tpfiles" id="tl_pfiles"></div>
     <button class="go" id="tl_save" onclick="saveTripLog()">Log the trip &amp; update servicing</button>
     <div style="text-align:center;font-size:12px;color:var(--muted);margin-top:10px;cursor:pointer" onclick="closeModal(&#39;tripLogModal&#39;);openTripStart()">Heading out right now? <b>Start an underway trip &rarr;</b></div>
   </div>
@@ -2896,7 +2897,7 @@ button:active{ filter: brightness(.93); }
     <label class="fld">Notes <span class="fldhint">(opt)</span></label>
     <input class="fld-in" id="ta_notes" placeholder="e.g. smooth run, 24 kn cruise">
     <label class="fld">Photos <span class="fldhint">(opt &mdash; internal until a director shares them)</span></label>
-    <div class="tpadd" onclick="tripPickForm('ta')">&#128247; Add photos</div><div class="tpfiles" id="ta_pfiles"></div>
+    <div class="tpstrip"><div class="addph" onclick="tripPickForm('ta')">&#128247;<span>Photo</span></div></div><div class="tpfiles" id="ta_pfiles"></div>
     <button class="go" id="ta_save" onclick="saveTripArrive()">Log arrival &amp; update servicing</button>
   </div>
   <div id="ta_result" style="display:none"></div>
@@ -12932,8 +12933,8 @@ function tripStrip(t){
     return '<div class="tpth'+(p.shared?' sh':'')+'" onclick="tripPhotoOpen(\''+esc(t.key)+'\','+i+')">'+
       '<img src="'+esc(p.url)+'" loading="lazy" alt=""><div class="tpb">'+(p.shared?'OWNER SEES':'INTERNAL')+'</div></div>';
   }).join("");
-  return (thumbs?'<div class="tpstrip">'+thumbs+'</div>':'')+
-    '<div class="tpadd" onclick="tripPickFor(\''+esc(t.key)+'\')">&#128247; Add photos</div>';
+  return '<div class="tpstrip">'+thumbs+
+    '<div class="addph" onclick="tripPickFor(\''+esc(t.key)+'\')">&#128247;<span>Photo</span></div></div>';
 }
 function tripPickFor(k){ TPF.key=k; var i=$("tripPhotoInput"); i.value=""; i.click(); }
 function tripPickForm(p){ TPF.key="form:"+p; var i=$("tripPhotoInput"); i.value=""; i.click(); }
