@@ -1247,6 +1247,13 @@
   .qpill.hidden{display:none}
   .clockbtn.qshot{background:#fff;color:var(--navy);border:2px solid var(--navy);margin-top:8px}
 
+  .tpstrip{display:flex;gap:7px;overflow-x:auto;margin:9px 0 2px;padding-bottom:2px}
+  .tpth{position:relative;flex:0 0 auto;width:62px;height:62px;border-radius:9px;overflow:hidden;border:1.5px solid var(--line);background:#eef2f7;cursor:pointer}
+  .tpth img{width:100%;height:100%;object-fit:cover;display:block}
+  .tpth .tpb{position:absolute;left:0;right:0;bottom:0;font-size:8.5px;font-weight:800;text-align:center;color:#fff;background:rgba(26,43,92,.82);padding:1px 0;letter-spacing:.3px}
+  .tpth.sh .tpb{background:rgba(31,122,84,.9)}
+  .tpadd{display:inline-flex;align-items:center;gap:6px;border:1.5px dashed var(--line);border-radius:10px;padding:8px 12px;font-size:12.5px;font-weight:800;color:var(--navy);background:#fafcfe;cursor:pointer;margin-top:8px}
+  .tpfiles{font-size:11.5px;color:var(--muted);margin:4px 0 8px}
   .qsthumbs{display:flex;gap:7px;overflow-x:auto;padding-bottom:4px;margin-bottom:12px}
   .qsthumb{flex:0 0 auto;width:66px;height:66px;border-radius:9px;overflow:hidden;border:1px solid var(--line)}
   .qsthumb img{width:100%;height:100%;object-fit:cover;display:block}
@@ -1966,7 +1973,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-08·d</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-10·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2823,11 +2830,22 @@ button:active{ filter: brightness(.93); }
     <input class="fld-in" id="tl_pob" inputmode="numeric" placeholder="e.g. 6">
     <label class="fld">Notes <span class="fldhint">(opt)</span></label>
     <input class="fld-in" id="tl_notes" placeholder="e.g. flat crossing, 24 kn">
+    <label class="fld">Photos <span class="fldhint">(opt &mdash; internal until a director shares them)</span></label>
+    <div class="tpadd" onclick="tripPickForm('tl')">&#128247; Add photos</div><div class="tpfiles" id="tl_pfiles"></div>
     <button class="go" id="tl_save" onclick="saveTripLog()">Log the trip &amp; update servicing</button>
     <div style="text-align:center;font-size:12px;color:var(--muted);margin-top:10px;cursor:pointer" onclick="closeModal(&#39;tripLogModal&#39;);openTripStart()">Heading out right now? <b>Start an underway trip &rarr;</b></div>
   </div>
   <div id="tl_result" style="display:none"></div>
   <button class="cancel" onclick="closeModal(&#39;tripLogModal&#39;);loadTrips()">Close</button>
+</div></div>
+
+<input type="file" id="tripPhotoInput" accept="image/*" multiple style="display:none" onchange="tripPhotoPicked(this)">
+<div class="modal" id="tripPhotoView"><div class="card2" style="text-align:center">
+  <img id="tpv_img" alt="" style="max-width:100%;max-height:60vh;border-radius:10px">
+  <div id="tpv_meta" class="hmeta" style="margin:8px 0"></div>
+  <button class="go" id="tpv_share" style="display:none" onclick="tripPhotoToggleShare()"></button>
+  <button class="cancel" id="tpv_del" style="display:none;color:#C0392B" onclick="tripPhotoRemove()">Remove this photo</button>
+  <button class="cancel" onclick="closeModal('tripPhotoView')">Close</button>
 </div></div>
 
 <!-- Trip log — departure -->
@@ -2877,6 +2895,8 @@ button:active{ filter: brightness(.93); }
     <select class="fld-in" id="ta_addsel" onchange="tripAddMeter(this,&#39;ta&#39;)" style="border-style:dashed"></select>
     <label class="fld">Notes <span class="fldhint">(opt)</span></label>
     <input class="fld-in" id="ta_notes" placeholder="e.g. smooth run, 24 kn cruise">
+    <label class="fld">Photos <span class="fldhint">(opt &mdash; internal until a director shares them)</span></label>
+    <div class="tpadd" onclick="tripPickForm('ta')">&#128247; Add photos</div><div class="tpfiles" id="ta_pfiles"></div>
     <button class="go" id="ta_save" onclick="saveTripArrive()">Log arrival &amp; update servicing</button>
   </div>
   <div id="ta_result" style="display:none"></div>
@@ -12887,6 +12907,7 @@ function tripCard(t){
       (h?('<br>Meters: '+h):'')+
       (t.blackFlag?'<br><span style="color:#C0392B;font-weight:700">&#9888; Black water not empty at arrival &mdash; pump-out needed</span>':'')+
       (t.notes?('<br>'+esc(t.notes).replace(/\n/g,"<br>")):'')+'</div>'+
+    tripStrip(t)+
     (open?'<button class="eodbtn" style="margin-top:8px" onclick="openTripArrive(\''+esc(t.key)+'\')">Complete the trip &rarr;</button>'+'<div onclick="crewTripCancel(\''+esc(t.key)+'\')" style="text-align:center;font-size:11.5px;color:var(--muted);margin-top:7px;cursor:pointer">Started by mistake? <b style="color:#C0392B">Cancel this trip</b></div>':'')+
     '</div>';
 }
@@ -12895,6 +12916,82 @@ function renderTrips(){
   $("tripCount").textContent=(open.length+done.length)?((open.length?open.length+" underway · ":"")+done.length+" logged"):"";
   if(!open.length && !done.length){ $("tripsWrap").innerHTML='<p class="hello">No passages logged yet. Tap <b>Log a trip</b> when you let go.</p>'; return; }
   $("tripsWrap").innerHTML=open.map(tripCard).join("")+done.map(tripCard).join("");
+}
+/* ---- Trip photos ---------------------------------------------------------
+   Crew / captain photos are INTERNAL until a director or manager shares them
+   with the owner (Trish, 10 Oct 2026). The server enforces it — an owner's feed
+   only ever carries photos marked shared. */
+var TPF = { tl:[], ta:[], key:"" }, TPV = null;
+function tripFindByKey(k){
+  var all=((TRIPS&&TRIPS.open)||[]).concat((TRIPS&&TRIPS.trips)||[]);
+  return all.filter(function(t){return t.key===k;})[0]||null;
+}
+function tripStrip(t){
+  var ph=t.photos||[];
+  var thumbs=ph.map(function(p,i){
+    return '<div class="tpth'+(p.shared?' sh':'')+'" onclick="tripPhotoOpen(\''+esc(t.key)+'\','+i+')">'+
+      '<img src="'+esc(p.url)+'" loading="lazy" alt=""><div class="tpb">'+(p.shared?'OWNER SEES':'INTERNAL')+'</div></div>';
+  }).join("");
+  return (thumbs?'<div class="tpstrip">'+thumbs+'</div>':'')+
+    '<div class="tpadd" onclick="tripPickFor(\''+esc(t.key)+'\')">&#128247; Add photos</div>';
+}
+function tripPickFor(k){ TPF.key=k; var i=$("tripPhotoInput"); i.value=""; i.click(); }
+function tripPickForm(p){ TPF.key="form:"+p; var i=$("tripPhotoInput"); i.value=""; i.click(); }
+function tripPhotoPicked(input){
+  var files=Array.prototype.slice.call(input.files||[]); input.value="";
+  if(!files.length) return;
+  if(TPF.key.indexOf("form:")===0){
+    var p=TPF.key.slice(5); TPF[p]=TPF[p].concat(files);
+    $(p+"_pfiles").textContent=TPF[p].length+" photo"+(TPF[p].length>1?"s":"")+" ready \u2014 they upload when you save the trip";
+  } else tripUploadPhotos(TPF.key, files);
+}
+function tripUploadPhotos(tripKey, files){
+  files=files||[]; if(!files.length||!tripKey) return;
+  var total=files.length, done=0, ok=0, queued=0, next=0;
+  toast(total>1?("Uploading "+total+" photos\u2026"):"Uploading photo\u2026");
+  function finish(good){
+    done++; if(good) ok++;
+    if(done<total){ pump(); return; }
+    toast(ok===total ? ("\ud83d\udcf7 "+ok+" photo"+(ok>1?"s":"")+" added \u2014 internal until shared")
+          : (queued ? (queued+" waiting for signal \u2014 will send itself") : "Couldn\u2019t add the photo"));
+    loadTrips();
+  }
+  function pump(){
+    if(next>=total) return;
+    var f=files[next++];
+    fileToUpload(f,1600,0.7).then(function(p){
+      if(!p){ finish(false); return; }
+      var body={action:"tripPhotoAdd", email:ME.email, code:ME.code, key:ME.code, by:ME.name, tripKey:tripKey, photos:[p]};
+      apiPost(body).then(function(r){ finish(!!(r&&r.ok)); })
+        .catch(function(){ MHQQ.add(body, p.name||"trip photo").then(function(s){ if(s) queued++; finish(false); }); });
+    });
+  }
+  for(var n=0;n<Math.min(3,total);n++) pump();
+}
+function tripPhotoOpen(k,i){
+  var t=tripFindByKey(k); if(!t||!t.photos||!t.photos[i]) return;
+  var p=t.photos[i]; TPV={key:k,url:p.url,shared:!!p.shared};
+  $("tpv_img").src=p.url;
+  $("tpv_meta").innerHTML=esc(p.name||"")+(p.by?(' &middot; '+esc(p.by)):'')+'<br>'+(p.shared?'<b style="color:#1F7A54">Shared with the owner</b>':'<b>Internal &mdash; the owner can\u2019t see this</b>');
+  var sb=$("tpv_share");
+  if(isMgrRole()){ sb.style.display=""; sb.textContent=p.shared?"Stop sharing with owner":"Share with owner"; }
+  else sb.style.display="none";
+  $("tpv_del").style.display=(isMgrRole()||(p.by&&p.by===ME.name))?"":"none";
+  $("tripPhotoView").classList.add("show");
+}
+function tripPhotoToggleShare(){
+  if(!TPV) return; var b=$("tpv_share"); b.disabled=true;
+  apiPost({action:"tripPhotoShare", email:ME.email, code:ME.code, key:ME.code, tripKey:TPV.key, url:TPV.url, share:!TPV.shared})
+    .then(function(r){ b.disabled=false;
+      if(r&&r.ok){ closeModal("tripPhotoView"); toast(TPV.shared?"No longer shared with the owner":"\u2713 Shared with the owner"); loadTrips(); }
+      else toast((r&&r.error)||"Couldn\u2019t change it"); })
+    .catch(function(){ b.disabled=false; toast("Couldn\u2019t connect"); });
+}
+function tripPhotoRemove(){
+  if(!TPV||!confirm("Remove this photo from the trip?")) return;
+  apiPost({action:"tripPhotoDelete", email:ME.email, code:ME.code, key:ME.code, tripKey:TPV.key, url:TPV.url})
+    .then(function(r){ if(r&&r.ok){ closeModal("tripPhotoView"); toast("Photo removed"); loadTrips(); } else toast((r&&r.error)||"Couldn\u2019t remove it"); })
+    .catch(function(){ toast("Couldn\u2019t connect"); });
 }
 function openTripStart(){
   var mine=myVessels(), cur=curVesselT()||mine[0]||"";
@@ -12958,6 +13055,7 @@ function openTripLog(){
   $("tl_ddate").value=new Date().toISOString().slice(0,10);
   $("tl_adate").value=new Date().toISOString().slice(0,10);
   $("tl_meters").innerHTML="";
+  TPF.tl=[]; $("tl_pfiles").textContent="";
   tripSyncAddSel("tl");
   $("tl_form").style.display=""; $("tl_result").innerHTML=""; $("tl_result").style.display="none";
   $("tl_save").disabled=false; $("tl_save").innerHTML="Log the trip &amp; update servicing";
@@ -12999,6 +13097,7 @@ function saveTripLog(){
       } else {
         bits.push('<p class="hello">Nothing falls due on hours yet &mdash; the schedule has the new readings.</p>');
       }
+      if(TPF.tl.length && r.key){ tripUploadPhotos(r.key, TPF.tl); TPF.tl=[]; }
       $("tl_form").style.display="none";
       $("tl_result").innerHTML=bits.join(""); $("tl_result").style.display="";
       loadTrips();
@@ -13010,6 +13109,7 @@ function openTripArrive(key){
   // genset, stabilisers, watermaker — joins from the dropdown, because a
   // day trip might not touch them at all.
   $("ta_meters").innerHTML="";
+  TPF.ta=[]; $("ta_pfiles").textContent="";
   tripSyncAddSel("ta");
   var open=((TRIPS&&TRIPS.open)||[]).filter(function(t){return t.key===key;})[0];
   $("ta_form").style.display=""; $("ta_result").style.display="none"; $("ta_result").innerHTML="";
@@ -13052,6 +13152,7 @@ function saveTripArrive(){
       } else {
         bits.push('<p class="hello">Nothing falls due on hours yet &mdash; the schedule has the new readings.</p>');
       }
+      if(TPF.ta.length && r.key){ tripUploadPhotos(r.key, TPF.ta); TPF.ta=[]; }
       $("ta_form").style.display="none";
       $("ta_result").innerHTML=bits.join(""); $("ta_result").style.display="";
       loadTrips();
