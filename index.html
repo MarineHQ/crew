@@ -1974,7 +1974,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-10·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-12·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2087,7 +2087,8 @@ button:active{ filter: brightness(.93); }
   <input type="file" id="r_dcIn" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,image/*" multiple style="display:none" onchange="stagedAdd('r_dc',this)">
   <button type="button" class="rjmore" id="r_moreBtn" onclick="rjMore()">＋ add detail</button>
   <textarea class="fld-ta rjf" id="r_desc" placeholder="Where it is, what you noticed…" hidden></textarea>
-  <button class="go" onclick="submitRaise(true)">＋ Add &amp; next</button>
+  <button class="go" onclick="submitRaise(false)">✓ Submit job</button>
+  <button class="go" style="background:#fff;color:var(--navy);border:1.5px solid var(--navy)" onclick="submitRaise(true)">＋ Submit &amp; add another</button>
   <div id="r_done" class="rjdone" hidden></div>
   <button class="cancel" onclick="rjFinish()">Done</button>
 </div></div>
@@ -8805,7 +8806,7 @@ function openWLJob(key){
     // ARE the next step: a variation that's in play, and sign-off once the job
     // is Complete.
     (function(){
-      if(!isMgrRole()) return (wlCanFix(j)?dueHTML:'')+wlVariationBlock(j,key);
+      if(!isMgrRole()) return (wlCanFix(j)?dueHTML:'')+wlVariationBlock(j,key)+wlFixBlock(j,key);
       var varVisible=!!varOf(j), apprVisible=(wlBucketToStatus(j)==="Complete");
       var strip=wlManageStrip(j);
       return (varVisible?wlVariationBlock(j,key):'')+(apprVisible?wlApproveBlock(j,key):'')+
@@ -8818,8 +8819,7 @@ function openWLJob(key){
       (isMgrRole()?('<div class="sec"><h4>Move to another worklist</h4><div class="subnote-box" onclick="wlMoveList(\''+esc(key)+'\')">\ud83d\udccb '+esc(j.list||"\u2014 not on a worklist \u2014")+' <span class="wlnote-ed">\u270e</span></div></div>'):'') +
       (varVisible?'':wlVariationBlock(j,key)) +
       (apprVisible?'':wlApproveBlock(j,key)) +
-      wlFixBlock(j,key) +
-        '</div></details>';
+        '</div></details>'+wlFixBlock(j,key);
     })()+
     '<button class="jobbtn donebtn" onclick="closeSheet()">✓ Done</button>'+
     '<div style="height:16px"></div>';
@@ -9880,7 +9880,7 @@ function wlManageStrip(j){
    — or a new catalogue task is created from it — so it carries a real code, the
    right category, and a place in the schedule. Their words stay as the record
    of what was seen; only the filing changes. */
-var CATM={ key:"", q:"", items:[], busy:false, open:false, adding:false };
+var CATM={ key:"", q:"", items:[], busy:false, open:false, adding:false, sel:null };
 function wlCatalogueBlock(j,key){
   if(!isMgrRole()) return "";
   var boat=/^[A-Z]{2,4}-[A-Z]+-\d/.test(j.code||"") ? "" : "boat";
@@ -9902,7 +9902,7 @@ function wlCatalogueBlock(j,key){
 }
 function ccNumOf(code){ var m=/(\d+(?:\.\d+)?)\s*$/.exec((code||"").toString()); return m?parseFloat(m[1]):0; }
 function catOpen(key, title){
-  CATM={ key:key, q:title||"", items:[], busy:true, open:true, adding:false };
+  CATM={ key:key, q:title||"", items:[], busy:true, open:true, adding:false, sel:null };
   openWLJob(key); catSearch();
 }
 function catClose(){ CATM.open=false; var k=CATM.key; openWLJob(k); }
@@ -9911,13 +9911,15 @@ function catInner(){
   var rows = CATM.busy ? '<div class="loadingbox"><span class="spin"></span> Looking…'
     : (CATM.items.length
         ? CATM.items.map(function(x){
-            return '<button type="button" class="atm-row" onclick="catPick('+x.num+')">'+
+            var on=(CATM.sel===x.num);
+            return '<button type="button" class="atm-row" style="'+(on?'border:2px solid var(--navy);background:#eef4fb':'')+'" onclick="catSel('+x.num+')">'+
               '<span class="atm-row-j">'+esc(x.job)+'</span>'+
               (x.category?('<span class="atm-row-c">'+esc(x.category)+'</span>'):'')+
               (x.code?('<span class="jcode">'+esc(x.code)+'</span>'):'')+'</button>'; }).join("")
         : '<div class="catnone">Nothing in the catalogue looks like this.</div>');
-  return '<input class="fld-in" id="catQ" value="'+esc(CATM.q)+'" placeholder="Search the catalogue…" oninput="CATM.q=this.value;catSearch()">'+
+  return '<input class="fld-in" id="catQ" value="'+esc(CATM.q)+'" placeholder="Search the catalogue…" oninput="CATM.q=this.value;CATM.sel=null;catSearch()">'+
     '<div class="catrows">'+rows+(CATM.busy?'</div>':'')+'</div>'+
+    (CATM.sel!=null?'<button class="jobbtn complete" style="margin-top:8px" onclick="catPick('+CATM.sel+')">\u2713 Submit \u2014 file it under this</button>':'')+
     '<button class="jobbtn" style="background:var(--navy);margin-top:8px" onclick="catAdd()">＋ Not there — add it to the catalogue</button>'+
     '<button class="jobbtn" style="background:none;color:var(--muted);margin-top:2px" onclick="catClose()">Cancel</button>';
 }
@@ -9935,6 +9937,7 @@ function catSearch(){
   }, 250);
 }
 function catPaint(){ var b=$("catBox"); if(b) b.innerHTML=catInner(); }
+function catSel(num){ CATM.sel=(CATM.sel===num)?null:num; catPaint(); }
 function catPick(num){
   toast("Filing…");
   apiPost({action:"crewJobCatalogue", email:ME.email, code:ME.code, jobKey:CATM.key, matchNum:num})
@@ -13101,6 +13104,9 @@ function saveTripLog(){
       if(TPF.tl.length && r.key){ tripUploadPhotos(r.key, TPF.tl); TPF.tl=[]; }
       $("tl_form").style.display="none";
       $("tl_result").innerHTML=bits.join(""); $("tl_result").style.display="";
+      // Show the boat the trip was just logged on \u2014 otherwise a trip logged on a
+      // different boat from the one on screen saves fine but looks like it vanished.
+      if(r.vessel && myVessels().indexOf(r.vessel)>=0) CURVESSEL=r.vessel;
       loadTrips();
     }).catch(function(){ btn.disabled=false; btn.innerHTML="Log the trip &amp; update servicing"; toast("Couldn\u2019t connect"); });
 }
