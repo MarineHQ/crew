@@ -1977,7 +1977,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-13·g</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-13·h</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -12925,7 +12925,7 @@ function tripCard(t){
       (t.blackFlag?'<br><span style="color:#C0392B;font-weight:700">&#9888; Black water not empty at arrival &mdash; pump-out needed</span>':'')+
       (t.notes?('<br>'+esc(t.notes).replace(/\n/g,"<br>")):'')+'</div>'+
     tripStrip(t)+
-    (open?'<button class="eodbtn" style="margin-top:8px" onclick="openTripArrive(\''+esc(t.key)+'\')">Complete the trip &rarr;</button>'+'<div onclick="crewTripCancel(\''+esc(t.key)+'\')" style="text-align:center;font-size:11.5px;color:var(--muted);margin-top:7px;cursor:pointer">Started by mistake? <b style="color:#C0392B">Cancel this trip</b></div>':'')+
+    (open?'<button class="eodbtn" style="margin-top:8px" onclick="openTripArrive(\''+esc(t.key)+'\')">Complete the trip &rarr;</button>'+'<div onclick="crewTripCancel(\''+esc(t.key)+'\')" style="text-align:center;font-size:11.5px;color:var(--muted);margin-top:7px;cursor:pointer">Started by mistake? <b style="color:#C0392B">Cancel this trip</b></div>':(isMgrRole()?'<div onclick="crewTripCancel(\''+esc(t.key)+'\',1)" style="text-align:center;font-size:11.5px;color:var(--muted);margin-top:7px;cursor:pointer">Director: <b style="color:#C0392B">Delete this trip</b></div>':''))+
     '</div>';
 }
 function renderTrips(){
@@ -13074,10 +13074,10 @@ function tripAddMeter(sel,p){
   $(p+"_meters").insertAdjacentHTML("beforeend", tripMeterRowHtml(sel.value,p));
   tripSyncAddSel(p); sel.value="";
 }
-function crewTripCancel(key){
-  if(!confirm("Cancel this trip? The underway entry is removed — nothing is logged.")) return;
+function crewTripCancel(key,done){
+  if(!confirm(done?"Delete this completed trip? The trip row is removed permanently. Hour-meter readings already logged to servicing are NOT removed.":"Cancel this trip? The underway entry is removed — nothing is logged.")) return;
   apiPost({action:"tripDelete", email:ME.email, code:ME.code, key:ME.code, tripKey:key})
-    .then(function(r){ if(r&&r.ok){ toast("Trip cancelled"); loadTrips(); } else toast((r&&r.error)||"Couldn\u2019t cancel"); })
+    .then(function(r){ if(r&&r.ok){ toast(done?"Trip deleted":"Trip cancelled"); loadTrips(); } else toast((r&&r.error)||"Couldn\u2019t cancel"); })
     .catch(function(){ toast("Couldn\u2019t connect"); });
 }
 function openTripLog(){
