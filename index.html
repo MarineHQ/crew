@@ -1977,7 +1977,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-13·h</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-13·i</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2885,6 +2885,13 @@ button:active{ filter: brightness(.93); }
   <input class="fld-in" id="t_notes" placeholder="e.g. weekend run to the Broadwater">
   <button class="go" id="t_save" onclick="saveTripStart()">Start the trip</button>
   <button class="cancel" onclick="closeModal('tripStartModal')">Cancel</button>
+</div></div>
+
+<!-- Trip log — details / edit / delete -->
+<div class="modal" id="tripDetailModal"><div class="card2">
+  <h3 id="td_title">Trip</h3>
+  <div id="td_body"></div>
+  <button class="cancel" onclick="closeModal('tripDetailModal')">Close</button>
 </div></div>
 
 <!-- Trip log — arrival -->
@@ -12915,7 +12922,7 @@ function tripCard(t){
   var open=t.status==="Underway";
   var tanks=function(f,w,b){ var p=[]; if(f)p.push("Fuel "+esc(f)); if(w)p.push("Water "+esc(w)); if(b)p.push("Black "+esc(b)); return p.join(" · "); };
   var h=(t.hours||[]).map(function(x){ return esc(x.unit)+" <b>"+x.reading+"</b>"; }).join(" · ");
-  return '<div class="hcard">'+
+  return '<div class="hcard" style="cursor:pointer" onclick="tripCardTap(event,\''+esc(t.key)+'\')">'+
     '<div class="hu">'+(open?"&#9973; UNDERWAY":"&#10003; "+esc(t.arrived||""))+' &mdash; '+esc(t.vessel)+'</div>'+
     '<div style="font-weight:800;color:var(--navy);font-size:15px;margin:2px 0">'+esc(t.from)+' &rarr; '+(open?(t.to?esc(t.to)+' <span style="font-weight:400;color:var(--muted);font-size:11px">(planned)</span>':"&hellip;"):esc(t.to))+'</div>'+
     '<div class="hmeta">Out '+esc(t.departed)+(t.by?(' &middot; '+esc(t.by)):'')+'<br>'+
@@ -12925,7 +12932,7 @@ function tripCard(t){
       (t.blackFlag?'<br><span style="color:#C0392B;font-weight:700">&#9888; Black water not empty at arrival &mdash; pump-out needed</span>':'')+
       (t.notes?('<br>'+esc(t.notes).replace(/\n/g,"<br>")):'')+'</div>'+
     tripStrip(t)+
-    (open?'<button class="eodbtn" style="margin-top:8px" onclick="openTripArrive(\''+esc(t.key)+'\')">Complete the trip &rarr;</button>'+'<div onclick="crewTripCancel(\''+esc(t.key)+'\')" style="text-align:center;font-size:11.5px;color:var(--muted);margin-top:7px;cursor:pointer">Started by mistake? <b style="color:#C0392B">Cancel this trip</b></div>':(isMgrRole()?'<div onclick="crewTripCancel(\''+esc(t.key)+'\',1)" style="text-align:center;font-size:11.5px;color:var(--muted);margin-top:7px;cursor:pointer">Director: <b style="color:#C0392B">Delete this trip</b></div>':''))+
+    (open?'<button class="eodbtn" style="margin-top:8px" onclick="openTripArrive(\''+esc(t.key)+'\')">Complete the trip &rarr;</button>'+'<div onclick="crewTripCancel(\''+esc(t.key)+'\')" style="text-align:center;font-size:11.5px;color:var(--muted);margin-top:7px;cursor:pointer">Started by mistake? <b style="color:#C0392B">Cancel this trip</b></div>':'')+
     '</div>';
 }
 function renderTrips(){
@@ -13073,6 +13080,73 @@ function tripAddMeter(sel,p){
   if(!sel.value) return;
   $(p+"_meters").insertAdjacentHTML("beforeend", tripMeterRowHtml(sel.value,p));
   tripSyncAddSel(p); sel.value="";
+}
+var TRIP_EDIT_LIVE=false, TD_KEY="";
+function tripCardTap(ev,key){
+  var el=ev.target.closest("[onclick],button,input,a");
+  if(el && el!==ev.currentTarget) return;
+  openTripDetail(key);
+}
+function tripDetailView(t){
+  var tk=function(f,w,b){ var p=[]; if(f)p.push("Fuel "+esc(f)); if(w)p.push("Water "+esc(w)); if(b)p.push("Black "+esc(b)); return p.join(" · ")||"&mdash;"; };
+  var h=(t.hours||[]).map(function(x){return esc(x.unit)+" "+x.reading+" hrs";}).join(" · ");
+  var done=t.status!=="Underway", mgr=isMgrRole();
+  return '<div class="hcard" style="margin:0 0 10px"><div class="hu">'+(done?"&#10003; Complete":"&#9973; UNDERWAY")+' &mdash; '+esc(t.vessel)+'</div>'+
+    '<div style="font-weight:800;color:var(--navy);font-size:15px;margin:2px 0">'+esc(t.from)+' &rarr; '+esc(t.to||"&hellip;")+'</div>'+
+    '<div class="hmeta">Out '+esc(t.departed||"")+(done?' &middot; In '+esc(t.arrived||""):'')+(t.by?' &middot; '+esc(t.by):'')+
+    '<br>Departure: '+tk(t.fuelDepart,t.waterDepart,t.blackDepart)+
+    (done?'<br>Arrival: '+tk(t.fuelArrive,t.waterArrive,t.blackArrive):'')+
+    (h?'<br>Meters: '+h:'')+(t.pob?'<br>People on board: '+esc(t.pob):'')+
+    (t.notes?'<br>'+esc(t.notes).replace(/\n/g,"<br>"):'')+'</div></div>'+
+    (mgr&&done?(TRIP_EDIT_LIVE?'<button class="go" style="margin-top:6px" onclick="tripDetailEdit()">Edit this trip</button>':'')+
+      '<button class="cancel" style="color:#C0392B;font-weight:700" onclick="tripDetailAskDelete()">Delete this trip</button>':'')+
+    (done&&!mgr?'<p class="mhint">Only Marine HQ directors and managers can edit or delete a finished trip.</p>':'');
+}
+function openTripDetail(key){
+  var t=tripFindByKey(key); if(!t) return;
+  TD_KEY=key; $("td_title").textContent="Trip details";
+  $("td_body").innerHTML=tripDetailView(t);
+  $("tripDetailModal").classList.add("show");
+}
+function tripDetailAskDelete(){
+  $("td_body").innerHTML='<div class="hdue od"><h4>&#9888; Are you sure you want to delete this trip?</h4>'+
+    '<div class="hd-meta">The trip record is removed permanently and can&#39;t be undone. Hour-meter readings already filed to servicing are not removed.</div></div>'+
+    '<button class="go" style="background:#C0392B" id="td_yes" onclick="tripDetailDelete()">Yes, delete this trip</button>'+
+    '<button class="cancel" onclick="openTripDetail(TD_KEY)">No, keep it</button>';
+}
+function tripDetailDelete(){
+  var b=$("td_yes"); b.disabled=true; b.textContent="Deleting…";
+  apiPost({action:"tripDelete", email:ME.email, code:ME.code, key:ME.code, tripKey:TD_KEY})
+    .then(function(r){ if(r&&r.ok){ closeModal("tripDetailModal"); toast("Trip deleted"); loadTrips(); }
+      else { b.disabled=false; b.textContent="Yes, delete this trip"; toast((r&&r.error)||"Couldn’t delete"); } })
+    .catch(function(){ b.disabled=false; b.textContent="Yes, delete this trip"; toast("Couldn’t connect"); });
+}
+function tripDetailEdit(){
+  var t=tripFindByKey(TD_KEY); if(!t) return;
+  var f=function(id,lab,v,ph,type){ return '<label class="fld">'+lab+'</label><input class="fld-in" id="te_'+id+'" '+(type?'type="'+type+'" ':'')+'value="'+esc(v||"")+'" placeholder="'+(ph||"")+'">'; };
+  $("td_title").textContent="Edit trip";
+  $("td_body").innerHTML=f("from","Departure point",t.from)+f("to","Arrival point",t.to)+
+    f("dep","Date of departure",t.departed,"","date")+f("arr","Date of arrival",t.arrived,"","date")+
+    f("fd","Fuel % at departure",t.fuelDepart)+f("wd","Fresh water % at departure",t.waterDepart)+f("bd","Black water % at departure",t.blackDepart)+
+    f("fa","Fuel % at arrival",t.fuelArrive)+f("wa","Fresh water % at arrival",t.waterArrive)+f("ba","Black water % at arrival",t.blackArrive)+
+    f("pob","People on board",t.pob)+
+    '<label class="fld">Notes</label><textarea class="fld-in" id="te_notes" rows="4">'+esc(t.notes||"")+'</textarea>'+
+    '<p class="mhint">Hour-meter readings already filed to servicing aren&#39;t changed here.</p>'+
+    '<button class="go" id="te_save" onclick="tripDetailSave()">Save changes</button>'+
+    '<button class="cancel" onclick="openTripDetail(TD_KEY)">Cancel</button>';
+}
+function tripDetailSave(){
+  var v=function(id){ return $("te_"+id).value; };
+  if(!(v("from")||"").trim()){ toast("Where did she leave from?"); return; }
+  var b=$("te_save"); b.disabled=true; b.textContent="Saving…";
+  apiPost({action:"tripEdit", email:ME.email, code:ME.code, key:ME.code, tripKey:TD_KEY,
+    from:v("from"), to:v("to"), departed:v("dep"), arrived:v("arr"),
+    fuelDepart:tripPct(v("fd")), waterDepart:tripPct(v("wd")), blackDepart:tripPct(v("bd")),
+    fuelArrive:tripPct(v("fa")), waterArrive:tripPct(v("wa")), blackArrive:tripPct(v("ba")),
+    pob:v("pob"), notes:v("notes")})
+    .then(function(r){ if(r&&r.ok){ closeModal("tripDetailModal"); toast("✓ Trip updated"); loadTrips(); }
+      else { b.disabled=false; b.textContent="Save changes"; toast((r&&r.error)||"Couldn’t save"); } })
+    .catch(function(){ b.disabled=false; b.textContent="Save changes"; toast("Couldn’t connect"); });
 }
 function crewTripCancel(key,done){
   if(!confirm(done?"Delete this completed trip? The trip row is removed permanently. Hour-meter readings already logged to servicing are NOT removed.":"Cancel this trip? The underway entry is removed — nothing is logged.")) return;
