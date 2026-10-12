@@ -1974,7 +1974,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-13·e</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-13·f</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2833,7 +2833,8 @@ button:active{ filter: brightness(.93); }
     <div id="tl_meters"></div>
     <select class="fld-in" id="tl_addsel" onchange="tripAddMeter(this,&#39;tl&#39;)" style="border-style:dashed"></select>
     <label class="fld">People on board <span class="fldhint">(opt)</span></label>
-    <input class="fld-in" id="tl_pob" inputmode="numeric" placeholder="e.g. 6">
+    <input class="fld-in" id="tl_pob" inputmode="numeric" placeholder="Number, e.g. 3">
+  <input class="fld-in" id="tl_pobd" placeholder="Who &mdash; e.g. Skipper + 2 deck / Eng watchkeepers" style="margin-top:6px">
     <label class="fld">Notes <span class="fldhint">(opt)</span></label>
     <input class="fld-in" id="tl_notes" placeholder="e.g. flat crossing, 24 kn">
     <label class="fld">Photos <span class="fldhint">(opt &mdash; internal until a director shares them)</span></label>
@@ -2874,8 +2875,9 @@ button:active{ filter: brightness(.93); }
   <input class="fld-in" id="t_water" inputmode="decimal" placeholder="e.g. 80"> <span class="fldhint">&#37; full</span>
   <label class="fld">Black water (holding tank)</label>
   <input class="fld-in" id="t_black" inputmode="decimal" placeholder="e.g. 0"> <span class="fldhint">&#37; full</span>
-  <label class="fld">People on board <span class="fldhint">(opt)</span></label>
-  <input class="fld-in" id="t_pob" inputmode="numeric" placeholder="e.g. 6">
+  <label class="fld">People on board <span class="fldhint">(opt &mdash; number, then who)</span></label>
+  <input class="fld-in" id="t_pob" inputmode="numeric" placeholder="Number, e.g. 3">
+  <input class="fld-in" id="t_pobd" placeholder="Who &mdash; e.g. Skipper + 2 deck / Eng watchkeepers" style="margin-top:6px">
   <label class="fld">Notes <span class="fldhint">(opt)</span></label>
   <input class="fld-in" id="t_notes" placeholder="e.g. weekend run to the Broadwater">
   <button class="go" id="t_save" onclick="saveTripStart()">Start the trip</button>
@@ -13007,6 +13009,7 @@ function tripPhotoRemove(){
 }
 function tripPct(v){ v=(v||"").toString().trim().replace(/%$/,"").trim(); return v?v+"%":""; }
 function tripNote(n,f){ f=(f||"").trim(); n=(n||"").trim(); return f?(f+(n?"\n"+n:"")):n; }
+function pobText(pre){ var n=($(pre+"_pob").value||"").trim(), d=($(pre+"_pobd").value||"").trim(); return d?(n?n+" ("+d+")":d):n; }
 function bunkAdd(pre){
   var d=document.createElement("div"); d.className="bunkrow"; d.style.cssText="display:flex;gap:6px;margin-bottom:6px";
   d.innerHTML='<input class="fld-in bk-l" inputmode="numeric" placeholder="Litres" style="flex:1"><input class="fld-in bk-w" placeholder="Where (e.g. KBM)" style="flex:2"><button type="button" onclick="this.parentNode.remove()" style="border:0;background:none;font-size:20px;color:#9aa7b4">&times;</button>';
@@ -13021,7 +13024,7 @@ function bunkText(pre,when){
 function openTripStart(){
   var mine=myVessels(), cur=curVesselT()||mine[0]||"";
   $("t_vessel").innerHTML=mine.map(function(v){return '<option'+(v===cur?" selected":"")+'>'+esc(v)+'</option>';}).join("");
-  ["t_from","t_dest","t_pob","t_notes","t_fuel","t_water","t_black"].forEach(function(id){ $(id).value=""; });
+  ["t_from","t_dest","t_pob","t_pobd","t_notes","t_fuel","t_water","t_black"].forEach(function(id){ $(id).value=""; });
   $("t_bunk").innerHTML="";
   $("t_date").value=new Date().toISOString().slice(0,10);
   $("tripStartModal").classList.add("show");
@@ -13034,7 +13037,7 @@ function saveTripStart(){
            vessel:$("t_vessel").value, from:from, to:$("t_dest").value, when:$("t_date").value,
            fuel:tripPct($("t_fuel").value),
            water:tripPct($("t_water").value), black:tripPct($("t_black").value),
-           pob:$("t_pob").value, notes:tripNote($("t_notes").value,bunkText("t","departure"))})
+           pob:pobText("t"), notes:tripNote($("t_notes").value,bunkText("t","departure"))})
     .then(function(r){
       btn.disabled=false; btn.textContent="Start the trip";
       if(r&&r.ok){ closeModal("tripStartModal"); toast("&#9973; Trip started — safe passage"); loadTrips(); }
@@ -13077,7 +13080,7 @@ function crewTripCancel(key){
 function openTripLog(){
   var mine=myVessels(), cur=curVesselT()||mine[0]||"";
   $("tl_vessel").innerHTML=mine.map(function(v){return '<option'+(v===cur?" selected":"")+'>'+esc(v)+'</option>';}).join("");
-  ["tl_from","tl_dest","tl_pob","tl_notes"].forEach(function(id){ $(id).value=""; }); $("tl1_bunk").innerHTML=""; $("tl2_bunk").innerHTML="";
+  ["tl_from","tl_dest","tl_pob","tl_pobd","tl_notes"].forEach(function(id){ $(id).value=""; }); $("tl1_bunk").innerHTML=""; $("tl2_bunk").innerHTML="";
   $("tl_ddate").value=new Date().toISOString().slice(0,10);
   $("tl_adate").value=new Date().toISOString().slice(0,10);
   $("tl_meters").innerHTML="";
@@ -13101,7 +13104,7 @@ function saveTripLog(){
            departWhen:$("tl_ddate").value, arriveWhen:$("tl_adate").value,
            fuelOut:tripPct($("tl_fuel1").value), waterOut:tripPct($("tl_water1").value), blackOut:tripPct($("tl_black1").value),
            fuelIn:tripPct($("tl_fuel2").value), waterIn:tripPct($("tl_water2").value), blackIn:tripPct($("tl_black2").value),
-           hours:hours, pob:$("tl_pob").value, notes:tripNote($("tl_notes").value,[bunkText("tl1","departure"),bunkText("tl2","arrival")].filter(Boolean).join("\n"))})
+           hours:hours, pob:pobText("tl"), notes:tripNote($("tl_notes").value,[bunkText("tl1","departure"),bunkText("tl2","arrival")].filter(Boolean).join("\n"))})
     .then(function(r){
       btn.disabled=false; btn.innerHTML="Log the trip &amp; update servicing";
       if(!(r&&r.ok)){ toast((r&&r.error)||"Couldn\u2019t log the trip"); return; }
