@@ -1974,7 +1974,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-13·c</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-13·d</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2818,12 +2818,16 @@ button:active{ filter: brightness(.93); }
       <input class="fld-in" id="tl_water1" inputmode="decimal" placeholder="80">
       <input class="fld-in" id="tl_black1" inputmode="decimal" placeholder="0">
     </div>
+    <div id="tl1_bunk"></div>
+    <button type="button" style="width:100%;margin:6px 0 10px;padding:11px;border:2px dashed var(--navy);background:#fff;color:var(--navy);font-weight:bold;font-size:14px;border-radius:11px;cursor:pointer" onclick="bunkAdd('tl1')">&#65291; Add bunkering</button>
     <label class="fld">Tanks at arrival &mdash; fuel / water / black water (&#37; full)</label>
     <div style="display:flex;gap:8px">
       <input class="fld-in" id="tl_fuel2" inputmode="decimal" placeholder="20">
       <input class="fld-in" id="tl_water2" inputmode="decimal" placeholder="50">
       <input class="fld-in" id="tl_black2" inputmode="decimal" placeholder="0">
     </div>
+    <div id="tl2_bunk"></div>
+    <button type="button" style="width:100%;margin:6px 0 10px;padding:11px;border:2px dashed var(--navy);background:#fff;color:var(--navy);font-weight:bold;font-size:14px;border-radius:11px;cursor:pointer" onclick="bunkAdd('tl2')">&#65291; Add bunkering</button>
     <p class="mhint">Holding tank should come home at <b>0%</b> &mdash; anything else gets flagged for a pump-out.</p>
     <label class="fld" style="margin-top:6px">Hours &mdash; add each system you ran</label>
     <div id="tl_meters"></div>
@@ -13073,7 +13077,7 @@ function crewTripCancel(key){
 function openTripLog(){
   var mine=myVessels(), cur=curVesselT()||mine[0]||"";
   $("tl_vessel").innerHTML=mine.map(function(v){return '<option'+(v===cur?" selected":"")+'>'+esc(v)+'</option>';}).join("");
-  ["tl_from","tl_dest","tl_pob","tl_notes"].forEach(function(id){ $(id).value=""; });
+  ["tl_from","tl_dest","tl_pob","tl_notes"].forEach(function(id){ $(id).value=""; }); $("tl1_bunk").innerHTML=""; $("tl2_bunk").innerHTML="";
   $("tl_ddate").value=new Date().toISOString().slice(0,10);
   $("tl_adate").value=new Date().toISOString().slice(0,10);
   $("tl_meters").innerHTML="";
@@ -13097,7 +13101,7 @@ function saveTripLog(){
            departWhen:$("tl_ddate").value, arriveWhen:$("tl_adate").value,
            fuelOut:tripPct($("tl_fuel1").value), waterOut:tripPct($("tl_water1").value), blackOut:tripPct($("tl_black1").value),
            fuelIn:tripPct($("tl_fuel2").value), waterIn:tripPct($("tl_water2").value), blackIn:tripPct($("tl_black2").value),
-           hours:hours, pob:$("tl_pob").value, notes:$("tl_notes").value})
+           hours:hours, pob:$("tl_pob").value, notes:tripNote($("tl_notes").value,[bunkText("tl1","departure"),bunkText("tl2","arrival")].filter(Boolean).join("\n"))})
     .then(function(r){
       btn.disabled=false; btn.innerHTML="Log the trip &amp; update servicing";
       if(!(r&&r.ok)){ toast((r&&r.error)||"Couldn\u2019t log the trip"); return; }
