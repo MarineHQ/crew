@@ -1974,7 +1974,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-12·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-13·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2812,19 +2812,19 @@ button:active{ filter: brightness(.93); }
     <input class="fld-in" id="tl_ddate" type="date">
     <label class="fld">Date of arrival</label>
     <input class="fld-in" id="tl_adate" type="date">
-    <label class="fld">Tanks at departure &mdash; fuel / water / black water</label>
+    <label class="fld">Tanks at departure &mdash; fuel / water / black water (&#37; full)</label>
     <div style="display:flex;gap:8px">
-      <select class="fld-in" id="tl_fuel1"><option selected>Full</option><option>3/4</option><option>1/2</option><option>1/4</option><option>Low</option></select>
-      <select class="fld-in" id="tl_water1"><option selected>Full</option><option>3/4</option><option>1/2</option><option>1/4</option><option>Low</option></select>
-      <select class="fld-in" id="tl_black1"><option selected>Empty</option><option>1/4</option><option>1/2</option><option>3/4</option><option>Full</option></select>
+      <input class="fld-in" id="tl_fuel1" inputmode="decimal" placeholder="95.7">
+      <input class="fld-in" id="tl_water1" inputmode="decimal" placeholder="80">
+      <input class="fld-in" id="tl_black1" inputmode="decimal" placeholder="0">
     </div>
-    <label class="fld">Tanks at arrival &mdash; fuel / water / black water</label>
+    <label class="fld">Tanks at arrival &mdash; fuel / water / black water (&#37; full)</label>
     <div style="display:flex;gap:8px">
-      <select class="fld-in" id="tl_fuel2"><option>Full</option><option selected>3/4</option><option>1/2</option><option>1/4</option><option>Low</option></select>
-      <select class="fld-in" id="tl_water2"><option>Full</option><option>3/4</option><option selected>1/2</option><option>1/4</option><option>Low</option></select>
-      <select class="fld-in" id="tl_black2"><option selected>Empty</option><option>1/4</option><option>1/2</option><option>3/4</option><option>Full</option></select>
+      <input class="fld-in" id="tl_fuel2" inputmode="decimal" placeholder="20">
+      <input class="fld-in" id="tl_water2" inputmode="decimal" placeholder="50">
+      <input class="fld-in" id="tl_black2" inputmode="decimal" placeholder="0">
     </div>
-    <p class="mhint">Holding tank should come home <b>empty</b> &mdash; anything else gets flagged for a pump-out.</p>
+    <p class="mhint">Holding tank should come home at <b>0%</b> &mdash; anything else gets flagged for a pump-out.</p>
     <label class="fld" style="margin-top:6px">Hours &mdash; add each system you ran</label>
     <div id="tl_meters"></div>
     <select class="fld-in" id="tl_addsel" onchange="tripAddMeter(this,&#39;tl&#39;)" style="border-style:dashed"></select>
@@ -2863,11 +2863,13 @@ button:active{ filter: brightness(.93); }
   <label class="fld">Date of departure</label>
   <input class="fld-in" id="t_date" type="date">
   <label class="fld">Fuel level</label>
-  <select class="fld-in" id="t_fuel"><option>Full</option><option>3/4</option><option selected>1/2</option><option>1/4</option><option>Low</option></select>
+  <input class="fld-in" id="t_fuel" inputmode="decimal" placeholder="e.g. 95.7"> <span class="fldhint">&#37; full</span>
+  <label class="fld">Fuel note <span class="fldhint">(opt &mdash; litres bunkered, where)</span></label>
+  <input class="fld-in" id="t_fuelnote" placeholder="e.g. bunkered 2,000 L at KBM">
   <label class="fld">Fresh water</label>
-  <select class="fld-in" id="t_water"><option selected>Full</option><option>3/4</option><option>1/2</option><option>1/4</option><option>Low</option></select>
+  <input class="fld-in" id="t_water" inputmode="decimal" placeholder="e.g. 80"> <span class="fldhint">&#37; full</span>
   <label class="fld">Black water (holding tank)</label>
-  <select class="fld-in" id="t_black"><option selected>Empty</option><option>1/4</option><option>1/2</option><option>3/4</option><option>Full</option></select>
+  <input class="fld-in" id="t_black" inputmode="decimal" placeholder="e.g. 0"> <span class="fldhint">&#37; full</span>
   <label class="fld">People on board <span class="fldhint">(opt)</span></label>
   <input class="fld-in" id="t_pob" inputmode="numeric" placeholder="e.g. 6">
   <label class="fld">Notes <span class="fldhint">(opt)</span></label>
@@ -2886,12 +2888,14 @@ button:active{ filter: brightness(.93); }
     <label class="fld">Date of arrival</label>
     <input class="fld-in" id="ta_date" type="date">
     <label class="fld">Fuel level</label>
-    <select class="fld-in" id="ta_fuel"><option>Full</option><option>3/4</option><option>1/2</option><option selected>1/4</option><option>Low</option></select>
+    <input class="fld-in" id="ta_fuel" inputmode="decimal" placeholder="e.g. 20"> <span class="fldhint">&#37; full</span>
+  <label class="fld">Fuel note <span class="fldhint">(opt &mdash; litres bunkered, where)</span></label>
+  <input class="fld-in" id="ta_fuelnote" placeholder="e.g. bunkered 2,000 L at KBM">
     <label class="fld">Fresh water</label>
-    <select class="fld-in" id="ta_water"><option>Full</option><option>3/4</option><option selected>1/2</option><option>1/4</option><option>Low</option></select>
+    <input class="fld-in" id="ta_water" inputmode="decimal" placeholder="e.g. 80"> <span class="fldhint">&#37; full</span>
     <label class="fld">Black water (holding tank)</label>
-    <select class="fld-in" id="ta_black"><option selected>Empty</option><option>1/4</option><option>1/2</option><option>3/4</option><option>Full</option></select>
-    <p class="mhint">Holding tank should come home <b>empty</b> &mdash; anything else gets flagged for a pump-out.</p>
+    <input class="fld-in" id="ta_black" inputmode="decimal" placeholder="e.g. 0"> <span class="fldhint">&#37; full</span>
+    <p class="mhint">Holding tank should come home at <b>0%</b> &mdash; anything else gets flagged for a pump-out.</p>
     <label class="fld" style="margin-top:10px">Hour meters &mdash; log each system you ran</label>
     <div id="ta_meters"></div>
     <select class="fld-in" id="ta_addsel" onchange="tripAddMeter(this,&#39;ta&#39;)" style="border-style:dashed"></select>
@@ -12997,10 +13001,12 @@ function tripPhotoRemove(){
     .then(function(r){ if(r&&r.ok){ closeModal("tripPhotoView"); toast("Photo removed"); loadTrips(); } else toast((r&&r.error)||"Couldn\u2019t remove it"); })
     .catch(function(){ toast("Couldn\u2019t connect"); });
 }
+function tripPct(v){ v=(v||"").toString().trim().replace(/%$/,"").trim(); return v?v+"%":""; }
+function tripNote(n,f){ f=(f||"").trim(); n=(n||"").trim(); return f?("Fuel: "+f+(n?"\n"+n:"")):n; }
 function openTripStart(){
   var mine=myVessels(), cur=curVesselT()||mine[0]||"";
   $("t_vessel").innerHTML=mine.map(function(v){return '<option'+(v===cur?" selected":"")+'>'+esc(v)+'</option>';}).join("");
-  ["t_from","t_dest","t_pob","t_notes"].forEach(function(id){ $(id).value=""; });
+  ["t_from","t_dest","t_pob","t_notes","t_fuel","t_fuelnote","t_water","t_black"].forEach(function(id){ $(id).value=""; });
   $("t_date").value=new Date().toISOString().slice(0,10);
   $("tripStartModal").classList.add("show");
 }
@@ -13010,9 +13016,9 @@ function saveTripStart(){
   var btn=$("t_save"); btn.disabled=true; btn.textContent="Starting…";
   apiPost({action:"tripStart", email:ME.email, code:ME.code, key:ME.code, by:ME.name,
            vessel:$("t_vessel").value, from:from, to:$("t_dest").value, when:$("t_date").value,
-           fuel:$("t_fuel").value,
-           water:$("t_water").value, black:$("t_black").value,
-           pob:$("t_pob").value, notes:$("t_notes").value})
+           fuel:tripPct($("t_fuel").value),
+           water:tripPct($("t_water").value), black:tripPct($("t_black").value),
+           pob:$("t_pob").value, notes:tripNote($("t_notes").value,$("t_fuelnote").value)})
     .then(function(r){
       btn.disabled=false; btn.textContent="Start the trip";
       if(r&&r.ok){ closeModal("tripStartModal"); toast("&#9973; Trip started — safe passage"); loadTrips(); }
@@ -13077,8 +13083,8 @@ function saveTripLog(){
   apiPost({action:"tripLog", email:ME.email, code:ME.code, key:ME.code, by:ME.name,
            vessel:$("tl_vessel").value, from:from, to:to,
            departWhen:$("tl_ddate").value, arriveWhen:$("tl_adate").value,
-           fuelOut:$("tl_fuel1").value, waterOut:$("tl_water1").value, blackOut:$("tl_black1").value,
-           fuelIn:$("tl_fuel2").value, waterIn:$("tl_water2").value, blackIn:$("tl_black2").value,
+           fuelOut:tripPct($("tl_fuel1").value), waterOut:tripPct($("tl_water1").value), blackOut:tripPct($("tl_black1").value),
+           fuelIn:tripPct($("tl_fuel2").value), waterIn:tripPct($("tl_water2").value), blackIn:tripPct($("tl_black2").value),
            hours:hours, pob:$("tl_pob").value, notes:$("tl_notes").value})
     .then(function(r){
       btn.disabled=false; btn.innerHTML="Log the trip &amp; update servicing";
@@ -13120,7 +13126,7 @@ function openTripArrive(key){
   tripSyncAddSel("ta");
   var open=((TRIPS&&TRIPS.open)||[]).filter(function(t){return t.key===key;})[0];
   $("ta_form").style.display=""; $("ta_result").style.display="none"; $("ta_result").innerHTML="";
-  $("ta_to").value=(open&&open.to)||""; $("ta_notes").value="";
+  $("ta_to").value=(open&&open.to)||""; $("ta_notes").value=""; $("ta_fuel").value=""; $("ta_fuelnote").value=""; $("ta_water").value=""; $("ta_black").value="";
   $("ta_date").value=new Date().toISOString().slice(0,10);
   $("ta_save").disabled=false; $("ta_save").innerHTML="Log arrival &amp; update servicing";
   $("tripArriveModal").classList.add("show");
@@ -13135,8 +13141,8 @@ function saveTripArrive(){
   var btn=$("ta_save"); btn.disabled=true; btn.textContent="Logging…";
   apiPost({action:"tripArrive", email:ME.email, code:ME.code, key:ME.code, by:ME.name,
            tripKey:TRIPOPEN, to:to, when:$("ta_date").value,
-           fuel:$("ta_fuel").value, water:$("ta_water").value,
-           black:$("ta_black").value, hours:hours, notes:$("ta_notes").value})
+           fuel:tripPct($("ta_fuel").value), water:tripPct($("ta_water").value),
+           black:tripPct($("ta_black").value), hours:hours, notes:tripNote($("ta_notes").value,$("ta_fuelnote").value)})
     .then(function(r){
       btn.disabled=false; btn.innerHTML="Log arrival &amp; update servicing";
       if(!(r&&r.ok)){ toast((r&&r.error)||"Couldn\u2019t log the arrival"); return; }
