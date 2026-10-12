@@ -1977,7 +1977,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-13·i</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-13·j</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -13081,7 +13081,7 @@ function tripAddMeter(sel,p){
   $(p+"_meters").insertAdjacentHTML("beforeend", tripMeterRowHtml(sel.value,p));
   tripSyncAddSel(p); sel.value="";
 }
-var TRIP_EDIT_LIVE=false, TD_KEY="";
+var TRIP_EDIT_LIVE=true, TD_KEY="";
 function tripCardTap(ev,key){
   var el=ev.target.closest("[onclick],button,input,a");
   if(el && el!==ev.currentTarget) return;
