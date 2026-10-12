@@ -1952,7 +1952,10 @@ button:active{ filter: brightness(.93); }
       <div id="vesselBarT"></div>
       <div class="subbar"><h2>Trip log</h2><span class="count" id="tripCount"></span></div>
       <p class="hello" style="padding-top:0">Log the passage: tanks at departure, hour meters at arrival. The readings feed straight into the servicing schedule &mdash; anything falling due on hours shows up the moment you close the trip.</p>
-      <button class="eodbtn" onclick="openTripLog()">&#9973; Log a trip &rarr;</button>
+      <button class="eodbtn" onclick="openTripStart()">&#9973; Start a trip &rarr;</button>
+      <p class="hello" style="padding:2px 0 0;font-size:11.5px">Leaving now? Start it, then complete it when you arrive.</p>
+      <button class="eodbtn" style="background:#fff;color:var(--navy);border:2px solid var(--navy)" onclick="openTripLog()">Log a finished trip &rarr;</button>
+      <p class="hello" style="padding:2px 0 0;font-size:11.5px">Already done? Enter the whole passage in one go.</p>
       <div id="tripsWrap"></div>
     </div>
 
@@ -1974,7 +1977,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-13·f</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-13·g</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
