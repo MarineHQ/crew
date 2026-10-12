@@ -1974,7 +1974,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-13·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-13·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2864,8 +2864,8 @@ button:active{ filter: brightness(.93); }
   <input class="fld-in" id="t_date" type="date">
   <label class="fld">Fuel level</label>
   <input class="fld-in" id="t_fuel" inputmode="decimal" placeholder="e.g. 95.7"> <span class="fldhint">&#37; full</span>
-  <label class="fld">Fuel note <span class="fldhint">(opt &mdash; litres bunkered, where)</span></label>
-  <input class="fld-in" id="t_fuelnote" placeholder="e.g. bunkered 2,000 L at KBM">
+  <div id="t_bunk"></div>
+  <button type="button" class="cancel" style="margin:4px 0 8px;border-style:dashed" onclick="bunkAdd('t')">&#65291; Add bunkering</button>
   <label class="fld">Fresh water</label>
   <input class="fld-in" id="t_water" inputmode="decimal" placeholder="e.g. 80"> <span class="fldhint">&#37; full</span>
   <label class="fld">Black water (holding tank)</label>
@@ -2889,8 +2889,8 @@ button:active{ filter: brightness(.93); }
     <input class="fld-in" id="ta_date" type="date">
     <label class="fld">Fuel level</label>
     <input class="fld-in" id="ta_fuel" inputmode="decimal" placeholder="e.g. 20"> <span class="fldhint">&#37; full</span>
-  <label class="fld">Fuel note <span class="fldhint">(opt &mdash; litres bunkered, where)</span></label>
-  <input class="fld-in" id="ta_fuelnote" placeholder="e.g. bunkered 2,000 L at KBM">
+  <div id="ta_bunk"></div>
+  <button type="button" class="cancel" style="margin:4px 0 8px;border-style:dashed" onclick="bunkAdd('ta')">&#65291; Add bunkering</button>
     <label class="fld">Fresh water</label>
     <input class="fld-in" id="ta_water" inputmode="decimal" placeholder="e.g. 80"> <span class="fldhint">&#37; full</span>
     <label class="fld">Black water (holding tank)</label>
@@ -13002,11 +13002,23 @@ function tripPhotoRemove(){
     .catch(function(){ toast("Couldn\u2019t connect"); });
 }
 function tripPct(v){ v=(v||"").toString().trim().replace(/%$/,"").trim(); return v?v+"%":""; }
-function tripNote(n,f){ f=(f||"").trim(); n=(n||"").trim(); return f?("Fuel: "+f+(n?"\n"+n:"")):n; }
+function tripNote(n,f){ f=(f||"").trim(); n=(n||"").trim(); return f?(f+(n?"\n"+n:"")):n; }
+function bunkAdd(pre){
+  var d=document.createElement("div"); d.className="bunkrow"; d.style.cssText="display:flex;gap:6px;margin-bottom:6px";
+  d.innerHTML='<input class="fld-in bk-l" inputmode="numeric" placeholder="Litres" style="flex:1"><input class="fld-in bk-w" placeholder="Where (e.g. KBM)" style="flex:2"><button type="button" onclick="this.parentNode.remove()" style="border:0;background:none;font-size:20px;color:#9aa7b4">&times;</button>';
+  $(pre+"_bunk").appendChild(d); d.querySelector(".bk-l").focus();
+}
+function bunkText(pre,when){
+  var out=[]; document.querySelectorAll("#"+pre+"_bunk .bunkrow").forEach(function(r){
+    var l=(r.querySelector(".bk-l").value||"").trim(), w=(r.querySelector(".bk-w").value||"").trim();
+    if(l||w) out.push("Bunkering ("+when+"): "+(l?l+" L":"litres not given")+(w?" at "+w:""));
+  }); return out.join("\n");
+}
 function openTripStart(){
   var mine=myVessels(), cur=curVesselT()||mine[0]||"";
   $("t_vessel").innerHTML=mine.map(function(v){return '<option'+(v===cur?" selected":"")+'>'+esc(v)+'</option>';}).join("");
-  ["t_from","t_dest","t_pob","t_notes","t_fuel","t_fuelnote","t_water","t_black"].forEach(function(id){ $(id).value=""; });
+  ["t_from","t_dest","t_pob","t_notes","t_fuel","t_water","t_black"].forEach(function(id){ $(id).value=""; });
+  $("t_bunk").innerHTML="";
   $("t_date").value=new Date().toISOString().slice(0,10);
   $("tripStartModal").classList.add("show");
 }
@@ -13018,7 +13030,7 @@ function saveTripStart(){
            vessel:$("t_vessel").value, from:from, to:$("t_dest").value, when:$("t_date").value,
            fuel:tripPct($("t_fuel").value),
            water:tripPct($("t_water").value), black:tripPct($("t_black").value),
-           pob:$("t_pob").value, notes:tripNote($("t_notes").value,$("t_fuelnote").value)})
+           pob:$("t_pob").value, notes:tripNote($("t_notes").value,bunkText("t","departure"))})
     .then(function(r){
       btn.disabled=false; btn.textContent="Start the trip";
       if(r&&r.ok){ closeModal("tripStartModal"); toast("&#9973; Trip started — safe passage"); loadTrips(); }
@@ -13126,7 +13138,7 @@ function openTripArrive(key){
   tripSyncAddSel("ta");
   var open=((TRIPS&&TRIPS.open)||[]).filter(function(t){return t.key===key;})[0];
   $("ta_form").style.display=""; $("ta_result").style.display="none"; $("ta_result").innerHTML="";
-  $("ta_to").value=(open&&open.to)||""; $("ta_notes").value=""; $("ta_fuel").value=""; $("ta_fuelnote").value=""; $("ta_water").value=""; $("ta_black").value="";
+  $("ta_to").value=(open&&open.to)||""; $("ta_notes").value=""; $("ta_fuel").value=""; $("ta_bunk").innerHTML=""; $("ta_water").value=""; $("ta_black").value="";
   $("ta_date").value=new Date().toISOString().slice(0,10);
   $("ta_save").disabled=false; $("ta_save").innerHTML="Log arrival &amp; update servicing";
   $("tripArriveModal").classList.add("show");
@@ -13142,7 +13154,7 @@ function saveTripArrive(){
   apiPost({action:"tripArrive", email:ME.email, code:ME.code, key:ME.code, by:ME.name,
            tripKey:TRIPOPEN, to:to, when:$("ta_date").value,
            fuel:tripPct($("ta_fuel").value), water:tripPct($("ta_water").value),
-           black:tripPct($("ta_black").value), hours:hours, notes:tripNote($("ta_notes").value,$("ta_fuelnote").value)})
+           black:tripPct($("ta_black").value), hours:hours, notes:tripNote($("ta_notes").value,bunkText("ta","arrival"))})
     .then(function(r){
       btn.disabled=false; btn.innerHTML="Log arrival &amp; update servicing";
       if(!(r&&r.ok)){ toast((r&&r.error)||"Couldn\u2019t log the arrival"); return; }
