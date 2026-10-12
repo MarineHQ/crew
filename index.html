@@ -1974,7 +1974,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-13·d</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-13·e</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2814,17 +2814,17 @@ button:active{ filter: brightness(.93); }
     <input class="fld-in" id="tl_adate" type="date">
     <label class="fld">Tanks at departure &mdash; fuel / water / black water (&#37; full)</label>
     <div style="display:flex;gap:8px">
-      <input class="fld-in" id="tl_fuel1" inputmode="decimal" placeholder="95.7">
-      <input class="fld-in" id="tl_water1" inputmode="decimal" placeholder="80">
-      <input class="fld-in" id="tl_black1" inputmode="decimal" placeholder="0">
+      <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:bold;color:var(--navy);margin-bottom:3px">Fuel &#37;</div><input class="fld-in" id="tl_fuel1" inputmode="decimal" placeholder="95.7"></div>
+      <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:bold;color:var(--navy);margin-bottom:3px">Fresh water &#37;</div><input class="fld-in" id="tl_water1" inputmode="decimal" placeholder="80"></div>
+      <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:bold;color:var(--navy);margin-bottom:3px">Black water &#37;</div><input class="fld-in" id="tl_black1" inputmode="decimal" placeholder="0"></div>
     </div>
     <div id="tl1_bunk"></div>
     <button type="button" style="width:100%;margin:6px 0 10px;padding:11px;border:2px dashed var(--navy);background:#fff;color:var(--navy);font-weight:bold;font-size:14px;border-radius:11px;cursor:pointer" onclick="bunkAdd('tl1')">&#65291; Add bunkering</button>
     <label class="fld">Tanks at arrival &mdash; fuel / water / black water (&#37; full)</label>
     <div style="display:flex;gap:8px">
-      <input class="fld-in" id="tl_fuel2" inputmode="decimal" placeholder="20">
-      <input class="fld-in" id="tl_water2" inputmode="decimal" placeholder="50">
-      <input class="fld-in" id="tl_black2" inputmode="decimal" placeholder="0">
+      <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:bold;color:var(--navy);margin-bottom:3px">Fuel &#37;</div><input class="fld-in" id="tl_fuel2" inputmode="decimal" placeholder="20"></div>
+      <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:bold;color:var(--navy);margin-bottom:3px">Fresh water &#37;</div><input class="fld-in" id="tl_water2" inputmode="decimal" placeholder="50"></div>
+      <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:bold;color:var(--navy);margin-bottom:3px">Black water &#37;</div><input class="fld-in" id="tl_black2" inputmode="decimal" placeholder="0"></div>
     </div>
     <div id="tl2_bunk"></div>
     <button type="button" style="width:100%;margin:6px 0 10px;padding:11px;border:2px dashed var(--navy);background:#fff;color:var(--navy);font-weight:bold;font-size:14px;border-radius:11px;cursor:pointer" onclick="bunkAdd('tl2')">&#65291; Add bunkering</button>
