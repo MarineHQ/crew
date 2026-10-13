@@ -1347,6 +1347,16 @@
   .wpop-go{width:100%;background:var(--orange);color:#fff;border:none;border-radius:12px;padding:13px;font-size:15px;font-weight:700;cursor:pointer}
   .wpop-dismiss{width:100%;background:none;border:none;color:var(--muted);font-size:13px;font-weight:700;padding:11px 0 2px;cursor:pointer}
   .modal .card2{background:#fff;width:100%;max-width:620px;border-radius:18px 18px 0 0;padding:18px 16px calc(24px + env(safe-area-inset-bottom));max-height:94vh;overflow-y:auto}
+  .tgl{display:flex;gap:8px;margin-bottom:8px}
+  .tgl button{flex:1;padding:10px 6px;border:2px solid var(--line);background:#fff;color:var(--navy);font-weight:bold;font-size:14px;border-radius:10px;cursor:pointer}
+  .tgl button.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+  .tgl button.bad.on{background:#C0392B;border-color:#C0392B}
+  .prow{border-bottom:1px solid var(--line);padding:9px 0}
+  .prow .pt{font-size:13.5px;margin-bottom:6px}
+  .prow .tgl{margin-bottom:0}.prow .tgl button{padding:7px 4px;font-size:13px}
+  .psec{font-weight:800;color:var(--navy);margin:14px 0 2px;font-size:14px}
+  .prebtn{width:100%;text-align:left;padding:12px;border:2px solid var(--navy);background:#fff;color:var(--navy);font-weight:bold;font-size:14px;border-radius:11px;cursor:pointer;margin:6px 0 10px}
+  .prebtn.ok{border-color:#2e7d5b;color:#1f5c42;background:#eef8f2}
   /* every popup is locked to the screen width: nothing scrolls sideways */
   .modal .card2{box-sizing:border-box;overflow-x:hidden;overscroll-behavior-x:none}
   .modal .card2 *{box-sizing:border-box;max-width:100%}
@@ -1980,7 +1990,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-13·m</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-13·o</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2081,10 +2091,11 @@ button:active{ filter: brightness(.93); }
 <div class="modal" id="raiseModal"><div class="card2">
   <h3>Raise a job</h3>
   <p class="mhint">Boat, what needs doing, a photo. Send it and the next one's ready.</p>
-  <select class="fld-in rjf" id="r_vessel" onchange="onVesselPick('r_vessel','r_other')"></select>
+  <select class="fld-in rjf" id="r_vessel" onchange="onVesselPick('r_vessel','r_other');fjRender('r',rjVessel(),!!RJNUM)"></select>
   <input class="fld-in rjf" id="r_other" placeholder="Type the yacht name" style="display:none">
   <input class="fld-in rjf" id="r_title" placeholder="What needs doing?" oninput="rjSuggest()" autocomplete="off">
   <div id="r_match" style="display:none"></div>
+  <div id="r_forjob" style="display:none"></div>
   <div class="stagedrow rjf">
     <div class="photos staged" id="r_phGrid"></div>
     <div class="photos staged" id="r_dcGrid"></div>
@@ -2260,7 +2271,7 @@ button:active{ filter: brightness(.93); }
        one (12 Sep 2026). -->
 
   <label class="fld">Vessel</label>
-  <select class="fld-in" id="wl_vessel" onchange="onVesselPick('wl_vessel','wl_other');wlSuggest()"></select>
+  <select class="fld-in" id="wl_vessel" onchange="onVesselPick('wl_vessel','wl_other');wlSuggest();fjRender('wl',wlVesselNow(),isPickupNum(WLNUM))"></select>
   <input class="fld-in" id="wl_other" placeholder="Type the yacht name" style="display:none;margin-top:8px">
   <label class="fld">What did you do?</label>
   <input class="fld-in" id="wl_title" placeholder="Start typing — e.g. rinse, vacuum, teak"
@@ -2271,6 +2282,10 @@ button:active{ filter: brightness(.93); }
        ended up as the tender REFUELLING task and "Run systems" as a battery
        check (Trish, 12 Sep 2026). -->
   <div id="wl_sugg"></div>
+  <!-- A supplies pick-up is not a kind of work of its own: it takes the category of
+       the job it is FOR (Trish, 13 Oct 2026). Shown only once the catalogue's pick-up
+       task is chosen. See fjRender. -->
+  <div id="wl_forjob" style="display:none"></div>
   <!-- SEVERAL JOBS, ONE BLOCK OF TIME — here as well as on Add hours. Trish:
        "it needs to live in both." Somebody logging a morning's work should not
        have to log four jobs and then go to another screen to put the hours
@@ -2743,6 +2758,15 @@ button:active{ filter: brightness(.93); }
   <button class="cancel" onclick="closeModal('waitOwnerModal')">Cancel</button>
 </div></div>
 
+<!-- Which job is this supplies pick-up for? (fjOpen / fjSave) -->
+<div class="modal" id="forJobModal"><div class="card2">
+  <h3>Which job is this pick-up for?</h3>
+  <p class="mhint" id="fj_hint"></p>
+  <div id="fj_forjob"></div>
+  <button class="go" onclick="fjSave()">✓ Save</button>
+  <button class="cancel" onclick="closeModal('forJobModal')">Cancel</button>
+</div></div>
+
 <div class="modal" id="moveListModal"><div class="card2">
   <h3>Move to a worklist</h3>
   <p class="mhint" id="ml_hint"></p>
@@ -2818,6 +2842,24 @@ button:active{ filter: brightness(.93); }
     <input class="fld-in" id="tl_ddate" type="date">
     <label class="fld">Date of arrival</label>
     <input class="fld-in" id="tl_adate" type="date">
+    <div id="tl_dep1">
+      <label class="fld">Type of use</label>
+      <select class="fld-in" id="tl_use"><option value="">Choose&hellip;</option><option>Relocation</option><option>Charter</option><option>Owner use</option><option>Sea trial</option><option>Delivery</option><option>Maintenance run</option><option>Other</option></select>
+      <label class="fld">Pax on board</label>
+      <div style="display:flex;gap:8px">
+        <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:bold;color:var(--navy);margin-bottom:3px">Crew number</div><input class="fld-in" id="tl_crew" inputmode="numeric" placeholder="e.g. 2"></div>
+        <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:bold;color:var(--navy);margin-bottom:3px">Guest number</div><input class="fld-in" id="tl_guests" inputmode="numeric" placeholder="0 if none"></div>
+      </div>
+      <input class="fld-in" id="tl_pobd" placeholder="Description &mdash; e.g. Skipper + 2 deck / Eng watchkeepers" style="margin-top:6px">
+    </div>
+    <label class="fld">Pre-departure checklist</label>
+    <button type="button" class="prebtn" id="tl_prebtn" onclick="preOpen()"></button>
+    <div id="tl_dep2">
+      <label class="fld">Safety check / briefing done?</label>
+      <div class="tgl" data-k="safety"><button type="button" data-v="Yes" onclick="tglSet(this)">Yes</button><button type="button" data-v="No" class="bad" onclick="tglSet(this)">No</button></div>
+      <label class="fld">Weather</label>
+      <input class="fld-in" id="tl_weather" placeholder="e.g. fine, clear and calm">
+    </div>
     <label class="fld">Tanks at departure &mdash; fuel / water / black water (&#37; full)</label>
     <div style="display:flex;gap:8px">
       <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:bold;color:var(--navy);margin-bottom:3px">Fuel &#37;</div><input class="fld-in" id="tl_fuel1" inputmode="decimal" placeholder="95.7"></div>
@@ -2835,12 +2877,17 @@ button:active{ filter: brightness(.93); }
     <div id="tl2_bunk"></div>
     <button type="button" style="width:100%;margin:6px 0 10px;padding:11px;border:2px dashed var(--navy);background:#fff;color:var(--navy);font-weight:bold;font-size:14px;border-radius:11px;cursor:pointer" onclick="bunkAdd('tl2')">&#65291; Add bunkering</button>
     <p class="mhint">Holding tank should come home at <b>0%</b> &mdash; anything else gets flagged for a pump-out.</p>
-    <label class="fld" style="margin-top:6px">Hours &mdash; add each system you ran</label>
+    <label class="fld" style="margin-top:6px">Engine &amp; genset hours &mdash; start / finish</label>
     <div id="tl_meters"></div>
     <select class="fld-in" id="tl_addsel" onchange="tripAddMeter(this,&#39;tl&#39;)" style="border-style:dashed"></select>
-    <label class="fld">People on board <span class="fldhint">(opt)</span></label>
-    <input class="fld-in" id="tl_pob" inputmode="numeric" placeholder="Number, e.g. 3">
-  <input class="fld-in" id="tl_pobd" placeholder="Who &mdash; e.g. Skipper + 2 deck / Eng watchkeepers" style="margin-top:6px">
+    <label class="fld" style="margin-top:12px">Equipment &amp; vessel status</label>
+    <div style="font-size:12px;font-weight:bold;color:var(--navy);margin-bottom:3px">240 V system</div>
+    <div class="tgl" data-k="v240"><button type="button" data-v="Good" onclick="tglSet(this)">Good</button><button type="button" data-v="Issue" class="bad" onclick="tglSet(this)">Issue</button></div>
+    <div style="font-size:12px;font-weight:bold;color:var(--navy);margin-bottom:3px">Shore power connected</div>
+    <div class="tgl" data-k="shore"><button type="button" data-v="Yes" onclick="tglSet(this)">Yes</button><button type="button" data-v="No" onclick="tglSet(this)">No</button></div>
+    <div style="font-size:12px;font-weight:bold;color:var(--navy);margin-bottom:3px">Water production (desalination)</div>
+    <div class="tgl" data-k="desal"><button type="button" data-v="Yes" onclick="tglSet(this)">Yes</button><button type="button" data-v="No" onclick="tglSet(this)">No</button></div>
+    <textarea class="fld-in" id="tl_equip" rows="3" placeholder="Anything else on equipment or vessel status &mdash; defects, what's working, what isn't"></textarea>
     <label class="fld">Notes <span class="fldhint">(opt)</span></label>
     <input class="fld-in" id="tl_notes" placeholder="e.g. flat crossing, 24 kn">
     <label class="fld">Photos <span class="fldhint">(opt &mdash; internal until a director shares them)</span></label>
@@ -2884,6 +2931,15 @@ button:active{ filter: brightness(.93); }
   <input class="fld-in" id="t_notes" placeholder="e.g. weekend run to the Broadwater">
   <button class="go" id="t_save" onclick="saveTripStart()">Start the trip</button>
   <button class="cancel" onclick="closeModal('tripStartModal')">Cancel</button>
+</div></div>
+
+<!-- Pre-departure checklist -->
+<div class="modal" id="preModal"><div class="card2">
+  <h3>Pre-departure vessel check</h3>
+  <p class="mhint" id="pre_hint">Tap Pass, Fail or N/A on each line. Anything marked Fail is listed as a defect.</p>
+  <div id="pre_body"></div>
+  <button class="go" id="pre_save" onclick="preSave()">Save checklist</button>
+  <button class="cancel" onclick="closeModal('preModal')">Close</button>
 </div></div>
 
 <!-- Trip log — details / edit / delete -->
@@ -8535,6 +8591,125 @@ function wlSaveDesc(key){
   }).catch(function(){ toast("Couldn’t connect"); });
 }
 
+/* ===== SUPPLIES PICK-UPS: "For job" =====================================
+   A supplies pick-up (catalogue No. 210) is not a kind of work of its own — it takes
+   the category of the job it is FOR, and on the job card it prints as a day of that
+   job (Trish, 13 Oct 2026). The picker shows only once a pick-up is chosen, lists the
+   same boat's open or recently finished jobs (never another pick-up), and the link is
+   made with crewJobForJob once the job exists. PICKUPNUMS mirrors CC_PICKUP_NUMS in
+   JobForJob.gs and is refreshed from the server; add a number there and here to
+   let another catalogue task behave the same way. */
+var PICKUPNUMS=[210];
+function isPickupNum(n){ n=Number(n); return !!n && PICKUPNUMS.indexOf(n)>=0; }
+function isPickupJob(j){
+  var m=/(\d+(?:\.\d+)?)\s*$/.exec(((j&&j.code)||"").toString());
+  var n=m?parseFloat(m[1]):0;
+  return !!n && n<9000 && isPickupNum(n);
+}
+var FJCACHE={}, FJLOADING={}, FJSTATE={};
+function fjPool(vessel){
+  var v=(vessel||"").toLowerCase(), seen={}, out=[];
+  [].concat(CREWJOBS||[], CREWOPEN||[], CREWRAISED||[], FJCACHE[vessel]||[]).forEach(function(j){
+    if(!j || !j.key || seen[j.key]) return; seen[j.key]=1;
+    if((j.vessel||"").toLowerCase()!==v) return;
+    if(!j.code || isPickupJob(j)) return;                          // needs a job code; never a chain
+    var st=(j.status||"").toLowerCase();
+    if(st==="cancelled" || st==="rejected") return;
+    if(/^complete|^done/.test(st)){                                // finished: only the recent ones
+      var t=Date.parse(j.completed||"");
+      if(!isNaN(t) && Date.now()-t>60*86400000) return;
+    }
+    out.push(j);
+  });
+  out.sort(function(a,b){
+    var da=/^complete|^done/i.test(a.status||"")?1:0, db=/^complete|^done/i.test(b.status||"")?1:0;
+    return da-db || (a.task||"").localeCompare(b.task||"");
+  });
+  return out.slice(0,200);
+}
+function fjLoad(vessel, cb){
+  if(FJCACHE[vessel]){ cb(); return; }
+  if(FJLOADING[vessel]){ FJLOADING[vessel].push(cb); return; }
+  FJLOADING[vessel]=[cb];
+  function fin(){ var q=FJLOADING[vessel]||[]; delete FJLOADING[vessel]; q.forEach(function(f){ try{f();}catch(e){} }); }
+  apiGet("fn=crewjobs&email="+encodeURIComponent(ME.email||"")+"&code="+encodeURIComponent(ME.code||"")+
+         "&vessel="+encodeURIComponent(vessel)+"&mine=0")
+    .then(function(j){
+      FJCACHE[vessel]=(j&&j.jobs)||[];
+      if(j&&j.pickupNums&&j.pickupNums.length) PICKUPNUMS=j.pickupNums.map(Number);
+      fin();
+    }).catch(function(){ FJCACHE[vessel]=[]; fin(); });
+}
+/* pfx: "wl" (Log job), "r" (Raise a job) or "fj" (the job screen). `show` false hides it. */
+function fjRender(pfx, vessel, show, cur, excludeKey){
+  var el=$(pfx+"_forjob"); if(!el) return;
+  var sel=$(pfx+"_forsel"); if(cur===undefined && sel) cur=sel.value;   // keep a choice already made
+  if(!show || !vessel){ el.style.display="none"; el.innerHTML=""; delete FJSTATE[pfx]; return; }
+  FJSTATE[pfx]={ vessel:vessel };
+  el.style.display="";
+  function paint(){
+    if(!FJSTATE[pfx] || FJSTATE[pfx].vessel!==vessel) return;       // moved on while it loaded
+    var list=fjPool(vessel).filter(function(j){ return j.key!==excludeKey; });
+    var mgr=isMgrRole();
+    var h='<label class="fld">For job <span class="fldhint">(optional — which job is this pick-up for?)</span></label>'+
+      '<select class="fld-in" id="'+pfx+'_forsel" onchange="fjHint(\''+pfx+'\')">'+
+      '<option value="">Not for a particular job</option>'+
+      list.map(function(j){
+        var done=/^complete|^done/i.test(j.status||"");
+        return '<option value="'+esc(j.key)+'" data-cat="'+esc(j.category||"")+'"'+(j.key===cur?' selected':'')+'>'+
+               esc((j.task||"Job")+(mgr&&j.code?(" \u00b7 "+j.code):"")+(done?" \u2014 done":""))+'</option>';
+      }).join("")+'</select><div class="fldhint" id="'+pfx+'_forhint" style="margin-top:4px"></div>';
+    el.innerHTML=h; fjHint(pfx);
+  }
+  if(FJCACHE[vessel]){ paint(); }
+  else { el.innerHTML='<div class="fldhint">Loading this boat\u2019s jobs\u2026</div>'; fjLoad(vessel, paint); }
+}
+function fjHint(pfx){
+  var sel=$(pfx+"_forsel"), h=$(pfx+"_forhint"); if(!sel||!h) return;
+  var o=sel.options[sel.selectedIndex];
+  var cat=o&&o.getAttribute("data-cat")||"";
+  h.textContent = !sel.value ? "" : (isMgrRole()&&cat ? ("Counts as "+cat+", the same as that job.") : "It will be filed with that job.");
+}
+function fjValue(pfx){ var s=$(pfx+"_forsel"); return (s && $(pfx+"_forjob") && $(pfx+"_forjob").style.display!=="none") ? (s.value||"") : ""; }
+function fjLinkNow(key, forKey){
+  return apiPost({action:"crewJobForJob", email:ME.email, code:ME.code, jobKey:key, forJobKey:forKey});
+}
+/* A .then() step for the create flows: once the job exists, link it, so the hours
+   logged straight after already carry the right category. Never blocks the job. */
+function fjChain(forKey){
+  return function(r){
+    if(!forKey || !r || !r.ok || !r.key) return r;
+    return fjLinkNow(r.key, forKey).then(function(l){
+      if(l && l.ok){ if(l.category) r.category=l.category; }
+      else toast((l&&l.error)||"Saved, but couldn\u2019t link it to its job \u2014 open it to try again");
+      return r;
+    }).catch(function(){ toast("Saved, but couldn\u2019t link it to its job \u2014 open it to try again"); return r; });
+  };
+}
+/* From the job screen: pick, change or clear the link. */
+var FJKEY="";
+function fjOpen(key){
+  var j=wlFind(key); if(!j) return;
+  FJKEY=key;
+  $("fj_hint").innerHTML='<b>'+esc(j.task||"This pick-up")+'</b> takes the category of the job it is for, and prints on the job card as a day of that job.';
+  $("forJobModal").classList.add("show");
+  fjRender("fj", j.vessel||"", true, j.forJob||"", key);
+}
+function fjSave(){
+  var key=FJKEY, j=wlFind(key); if(!j) return;
+  var want=fjValue("fj");
+  if(want===(j.forJob||"")){ closeModal("forJobModal"); return; }
+  toast("Saving\u2026");
+  fjLinkNow(key, want).then(function(r){
+    if(!r||!r.ok){ toast((r&&r.error)||"Couldn\u2019t save it"); return; }
+    j.forJob=r.forJob||""; j.forJobTitle=r.forJobTitle||""; j.forJobCode=r.forJobCode||"";
+    if(r.category) j.category=r.category;
+    closeModal("forJobModal");
+    toast(want ? "\u2713 Linked \u2014 it now counts with that job" : "\u2713 Link removed");
+    loadJobs(); if(openJobId===key) openWLJob(key);
+  }).catch(function(){ toast("Couldn\u2019t connect"); });
+}
+
 /* ---- worklist job detail: status · notes · photos ---- */
 var WLSTATUS=["To do","In hand","Complete"];
 function wlBucketToStatus(j){ var b=hubBucket(j.status); return b==="Done"?"Complete":(b==="In progress"?"In hand":"To do"); }
@@ -8575,6 +8750,14 @@ function wlFactsHtml(j){
            '<span class="v'+(cls?(" "+cls):"")+'" title="'+esc(v)+'">'+esc(v)+'</span></div>';
   }
   var out = "", _b = hubBucket(j.status);
+  /* SUPPLIES PICK-UP: which job it is FOR. Tap to choose or change (fjOpen). Shown to
+     management, and to the crew member who raised it or has it. */
+  var fjCell = "";
+  if(isPickupJob(j) && (isMgrRole() || wlIsMine(j) || ((j.raisedBy||"").toLowerCase().indexOf((ME.name||"").toLowerCase().replace(/\s*\(test\)/,"").trim())>=0 && (ME.name||"")))){
+    fjCell = '<div class="jfact tap" onclick="fjOpen(\''+esc(String(j.key).replace(/'/g,"\\'"))+'\')">'+
+             '<span class="k">For job \u270e</span>'+
+             '<span class="v'+(j.forJob?'':' soft')+'" title="'+esc(j.forJobTitle||"")+'">'+esc(j.forJob ? (j.forJobTitle||"linked") : "tap to choose")+'</span></div>';
+  }
   if(isMgrRole()) out += cell("Status", wlBucketToStatus(j) || "To do", "",
               _b==="Done" ? "f-done" : (_b==="In progress" ? "f-prog" : "f-todo"));
   if(j.dueTs){
@@ -8600,6 +8783,7 @@ function wlFactsHtml(j){
     else if(_onIt)                                out += cell("Yours", "with Marine HQ", "", "f-todo");
     // However many cells there are, they sit on ONE row — never a grid with an
     // empty corner. Crew normally have two: Due, and that it's theirs.
+    out += fjCell;
     var _n=(out.match(/class="jfact/g)||[]).length;
     return _n ? ('<div class="jfacts'+(_n>1?" three":"")+'" style="grid-template-columns:repeat('+_n+',1fr)">'+out+'</div>') : '';
   }
@@ -8619,6 +8803,7 @@ function wlFactsHtml(j){
     out += cell("Cost to", cat);
   }
   if(isMgrRole()) out += j.list ? cell("Worklist", j.list) : cell("Worklist", "not on a list", "soft");
+  out += fjCell;
   if(j.updated) out += cell("Last moved", relTime(j.updated), "soft");
   return '<div class="jfacts">'+out+'</div>';
 }
@@ -11823,6 +12008,7 @@ function openRaise(){
   $("r_vessel").innerHTML=vesselOpts(ME.vessels[0]); $("r_other").style.display="none"; $("r_other").value="";
   $("r_title").value=""; $("r_desc").value=""; stagedReset("r_ph"); stagedReset("r_dc");
   var _d0=$("r_desc"); if(_d0) _d0.hidden=true;
+  RJNUM=null; fjRender("r","",false);
   var _mb=$("r_moreBtn"); if(_mb) _mb.style.display="";
   RJSENT=[]; var _d=$("r_done"); if(_d){ _d.hidden=true; _d.innerHTML=""; }
   $("raiseModal").classList.add("show");
@@ -11864,7 +12050,8 @@ function submitRaise(again){
   if(!RJNUM){ var ra=catAlias(t, desc); t=ra.title; desc=ra.desc; }
   var files=stagedFiles("r_ph"), rdocs=stagedFiles("r_dc");
   toast("Raising job…");
-  apiPost({action:"crewRaiseJob", email:ME.email, code:ME.code, vessel:vessel, title:t, desc:desc, matchNum:(RJNUM||"")}).then(function(r){
+  var rjForKey = fjValue("r");             // the job a supplies pick-up is FOR ("" for anything else)
+  apiPost({action:"crewRaiseJob", email:ME.email, code:ME.code, vessel:vessel, title:t, desc:desc, matchNum:(RJNUM||"")}).then(fjChain(rjForKey)).then(function(r){
     if(!r||!r.ok){ toast((r&&r.error)||"Couldn’t raise the job"); return; }
     STAGED["r_ph"]=[]; STAGED["r_dc"]=[];              // handed to the upload — don't revoke the previews
     rjPlace(r, vessel).then(function(){ loadJobs(); });
@@ -11874,7 +12061,7 @@ function submitRaise(again){
          so the next one starts empty, and what's gone in so far is listed above
          the buttons — you can see you've sent three without leaving the form. */
       RJSENT.push({ code:(r.code||""), title:t });
-      $("r_title").value=""; $("r_desc").value=""; stagedReset("r_ph"); stagedReset("r_dc"); RJNUM="";
+      $("r_title").value=""; $("r_desc").value=""; stagedReset("r_ph"); stagedReset("r_dc"); RJNUM=""; fjRender("r","",false);
       var dd=$("r_desc"); if(dd) dd.hidden=true;
       var mb=$("r_moreBtn"); if(mb) mb.style.display="";
       var mm=$("r_match"); if(mm){ mm.style.display="none"; mm.innerHTML=""; }
@@ -12142,6 +12329,7 @@ function openWorkLog(){
   $("wl_vessel").innerHTML=vesselOpts(ME.vessels[0]); $("wl_other").style.display="none"; $("wl_other").value="";
   $("wl_title").value=""; $("wl_desc").value=""; $("wl_hours").value="";
   WLALSO=[]; WLADDING=false; WLFIRST=""; if($("wl_sugg")) $("wl_sugg").innerHTML=""; wlRenderBundle();
+  WLNUM=0; fjRender("wl","",false);
   stagedReset("wl_ph"); stagedReset("wl_dc");
   WLOGSTAT="Complete"; wlogRenderStat();
   var d=new Date(), p=function(n){return (n<10?"0":"")+n;};
@@ -12246,13 +12434,14 @@ function submitWorkLog(startTimer){
     toast("How many hours for the whole block?"); return;
   }
   toast("Logging…");
+  var wlForKey = fjValue("wl");            // the job a supplies pick-up is FOR ("" for anything else)
   apiPost({action:"crewWorkLog", email:ME.email, code:ME.code, vessel:vessel, title:t,
            desc:wlDesc,
            doneOn:$("wl_done").value||"",
            /* The hours go on ONE entry covering the block, made below — not on
               each job, which would bill the block once per job. */
            hours: also.length ? "" : hrs,
-           status: startTimer ? "In hand" : WLOGSTAT}).then(function(r){
+           status: startTimer ? "In hand" : WLOGSTAT}).then(fjChain(wlForKey)).then(function(r){
     if(!r||!r.ok){ toast((r&&r.error)||"Couldn’t log it"); return; }
     if(also.length) return wlLogBlock(r, also, vessel, hrs, photos, docs);
     closeModal("workLogModal");
@@ -12454,13 +12643,15 @@ function atLoadVesselLists(vessel){
    the master job the TITLE — so it codes to that number instead of being
    guessed at — and anything already typed drops into Detail, which is where a
    crew member's own words belong and where the job card prints them. */
-var _wlSuggT=null, WLSUGG=[];
+var _wlSuggT=null, WLSUGG=[], WLNUM=0;    // WLNUM = catalogue number picked for the first job (drives the For job picker)
 function wlVesselNow(){
   var v=$("wl_vessel"); if(!v) return "";
   return v.value==="__other__" ? (($("wl_other")||{}).value||"").trim() : v.value;
 }
 function wlSuggest(){
   clearTimeout(_wlSuggT);
+  // Typing over a picked catalogue job un-picks it; the extra-job picker borrows this box, so leave it then.
+  if(WLNUM && !WLADDING && (($("wl_title")||{}).value||"").trim().toLowerCase()!==(WLFIRST||"").toLowerCase()){ WLNUM=0; fjRender("wl","",false); }
   var q=($("wl_title").value||"").trim(), boat=wlVesselNow(), box=$("wl_sugg");
   if(!box) return;
   if(q.length<3 || !boat){ WLSUGG=[]; box.innerHTML=""; return; }
@@ -12507,6 +12698,7 @@ function wlPickSugg(num){
   /* Their own words are not the job's name — they are what happened on it. */
   if(d && !d.value.trim() && typed && typed.toLowerCase()!==s.job.toLowerCase()) d.value=typed;
   $("wl_title").value=s.job; WLFIRST=s.job;
+  WLNUM=Number(s.num)||0; fjRender("wl", wlVesselNow(), isPickupNum(WLNUM), "");   // a supplies pick-up asks which job it is for
   WLSUGG=[]; $("wl_sugg").innerHTML="";
   wlRenderBundle();
   toast("Logging as "+s.code);
@@ -12630,7 +12822,7 @@ function atOpenExisting(key){ closeModal("addTaskModal"); openFromUpdate(key, at
 var RJSUGG=[], RJNUM=null, _rjT=null, _rjReq=null;
 function rjVessel(){ var v=$("r_vessel"); var val=v?v.value:""; return val==="__other__" ? (($("r_other")||{}).value||"").trim() : val; }
 function rjSuggest(){
-  RJNUM=null;
+  RJNUM=null; fjRender("r","",false);
   clearTimeout(_rjT);
   _rjT=setTimeout(function(){
     var q=($("r_title").value||"").trim();
@@ -12661,12 +12853,12 @@ function rjRenderMatch(){
   el.style.display="";
 }
 function rjChoose(num){
-  RJNUM=num;
+  RJNUM=num; fjRender("r", rjVessel(), isPickupNum(num), "");
   var pick=RJSUGG.filter(function(x){return x.num===num;})[0];
   if(pick) $("r_title").value=pick.job;      // the standard wording, so it reads the same fleet-wide
   rjRenderMatch();
 }
-function rjClear(hide){ RJNUM=null; if(hide){ RJSUGG=[]; } rjRenderMatch(); }
+function rjClear(hide){ RJNUM=null; fjRender("r","",false); if(hide){ RJSUGG=[]; } rjRenderMatch(); }
 function atFillLists(){
   var names={}; Object.keys(LISTMETA||{}).forEach(function(n){ if(n) names[n]=1; });
   (CREWJOBS||[]).forEach(function(j){ if(j.list) names[j.list]=1; });
@@ -13058,8 +13250,14 @@ function tripLastFor(unit){
   var hit=((HOURS&&HOURS.units)||[]).filter(function(u){return u.unit===unit;})[0];
   return hit&&hit.reading?hit.reading:null;
 }
-function tripMeterRowHtml(unit,p){
+function tripMeterRowHtml(unit,p,startVal,lockStart){
   var last=tripLastFor(unit);
+  if(p==="tl"){
+    return '<div class="tl-mrow" data-unit="'+esc(unit)+'" style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;align-items:center"><label class="fld" style="font-weight:700;margin:0">'+esc(unit)+(last?(' <span class="fldhint">(last '+last+' hrs)</span>'):'')+'</label>'+
+      '<button type="button" onclick="this.closest(\'.tl-mrow\').remove();tripSyncAddSel(\'tl\')" title="Remove" style="background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:4px 6px">&#10005;</button></div>'+
+      '<div style="display:flex;gap:8px"><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:bold;color:var(--navy);margin-bottom:3px">Start</div><input class="fld-in tl-mstart" data-unit="'+esc(unit)+'" inputmode="decimal" value="'+esc(startVal||"")+'"'+(lockStart?' disabled':'')+' placeholder="'+(last?('e.g. '+last):'hrs')+'"></div>'+
+      '<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:bold;color:var(--navy);margin-bottom:3px">Finish</div><input class="fld-in tl-meter" data-unit="'+esc(unit)+'" inputmode="decimal" placeholder="hrs at finish"></div></div></div>';
+  }
   return '<div class="'+p+'-mrow" data-unit="'+esc(unit)+'" style="display:flex;gap:8px;align-items:center">'+
     '<div style="flex:1"><label class="fld" style="font-weight:400">'+esc(unit)+(last?(' <span class="fldhint">(last '+last+' hrs)</span>'):'')+'</label>'+
     '<input class="fld-in '+p+'-meter" data-unit="'+esc(unit)+'" inputmode="decimal" placeholder="'+(last?('e.g. '+(last+8)):'hours off the gauge')+'"></div>'+
@@ -13093,9 +13291,27 @@ function tripDetailView(t){
     (done?'<br>Arrival: '+tk(t.fuelArrive,t.waterArrive,t.blackArrive):'')+
     (h?'<br>Meters: '+h:'')+(t.pob?'<br>People on board: '+esc(t.pob):'')+
     (t.notes?'<br>'+esc(t.notes).replace(/\n/g,"<br>"):'')+'</div></div>'+
+    tripExtrasHtml(t)+
     (mgr&&done?(TRIP_EDIT_LIVE?'<button class="go" style="margin-top:6px" onclick="tripDetailEdit()">Edit this trip</button>':'')+
       '<button class="cancel" style="color:#C0392B;font-weight:700" onclick="tripDetailAskDelete()">Delete this trip</button>':'')+
     (done&&!mgr?'<p class="mhint">Only Marine HQ directors and managers can edit or delete a finished trip.</p>':'');
+}
+function tripExtrasHtml(t){
+  var d=t.details||{}, r=[];
+  if(d.use) r.push("Type of use: <b>"+esc(d.use)+"</b>");
+  if(d.crew||d.guests||d.paxDesc) r.push("Crew: <b>"+esc(d.crew||"0")+"</b> &middot; Guests: <b>"+esc(d.guests||"0")+"</b>"+(d.paxDesc?" &mdash; "+esc(d.paxDesc):""));
+  if(d.safety) r.push("Safety check / briefing: <b>"+esc(d.safety)+"</b>");
+  if(d.weather) r.push("Weather: "+esc(d.weather));
+  var e=d.equip||{}, eq=[]; if(e.v240) eq.push("240 V "+esc(e.v240)); if(e.shore) eq.push("Shore power "+esc(e.shore)); if(e.desal) eq.push("Desalination "+esc(e.desal));
+  if(eq.length||e.note) r.push("Equipment &amp; vessel: "+eq.join(" &middot; ")+(e.note?((eq.length?"<br>":"")+esc(e.note).replace(/\n/g,"<br>")):""));
+  var hs=d.hrsStart||{}, fin={}; (t.hours||[]).forEach(function(h){fin[h.unit]=h.reading;});
+  var units=Object.keys(hs).concat(Object.keys(fin).filter(function(u){return !(u in hs);}));
+  if(units.length) r.push("Hours (start &rarr; finish):<br>"+units.map(function(u){return esc(u)+" <b>"+esc(hs[u]||"?")+" &rarr; "+esc(fin[u]!=null?fin[u]:"?")+"</b>";}).join("<br>"));
+  var h='<div class="hcard" style="margin:0 0 10px"><div class="hmeta">'+(r.length?r.join("<br>"):"No extra trip details recorded.")+'</div></div>';
+  if(d.pre){ var c=preCounts(d.pre);
+    h+='<button type="button" class="prebtn'+(c.answered>=PRE_TOTAL&&!c.fails?" ok":"")+'" onclick="preOpen(tripFindByKey(TD_KEY).details.pre,true)">'+(c.answered>=PRE_TOTAL?"&#9989; Pre-departure checklist done":"&#9680; Pre-departure checklist "+c.answered+" of "+PRE_TOTAL)+(d.pre.by?" by "+esc(d.pre.by):"")+(c.fails?" &mdash; "+c.fails+" fail"+(c.fails>1?"s":""):"")+" &middot; tap to view</button>";
+  } else h+='<p class="mhint">Pre-departure checklist: not recorded.</p>';
+  return h;
 }
 function openTripDetail(key){
   var t=tripFindByKey(key); if(!t) return;
@@ -13149,40 +13365,146 @@ function crewTripCancel(key,done){
     .then(function(r){ if(r&&r.ok){ toast(done?"Trip deleted":"Trip cancelled"); loadTrips(); } else toast((r&&r.error)||"Couldn\u2019t cancel"); })
     .catch(function(){ toast("Couldn\u2019t connect"); });
 }
+
+/* ---- Trip log: structured details (type of use, pax, checks, weather, equipment, hours) ---- */
+var PRE_SECTIONS=[
+ ["1  Planning & Crew",["Passage plan reviewed","Weather and tides checked","Crew briefed on passage and safety","Someone ashore notified of departure and ETA","Registration and insurance current and aboard"]],
+ ["2  Fuel, Water & Fluids",["Fuel adequate for passage plus reserve","Engine oil checked","Coolant checked","Fuel/water separators checked and drained"]],
+ ["3  Engine Room & Machinery",["Engine intake seacocks open","No fuel, oil or water leaks","Belts and hoses visually checked","Bilges dry, bilge pumps operational","Sea strainers clear","Batteries charged, isolators on","Shore power disconnected and stowed"]],
+ ["4  Safety Equipment",["Life jackets aboard, correct number, serviceable","Life raft aboard and in date","EPIRB registered, in date and functional","Fire extinguishers charged and in date","Flares in date","First aid kit aboard","Bilge/high-water alarm working","VHF radio functional, radio check done"]],
+ ["5  Navigation & Electronics",["Chartplotter/GPS operational","Radar operational","AIS operational","All navigation lights functional","Depth sounder operational","Autopilot operational"]],
+ ["6  Deck & Securing",["Anchor and ground tackle ready","Lines and fenders aboard","Tender/toys secured","Hatches and ports secured","Loose gear stowed below and on deck"]]
+];
+var PRE_TOTAL=PRE_SECTIONS.reduce(function(n,s){return n+s[1].length;},0);
+var TLPRE=null, TLPREDIRTY=false, PRE_WORK=null, PRE_RO=false;
+function tglSet(b){
+  if(b.parentNode.getAttribute("data-locked")) return;
+  var on=b.classList.contains("on");
+  [].forEach.call(b.parentNode.children,function(x){x.classList.remove("on");});
+  if(!on) b.classList.add("on");
+}
+function tglGet(k){ var b=document.querySelector('#tripLogModal .tgl[data-k="'+k+'"] button.on'); return b?b.getAttribute("data-v"):""; }
+function tglPut(k,v){ [].forEach.call(document.querySelectorAll('#tripLogModal .tgl[data-k="'+k+'"] button'),function(b){ b.classList.toggle("on",b.getAttribute("data-v")===v); }); }
+function tlNum(id){ var v=($(id).value||"").trim(); return v; }
+function tlPax(){
+  var c=tlNum("tl_crew"), g=tlNum("tl_guests"), d=($("tl_pobd").value||"").trim();
+  var tot=(c!==""||g!=="")?((+c||0)+(+g||0)):"";
+  var parts=[]; if(c!=="") parts.push(c+" crew"); if(g!=="") parts.push(g+" guests");
+  var inner=parts.join(", ")+(d?((parts.length?" — ":"")+d):"");
+  return (tot!==""?tot:"")+(inner?(" ("+inner+")"):"");
+}
+function tlHoursStart(){
+  var m={}; document.querySelectorAll("#tl_meters .tl-mstart").forEach(function(el){ var v=(el.value||"").trim(); if(v) m[el.getAttribute("data-unit")]=v; }); return m;
+}
+function tlEquip(){ return {v240:tglGet("v240"), shore:tglGet("shore"), desal:tglGet("desal"), note:($("tl_equip").value||"").trim()}; }
+function tlDetails(full){
+  if(!full){ var d={equip:tlEquip()}; if(TLPREDIRTY&&TLPRE) d.pre=TLPRE; return d; }
+  var d2={use:$("tl_use").value, crew:tlNum("tl_crew"), guests:tlNum("tl_guests"), paxDesc:($("tl_pobd").value||"").trim(),
+          safety:tglGet("safety"), weather:($("tl_weather").value||"").trim(), equip:tlEquip(), hrsStart:tlHoursStart()};
+  if(TLPRE) d2.pre=TLPRE;
+  return d2;
+}
+function preCounts(st){
+  var a=0,f=0; (st.items||[]).forEach(function(x){ if(x){a++; if(x==="Fail")f++;} }); return {answered:a,fails:f};
+}
+function tlPreStatus(){
+  var b=$("tl_prebtn"), c=TLPRE?preCounts(TLPRE):{answered:0,fails:0};
+  if(TLPRE && c.answered>=PRE_TOTAL){
+    b.className="prebtn ok";
+    b.innerHTML="&#9989; Done"+(TLPRE.by?" by "+esc(TLPRE.by):"")+" &mdash; "+(c.fails?('<span style="color:#C0392B">'+c.fails+' fail'+(c.fails>1?"s":"")+'</span>'):"all clear")+" &middot; tap to view";
+  } else if(TLPRE && c.answered>0){
+    b.className="prebtn"; b.innerHTML="&#9680; "+c.answered+" of "+PRE_TOTAL+" checked &mdash; tap to continue";
+  } else { b.className="prebtn"; b.innerHTML="&#9744; Not done yet &mdash; tap to do the checklist"; }
+}
+function preOpen(stateOverride,ro){
+  PRE_RO=!!ro;
+  var src=stateOverride||TLPRE||{items:[],defects:"",by:"",at:""};
+  PRE_WORK={items:(src.items||[]).slice(), defects:src.defects||"", by:src.by||ME.name||"", at:src.at||""};
+  preRender();
+  $("pre_save").style.display=PRE_RO?"none":"";
+  $("preModal").classList.add("show");
+}
+function preRender(){
+  var n=0, h="";
+  h+='<div class="hmeta" id="pre_count" style="margin-bottom:6px"></div>';
+  if(!PRE_RO) h+='<button type="button" class="cancel" style="border:1px solid var(--line);margin:0 0 6px;color:var(--navy);font-weight:700" onclick="preAllPass()">Mark every line Pass</button>';
+  PRE_SECTIONS.forEach(function(sec){
+    h+='<div class="psec">'+esc(sec[0])+'</div>';
+    sec[1].forEach(function(it){
+      var i=n++, st=PRE_WORK.items[i]||"";
+      h+='<div class="prow"><div class="pt">'+esc(it)+'</div><div class="tgl" data-i="'+i+'"'+(PRE_RO?' data-locked="1"':'')+'>'+
+        ["Pass","Fail","N/A"].map(function(v){ return '<button type="button" class="'+(v==="Fail"?"bad ":"")+(st===v?"on":"")+'" onclick="preSet('+i+',\''+v+'\')">'+v+'</button>'; }).join("")+'</div></div>';
+    });
+  });
+  h+='<label class="fld" style="margin-top:14px">Defects &amp; actions</label><textarea class="fld-in" id="pre_defects" rows="3" '+(PRE_RO?'disabled':'')+' placeholder="What failed, and what is being done about it">'+esc(PRE_WORK.defects)+'</textarea>';
+  h+='<label class="fld">Signed off by</label><input class="fld-in" id="pre_by" '+(PRE_RO?'disabled':'')+' value="'+esc(PRE_WORK.by)+'">';
+  $("pre_body").innerHTML=h; preCount();
+}
+function preCount(){ var c=preCounts(PRE_WORK); $("pre_count").innerHTML="<b>"+c.answered+" of "+PRE_TOTAL+"</b> checked"+(c.fails?(' &middot; <span style="color:#C0392B"><b>'+c.fails+' fail'+(c.fails>1?"s":"")+'</b></span>'):""); }
+function preSet(i,v){
+  if(PRE_RO) return;
+  PRE_WORK.items[i]=(PRE_WORK.items[i]===v)?"":v;
+  var row=document.querySelector('#pre_body .tgl[data-i="'+i+'"]');
+  [].forEach.call(row.children,function(b){ b.classList.toggle("on",b.textContent===PRE_WORK.items[i]); });
+  preCount();
+}
+function preAllPass(){ for(var i=0;i<PRE_TOTAL;i++) if(!PRE_WORK.items[i]) PRE_WORK.items[i]="Pass"; var d=$("pre_defects").value, b=$("pre_by").value; preRender(); $("pre_defects").value=d; $("pre_by").value=b; }
+function preSave(){
+  var items=[]; for(var i=0;i<PRE_TOTAL;i++) items.push(PRE_WORK.items[i]||"");
+  TLPRE={items:items, defects:($("pre_defects").value||"").trim(), by:($("pre_by").value||"").trim()||ME.name||"", at:new Date().toISOString()};
+  TLPREDIRTY=true; tlPreStatus(); closeModal("preModal");
+  var c=preCounts(TLPRE); toast(c.answered>=PRE_TOTAL?"✓ Pre-departure checklist saved":"Checklist saved — "+c.answered+" of "+PRE_TOTAL+" done");
+}
+function tlUnits(){
+  var known=((HOURS&&HOURS.units)||[]).map(function(u){return u.unit;});
+  function find(re,not){ return known.filter(function(u){return re.test(u)&&!(not&&not.test(u));})[0]; }
+  return [find(/port/i,/gen/i)||"Port engine", find(/stbd|starboard/i,/gen/i)||"Stbd engine", find(/gen/i,/stbd|starboard/i)||"Port genset"];
+}
+
 var TLKEY="";
 function tlLock(on){
-  ["tl_vessel","tl_from","tl_dest","tl_ddate","tl_fuel1","tl_water1","tl_black1","tl_pob","tl_pobd"].forEach(function(id){ $(id).disabled=on; });
+  ["tl_vessel","tl_from","tl_dest","tl_ddate","tl_fuel1","tl_water1","tl_black1","tl_use","tl_crew","tl_guests","tl_pobd","tl_weather"].forEach(function(id){ $(id).disabled=on; });
+  ["tl_dep1","tl_dep2"].forEach(function(id){ $(id).style.opacity=on?".65":""; });
+  document.querySelectorAll('#tl_dep2 .tgl').forEach(function(g){ if(on) g.setAttribute("data-locked","1"); else g.removeAttribute("data-locked"); });
   var bb=document.querySelector('[onclick="bunkAdd(\'tl1\')"]'); if(bb) bb.style.display=on?"none":"";
   $("tl_later").style.display=on?"none":"";
-  $("tl_pobd").style.display=on?"none":"";
 }
 function openTripLog(key){
   TLKEY=key||"";
   var mine=myVessels(), cur=curVesselT()||mine[0]||"";
   $("tl_vessel").innerHTML=mine.map(function(v){return '<option'+(v===cur?" selected":"")+'>'+esc(v)+'</option>';}).join("");
-  ["tl_from","tl_dest","tl_pob","tl_pobd","tl_notes","tl_fuel1","tl_water1","tl_black1","tl_fuel2","tl_water2","tl_black2"].forEach(function(id){ $(id).value=""; }); $("tl1_bunk").innerHTML=""; $("tl2_bunk").innerHTML="";
+  ["tl_from","tl_dest","tl_crew","tl_guests","tl_pobd","tl_weather","tl_equip","tl_notes","tl_fuel1","tl_water1","tl_black1","tl_fuel2","tl_water2","tl_black2"].forEach(function(id){ $(id).value=""; });
+  $("tl_use").value=""; ["safety","v240","shore","desal"].forEach(function(k){ tglPut(k,""); });
+  $("tl1_bunk").innerHTML=""; $("tl2_bunk").innerHTML="";
   $("tl_ddate").value=new Date().toISOString().slice(0,10);
   $("tl_adate").value=new Date().toISOString().slice(0,10);
   $("tl_meters").innerHTML="";
   TPF.tl=[]; $("tl_pfiles").textContent="";
-  tripSyncAddSel("tl");
+  TLPRE=null; TLPREDIRTY=false;
   $("tl_form").style.display=""; $("tl_result").innerHTML=""; $("tl_result").style.display="none";
   $("tl_save").disabled=false; $("tl_later").disabled=false;
   var t=key?tripFindByKey(key):null;
   if(t){
+    var d=t.details||{};
     if(t.vessel && !Array.prototype.some.call($("tl_vessel").options,function(o){return o.value===t.vessel;})) $("tl_vessel").insertAdjacentHTML("beforeend",'<option>'+esc(t.vessel)+'</option>');
     $("tl_vessel").value=t.vessel; $("tl_from").value=t.from||""; $("tl_dest").value=t.to||"";
     if(t.departed) $("tl_ddate").value=t.departed;
     $("tl_fuel1").value=(t.fuelDepart||"").replace(/%$/,""); $("tl_water1").value=(t.waterDepart||"").replace(/%$/,""); $("tl_black1").value=(t.blackDepart||"").replace(/%$/,"");
-    $("tl_pob").value=t.pob||"";
+    $("tl_use").value=d.use||""; $("tl_crew").value=d.crew||""; $("tl_guests").value=d.guests||""; $("tl_pobd").value=d.paxDesc||(d.crew||d.guests?"":(t.pob||""));
+    tglPut("safety",d.safety||""); $("tl_weather").value=d.weather||"";
+    var e=d.equip||{}; tglPut("v240",e.v240||""); tglPut("shore",e.shore||""); tglPut("desal",e.desal||""); $("tl_equip").value=e.note||"";
+    TLPRE=d.pre||null;
+    var hs=d.hrsStart||{}; Object.keys(hs).forEach(function(u){ $("tl_meters").insertAdjacentHTML("beforeend",tripMeterRowHtml(u,"tl",hs[u],true)); });
     tlLock(true);
     $("tl_h3").textContent="Finish this trip";
-    $("tl_hint").innerHTML="Departure is already saved (locked). Fill in the arrival, tanks and hour meters.";
+    $("tl_hint").innerHTML="Departure is already saved (locked). Fill in the arrival, tanks and finish hours.";
   } else {
+    tlUnits().forEach(function(u){ $("tl_meters").insertAdjacentHTML("beforeend",tripMeterRowHtml(u,"tl")); });
     tlLock(false);
     $("tl_h3").textContent="Log a trip";
     $("tl_hint").innerHTML="Every field in one place. Fill in what you know &mdash; <b>save the departure and finish later</b>, or finish the whole trip now.";
   }
+  tripSyncAddSel("tl"); tlPreStatus();
   $("tl_save").innerHTML="Finish: log the trip &amp; update servicing";
   $("tripLogModal").classList.add("show");
 }
@@ -13193,7 +13515,7 @@ function saveTripLater(){
   apiPost({action:"tripStart", email:ME.email, code:ME.code, key:ME.code, by:ME.name,
            vessel:$("tl_vessel").value, from:from, to:$("tl_dest").value, when:$("tl_ddate").value,
            fuel:tripPct($("tl_fuel1").value), water:tripPct($("tl_water1").value), black:tripPct($("tl_black1").value),
-           pob:pobText("tl"), notes:tripNote($("tl_notes").value,bunkText("tl1","departure"))})
+           pob:tlPax(), details:tlDetails(true), notes:tripNote($("tl_notes").value,bunkText("tl1","departure"))})
     .then(function(r){
       btn.disabled=false; btn.innerHTML="Save departure &mdash; finish later";
       if(r&&r.ok){
@@ -13216,13 +13538,13 @@ function saveTripLog(){
   var req = TLKEY
     ? {action:"tripArrive", email:ME.email, code:ME.code, key:ME.code, by:ME.name, tripKey:TLKEY, to:to, when:$("tl_adate").value,
        fuel:tripPct($("tl_fuel2").value), water:tripPct($("tl_water2").value), black:tripPct($("tl_black2").value),
-       hours:hours, notes:tripNote($("tl_notes").value,bunkText("tl2","arrival"))}
+       hours:hours, details:tlDetails(false), notes:tripNote($("tl_notes").value,bunkText("tl2","arrival"))}
     : {action:"tripLog", email:ME.email, code:ME.code, key:ME.code, by:ME.name,
        vessel:$("tl_vessel").value, from:from, to:to,
        departWhen:$("tl_ddate").value, arriveWhen:$("tl_adate").value,
        fuelOut:tripPct($("tl_fuel1").value), waterOut:tripPct($("tl_water1").value), blackOut:tripPct($("tl_black1").value),
        fuelIn:tripPct($("tl_fuel2").value), waterIn:tripPct($("tl_water2").value), blackIn:tripPct($("tl_black2").value),
-       hours:hours, pob:pobText("tl"), notes:tripNote($("tl_notes").value,[bunkText("tl1","departure"),bunkText("tl2","arrival")].filter(Boolean).join("\n"))};
+       hours:hours, pob:tlPax(), details:tlDetails(true), notes:tripNote($("tl_notes").value,[bunkText("tl1","departure"),bunkText("tl2","arrival")].filter(Boolean).join("\n"))};
   apiPost(req)
     .then(function(r){
       btn.disabled=false; btn.innerHTML="Finish: log the trip &amp; update servicing";
