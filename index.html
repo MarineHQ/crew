@@ -125,6 +125,41 @@
   .job.jobdone{background:#f1faf5;border-color:#cbe7d8;border-left-color:var(--ok)}
   .job.jobdone h3{color:#123c28}
   .job.jobdone .desc,.job.jobdone .meta{color:#5b7a69}
+  /* QUICK DONE (Trish, 13 Oct 2026): tick a job off from the list without opening it.
+     The circle on the row's right edge is the tap target (44px); swiping the row
+     right marks it done, left puts it back to To do. Done = a filled green tick,
+     the row itself stays full strength (see .job.jobdone above). Any filled
+     button sets color:#fff so iOS never paints its label link-blue. */
+  .qtwrap{position:relative;margin-bottom:11px;border-radius:12px;overflow:hidden;touch-action:pan-y}
+  .qtwrap .job{margin-bottom:0;position:relative;touch-action:pan-y;transition:transform .18s ease}
+  .qtwrap.qtdrag .job{transition:none}
+  .qtrev{position:absolute;top:0;bottom:0;display:none;align-items:center;font-size:14px;font-weight:800;color:#fff;padding:0 18px;white-space:nowrap}
+  .qtwrap.sw-r .qtrev.r{display:flex;left:0;right:0;justify-content:flex-start;background:#1F7A54}
+  .qtwrap.sw-l .qtrev.l{display:flex;left:0;right:0;justify-content:flex-end;background:#5b6b7d}
+  .qtwrap.t-ip .qtrev{background:#c98a1b !important}
+  .qtwrap.t-todo .qtrev{background:#5b6b7d !important}
+  .qtwrap.t-done .qtrev{background:#1F7A54 !important}
+  .qtwrap.sw-go .qtrev{filter:brightness(1.12)}
+  .qtbtn{flex:none;width:44px;height:44px;margin:-9px -9px -9px 0;border:0;background:transparent;color:#fff;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer;-webkit-tap-highlight-color:transparent}
+  .qtbtn .qtc{width:28px;height:28px;border-radius:50%;border:2.5px solid #b4c0cc;background:#fff;color:#fff;font-size:17px;font-weight:900;line-height:1;display:flex;align-items:center;justify-content:center;box-sizing:border-box}
+  .qtbtn.on .qtc{background:#1F7A54;border-color:#1F7A54}
+  .qtbtn.ip .qtc{border-color:#c98a1b;background:#fff7e6;color:#c98a1b;font-size:13px}
+  #qtPick{position:fixed;z-index:82;display:none;flex-direction:column;gap:6px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:8px;box-shadow:0 8px 26px rgba(20,30,50,.28);min-width:170px}
+  #qtPick.show{display:flex}
+  #qtPick button{border:0;border-radius:10px;min-height:46px;padding:0 14px;font-size:14px;font-weight:800;color:#fff;text-align:left;cursor:pointer}
+  #qtPick button.todo{background:#5b6b7d} #qtPick button.ip{background:#c98a1b} #qtPick button.done{background:#1F7A54}
+  #qtPick button.cur{outline:3px solid rgba(20,30,50,.25)}
+  .qtbtn.qtsq .qtc{border-radius:8px}
+  body.qtsel #qtToast{bottom:calc(140px + env(safe-area-inset-bottom))}
+  .qtbtn.pend .qtc{box-shadow:0 0 0 3px rgba(31,122,84,.25)}
+  #qtToast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);display:flex;align-items:center;gap:14px;background:var(--navy);color:#fff;padding:8px 8px 8px 18px;border-radius:26px;font-size:13px;font-weight:bold;box-shadow:0 6px 20px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:.25s;z-index:81;max-width:92%;white-space:nowrap}
+  #qtToast.show{opacity:1;pointer-events:auto;transform:translateX(-50%) translateY(0)}
+  #qtToast button{border:0;background:#1F7A54;color:#fff;font-weight:800;font-size:13px;border-radius:20px;padding:11px 16px;min-height:44px;cursor:pointer}
+  #qtBar{position:fixed;left:0;right:0;bottom:calc(58px + env(safe-area-inset-bottom));z-index:35;display:none;gap:8px;padding:10px 14px;background:#fff;border-top:1px solid var(--line);box-shadow:0 -3px 14px rgba(20,30,50,.12)}
+  #qtBar.show{display:flex}
+  #qtBar button{flex:1;border:0;border-radius:12px;min-height:46px;font-size:14px;font-weight:800;color:#fff;background:#1F7A54;cursor:pointer}
+  #qtBar button.qtx{flex:none;background:#5b6b7d;padding:0 18px}
+  #qtBar button:disabled{background:#b4c0cc}
   .listhd{font-size:12px;font-weight:bold;letter-spacing:.5px;text-transform:uppercase;color:var(--orange);margin:6px 2px 9px;padding-top:2px}
   .jnum{color:var(--orange);font-weight:900}
   .jnum.un{color:var(--navy)}
@@ -1786,6 +1821,7 @@ button:active{ filter: brightness(.93); }
       <div class="subbar"><h2 id="jobsSubTitle">My worklist</h2><span class="count" id="jobsCount"></span><button id="addTaskBtn" class="addtaskbtn" style="display:none" onclick="openAddTask()">＋ Add task</button><button id="askBtn" class="askbtn" style="display:none" onclick="openAsk()">💬 Ask</button><button id="agentBtn" class="agentbtn" style="display:none" onclick="openAgent()">✨ Just tell me</button></div>
       <div class="chips" id="jobChips"></div>
       <div id="jobList"></div>
+      <div id="qtBar"></div>
     </div>
 
     <!-- MY TASKS (directors) — just their own assigned/offered jobs -->
@@ -2012,7 +2048,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-13·w</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-13·x</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -3082,6 +3118,8 @@ button:active{ filter: brightness(.93); }
 </div>
 
 <div class="toast" id="toast"></div>
+<div id="qtPick"></div>
+<div id="qtToast"><span id="qtMsg"></span><button type="button" onclick="qtUndo()">Undo</button></div>
 
 <script>
 /* =========================================================
@@ -6968,10 +7006,12 @@ function wlJobCard(j, idx, noNum, forceNo){
     else if(isMgrRole() && j.allocatedTo){ codeChip += (j.accepted&&j.accepted.by) ? ' <span class="acptchip ok">✓ '+esc(firstName(j.accepted.by))+'</span>' : ' <span class="acptchip wait">⏳ '+esc(firstNames(j.allocatedTo))+'</span>'; }
     else if(!isMgrRole() && j.allocatedTo){ var _meLc=(ME.name||"").toLowerCase().replace(/\s*\(test\)/,"").trim(); if(_meLc && j.allocatedTo.toLowerCase().indexOf(_meLc)>=0){ codeChip += (j.accepted&&j.accepted.by) ? ' <span class="acptchip ok">✓ accepted</span>' : ' <span class="acptchip urgent">🚨 Accept</span>'; } }
     var upd = jobRecent(j) ? '<span class="upd">● updated '+relTime(j.updated)+'</span>' : '';
-    return '<div class="job brd-'+cls+(done?" jobdone":"")+(jobRecent(j)?" jobnew":"")+'" onclick="openWLJob(\''+esc(j.key)+'\')">'+
+    var _qt=qtCtl(j, done);   // quick tick on the row's right edge, when this person may use it
+    var _row='<div class="job brd-'+cls+(done?" jobdone":"")+(jobRecent(j)?" jobnew":"")+'" onclick="openWLJob(\''+esc(j.key)+'\')">'+
       '<div class="top"><div style="flex:1"><h3>'+((noNum===true||!jNo)?'':('<span class="jnum'+(forceNo?' un':'')+'">'+jNo+'.</span> '))+esc(j.task||j.desc||"(job)")+codeChip+'</h3></div>'+
-      '<span class="badge s-'+cls+'">'+(done?"&#10003; ":"")+esc(b)+'</span></div>'+
+      '<span class="badge s-'+cls+'">'+(done?"&#10003; ":"")+esc(b)+'</span>'+_qt+'</div>'+
       cardBody(j)+'</div>';
+    return _qt ? qtWrap(j, _row, done) : _row;
 }
 
 /* ---- Filing completed work ----------------------------------------------
@@ -7007,6 +7047,7 @@ function doneBlock(g, kind, arr, label){
     }).join("")+'</div>';
 }
 function renderJobs(){
+  qtOverlay(); qtBarPaint();   // quick-done changes still waiting to be sent stay on screen
   renderJobSeg();
   if(JOBSEG!=="all"){ renderSegBody(); return; }
   if($("jobsSubTitle")) $("jobsSubTitle").textContent = isMgrRole() ? "All work" : "My worklist";
@@ -7021,7 +7062,8 @@ function renderJobs(){
   checkAsk();                       // the ask box is for every crew member, not just directors
   var FILTERS=["All","To do","In progress","Done"];
   $("jobChips").innerHTML=FILTERS.map(function(f){return '<div class="chip '+(f===JOBFILTER?"on":"")+'" onclick="setJobFilter(\''+f+'\')">'+f+'</div>';}).join("")
-    +'<div class="chip sched'+(SCHEDVIEW?" on":"")+'" onclick="toggleSched()">📅 Schedule</div>';
+    +'<div class="chip sched'+(SCHEDVIEW?" on":"")+'" onclick="toggleSched()">📅 Schedule</div>'
+    +'<div class="chip'+(QT.selMode?" on":"")+'" onclick="qtSelToggleMode()">☑ Select</div>';
   var list=CREWJOBS.filter(function(j){ return JOBFILTER==="All"||hubBucket(j.status)===JOBFILTER; });
   $("jobsCount").textContent=list.length+(list.length===1?" job":" jobs");
   var el=$("jobList");
@@ -10386,6 +10428,288 @@ function wlSetStatus(key,st,completedDate){
     else toast((r&&r.error)||"Couldn’t update");
   }).catch(function(){ toast("Couldn’t connect"); });
 }
+/* ---- QUICK DONE: tick jobs off straight from the list ------------------------
+   Trish, 13 Oct 2026: "I just want to press Done without clicking into every
+   task." A circle on the row's edge (and a swipe: right = done, left = back to
+   To do) flips a job without opening it. It goes through the SAME crewJobStatus
+   call as the Complete pill on the job page, so the date stamp, Maintenance Log
+   row, schedule tick and owner/director notifications are unchanged.
+
+   The row changes instantly, but the call is only SENT after QT_MS (5 s). Undo
+   inside that window and nothing is sent at all, so a slipped thumb never fires a
+   "job complete" message. One entry per job key; tapping a job that is waiting
+   cancels it. If the phone is backgrounded or the page closes, whatever is still
+   waiting is sent at once. The server stays the authority: if it says no, the row
+   is put back and the reason shown. */
+var QT_MS=5000;
+var QT={ pend:{}, fly:{}, chain:{}, batch:[], selMode:false, sel:{}, swAt:0, tm:0 };
+/* May this person flip this job from the list? Mirrors the job page: the server
+   lets any active crew member change a status, so the app itself keeps it to a
+   Director/Manager (any job) or the person the job is ALLOCATED to. Never on a
+   Requested / Cancelled / Zoho row, never in a closed month, and a job that is
+   already filed or shared with the owner can be completed but not un-completed
+   from here (that one goes through the job page). */
+function qtMay(j){
+  if(!ME || !j || !j.key || String(j.key).indexOf("wl:")!==0) return false;
+  if(wlAwaitingMHQ(j)) return false;
+  if(CLOSEDLISTS[((j.vessel||"")+"|"+(j.list||"")).toLowerCase()] || CLOSEDLISTS["|"+(j.list||"").toLowerCase()]) return false;
+  try{ if(wlSectionOf(j.list)==="closed") return false; }catch(e){}
+  if(hubBucket(j.status)==="Done" && (j.shared || wlFiled(j)) && !QT.pend[j.key]) return false;
+  if(isMgrRole()) return true;
+  return wlIsMine(j);
+}
+/* Swipe maths, pure so it can be tested: given the finger's travel, is this a
+   horizontal swipe, and has it gone far enough to count? Mostly-vertical moves
+   are left to the browser to scroll. */
+var QT_RANK={ "To do":0, "In Progress":1, "Complete":2 }, QT_STEPS=["To do","In Progress","Complete"];
+function qtRank(j){ var b=hubBucket(j.status); return b==="Done"?2:(b==="In progress"?1:0); }
+function qtLabel(st){ return st==="Complete"?"Complete":(st==="In Progress"?"In progress":"To do"); }
+function qtSwipe(dx, dy, width){
+  var ax=Math.abs(dx), ay=Math.abs(dy);
+  var horiz = ax>10 && ax>=ay*2;
+  var need = Math.max(60, Math.min(110, (width||320)*0.28));
+  return { horiz:horiz, fire:horiz && ax>=need, need:need };
+}
+function qtToday(){
+  try{
+    var p=new Intl.DateTimeFormat("en-CA",{timeZone:"Australia/Brisbane",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+    if(/^\d{4}-\d{2}-\d{2}$/.test(p)) return p;
+  }catch(e){}
+  var d=new Date(); return d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2);
+}
+function qtApply(j, to){
+  if(to==="Complete"){ j.status="Complete"; j.completed=j.completed||qtToday(); }
+  else { j.status=to; j.completed=""; }   // "To do" or "In Progress" — the exact words crewJobStatus accepts
+}
+/* Re-apply anything still waiting/in flight over a freshly loaded list, so a
+   refresh arriving inside the 5 seconds doesn't flip the row back. */
+function qtOverlay(){
+  [QT.fly, QT.pend].forEach(function(m){
+    Object.keys(m).forEach(function(k){ var j=wlFind(k); if(j) qtApply(j, m[k].to); });
+  });
+}
+function qtTap(key){
+  var j=wlFind(key); if(!j || !qtMay(j)) return;
+  if(QT.pend[key]){ qtCancel([key]); toast("Put back"); return; }
+  qtQueue([key], qtRank(j)===2 ? "To do" : "Complete");   // tap: straight to Complete, or back to To do
+}
+function qtQueue(keys, to){
+  var done=[];
+  keys.forEach(function(k){
+    var j=wlFind(k); if(!j || !qtMay(j) || QT.pend[k]) return;
+    if(qtRank(j)===QT_RANK[to]) return;   // already there
+    var orig={ status:j.status, completed:j.completed||"" };
+    var p={ to:to, orig:orig, key:k, title:(j.task||j.desc||"job") };
+    p.t=setTimeout(function(){ qtSend(k); }, QT_MS);
+    QT.pend[k]=p; qtApply(j, to); done.push(k);
+  });
+  if(!done.length) return;
+  QT.batch=done; QT.sel={};
+  var _n=done.length>1 ? (done.length+" ") : "";
+  qtShowToast(to==="Complete" ? (done.length>1 ? ("Marked "+_n+"complete") : "Marked complete")
+            : to==="In Progress" ? (done.length>1 ? (_n+"moved to in progress") : "Moved to in progress")
+            : (done.length>1 ? (_n+"back to to do") : "Back to to do"));
+  renderJobs();
+}
+function qtCancel(keys){
+  var n=0;
+  keys.forEach(function(k){
+    var p=QT.pend[k]; if(!p) return;
+    clearTimeout(p.t); delete QT.pend[k]; n++;
+    var j=wlFind(k); if(j){ j.status=p.orig.status; j.completed=p.orig.completed; }
+  });
+  return n;
+}
+function qtUndo(){
+  var n=qtCancel(QT.batch||[]); QT.batch=[];
+  qtHideToast();
+  if(n) renderJobs(); else toast("Already saved — open the task to change it");
+}
+function qtShowToast(msg){
+  var t=$("qtToast"); if(!t) return;
+  $("qtMsg").textContent=msg;
+  t.classList.add("show"); clearTimeout(QT.tm); QT.tm=setTimeout(qtHideToast, QT_MS);
+}
+function qtHideToast(){ var t=$("qtToast"); if(t) t.classList.remove("show"); clearTimeout(QT.tm); }
+/* Send one waiting change now (timer fired, or the page is going away). */
+function qtSend(key){
+  var p=QT.pend[key]; if(!p) return;
+  clearTimeout(p.t); delete QT.pend[key]; QT.fly[key]=p;
+  var body={ action:"crewJobStatus", email:ME.email, code:ME.code, jobKey:key, status:p.to,
+             completedDate:(p.to==="Complete" ? qtToday() : "") };
+  // one call per job at a time, in the order they were made
+  QT.chain[key]=(QT.chain[key]||Promise.resolve()).then(function(){ return apiPost(body); }).then(function(r){
+    if(QT.fly[key]===p) delete QT.fly[key];
+    var j=wlFind(key);
+    if(r && r.ok){
+      if(j && !QT.pend[key]){ j.status=p.to; j.completed=(p.to==="Complete") ? (r.completed||qtToday()) : ""; }
+      if(p.to==="Complete"){ try{ copOfferResolve(j||{key:key}); }catch(e){} }
+    } else {
+      qtFail(p, j, (r&&r.error)||"Couldn’t update");
+    }
+  }).catch(function(){
+    if(QT.fly[key]===p) delete QT.fly[key];
+    qtFail(p, wlFind(key), "Couldn’t connect — not saved");
+  }).then(function(){
+    if(TAB==="jobs") renderJobs();
+    if(!Object.keys(QT.pend).length && !Object.keys(QT.fly).length){ try{ loadJobs(); }catch(e){} }
+  });
+}
+function qtFail(p, j, msg){
+  if(j && !QT.pend[p.key]){ j.status=p.orig.status; j.completed=p.orig.completed; }
+  else if(QT.pend[p.key]){ QT.pend[p.key].orig=p.orig; }
+  toast("“"+p.title+"” wasn’t updated — "+msg);
+}
+function qtFlush(){ Object.keys(QT.pend).forEach(function(k){ qtSend(k); }); }
+document.addEventListener("visibilitychange", function(){ if(document.hidden) qtFlush(); });
+window.addEventListener("pagehide", qtFlush);
+/* ---- Select mode: tick several, "Mark N done" once ---- */
+function qtSelToggleMode(){
+  QT.selMode=!QT.selMode; QT.sel={}; renderJobs();
+}
+function qtSelPick(key){
+  var j=wlFind(key); if(!j || !qtMay(j) || qtRank(j)===2) return;
+  if(QT.sel[key]) delete QT.sel[key]; else QT.sel[key]=1;
+  renderJobs();
+}
+function qtSelDone(){
+  var keys=Object.keys(QT.sel); QT.selMode=false;
+  if(!keys.length){ renderJobs(); return; }
+  qtQueue(keys, "Complete");
+}
+function qtBarPaint(){
+  var b=$("qtBar"); if(!b) return;
+  var n=Object.keys(QT.sel).length;
+  document.body.classList.toggle("qtsel", !!QT.selMode);
+  if(!QT.selMode || JOBSEG!=="all"){ b.className=""; b.innerHTML=""; document.body.classList.remove("qtsel"); return; }
+  b.className="show";
+  b.innerHTML='<button type="button" '+(n?'':'disabled ')+'onclick="qtSelDone()">✓ Mark '+(n||"")+' complete</button>'+
+              '<button type="button" class="qtx" onclick="qtSelToggleMode()">Cancel</button>';
+}
+/* The tap control for a row ("" when this person can't use it) and the wrapper
+   that carries the swipe colours behind the row. */
+function qtCtl(j, done){
+  if(!qtMay(j)) return "";
+  var k=esc(String(j.key).replace(/\\/g,"\\\\").replace(/'/g,"\\'"));
+  if(QT.selMode){
+    if(done) return "";
+    var on=!!QT.sel[j.key];
+    return '<button type="button" class="qtbtn qtsq'+(on?' on':'')+'" aria-label="Select this job" onclick="event.stopPropagation();qtSelPick(\''+k+'\')"><span class="qtc">'+(on?'\u2713':'')+'</span></button>';
+  }
+  var ip=!done && qtRank(j)===1;
+  return '<button type="button" class="qtbtn'+(done?' on':(ip?' ip':''))+(QT.pend[j.key]?' pend':'')+'" data-k="'+esc(j.key)+'" aria-label="'+(done?'Complete \u2014 tap to put back to To do':'Mark complete (hold for more choices)')+'" onclick="event.stopPropagation();qtTap(\''+k+'\')"><span class="qtc">'+(done?'\u2713':(ip?'\u25d0':''))+'</span></button>';
+}
+function qtWrap(j, rowHtml, done){
+  return '<div class="qtwrap" data-k="'+esc(j.key)+'" data-rank="'+qtRank(j)+'"><div class="qtrev r"></div><div class="qtrev l"></div>'+rowHtml+'</div>';
+}
+/* Swipe on a row (touch only — a mouse uses the circle). Horizontal travel moves
+   the row and reveals the colour behind it; mostly-vertical movement is never
+   touched, so scrolling the list can't trigger it. */
+(function(){
+  var S=null;
+  document.addEventListener("touchstart", function(e){
+    S=null;
+    if(QT.selMode || !e.touches || e.touches.length!==1) return;
+    var w=e.target.closest && e.target.closest(".qtwrap"); if(!w) return;
+    S={ w:w, row:w.querySelector(".job"), x:e.touches[0].clientX, y:e.touches[0].clientY, mode:"", dx:0, width:(w.offsetWidth||320), rank:+w.getAttribute("data-rank")||0 };
+  }, {passive:true});
+  document.addEventListener("touchmove", function(e){
+    if(!S || S.mode==="v") return;
+    var t=e.touches[0], dx=t.clientX-S.x, dy=t.clientY-S.y;
+    if(!S.mode){
+      if(Math.abs(dx)<8 && Math.abs(dy)<8) return;
+      if(qtSwipe(dx,dy,S.width).horiz){ S.mode="h"; S.w.classList.add("qtdrag"); } else { S.mode="v"; return; }
+    }
+    // right = one step forward (To do > In progress > Complete), left = one step back
+    var tr=S.rank+(dx>0?1:-1), okDir = tr>=0 && tr<=2;
+    if(okDir){
+      var tgt=QT_STEPS[tr], rv=S.w.querySelector(dx>0?".qtrev.r":".qtrev.l");
+      rv.textContent=(dx>0?"\u2192 ":"\u2190 ")+(tgt==="Complete"?"\u2713 Complete":qtLabel(tgt));
+      S.w.classList.remove("t-ip","t-todo","t-done"); S.w.classList.add(tgt==="Complete"?"t-done":(tgt==="To do"?"t-todo":"t-ip"));
+      S.tgt=tgt;
+    }
+    var shown = okDir ? dx : dx*0.15;
+    S.dx = okDir ? dx : 0;
+    S.row.style.transform="translateX("+Math.max(-S.width, Math.min(S.width, shown))+"px)";
+    S.w.classList.toggle("sw-r", okDir && dx>0);
+    S.w.classList.toggle("sw-l", okDir && dx<0);
+    S.w.classList.toggle("sw-go", okDir && qtSwipe(dx,0,S.width).fire);
+    if(e.cancelable) e.preventDefault();
+  }, {passive:false});
+  function finish(cancel){
+    if(!S) return;
+    var s=S; S=null;
+    if(s.mode!=="h") return;
+    QT.swAt=Date.now();
+    s.w.classList.remove("qtdrag");
+    var go=!cancel && s.tgt && qtSwipe(s.dx,0,s.width).fire, k=s.w.getAttribute("data-k");
+    if(go){
+      s.row.style.transform="translateX("+(s.dx>0?"":"-")+"100%)";
+      setTimeout(function(){
+        qtQueue([k], s.tgt);
+        if(document.body.contains(s.row)){ s.row.style.transform=""; s.w.classList.remove("sw-r","sw-l","sw-go"); }   // refused: spring back
+      }, 170);
+    } else {
+      s.row.style.transform=""; s.w.classList.remove("sw-r","sw-l","sw-go");
+    }
+  }
+  document.addEventListener("touchend", function(){ finish(false); });
+  document.addEventListener("touchcancel", function(){ finish(true); });
+  // a swipe must never also open the job; neither must a tap while picking rows
+  document.addEventListener("click", function(e){
+    if(Date.now()-QT.swAt<450 && e.target.closest && e.target.closest(".qtwrap")){ e.stopPropagation(); e.preventDefault(); return; }
+    if(QT.selMode){
+      var w=e.target.closest && e.target.closest(".qtwrap");
+      if(w && !e.target.closest(".qtbtn")){ e.stopPropagation(); e.preventDefault(); qtSelPick(w.getAttribute("data-k")); }
+    }
+  }, true);
+})();
+
+/* Hold the circle (or right-click it) for a small menu: pick any of the three. */
+(function(){
+  var timer=0, startX=0, startY=0;
+  function openPick(btn){
+    var k=btn.getAttribute("data-k"), j=wlFind(k); if(!j || !qtMay(j)) return;
+    QT.lpAt=Date.now();
+    var cur=qtRank(j), pk=$("qtPick");
+    pk.innerHTML=[["To do","todo","To do"],["In Progress","ip","In progress"],["Complete","done","✓ Complete"]].map(function(o,i){
+      return '<button type="button" class="'+o[1]+(i===cur?' cur':'')+'" data-st="'+o[0]+'">'+o[2]+'</button>';
+    }).join("");
+    pk.classList.add("show");
+    var r=btn.getBoundingClientRect(), w=pk.offsetWidth, h=pk.offsetHeight;
+    var left=Math.max(8, Math.min(window.innerWidth-w-8, r.right-w)), top=r.bottom+6;
+    if(top+h>window.innerHeight-70) top=Math.max(8, r.top-h-6);
+    pk.style.left=left+"px"; pk.style.top=top+"px";
+    pk.setAttribute("data-k", k);
+  }
+  function closePick(){ var pk=$("qtPick"); if(pk) pk.classList.remove("show"); }
+  document.addEventListener("touchstart", function(e){
+    var b=e.target.closest && e.target.closest(".qtbtn:not(.qtsq)"); if(!b || !e.touches || e.touches.length!==1) return;
+    startX=e.touches[0].clientX; startY=e.touches[0].clientY;
+    clearTimeout(timer); timer=setTimeout(function(){ openPick(b); }, 480);
+  }, {passive:true});
+  document.addEventListener("touchmove", function(e){
+    if(!timer) return; var t=e.touches[0];
+    if(Math.abs(t.clientX-startX)>10 || Math.abs(t.clientY-startY)>10){ clearTimeout(timer); timer=0; }
+  }, {passive:true});
+  ["touchend","touchcancel"].forEach(function(n){ document.addEventListener(n, function(){ clearTimeout(timer); timer=0; }); });
+  document.addEventListener("contextmenu", function(e){
+    var b=e.target.closest && e.target.closest(".qtbtn:not(.qtsq)"); if(!b) return;
+    e.preventDefault(); openPick(b);
+  });
+  // the click that follows a long press must not also flip the row
+  document.addEventListener("click", function(e){
+    var pk=$("qtPick");
+    if(pk && pk.contains(e.target)){
+      var bt=e.target.closest("button[data-st]");
+      if(bt){ var k=pk.getAttribute("data-k"); closePick(); qtQueue([k], bt.getAttribute("data-st")); }
+      e.stopPropagation(); return;
+    }
+    if(pk && pk.classList.contains("show")){ closePick(); if(!(e.target.closest&&e.target.closest(".qtbtn"))) return; }
+    if(Date.now()-(QT.lpAt||0)<700 && e.target.closest && e.target.closest(".qtbtn")){ e.stopPropagation(); e.preventDefault(); }
+  }, true);
+})();
+
 /* Marking complete → confirm the completion date (auto = today, editable). */
 var _completeKey="";
 function openCompleteModal(key){
