@@ -2011,7 +2011,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-13·s</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-13·t</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -3291,7 +3291,7 @@ var STAGE_OF = { todo:0, inprog:1, parts:1, done:2 };
 
 /* ================= helpers ================= */
 function $(id){ return document.getElementById(id); }
-function esc(s){ return (s||"").replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+function esc(s){ return (s==null||s===false?"":String(s)).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
 /* PASTED LINKS ARE TAPPABLE (Trish, 16 Sep 2026: "can the map link be
    clickable?"). Crew paste a maps link for a drop-off address into the job
    description; it printed as 120 characters of raw URL that nobody could use
