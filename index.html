@@ -2011,7 +2011,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-13·u</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-13·v</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -13591,7 +13591,7 @@ function preRender(){
   if(PRE_WORK.sig){
     h+='<img src="'+PRE_WORK.sig+'" alt="signature" style="display:block;max-width:100%;height:90px;object-fit:contain;border:1px solid var(--line);border-radius:10px;background:#fff">'+
        (PRE_RO?'':'<button type="button" class="cancel" style="margin:4px 0 0" onclick="PRE_WORK.sig=\'\';PRE_WORK.defects=$(\'pre_defects\').value;PRE_WORK.by=$(\'pre_by\').value;preRender()">Sign again</button>');
-    var pdt=PRE_WORK.date||(TD_KEY&&tripFindByKey(TD_KEY)?tripFindByKey(TD_KEY).departed:"")||""; if(pdt) h+='<div class="hmeta" style="margin-top:4px">Checks dated '+esc(rpDate(pdt))+'</div>';
+    var pdt=PRE_WORK.date||(PRE_RO?((TD_KEY&&tripFindByKey(TD_KEY))?tripFindByKey(TD_KEY).departed:""):($("tl_ddate").value||"")); if(pdt) h+='<div class="hmeta" style="margin-top:4px">Checks dated '+esc(rpDate(pdt))+'</div>';
   } else if(!PRE_RO){
     h+='<p class="mhint" style="margin:0 0 6px">I confirm the checks above were carried out. Sign with your finger:</p>'+
        '<canvas class="sigpad" id="presig" style="height:140px"></canvas>'+
