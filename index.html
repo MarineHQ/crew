@@ -1990,7 +1990,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-13·p</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-13·q</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2883,6 +2883,7 @@ button:active{ filter: brightness(.93); }
     <label class="fld" style="margin-top:12px">Equipment &amp; vessel status</label>
     <div style="font-size:12px;font-weight:bold;color:var(--navy);margin-bottom:3px">240 V system</div>
     <div class="tgl" data-k="v240"><button type="button" data-v="Good" onclick="tglSet(this)">Good</button><button type="button" data-v="Issue" class="bad" onclick="tglSet(this)">Issue</button></div>
+    <textarea class="fld-in" id="tl_v240note" rows="2" style="display:none;margin-bottom:8px;border-color:#C0392B" placeholder="What's the issue with the 240 V system?"></textarea>
     <div style="font-size:12px;font-weight:bold;color:var(--navy);margin-bottom:3px">Shore power connected</div>
     <div class="tgl" data-k="shore"><button type="button" data-v="Yes" onclick="tglSet(this)">Yes</button><button type="button" data-v="No" onclick="tglSet(this)">No</button></div>
     <div style="font-size:12px;font-weight:bold;color:var(--navy);margin-bottom:3px">Water production (desalination)</div>
@@ -13302,7 +13303,7 @@ function tripExtrasHtml(t){
   if(d.crew||d.guests||d.paxDesc) r.push("Crew: <b>"+esc(d.crew||"0")+"</b> &middot; Guests: <b>"+esc(d.guests||"0")+"</b>"+(d.paxDesc?" &mdash; "+esc(d.paxDesc):""));
   if(d.safety) r.push("Safety check / briefing: <b>"+esc(d.safety)+"</b>");
   if(d.weather) r.push("Weather: "+esc(d.weather));
-  var e=d.equip||{}, eq=[]; if(e.v240) eq.push("240 V "+esc(e.v240)); if(e.shore) eq.push("Shore power "+esc(e.shore)); if(e.desal) eq.push("Desalination "+esc(e.desal));
+  var e=d.equip||{}, eq=[]; if(e.v240) eq.push("240 V "+esc(e.v240)+(e.v240note?' <span style="color:#C0392B">('+esc(e.v240note)+')</span>':"")); if(e.shore) eq.push("Shore power "+esc(e.shore)); if(e.desal) eq.push("Desalination "+esc(e.desal));
   if(eq.length||e.note) r.push("Equipment &amp; vessel: "+eq.join(" &middot; ")+(e.note?((eq.length?"<br>":"")+esc(e.note).replace(/\n/g,"<br>")):""));
   (d.startFlags||[]).forEach(function(f){ r.push('<span style="color:#C0392B">&#9888; '+esc(f)+'</span>'); });
   var hs=d.hrsStart||{}, fin={}; (t.hours||[]).forEach(function(h){fin[h.unit]=h.reading;});
@@ -13383,9 +13384,11 @@ function tglSet(b){
   var on=b.classList.contains("on");
   [].forEach.call(b.parentNode.children,function(x){x.classList.remove("on");});
   if(!on) b.classList.add("on");
+  tlIssueSync();
 }
+function tlIssueSync(){ var n=$("tl_v240note"); if(n) n.style.display=(tglGet("v240")==="Issue")?"":"none"; }
 function tglGet(k){ var b=document.querySelector('#tripLogModal .tgl[data-k="'+k+'"] button.on'); return b?b.getAttribute("data-v"):""; }
-function tglPut(k,v){ [].forEach.call(document.querySelectorAll('#tripLogModal .tgl[data-k="'+k+'"] button'),function(b){ b.classList.toggle("on",b.getAttribute("data-v")===v); }); }
+function tglPut(k,v){ [].forEach.call(document.querySelectorAll('#tripLogModal .tgl[data-k="'+k+'"] button'),function(b){ b.classList.toggle("on",b.getAttribute("data-v")===v); }); tlIssueSync(); }
 function tlNum(id){ var v=($(id).value||"").trim(); return v; }
 function tlPax(){
   var c=tlNum("tl_crew"), g=tlNum("tl_guests"), d=($("tl_pobd").value||"").trim();
@@ -13397,7 +13400,7 @@ function tlPax(){
 function tlHoursStart(){
   var m={}; document.querySelectorAll("#tl_meters .tl-mstart").forEach(function(el){ var v=(el.value||"").trim(); if(v) m[el.getAttribute("data-unit")]=v; }); return m;
 }
-function tlEquip(){ return {v240:tglGet("v240"), shore:tglGet("shore"), desal:tglGet("desal"), note:($("tl_equip").value||"").trim()}; }
+function tlEquip(){ var v=tglGet("v240"); return {v240:v, v240note:v==="Issue"?($("tl_v240note").value||"").trim():"", shore:tglGet("shore"), desal:tglGet("desal"), note:($("tl_equip").value||"").trim()}; }
 function tlDetails(full){
   if(!full){ var d={equip:tlEquip()}; if(TLPREDIRTY&&TLPRE) d.pre=TLPRE; return d; }
   var d2={use:$("tl_use").value, crew:tlNum("tl_crew"), guests:tlNum("tl_guests"), paxDesc:($("tl_pobd").value||"").trim(),
@@ -13474,7 +13477,7 @@ function openTripLog(key){
   TLKEY=key||"";
   var mine=myVessels(), cur=curVesselT()||mine[0]||"";
   $("tl_vessel").innerHTML=mine.map(function(v){return '<option'+(v===cur?" selected":"")+'>'+esc(v)+'</option>';}).join("");
-  ["tl_from","tl_dest","tl_crew","tl_guests","tl_pobd","tl_weather","tl_equip","tl_notes","tl_fuel1","tl_water1","tl_black1","tl_fuel2","tl_water2","tl_black2"].forEach(function(id){ $(id).value=""; });
+  ["tl_from","tl_dest","tl_crew","tl_guests","tl_pobd","tl_weather","tl_equip","tl_v240note","tl_notes","tl_fuel1","tl_water1","tl_black1","tl_fuel2","tl_water2","tl_black2"].forEach(function(id){ $(id).value=""; });
   $("tl_use").value=""; ["safety","v240","shore","desal"].forEach(function(k){ tglPut(k,""); });
   $("tl1_bunk").innerHTML=""; $("tl2_bunk").innerHTML="";
   $("tl_ddate").value=new Date().toISOString().slice(0,10);
@@ -13493,7 +13496,7 @@ function openTripLog(key){
     $("tl_fuel1").value=(t.fuelDepart||"").replace(/%$/,""); $("tl_water1").value=(t.waterDepart||"").replace(/%$/,""); $("tl_black1").value=(t.blackDepart||"").replace(/%$/,"");
     $("tl_use").value=d.use||""; $("tl_crew").value=d.crew||""; $("tl_guests").value=d.guests||""; $("tl_pobd").value=d.paxDesc||(d.crew||d.guests?"":(t.pob||""));
     tglPut("safety",d.safety||""); $("tl_weather").value=d.weather||"";
-    var e=d.equip||{}; tglPut("v240",e.v240||""); tglPut("shore",e.shore||""); tglPut("desal",e.desal||""); $("tl_equip").value=e.note||"";
+    var e=d.equip||{}; tglPut("v240",e.v240||""); tglPut("shore",e.shore||""); tglPut("desal",e.desal||""); $("tl_equip").value=e.note||""; $("tl_v240note").value=e.v240note||""; tlIssueSync();
     TLPRE=d.pre||null;
     var hs=d.hrsStart||{}; Object.keys(hs).forEach(function(u){ $("tl_meters").insertAdjacentHTML("beforeend",tripMeterRowHtml(u,"tl",hs[u],true)); });
     tlLock(true);
@@ -13509,7 +13512,9 @@ function openTripLog(key){
   $("tl_save").innerHTML="Finish: log the trip &amp; update servicing";
   $("tripLogModal").classList.add("show");
 }
+function tlNeedIssue(){ if(tglGet("v240")==="Issue" && !($("tl_v240note").value||"").trim()){ toast("Describe the 240 V issue"); $("tl_v240note").focus(); return true; } return false; }
 function saveTripLater(){
+  if(tlNeedIssue()) return;
   var from=($("tl_from").value||"").trim();
   if(!from){ toast("Where is she leaving from?"); return; }
   var btn=$("tl_later"); btn.disabled=true; btn.textContent="Saving…";
@@ -13529,6 +13534,7 @@ function saveTripLater(){
     }).catch(function(){ btn.disabled=false; btn.innerHTML="Save departure &mdash; finish later"; toast("Couldn\u2019t connect"); });
 }
 function saveTripLog(){
+  if(tlNeedIssue()) return;
   var from=($("tl_from").value||"").trim(), to=($("tl_dest").value||"").trim();
   if(!from){ toast("Where did she leave from?"); return; }
   if(!to){ toast("Where did she arrive?"); return; }
