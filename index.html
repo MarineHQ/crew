@@ -1977,7 +1977,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-13·j</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-13·k</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2870,14 +2870,10 @@ button:active{ filter: brightness(.93); }
   <input class="fld-in" id="t_dest" placeholder="e.g. Wave Break Island">
   <label class="fld">Date of departure</label>
   <input class="fld-in" id="t_date" type="date">
-  <label class="fld">Fuel level</label>
-  <input class="fld-in" id="t_fuel" inputmode="decimal" placeholder="e.g. 95.7"> <span class="fldhint">&#37; full</span>
+  <label class="fld">Tanks at departure &mdash; fuel / water / black water (&#37; full)</label>
+  <div style="display:flex;gap:8px"><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:bold;color:var(--navy);margin-bottom:3px">Fuel &#37;</div><input class="fld-in" id="t_fuel" inputmode="decimal" placeholder="95.7"></div><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:bold;color:var(--navy);margin-bottom:3px">Fresh water &#37;</div><input class="fld-in" id="t_water" inputmode="decimal" placeholder="80"></div><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:bold;color:var(--navy);margin-bottom:3px">Black water &#37;</div><input class="fld-in" id="t_black" inputmode="decimal" placeholder="0"></div></div>
   <div id="t_bunk"></div>
   <button type="button" style="width:100%;margin:6px 0 10px;padding:11px;border:2px dashed var(--navy);background:#fff;color:var(--navy);font-weight:bold;font-size:14px;border-radius:11px;cursor:pointer" onclick="bunkAdd('t')">&#65291; Add bunkering</button>
-  <label class="fld">Fresh water</label>
-  <input class="fld-in" id="t_water" inputmode="decimal" placeholder="e.g. 80"> <span class="fldhint">&#37; full</span>
-  <label class="fld">Black water (holding tank)</label>
-  <input class="fld-in" id="t_black" inputmode="decimal" placeholder="e.g. 0"> <span class="fldhint">&#37; full</span>
   <label class="fld">People on board <span class="fldhint">(opt &mdash; number, then who)</span></label>
   <input class="fld-in" id="t_pob" inputmode="numeric" placeholder="Number, e.g. 3">
   <input class="fld-in" id="t_pobd" placeholder="Who &mdash; e.g. Skipper + 2 deck / Eng watchkeepers" style="margin-top:6px">
@@ -2903,14 +2899,10 @@ button:active{ filter: brightness(.93); }
     <input class="fld-in" id="ta_to" placeholder="e.g. Wave Break Island">
     <label class="fld">Date of arrival</label>
     <input class="fld-in" id="ta_date" type="date">
-    <label class="fld">Fuel level</label>
-    <input class="fld-in" id="ta_fuel" inputmode="decimal" placeholder="e.g. 20"> <span class="fldhint">&#37; full</span>
+    <label class="fld">Tanks at arrival &mdash; fuel / water / black water (&#37; full)</label>
+    <div style="display:flex;gap:8px"><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:bold;color:var(--navy);margin-bottom:3px">Fuel &#37;</div><input class="fld-in" id="ta_fuel" inputmode="decimal" placeholder="20"></div><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:bold;color:var(--navy);margin-bottom:3px">Fresh water &#37;</div><input class="fld-in" id="ta_water" inputmode="decimal" placeholder="50"></div><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:bold;color:var(--navy);margin-bottom:3px">Black water &#37;</div><input class="fld-in" id="ta_black" inputmode="decimal" placeholder="0"></div></div>
   <div id="ta_bunk"></div>
   <button type="button" style="width:100%;margin:6px 0 10px;padding:11px;border:2px dashed var(--navy);background:#fff;color:var(--navy);font-weight:bold;font-size:14px;border-radius:11px;cursor:pointer" onclick="bunkAdd('ta')">&#65291; Add bunkering</button>
-    <label class="fld">Fresh water</label>
-    <input class="fld-in" id="ta_water" inputmode="decimal" placeholder="e.g. 80"> <span class="fldhint">&#37; full</span>
-    <label class="fld">Black water (holding tank)</label>
-    <input class="fld-in" id="ta_black" inputmode="decimal" placeholder="e.g. 0"> <span class="fldhint">&#37; full</span>
     <p class="mhint">Holding tank should come home at <b>0%</b> &mdash; anything else gets flagged for a pump-out.</p>
     <label class="fld" style="margin-top:10px">Hour meters &mdash; log each system you ran</label>
     <div id="ta_meters"></div>
