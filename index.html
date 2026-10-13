@@ -1952,10 +1952,8 @@ button:active{ filter: brightness(.93); }
       <div id="vesselBarT"></div>
       <div class="subbar"><h2>Trip log</h2><span class="count" id="tripCount"></span></div>
       <p class="hello" style="padding-top:0">Log the passage: tanks at departure, hour meters at arrival. The readings feed straight into the servicing schedule &mdash; anything falling due on hours shows up the moment you close the trip.</p>
-      <button class="eodbtn" onclick="openTripStart()">&#9973; Start a trip &rarr;</button>
-      <p class="hello" style="padding:2px 0 0;font-size:11.5px">Leaving now? Start it, then complete it when you arrive.</p>
-      <button class="eodbtn" style="background:#fff;color:var(--navy);border:2px solid var(--navy)" onclick="openTripLog()">Log a finished trip &rarr;</button>
-      <p class="hello" style="padding:2px 0 0;font-size:11.5px">Already done? Enter the whole passage in one go.</p>
+      <button class="eodbtn" onclick="openTripLog()">&#9973; Log a trip &rarr;</button>
+      <p class="hello" style="padding:2px 0 0;font-size:11.5px">All the fields in one form &mdash; finish it now, or save the departure and finish when you arrive.</p>
       <div id="tripsWrap"></div>
     </div>
 
@@ -1977,7 +1975,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-13·k</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-13·l</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2802,8 +2800,8 @@ button:active{ filter: brightness(.93); }
 
 <!-- Trip log — the whole passage in one form -->
 <div class="modal" id="tripLogModal"><div class="card2">
-  <h3>Log a trip</h3>
-  <p class="mhint">The whole passage in one go &mdash; tanks both ends, and the hours for each system you ran.</p>
+  <h3 id="tl_h3">Log a trip</h3>
+  <p class="mhint" id="tl_hint">Every field in one place. Fill in what you know &mdash; <b>save the departure and finish later</b>, or finish the whole trip now.</p>
   <div id="tl_form">
     <label class="fld">Yacht</label>
     <select class="fld-in" id="tl_vessel"></select>
@@ -2842,8 +2840,8 @@ button:active{ filter: brightness(.93); }
     <input class="fld-in" id="tl_notes" placeholder="e.g. flat crossing, 24 kn">
     <label class="fld">Photos <span class="fldhint">(opt &mdash; internal until a director shares them)</span></label>
     <div class="tpstrip"><div class="addph" onclick="tripPickForm('tl')">&#128247;<span>Photo</span></div></div><div class="tpfiles" id="tl_pfiles"></div>
-    <button class="go" id="tl_save" onclick="saveTripLog()">Log the trip &amp; update servicing</button>
-    <div style="text-align:center;font-size:12px;color:var(--muted);margin-top:10px;cursor:pointer" onclick="closeModal(&#39;tripLogModal&#39;);openTripStart()">Heading out right now? <b>Start an underway trip &rarr;</b></div>
+    <button class="go" id="tl_save" onclick="saveTripLog()">Finish: log the trip &amp; update servicing</button>
+    <button type="button" id="tl_later" style="width:100%;margin-top:8px;padding:12px;border:2px solid var(--navy);background:#fff;color:var(--navy);font-weight:bold;font-size:14px;border-radius:11px;cursor:pointer" onclick="saveTripLater()">Save departure &mdash; finish later</button>
   </div>
   <div id="tl_result" style="display:none"></div>
   <button class="cancel" onclick="closeModal(&#39;tripLogModal&#39;);loadTrips()">Close</button>
@@ -12924,7 +12922,7 @@ function tripCard(t){
       (t.blackFlag?'<br><span style="color:#C0392B;font-weight:700">&#9888; Black water not empty at arrival &mdash; pump-out needed</span>':'')+
       (t.notes?('<br>'+esc(t.notes).replace(/\n/g,"<br>")):'')+'</div>'+
     tripStrip(t)+
-    (open?'<button class="eodbtn" style="margin-top:8px" onclick="openTripArrive(\''+esc(t.key)+'\')">Complete the trip &rarr;</button>'+'<div onclick="crewTripCancel(\''+esc(t.key)+'\')" style="text-align:center;font-size:11.5px;color:var(--muted);margin-top:7px;cursor:pointer">Started by mistake? <b style="color:#C0392B">Cancel this trip</b></div>':'')+
+    (open?'<button class="eodbtn" style="margin-top:8px" onclick="openTripLog(\''+esc(t.key)+'\')">Finish this trip &rarr;</button>'+'<div onclick="crewTripCancel(\''+esc(t.key)+'\')" style="text-align:center;font-size:11.5px;color:var(--muted);margin-top:7px;cursor:pointer">Started by mistake? <b style="color:#C0392B">Cancel this trip</b></div>':'')+
     '</div>';
 }
 function renderTrips(){
@@ -13146,18 +13144,60 @@ function crewTripCancel(key,done){
     .then(function(r){ if(r&&r.ok){ toast(done?"Trip deleted":"Trip cancelled"); loadTrips(); } else toast((r&&r.error)||"Couldn\u2019t cancel"); })
     .catch(function(){ toast("Couldn\u2019t connect"); });
 }
-function openTripLog(){
+var TLKEY="";
+function tlLock(on){
+  ["tl_vessel","tl_from","tl_dest","tl_ddate","tl_fuel1","tl_water1","tl_black1","tl_pob","tl_pobd"].forEach(function(id){ $(id).disabled=on; });
+  var bb=document.querySelector('[onclick="bunkAdd(\'tl1\')"]'); if(bb) bb.style.display=on?"none":"";
+  $("tl_later").style.display=on?"none":"";
+  $("tl_pobd").style.display=on?"none":"";
+}
+function openTripLog(key){
+  TLKEY=key||"";
   var mine=myVessels(), cur=curVesselT()||mine[0]||"";
   $("tl_vessel").innerHTML=mine.map(function(v){return '<option'+(v===cur?" selected":"")+'>'+esc(v)+'</option>';}).join("");
-  ["tl_from","tl_dest","tl_pob","tl_pobd","tl_notes"].forEach(function(id){ $(id).value=""; }); $("tl1_bunk").innerHTML=""; $("tl2_bunk").innerHTML="";
+  ["tl_from","tl_dest","tl_pob","tl_pobd","tl_notes","tl_fuel1","tl_water1","tl_black1","tl_fuel2","tl_water2","tl_black2"].forEach(function(id){ $(id).value=""; }); $("tl1_bunk").innerHTML=""; $("tl2_bunk").innerHTML="";
   $("tl_ddate").value=new Date().toISOString().slice(0,10);
   $("tl_adate").value=new Date().toISOString().slice(0,10);
   $("tl_meters").innerHTML="";
   TPF.tl=[]; $("tl_pfiles").textContent="";
   tripSyncAddSel("tl");
   $("tl_form").style.display=""; $("tl_result").innerHTML=""; $("tl_result").style.display="none";
-  $("tl_save").disabled=false; $("tl_save").innerHTML="Log the trip &amp; update servicing";
+  $("tl_save").disabled=false; $("tl_later").disabled=false;
+  var t=key?tripFindByKey(key):null;
+  if(t){
+    if(t.vessel && !Array.prototype.some.call($("tl_vessel").options,function(o){return o.value===t.vessel;})) $("tl_vessel").insertAdjacentHTML("beforeend",'<option>'+esc(t.vessel)+'</option>');
+    $("tl_vessel").value=t.vessel; $("tl_from").value=t.from||""; $("tl_dest").value=t.to||"";
+    if(t.departed) $("tl_ddate").value=t.departed;
+    $("tl_fuel1").value=(t.fuelDepart||"").replace(/%$/,""); $("tl_water1").value=(t.waterDepart||"").replace(/%$/,""); $("tl_black1").value=(t.blackDepart||"").replace(/%$/,"");
+    $("tl_pob").value=t.pob||"";
+    tlLock(true);
+    $("tl_h3").textContent="Finish this trip";
+    $("tl_hint").innerHTML="Departure is already saved (locked). Fill in the arrival, tanks and hour meters.";
+  } else {
+    tlLock(false);
+    $("tl_h3").textContent="Log a trip";
+    $("tl_hint").innerHTML="Every field in one place. Fill in what you know &mdash; <b>save the departure and finish later</b>, or finish the whole trip now.";
+  }
+  $("tl_save").innerHTML="Finish: log the trip &amp; update servicing";
   $("tripLogModal").classList.add("show");
+}
+function saveTripLater(){
+  var from=($("tl_from").value||"").trim();
+  if(!from){ toast("Where is she leaving from?"); return; }
+  var btn=$("tl_later"); btn.disabled=true; btn.textContent="Saving…";
+  apiPost({action:"tripStart", email:ME.email, code:ME.code, key:ME.code, by:ME.name,
+           vessel:$("tl_vessel").value, from:from, to:$("tl_dest").value, when:$("tl_ddate").value,
+           fuel:tripPct($("tl_fuel1").value), water:tripPct($("tl_water1").value), black:tripPct($("tl_black1").value),
+           pob:pobText("tl"), notes:tripNote($("tl_notes").value,bunkText("tl1","departure"))})
+    .then(function(r){
+      btn.disabled=false; btn.innerHTML="Save departure &mdash; finish later";
+      if(r&&r.ok){
+        if(TPF.tl.length && r.key){ tripUploadPhotos(r.key, TPF.tl); TPF.tl=[]; }
+        closeModal("tripLogModal"); toast("&#9973; Departure saved \u2014 finish it when you arrive");
+        if(r.trip && r.trip.vessel && myVessels().indexOf(r.trip.vessel)>=0) CURVESSEL=r.trip.vessel;
+        loadTrips();
+      } else toast((r&&r.error)||"Couldn\u2019t save the trip");
+    }).catch(function(){ btn.disabled=false; btn.innerHTML="Save departure &mdash; finish later"; toast("Couldn\u2019t connect"); });
 }
 function saveTripLog(){
   var from=($("tl_from").value||"").trim(), to=($("tl_dest").value||"").trim();
@@ -13168,14 +13208,19 @@ function saveTripLog(){
     var v=(el.value||"").trim(); if(v) hours.push({unit:el.getAttribute("data-unit"), reading:v});
   });
   var btn=$("tl_save"); btn.disabled=true; btn.textContent="Logging…";
-  apiPost({action:"tripLog", email:ME.email, code:ME.code, key:ME.code, by:ME.name,
-           vessel:$("tl_vessel").value, from:from, to:to,
-           departWhen:$("tl_ddate").value, arriveWhen:$("tl_adate").value,
-           fuelOut:tripPct($("tl_fuel1").value), waterOut:tripPct($("tl_water1").value), blackOut:tripPct($("tl_black1").value),
-           fuelIn:tripPct($("tl_fuel2").value), waterIn:tripPct($("tl_water2").value), blackIn:tripPct($("tl_black2").value),
-           hours:hours, pob:pobText("tl"), notes:tripNote($("tl_notes").value,[bunkText("tl1","departure"),bunkText("tl2","arrival")].filter(Boolean).join("\n"))})
+  var req = TLKEY
+    ? {action:"tripArrive", email:ME.email, code:ME.code, key:ME.code, by:ME.name, tripKey:TLKEY, to:to, when:$("tl_adate").value,
+       fuel:tripPct($("tl_fuel2").value), water:tripPct($("tl_water2").value), black:tripPct($("tl_black2").value),
+       hours:hours, notes:tripNote($("tl_notes").value,bunkText("tl2","arrival"))}
+    : {action:"tripLog", email:ME.email, code:ME.code, key:ME.code, by:ME.name,
+       vessel:$("tl_vessel").value, from:from, to:to,
+       departWhen:$("tl_ddate").value, arriveWhen:$("tl_adate").value,
+       fuelOut:tripPct($("tl_fuel1").value), waterOut:tripPct($("tl_water1").value), blackOut:tripPct($("tl_black1").value),
+       fuelIn:tripPct($("tl_fuel2").value), waterIn:tripPct($("tl_water2").value), blackIn:tripPct($("tl_black2").value),
+       hours:hours, pob:pobText("tl"), notes:tripNote($("tl_notes").value,[bunkText("tl1","departure"),bunkText("tl2","arrival")].filter(Boolean).join("\n"))};
+  apiPost(req)
     .then(function(r){
-      btn.disabled=false; btn.innerHTML="Log the trip &amp; update servicing";
+      btn.disabled=false; btn.innerHTML="Finish: log the trip &amp; update servicing";
       if(!(r&&r.ok)){ toast((r&&r.error)||"Couldn\u2019t log the trip"); return; }
       var bits=[];
       bits.push('<div class="hcard"><div class="hu">&#10003; Trip logged &mdash; '+esc(r.vessel)+'</div>'+
@@ -13202,7 +13247,7 @@ function saveTripLog(){
       // different boat from the one on screen saves fine but looks like it vanished.
       if(r.vessel && myVessels().indexOf(r.vessel)>=0) CURVESSEL=r.vessel;
       loadTrips();
-    }).catch(function(){ btn.disabled=false; btn.innerHTML="Log the trip &amp; update servicing"; toast("Couldn\u2019t connect"); });
+    }).catch(function(){ btn.disabled=false; btn.innerHTML="Finish: log the trip &amp; update servicing"; toast("Couldn\u2019t connect"); });
 }
 function openTripArrive(key){
   TRIPOPEN=key;
