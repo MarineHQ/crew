@@ -1347,6 +1347,27 @@
   .wpop-go{width:100%;background:var(--orange);color:#fff;border:none;border-radius:12px;padding:13px;font-size:15px;font-weight:700;cursor:pointer}
   .wpop-dismiss{width:100%;background:none;border:none;color:var(--muted);font-size:13px;font-weight:700;padding:11px 0 2px;cursor:pointer}
   .modal .card2{background:#fff;width:100%;max-width:620px;border-radius:18px 18px 0 0;padding:18px 16px calc(24px + env(safe-area-inset-bottom));max-height:94vh;overflow-y:auto}
+  #tripReport{position:fixed;inset:0;z-index:300;background:#fff;overflow:auto;display:none;-webkit-overflow-scrolling:touch}
+  #tripReport.show{display:block}
+  #tripReport .rp{max-width:760px;margin:0 auto;padding:0 0 30px;font-family:Arial,Helvetica,sans-serif;color:#1a2433;font-size:12.5px;line-height:1.4}
+  #tripReport .rp img.bn{width:100%;display:block}
+  #tripReport h1{font-size:21px;color:#1A2B5C;margin:14px 16px 2px}
+  #tripReport h2{font-size:13.5px;color:#1A2B5C;border-bottom:2px solid #E8742B;margin:16px 16px 6px;padding-bottom:3px;text-transform:uppercase;letter-spacing:.4px}
+  #tripReport table{width:calc(100% - 32px);margin:0 16px;border-collapse:collapse}
+  #tripReport td,#tripReport th{border-bottom:1px solid #dfe5ec;padding:5px 6px;text-align:left;vertical-align:top;font-size:12px}
+  #tripReport th{background:#f1f4f8;color:#1A2B5C;font-weight:700}
+  #tripReport td.k{width:34%;color:#5b6b7d;font-weight:700}
+  #tripReport tr.fail td{background:#FCEBDC;color:#A34E0E;font-weight:700}
+  #tripReport .rpbar{position:sticky;top:0;background:#1A2B5C;padding:10px 12px;display:flex;gap:8px;z-index:2}
+  #tripReport .rpbar button{flex:1;padding:11px;border:0;border-radius:9px;font-weight:bold;font-size:14px;cursor:pointer;color:#fff;background:#E8742B}
+  #tripReport .rpbar button.sec{background:transparent;border:1px solid #fff}
+  #tripReport tr,#tripReport img.sg{page-break-inside:avoid}
+  @media print{
+    body.printing>*:not(#tripReport){display:none!important}
+    body.printing #tripReport{position:static!important;overflow:visible!important;display:block!important}
+    #tripReport .rpbar{display:none!important}
+    @page{margin:8mm}
+  }
   .tgl{display:flex;gap:8px;margin-bottom:8px}
   .tgl button{flex:1;padding:10px 6px;border:2px solid var(--line);background:#fff;color:var(--navy);font-weight:bold;font-size:14px;border-radius:10px;cursor:pointer}
   .tgl button.on{background:var(--navy);color:#fff;border-color:var(--navy)}
@@ -1990,7 +2011,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-13·r</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-13·s</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2867,7 +2888,10 @@ button:active{ filter: brightness(.93); }
       <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:bold;color:var(--navy);margin-bottom:3px">Black water &#37;</div><input class="fld-in" id="tl_black1" inputmode="decimal" placeholder="0"></div>
     </div>
     <div id="tl1_bunk"></div>
-    <button type="button" style="width:100%;margin:6px 0 10px;padding:11px;border:2px dashed var(--navy);background:#fff;color:var(--navy);font-weight:bold;font-size:14px;border-radius:11px;cursor:pointer" onclick="bunkAdd('tl1')">&#65291; Add bunkering</button>
+    <button type="button" style="width:100%;margin:6px 0 10px;padding:11px;border:2px dashed var(--navy);background:#fff;color:var(--navy);font-weight:bold;font-size:14px;border-radius:11px;cursor:pointer" onclick="bunkAdd('tl1')">&#65291; Add bunkering at departure</button>
+    <label class="fld">Bunkering mid-trip <span class="fldhint">(refuel stops on the way)</span></label>
+    <div id="tlm_bunk"></div>
+    <button type="button" style="width:100%;margin:6px 0 10px;padding:11px;border:2px dashed var(--navy);background:#fff;color:var(--navy);font-weight:bold;font-size:14px;border-radius:11px;cursor:pointer" onclick="bunkAdd('tlm')">&#65291; Add bunkering mid-trip</button>
     <label class="fld">Tanks at arrival &mdash; fuel / water / black water (&#37; full)</label>
     <div style="display:flex;gap:8px">
       <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:bold;color:var(--navy);margin-bottom:3px">Fuel &#37;</div><input class="fld-in" id="tl_fuel2" inputmode="decimal" placeholder="20"></div>
@@ -2875,7 +2899,7 @@ button:active{ filter: brightness(.93); }
       <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:bold;color:var(--navy);margin-bottom:3px">Black water &#37;</div><input class="fld-in" id="tl_black2" inputmode="decimal" placeholder="0"></div>
     </div>
     <div id="tl2_bunk"></div>
-    <button type="button" style="width:100%;margin:6px 0 10px;padding:11px;border:2px dashed var(--navy);background:#fff;color:var(--navy);font-weight:bold;font-size:14px;border-radius:11px;cursor:pointer" onclick="bunkAdd('tl2')">&#65291; Add bunkering</button>
+    <button type="button" style="width:100%;margin:6px 0 10px;padding:11px;border:2px dashed var(--navy);background:#fff;color:var(--navy);font-weight:bold;font-size:14px;border-radius:11px;cursor:pointer" onclick="bunkAdd('tl2')">&#65291; Add bunkering on arrival</button>
     <p class="mhint">Holding tank should come home at <b>0%</b> &mdash; anything else gets flagged for a pump-out.</p>
     <label class="fld" style="margin-top:6px">Engine &amp; genset hours &mdash; start / finish</label>
     <div id="tl_meters"></div>
@@ -2894,6 +2918,7 @@ button:active{ filter: brightness(.93); }
     <label class="fld">Photos <span class="fldhint">(opt &mdash; internal until a director shares them)</span></label>
     <div class="tpstrip"><div class="addph" onclick="tripPickForm('tl')">&#128247;<span>Photo</span></div></div><div class="tpfiles" id="tl_pfiles"></div>
     <button class="go" id="tl_save" onclick="saveTripLog()">Finish: log the trip &amp; update servicing</button>
+    <button type="button" id="tl_mid" style="display:none;width:100%;margin-top:8px;padding:12px;border:2px solid var(--navy);background:#fff;color:var(--navy);font-weight:bold;font-size:14px;border-radius:11px;cursor:pointer" onclick="saveTripMid()">Save mid-trip update &mdash; not finished</button>
     <button type="button" id="tl_later" style="width:100%;margin-top:8px;padding:12px;border:2px solid var(--navy);background:#fff;color:var(--navy);font-weight:bold;font-size:14px;border-radius:11px;cursor:pointer" onclick="saveTripLater()">Save departure &mdash; finish later</button>
   </div>
   <div id="tl_result" style="display:none"></div>
@@ -2933,6 +2958,10 @@ button:active{ filter: brightness(.93); }
   <button class="go" id="t_save" onclick="saveTripStart()">Start the trip</button>
   <button class="cancel" onclick="closeModal('tripStartModal')">Cancel</button>
 </div></div>
+
+<datalist id="bunkPlaces"><option value="Keppel Bay Marina"><option value="Bundaberg Port Marina"><option value="Coral Sea Marina"><option value="Southport Yacht Club"><option value="Gold Coast City Marina"><option value="Mooloolaba Marina"><option value="Scarborough Marina"><option value="Bundaberg Marina"><option value="Gladstone Marina"><option value="Mackay Marina"><option value="Hamilton Island Marina"><option value="Airlie Beach"></datalist>
+
+<div id="tripReport"></div>
 
 <!-- Pre-departure checklist -->
 <div class="modal" id="preModal"><div class="card2">
@@ -13208,10 +13237,21 @@ function tripPhotoRemove(){
 function tripPct(v){ v=(v||"").toString().trim().replace(/%$/,"").trim(); return v?v+"%":""; }
 function tripNote(n,f){ f=(f||"").trim(); n=(n||"").trim(); return f?(f+(n?"\n"+n:"")):n; }
 function pobText(pre){ var n=($(pre+"_pob").value||"").trim(), d=($(pre+"_pobd").value||"").trim(); return d?(n?n+" ("+d+")":d):n; }
-function bunkAdd(pre){
+function bunkAdd(pre,l,w,lock){
   var d=document.createElement("div"); d.className="bunkrow"; d.style.cssText="display:flex;gap:6px;margin-bottom:6px";
-  d.innerHTML='<input class="fld-in bk-l" inputmode="numeric" placeholder="Litres" style="flex:1"><input class="fld-in bk-w" placeholder="Where (e.g. KBM)" style="flex:2"><button type="button" onclick="this.parentNode.remove()" style="border:0;background:none;font-size:20px;color:#9aa7b4">&times;</button>';
-  $(pre+"_bunk").appendChild(d); d.querySelector(".bk-l").focus();
+  d.innerHTML='<input class="fld-in bk-l" inputmode="numeric" placeholder="Litres" style="flex:1"'+(lock?' disabled':'')+'><input class="fld-in bk-w" list="bunkPlaces" placeholder="Where (e.g. Keppel Bay Marina)" style="flex:2"'+(lock?' disabled':'')+'>'+(lock?'':'<button type="button" onclick="this.parentNode.remove()" style="border:0;background:none;font-size:20px;color:#9aa7b4">&times;</button>');
+  $(pre+"_bunk").appendChild(d);
+  if(l!=null) d.querySelector(".bk-l").value=l; if(w!=null) d.querySelector(".bk-w").value=w;
+  if(l==null&&w==null) d.querySelector(".bk-l").focus();
+}
+var BUNK_STAGES=[["tl1","departure"],["tlm","mid-trip"],["tl2","arrival"]];
+function bunkList(){
+  var out=[]; BUNK_STAGES.forEach(function(x){
+    document.querySelectorAll("#"+x[0]+"_bunk .bunkrow").forEach(function(r){
+      var l=(r.querySelector(".bk-l").value||"").trim(), w=(r.querySelector(".bk-w").value||"").trim();
+      if(l||w) out.push({stage:x[1],litres:l,where:w});
+    });
+  }); return out;
 }
 function bunkText(pre,when){
   var out=[]; document.querySelectorAll("#"+pre+"_bunk .bunkrow").forEach(function(r){
@@ -13293,6 +13333,8 @@ function tripDetailView(t){
     (h?'<br>Meters: '+h:'')+(t.pob?'<br>People on board: '+esc(t.pob):'')+
     (t.notes?'<br>'+esc(t.notes).replace(/\n/g,"<br>"):'')+'</div></div>'+
     tripExtrasHtml(t)+
+    '<button class="go" style="margin-top:6px" onclick="tripReportOpen(false)">Create trip report</button>'+
+    '<button type="button" style="width:100%;margin-top:8px;padding:12px;border:2px solid var(--navy);background:#fff;color:var(--navy);font-weight:bold;font-size:14px;border-radius:11px;cursor:pointer" onclick="tripReportOpen(true)">Report + vessel check</button>'+
     (mgr&&done?(TRIP_EDIT_LIVE?'<button class="go" style="margin-top:6px" onclick="tripDetailEdit()">Edit this trip</button>':'')+
       '<button class="cancel" style="color:#C0392B;font-weight:700" onclick="tripDetailAskDelete()">Delete this trip</button>':'')+
     (done&&!mgr?'<p class="mhint">Only Marine HQ directors and managers can edit or delete a finished trip.</p>':'');
@@ -13306,6 +13348,8 @@ function tripExtrasHtml(t){
   var e=d.equip||{}, eq=[]; if(e.v240) eq.push("240 V "+esc(e.v240)+(e.v240note?' <span style="color:#C0392B">('+esc(e.v240note)+')</span>':"")); if(e.shore) eq.push("Shore power "+esc(e.shore)); if(e.desal) eq.push("Desalination "+esc(e.desal));
   if(eq.length||e.note) r.push("Equipment &amp; vessel: "+eq.join(" &middot; ")+(e.note?((eq.length?"<br>":"")+esc(e.note).replace(/\n/g,"<br>")):""));
   (d.startFlags||[]).forEach(function(f){ r.push('<span style="color:#C0392B">&#9888; '+esc(f)+'</span>'); });
+  var bk=d.bunkering||[];
+  if(bk.length){ r.push("Bunkering:<br>"+bk.map(function(b){ return esc(b.stage==="mid-trip"?"Mid-trip":b.stage==="arrival"?"On arrival":"At departure")+": <b>"+esc(b.litres?b.litres+" L":"litres not given")+"</b>"+(b.where?" at "+esc(b.where):""); }).join("<br>")); }
   var hs=d.hrsStart||{}, fin={}; (t.hours||[]).forEach(function(h){fin[h.unit]=h.reading;});
   var units=Object.keys(hs).concat(Object.keys(fin).filter(function(u){return !(u in hs);}));
   if(units.length) r.push("Hours (start &rarr; finish):<br>"+units.map(function(u){return esc(u)+" <b>"+esc(hs[u]||"?")+" &rarr; "+esc(fin[u]!=null?fin[u]:"?")+"</b>";}).join("<br>"));
@@ -13336,6 +13380,7 @@ function tripDetailDelete(){
 }
 function tripDetailEdit(){
   var t=tripFindByKey(TD_KEY); if(!t) return;
+  var lg=tripLegacyBunk(t.notes||""), bunkRows=(t.details&&t.details.bunkering&&t.details.bunkering.length)?t.details.bunkering:lg.rows, notesRest=(t.details&&t.details.bunkering&&t.details.bunkering.length)?(t.notes||""):lg.rest;
   var f=function(id,lab,v,ph,type){ return '<label class="fld">'+lab+'</label><input class="fld-in" id="te_'+id+'" '+(type?'type="'+type+'" ':'')+'value="'+esc(v||"")+'" placeholder="'+(ph||"")+'">'; };
   $("td_title").textContent="Edit trip";
   $("td_body").innerHTML=f("from","Departure point",t.from)+f("to","Arrival point",t.to)+
@@ -13343,10 +13388,31 @@ function tripDetailEdit(){
     f("fd","Fuel % at departure",t.fuelDepart)+f("wd","Fresh water % at departure",t.waterDepart)+f("bd","Black water % at departure",t.blackDepart)+
     f("fa","Fuel % at arrival",t.fuelArrive)+f("wa","Fresh water % at arrival",t.waterArrive)+f("ba","Black water % at arrival",t.blackArrive)+
     f("pob","People on board",t.pob)+
-    '<label class="fld">Notes</label><textarea class="fld-in" id="te_notes" rows="4">'+esc(t.notes||"")+'</textarea>'+
+    '<label class="fld">Bunkering</label><div id="te_bunk"></div>'+
+    '<button type="button" style="width:100%;margin:4px 0 10px;padding:11px;border:2px dashed var(--navy);background:#fff;color:var(--navy);font-weight:bold;font-size:14px;border-radius:11px;cursor:pointer" onclick="teBunkAdd()">&#65291; Add a bunkering stop</button>'+
+    '<label class="fld">Notes</label><textarea class="fld-in" id="te_notes" rows="4">'+esc(notesRest)+'</textarea>'+
     '<p class="mhint">Hour-meter readings already filed to servicing aren&#39;t changed here.</p>'+
     '<button class="go" id="te_save" onclick="tripDetailSave()">Save changes</button>'+
     '<button class="cancel" onclick="openTripDetail(TD_KEY)">Cancel</button>';
+  bunkRows.forEach(function(b){ teBunkAdd(b.stage,b.litres,b.where); });
+}
+function tripLegacyBunk(notes){
+  var rows=[], rest=[];
+  (notes||"").split("\n").forEach(function(line){
+    var m=/^Bunkering \((departure|arrival|mid-trip)\):\s*(.*?)\s*(?:L)?(?:\s+at\s+(.*))?$/i.exec(line);
+    var f=/^Fuel:\s*(.+)$/i.exec(line);
+    if(m){ var lit=(m[2]||"").replace(/\s*L$/i,"").replace(/litres not given/i,""); rows.push({stage:m[1].toLowerCase(),litres:lit,where:m[3]||""}); }
+    else if(f){ rows.push({stage:"departure",litres:"",where:f[1]}); }
+    else rest.push(line);
+  });
+  return {rows:rows,rest:rest.join("\n")};
+}
+function teBunkAdd(stage,l,w){
+  var d=document.createElement("div"); d.className="te-brow"; d.style.cssText="margin-bottom:8px;padding:8px;border:1px solid var(--line);border-radius:10px";
+  d.innerHTML='<select class="fld-in te-bs"><option value="departure">At departure</option><option value="mid-trip">Mid-trip</option><option value="arrival">On arrival</option></select>'+
+    '<div style="display:flex;gap:6px;margin-top:6px"><input class="fld-in te-bl" inputmode="numeric" placeholder="Litres" style="flex:1"><input class="fld-in te-bw" list="bunkPlaces" placeholder="Where" style="flex:2"><button type="button" onclick="this.closest(\'.te-brow\').remove()" style="border:0;background:none;font-size:20px;color:#9aa7b4">&times;</button></div>';
+  $("te_bunk").appendChild(d);
+  d.querySelector(".te-bs").value=stage||"departure"; d.querySelector(".te-bl").value=l||""; d.querySelector(".te-bw").value=w||"";
 }
 function tripDetailSave(){
   var v=function(id){ return $("te_"+id).value; };
@@ -13356,11 +13422,88 @@ function tripDetailSave(){
     from:v("from"), to:v("to"), departed:v("dep"), arrived:v("arr"),
     fuelDepart:tripPct(v("fd")), waterDepart:tripPct(v("wd")), blackDepart:tripPct(v("bd")),
     fuelArrive:tripPct(v("fa")), waterArrive:tripPct(v("wa")), blackArrive:tripPct(v("ba")),
-    pob:v("pob"), notes:v("notes")})
+    pob:v("pob"), notes:v("notes"),
+    details:{bunkering:[].map.call(document.querySelectorAll("#te_bunk .te-brow"),function(r){ return {stage:r.querySelector(".te-bs").value, litres:r.querySelector(".te-bl").value.trim(), where:r.querySelector(".te-bw").value.trim()}; }).filter(function(b){return b.litres||b.where;})}})
     .then(function(r){ if(r&&r.ok){ closeModal("tripDetailModal"); toast("✓ Trip updated"); loadTrips(); }
       else { b.disabled=false; b.textContent="Save changes"; toast((r&&r.error)||"Couldn’t save"); } })
     .catch(function(){ b.disabled=false; b.textContent="Save changes"; toast("Couldn’t connect"); });
 }
+
+/* ---- Trip report (print / save as PDF) ---- */
+function rpDate(iso){ if(!iso) return ""; var d=new Date(iso+"T00:00:00"); return isNaN(d)?iso:d.toLocaleDateString("en-AU",{day:"numeric",month:"short",year:"numeric"}); }
+function rpRow(k,v){ return v?('<tr><td class="k">'+k+'</td><td>'+v+'</td></tr>'):""; }
+function tripReportHtml(t,withCheck){
+  var d=t.details||{}, e=d.equip||{}, bk=d.bunkering||[];
+  var h='<div class="rp"><img class="bn" src="banner.jpg" alt="Marine HQ">'+
+    '<h1>Trip Report &mdash; '+esc(t.vessel)+'</h1>'+
+    '<div style="margin:0 16px 4px;color:#5b6b7d">'+esc(t.from)+' &rarr; '+esc(t.to||"")+' &middot; '+esc(rpDate(t.departed))+(t.arrived&&t.arrived!==t.departed?' &ndash; '+esc(rpDate(t.arrived)):'')+'</div>'+
+    '<h2>Trip summary</h2><table>'+
+    rpRow("Vessel",esc(t.vessel))+rpRow("Departed from",esc(t.from))+rpRow("Destination",esc(t.to||""))+
+    rpRow("Departed",esc(rpDate(t.departed)))+rpRow("Arrived",esc(rpDate(t.arrived)))+
+    rpRow("Type of use",esc(d.use||""))+rpRow("Logged by",esc(t.by||""))+
+    rpRow("People on board",(d.crew||d.guests)?("Crew "+esc(d.crew||"0")+" &middot; Guests "+esc(d.guests||"0")+(d.paxDesc?" &mdash; "+esc(d.paxDesc):"")):esc(t.pob||""))+
+    rpRow("Safety check / briefing",esc(d.safety||""))+rpRow("Weather",esc(d.weather||""))+
+    rpRow("Status",esc(t.status==="Underway"?"Underway (not yet finished)":"Complete"))+'</table>'+
+    '<h2>Tank levels</h2><table><tr><th></th><th>Departure</th><th>Arrival</th></tr>'+
+    '<tr><td class="k">Fuel</td><td>'+esc(t.fuelDepart||"&mdash;")+'</td><td>'+esc(t.fuelArrive||"&mdash;")+'</td></tr>'+
+    '<tr><td class="k">Fresh water</td><td>'+esc(t.waterDepart||"&mdash;")+'</td><td>'+esc(t.waterArrive||"&mdash;")+'</td></tr>'+
+    '<tr><td class="k">Black water</td><td>'+esc(t.blackDepart||"&mdash;")+'</td><td>'+esc(t.blackArrive||"&mdash;")+'</td></tr></table>';
+  if(bk.length){
+    var tot=0; bk.forEach(function(b){ var n=parseFloat(String(b.litres||"").replace(/,/g,"")); if(!isNaN(n)) tot+=n; });
+    h+='<h2>Bunkering</h2><table><tr><th>When</th><th>Litres</th><th>Location</th></tr>'+
+      bk.map(function(b){ return '<tr><td>'+esc(b.stage==="mid-trip"?"Mid-trip":b.stage==="arrival"?"On arrival":"At departure")+'</td><td>'+esc(b.litres||"&mdash;")+'</td><td>'+esc(b.where||"")+'</td></tr>'; }).join("")+
+      (tot?'<tr><td class="k">Total</td><td colspan="2"><b>'+tot.toLocaleString("en-AU")+' L</b></td></tr>':'')+'</table>';
+  }
+  var hs=d.hrsStart||{}, fin={}; (t.hours||[]).forEach(function(x){fin[x.unit]=x.reading;});
+  var units=Object.keys(hs).concat(Object.keys(fin).filter(function(u){return !(u in hs);}));
+  if(units.length){
+    h+='<h2>Engine &amp; genset hours</h2><table><tr><th>Unit</th><th>Start</th><th>Finish</th><th>Run</th></tr>'+
+      units.map(function(u){ var a=parseFloat(hs[u]), b=parseFloat(fin[u]); var run=(!isNaN(a)&&!isNaN(b))?(Math.round((b-a)*10)/10)+" hrs":"&mdash;";
+        return '<tr><td>'+esc(u)+'</td><td>'+esc(hs[u]||"&mdash;")+'</td><td>'+esc(fin[u]!=null?fin[u]:"&mdash;")+'</td><td>'+run+'</td></tr>'; }).join("")+'</table>';
+  }
+  if(e.v240||e.shore||e.desal||e.note){
+    h+='<h2>Equipment &amp; vessel status</h2><table>'+
+      rpRow("240 V system",esc(e.v240||"")+(e.v240note?" &mdash; "+esc(e.v240note):""))+rpRow("Shore power connected",esc(e.shore||""))+rpRow("Water production (desalination)",esc(e.desal||""))+
+      rpRow("Other",esc(e.note||"").replace(/\n/g,"<br>"))+'</table>';
+  }
+  var lg=tripLegacyBunk(t.notes||""), notes=bk.length?(t.notes||""):lg.rest;
+  if(!bk.length && lg.rows.length){
+    h+='<h2>Bunkering</h2><table>'+lg.rows.map(function(b){ return '<tr><td>'+esc(b.stage)+'</td><td>'+esc(b.litres?b.litres+" L":"")+'</td><td>'+esc(b.where||"")+'</td></tr>'; }).join("")+'</table>';
+  }
+  if((notes||"").trim()) h+='<h2>Notes</h2><div style="margin:0 16px">'+esc(notes).replace(/\n/g,"<br>")+'</div>';
+  (d.startFlags||[]).forEach(function(f){ h+='<div style="margin:8px 16px;color:#A34E0E">&#9888; '+esc(f)+'</div>'; });
+  if(withCheck){
+    h+='<h2>Pre-departure vessel check</h2>';
+    if(!d.pre){ h+='<div style="margin:0 16px">No pre-departure checklist was recorded for this trip.</div>'; }
+    else{
+      var n=0, c=preCounts(d.pre);
+      h+='<div style="margin:0 16px 6px">'+c.answered+' of '+PRE_TOTAL+' items checked'+(c.fails?' &middot; <b style="color:#A34E0E">'+c.fails+' fail'+(c.fails>1?'s':'')+'</b>':' &middot; no fails')+'</div>';
+      PRE_SECTIONS.forEach(function(sec){
+        h+='<table style="margin-top:8px"><tr><th>'+esc(sec[0])+'</th><th style="width:60px">Result</th></tr>';
+        sec[1].forEach(function(it){ var st=(d.pre.items||[])[n++]||""; h+='<tr'+(st==="Fail"?' class="fail"':'')+'><td>'+esc(it)+'</td><td>'+esc(st||"&mdash;")+'</td></tr>'; });
+        h+='</table>';
+      });
+      h+='<h2>Defects &amp; actions</h2><div style="margin:0 16px">'+(d.pre.defects?esc(d.pre.defects).replace(/\n/g,"<br>"):"None recorded")+'</div>'+
+        '<h2>Sign-off</h2><table>'+rpRow("Signed by",esc(d.pre.by||""))+
+        rpRow("Date",d.pre.at?esc(new Date(d.pre.at).toLocaleString("en-AU",{day:"numeric",month:"short",year:"numeric",hour:"numeric",minute:"2-digit"})):"")+'</table>'+
+        (d.pre.sig?'<img class="sg" src="'+d.pre.sig+'" alt="signature" style="display:block;margin:8px 16px;height:80px;border:1px solid #dfe5ec;background:#fff">':'<div style="margin:8px 16px;color:#A34E0E">Not signed.</div>');
+    }
+  }
+  h+='<div style="margin:18px 16px 6px;color:#8795a5;font-size:10.5px">Generated '+esc(new Date().toLocaleString("en-AU",{day:"numeric",month:"short",year:"numeric",hour:"numeric",minute:"2-digit"}))+' &middot; Marine HQ</div>'+
+    '<img class="bn" src="footer-banner.jpg" alt="Marine HQ" style="margin-top:6px"></div>';
+  return h;
+}
+var RP_TITLE="";
+function tripReportOpen(withCheck){
+  var t=tripFindByKey(TD_KEY); if(!t) return;
+  var bar='<div class="rpbar"><button onclick="window.print()">Print / Save PDF</button><button class="sec" onclick="tripReportClose()">Close</button></div>';
+  $("tripReport").innerHTML=bar+tripReportHtml(t,withCheck);
+  $("tripReport").classList.add("show"); document.body.classList.add("printing");
+  RP_TITLE=document.title; document.title="Trip Report - "+t.vessel+" - "+(t.departed||"");
+  $("tripReport").scrollTop=0;
+}
+function tripReportClose(){ $("tripReport").classList.remove("show"); document.body.classList.remove("printing"); document.title=RP_TITLE||document.title; }
+
 function crewTripCancel(key,done){
   if(!confirm(done?"Delete this completed trip? The trip row is removed permanently. Hour-meter readings already logged to servicing are NOT removed.":"Cancel this trip? The underway entry is removed — nothing is logged.")) return;
   apiPost({action:"tripDelete", email:ME.email, code:ME.code, key:ME.code, tripKey:key})
@@ -13402,9 +13545,9 @@ function tlHoursStart(){
 }
 function tlEquip(){ var v=tglGet("v240"); return {v240:v, v240note:v==="Issue"?($("tl_v240note").value||"").trim():"", shore:tglGet("shore"), desal:tglGet("desal"), note:($("tl_equip").value||"").trim()}; }
 function tlDetails(full){
-  if(!full){ var d={equip:tlEquip()}; if(TLPREDIRTY&&TLPRE) d.pre=TLPRE; return d; }
+  if(!full){ var d={equip:tlEquip(), bunkering:bunkList()}; if(TLPREDIRTY&&TLPRE) d.pre=TLPRE; return d; }
   var d2={use:$("tl_use").value, crew:tlNum("tl_crew"), guests:tlNum("tl_guests"), paxDesc:($("tl_pobd").value||"").trim(),
-          safety:tglGet("safety"), weather:($("tl_weather").value||"").trim(), equip:tlEquip(), hrsStart:tlHoursStart()};
+          safety:tglGet("safety"), weather:($("tl_weather").value||"").trim(), equip:tlEquip(), hrsStart:tlHoursStart(), bunkering:bunkList()};
   if(TLPRE) d2.pre=TLPRE;
   return d2;
 }
@@ -13509,6 +13652,16 @@ function tlLock(on){
   document.querySelectorAll('#tl_dep2 .tgl').forEach(function(g){ if(on) g.setAttribute("data-locked","1"); else g.removeAttribute("data-locked"); });
   var bb=document.querySelector('[onclick="bunkAdd(\'tl1\')"]'); if(bb) bb.style.display=on?"none":"";
   $("tl_later").style.display=on?"none":"";
+  $("tl_mid").style.display=on?"":"none";
+}
+function saveTripMid(){
+  if(tlNeedIssue()) return;
+  var btn=$("tl_mid"); btn.disabled=true; btn.textContent="Saving…";
+  apiPost({action:"tripUpdate", email:ME.email, code:ME.code, key:ME.code, tripKey:TLKEY, details:tlDetails(false), notes:($("tl_notes").value||"").trim()})
+    .then(function(r){ btn.disabled=false; btn.innerHTML="Save mid-trip update &mdash; not finished";
+      if(r&&r.ok){ closeModal("tripLogModal"); toast("\u2713 Mid-trip update saved \u2014 trip still underway"); loadTrips(); }
+      else toast((r&&r.error)||"Couldn\u2019t save the update"); })
+    .catch(function(){ btn.disabled=false; btn.innerHTML="Save mid-trip update &mdash; not finished"; toast("Couldn\u2019t connect"); });
 }
 function openTripLog(key){
   TLKEY=key||"";
@@ -13516,7 +13669,7 @@ function openTripLog(key){
   $("tl_vessel").innerHTML=mine.map(function(v){return '<option'+(v===cur?" selected":"")+'>'+esc(v)+'</option>';}).join("");
   ["tl_from","tl_dest","tl_crew","tl_guests","tl_pobd","tl_weather","tl_equip","tl_v240note","tl_notes","tl_fuel1","tl_water1","tl_black1","tl_fuel2","tl_water2","tl_black2"].forEach(function(id){ $(id).value=""; });
   $("tl_use").value=""; ["safety","v240","shore","desal"].forEach(function(k){ tglPut(k,""); });
-  $("tl1_bunk").innerHTML=""; $("tl2_bunk").innerHTML="";
+  $("tl1_bunk").innerHTML=""; $("tlm_bunk").innerHTML=""; $("tl2_bunk").innerHTML="";
   $("tl_ddate").value=new Date().toISOString().slice(0,10);
   $("tl_adate").value=new Date().toISOString().slice(0,10);
   $("tl_meters").innerHTML="";
@@ -13535,6 +13688,7 @@ function openTripLog(key){
     tglPut("safety",d.safety||""); $("tl_weather").value=d.weather||"";
     var e=d.equip||{}; tglPut("v240",e.v240||""); tglPut("shore",e.shore||""); tglPut("desal",e.desal||""); $("tl_equip").value=e.note||""; $("tl_v240note").value=e.v240note||""; tlIssueSync();
     TLPRE=d.pre||null;
+    (d.bunkering||[]).forEach(function(b){ var pre=b.stage==="departure"?"tl1":b.stage==="arrival"?"tl2":"tlm"; bunkAdd(pre,b.litres,b.where,b.stage==="departure"); });
     var hs=d.hrsStart||{}; Object.keys(hs).forEach(function(u){ $("tl_meters").insertAdjacentHTML("beforeend",tripMeterRowHtml(u,"tl",hs[u],true)); });
     tlLock(true);
     $("tl_h3").textContent="Finish this trip";
@@ -13558,7 +13712,7 @@ function saveTripLater(){
   apiPost({action:"tripStart", email:ME.email, code:ME.code, key:ME.code, by:ME.name,
            vessel:$("tl_vessel").value, from:from, to:$("tl_dest").value, when:$("tl_ddate").value,
            fuel:tripPct($("tl_fuel1").value), water:tripPct($("tl_water1").value), black:tripPct($("tl_black1").value),
-           pob:tlPax(), details:tlDetails(true), notes:tripNote($("tl_notes").value,bunkText("tl1","departure"))})
+           pob:tlPax(), details:tlDetails(true), notes:($("tl_notes").value||"").trim()})
     .then(function(r){
       btn.disabled=false; btn.innerHTML="Save departure &mdash; finish later";
       if(r&&r.ok){
@@ -13583,13 +13737,13 @@ function saveTripLog(){
   var req = TLKEY
     ? {action:"tripArrive", email:ME.email, code:ME.code, key:ME.code, by:ME.name, tripKey:TLKEY, to:to, when:$("tl_adate").value,
        fuel:tripPct($("tl_fuel2").value), water:tripPct($("tl_water2").value), black:tripPct($("tl_black2").value),
-       hours:hours, details:tlDetails(false), notes:tripNote($("tl_notes").value,bunkText("tl2","arrival"))}
+       hours:hours, details:tlDetails(false), notes:($("tl_notes").value||"").trim()}
     : {action:"tripLog", email:ME.email, code:ME.code, key:ME.code, by:ME.name,
        vessel:$("tl_vessel").value, from:from, to:to,
        departWhen:$("tl_ddate").value, arriveWhen:$("tl_adate").value,
        fuelOut:tripPct($("tl_fuel1").value), waterOut:tripPct($("tl_water1").value), blackOut:tripPct($("tl_black1").value),
        fuelIn:tripPct($("tl_fuel2").value), waterIn:tripPct($("tl_water2").value), blackIn:tripPct($("tl_black2").value),
-       hours:hours, pob:tlPax(), details:tlDetails(true), notes:tripNote($("tl_notes").value,[bunkText("tl1","departure"),bunkText("tl2","arrival")].filter(Boolean).join("\n"))};
+       hours:hours, pob:tlPax(), details:tlDetails(true), notes:($("tl_notes").value||"").trim()};
   apiPost(req)
     .then(function(r){
       btn.disabled=false; btn.innerHTML="Finish: log the trip &amp; update servicing";
