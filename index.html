@@ -160,6 +160,18 @@
   #qtBar button{flex:1;border:0;border-radius:12px;min-height:46px;font-size:14px;font-weight:800;color:#fff;background:#1F7A54;cursor:pointer}
   #qtBar button.qtx{flex:none;background:#5b6b7d;padding:0 18px}
   #qtBar button:disabled{background:#b4c0cc}
+  #qtBar button.qtdt{flex:none;background:#fff;color:var(--navy);border:1.5px solid var(--line);padding:0 12px;font-size:13px}
+  #qtBar button.qtdt:disabled{color:#b4c0cc;background:#fff}
+  .qtdc{flex:none;border:1.5px solid var(--line);background:#fff;color:var(--navy);font-size:11.5px;font-weight:800;border-radius:14px;padding:0 10px;min-height:32px;margin-right:10px;cursor:pointer;white-space:nowrap}
+  .qtdc.past{border-color:#c98a1b;background:#fff7e6;color:#8a5a12}
+  #qtDate{position:fixed;inset:0;z-index:90;display:none;align-items:flex-end;justify-content:center;background:rgba(20,30,50,.45)}
+  #qtDate.show{display:flex}
+  #qtDate .qtd-in{width:100%;max-width:520px;background:#fff;border-radius:18px 18px 0 0;padding:16px 16px calc(18px + env(safe-area-inset-bottom));box-sizing:border-box}
+  #qtDate h4{margin:0 0 4px;font-size:16px;color:var(--navy)} #qtDate p{margin:0 0 12px;font-size:12.5px;color:var(--muted)}
+  #qtDate .qtd-row{display:flex;gap:8px;margin-bottom:10px}
+  #qtDate button{flex:1;border:0;border-radius:12px;min-height:46px;font-size:14px;font-weight:800;color:#fff;background:#5b6b7d;cursor:pointer}
+  #qtDate button.go{background:#1F7A54}
+  #qtDate input[type=date]{width:100%;box-sizing:border-box;min-height:46px;font-size:16px;border:1.5px solid var(--line);border-radius:12px;padding:0 12px;margin-bottom:10px;color:var(--navy);background:#fff}
   .listhd{font-size:12px;font-weight:bold;letter-spacing:.5px;text-transform:uppercase;color:var(--orange);margin:6px 2px 9px;padding-top:2px}
   .jnum{color:var(--orange);font-weight:900}
   .jnum.un{color:var(--navy)}
@@ -256,6 +268,7 @@
   .cmopt.on .cmrad{border-color:var(--orange);background:radial-gradient(circle,var(--orange) 0 45%,transparent 46%)}
   .cmlist{border:1px solid var(--line);border-radius:11px;overflow:hidden;margin-top:4px}
   .cmrow2{padding:10px 11px;border-top:1px solid var(--line)}
+  .cmdate{margin-top:6px}
   .cmrow2:first-child{border-top:0}
   .cmt{font-size:13px;font-weight:600;color:var(--ink);line-height:1.35}
   .cmcarry{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#8a5a12;background:#fdf1e3;border-radius:5px;padding:1px 6px;margin-left:7px;vertical-align:middle}
@@ -2048,7 +2061,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-13·x</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-13·z</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -3119,6 +3132,10 @@ button:active{ filter: brightness(.93); }
 
 <div class="toast" id="toast"></div>
 <div id="qtPick"></div>
+<div id="qtDate" onclick="if(event.target===this)qtDateClose()"><div class="qtd-in"><h4 id="qtdTitle">Done on</h4><p id="qtdSub">When was the work finished?</p>
+  <div class="qtd-row"><button type="button" onclick="qtDateChoose(qtToday())">Today</button><button type="button" onclick="qtDateChoose(qtDayShift(qtToday(),-1))">Yesterday</button></div>
+  <input type="date" id="qtdInput" aria-label="Date the work was done">
+  <div class="qtd-row"><button type="button" onclick="qtDateClose()">Cancel</button><button type="button" class="go" onclick="qtDateChoose($('qtdInput').value)">Use this date</button></div></div></div>
 <div id="qtToast"><span id="qtMsg"></span><button type="button" onclick="qtUndo()">Undo</button></div>
 
 <script>
@@ -3648,7 +3665,7 @@ function navGroup(g){
   if(kids.length) go(kids[0][0]);
 }
 function go(tab){
-  TAB=tab;
+  TAB=tab; 
   ["jobs","mine","photos","updates","cal","fleet","maint","induct","sys","check","off","trip","hours","vessel","sop","profile"].forEach(function(t){ $("tab-"+t).classList.toggle("hidden", t!==tab); });
   renderNav();
   $("actBar").classList.toggle("hidden", tab!=="jobs");
@@ -7906,7 +7923,7 @@ var CM={period:"", dispo:"roll", reason:"", preview:null};
 function closeMonthDlg(period, vessel){
   var v=(vessel||CURVESSEL||"").toString();
   if(v==="__all__"){ toast("Pick a boat to close"); return; }
-  CM={period:period, vessel:v, dispo:"roll", reason:"", preview:null}; CMNEW={};
+  CM={period:period, vessel:v, dispo:"roll", reason:"", preview:null}; CMNEW={}; CMDATE={};
   $("closeMonthTitle").textContent = "Close "+v+" · "+period;
   $("cmBody").innerHTML='<div class="loadingbox"><span class="spin"></span> Working out what would happen…</div>';
   $("cmGo").style.display="none";
@@ -7921,6 +7938,7 @@ function closeMonthDlg(period, vessel){
    only be done out of the water, and some isn't happening at all. "Send all"
    sets the lot in one tap, then you change the odd one. */
 var CMWAY={};                                    // job key -> "roll" | "yard" | "close"
+var CMDATE={};                                   // job key -> "yyyy-mm-dd" it was actually finished (Done only; blank = today)
 function cmPreview(){
   $("cmBody").innerHTML='<div class="loadingbox"><span class="spin"></span> Working out what would happen…</div>';
   $("cmGo").style.display="none";
@@ -7999,9 +8017,24 @@ function cmTally(){
 }
 function cmSetAll(w){
   if(w==="list"){ var all=CMWAY["*"]||"list:"; delete CMWAY["*"]; cmApply("*", all); CMWAY["*"]=all; cmRender(); return; }
-  delete CMWAY["*"]; delete CMNEW["*"]; cmApply("*", w); cmRender();
+  delete CMWAY["*"]; delete CMNEW["*"]; cmApply("*", w);
+  if(w!=="done") CMDATE={};
+  cmRender();
+  if(w==="done") qtDatePick("","cmall");      // one date for the lot — each task keeps its own chip to change after
 }
-function cmSet(key,w){ delete CMNEW[key]; CMWAY[key]=(w==="list")?("list:"+(cmListOf(key)||"")):w; cmRender(); }
+function cmSet(key,w){
+  delete CMNEW[key]; CMWAY[key]=(w==="list")?("list:"+(cmListOf(key)||"")):w;
+  if(w!=="done") delete CMDATE[key];
+  cmRender();
+  /* Closing a month is catching up — "Done" is almost never "done today", so
+     choosing it asks WHEN, per task (Trish, 13 Oct 2026). Closing the sheet
+     without choosing leaves it as today. */
+  if(w==="done" && !CMDATE[key]) qtDatePick(key,"cm");
+}
+function cmDateChip(key){
+  var d=CMDATE[key], ok=d&&qtDateOk(d), t=qtToday();
+  return '<button type="button" class="qtdc'+((ok&&d!==t)?' past':'')+'" onclick="qtDatePick(\''+cmJs(key)+'\',\'cm\')">Done '+(ok?(d===t?'today':qtDateLabel(d,true)):'today')+' \u270e</button>';
+}
 function cmRender(){
   var r=CM.preview; if(!r) return;
   var jobs=r.rolled, moving=jobs.length, t=cmTally();
@@ -8017,7 +8050,7 @@ function cmRender(){
     }).join("");
     var carried=(w==="roll"&&x.carried>1)?('<span class="cmcarry">carried '+x.carried+'×</span>'):'';
     return '<div class="cmrow2"><div class="cmt">'+esc(x.task)+carried+'</div>'+
-      '<div class="cmsegs">'+seg+'</div>'+(w==="list"?cmPickHTML(x.key):"")+
+      '<div class="cmsegs">'+seg+'</div>'+(w==="list"?cmPickHTML(x.key):"")+(w==="done"?('<div class="cmdate">'+cmDateChip(x.key)+'</div>'):"")+
       '<div class="cmto">→ '+esc(cmDestText(x))+'</div></div>';
   }).join("");
   var bits=[]; if(t.done)bits.push(t.done+' done'); if(t.roll)bits.push(t.roll+' carrying into '+esc(r.nextPeriod||"next month"));
@@ -8051,9 +8084,10 @@ function cmRender(){
 function cmGo(){
   var b=$("cmGo"); b.disabled=true; b.textContent="Closing…";
   var per={}; Object.keys(CMWAY).forEach(function(k){ if(k!=="*") per[k]=CMWAY[k]; });
+  var dd={}; Object.keys(per).forEach(function(k){ if(cmWayOf(k)==="done" && CMDATE[k] && qtDateOk(CMDATE[k])) dd[k]=CMDATE[k]; });
   var cv=(CM.vessel||CURVESSEL);
   apiPost({action:"crewMonthClose", email:ME.email, code:ME.code, vessel:cv,
-           period:CM.period, dispo:"roll", perTask:per, reason:CM.reason}).then(function(r){
+           period:CM.period, dispo:"roll", perTask:per, doneDates:dd, reason:CM.reason}).then(function(r){
     b.disabled=false;
     if(!r||!r.ok){ toast((r&&r.error)||"Couldn’t close the month"); b.textContent="Close "+CM.period; return; }
     closeModal("closeMonthModal");
@@ -10442,7 +10476,7 @@ function wlSetStatus(key,st,completedDate){
    waiting is sent at once. The server stays the authority: if it says no, the row
    is put back and the reason shown. */
 var QT_MS=5000;
-var QT={ pend:{}, fly:{}, chain:{}, batch:[], selMode:false, sel:{}, swAt:0, tm:0 };
+var QT={ pend:{}, fly:{}, chain:{}, batch:[], selMode:false, sel:{}, swAt:0, tm:0, dateFor:null };
 /* May this person flip this job from the list? Mirrors the job page: the server
    lets any active crew member change a status, so the app itself keeps it to a
    Director/Manager (any job) or the person the job is ALLOCATED to. Never on a
@@ -10477,15 +10511,75 @@ function qtToday(){
   }catch(e){}
   var d=new Date(); return d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2);
 }
-function qtApply(j, to){
-  if(to==="Complete"){ j.status="Complete"; j.completed=j.completed||qtToday(); }
+/* ---- "Done on" date: yyyy-mm-dd strings only, Brisbane calendar, never a Date->ISO round trip ---- */
+var QT_MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"], QT_DOW=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+function qtDayShift(iso, n){   // pure calendar arithmetic in UTC so no timezone can shift it
+  var m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(iso||""); if(!m) return qtToday();
+  var d=new Date(Date.UTC(+m[1], +m[2]-1, +m[3]+n));
+  return d.getUTCFullYear()+"-"+("0"+(d.getUTCMonth()+1)).slice(-2)+"-"+("0"+d.getUTCDate()).slice(-2);
+}
+function qtDateOk(iso, today){ return /^\d{4}-\d{2}-\d{2}$/.test(iso||"") && !isNaN(Date.parse(iso+"T00:00:00Z")) && qtDayShift(iso,0)===iso && iso<=(today||qtToday()); }
+function qtDateLabel(iso, withDow){   // "26 Sep" or "Sat 26 Sep"
+  var m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(iso||""); if(!m) return "";
+  var dow=QT_DOW[new Date(Date.UTC(+m[1], +m[2]-1, +m[3])).getUTCDay()];
+  return (withDow ? dow+" " : "")+(+m[3])+" "+QT_MON[+m[2]-1];
+}
+/* Per-task dates only: nothing is remembered. Tap the circle = today; the little
+   "Done today ✎" chip on the row (or Complete on… in the hold menu, or the chip
+   on a ticked row in Select mode) changes the date for THAT one job. */
+function qtDatePick(key, mode){   // mode: "row" (job already completed), "one" (hold menu), "sel" (ticked row), "all" (Set all to…)
+  QT.dateFor={ key:key||"", mode:mode };
+  var t=qtToday(), inp=$("qtdInput"), j=key?wlFind(key):null;
+  inp.max=t; inp.value=(mode==="row"&&j&&qtDateOk(j.completed))?j.completed:(mode==="sel"&&QT.sel[key]&&QT.sel[key]!==1?QT.sel[key]:t);
+  if(mode==="cm" && key && CMDATE[key] && qtDateOk(CMDATE[key])) inp.value=CMDATE[key];   // Close month: this task's own date
+  $("qtdTitle").textContent = mode==="all" ? "Set all selected to…" : (mode==="one" ? "Complete on…" : (mode==="cmall" ? "Everything marked Done was finished on…" : "Done on"));
+  $("qtdSub").textContent = mode==="all" ? "Applies to the jobs ticked right now only." : (mode==="cmall" ? "Applies to every job you have marked Done." : "Pick the day this job was finished.");
+  $("qtDate").classList.add("show");
+}
+function qtDateClose(){ $("qtDate").classList.remove("show"); QT.dateFor=null; }
+function qtDateChoose(iso){
+  var t=qtToday();
+  if(!qtDateOk(iso, t)){ toast(iso && iso>t ? "That’s in the future — pick today or earlier" : "Pick a date first"); return; }
+  var f=QT.dateFor; qtDateClose(); if(!f) return;
+  if(f.mode==="cm"){ CMDATE[f.key]=iso; cmRender(); return; }
+  if(f.mode==="cmall"){ Object.keys(CMWAY).forEach(function(k){ if(k!=="*" && cmWayOf(k)==="done") CMDATE[k]=iso; }); cmRender(); return; }
+  if(f.mode==="one"){ qtQueue([f.key], "Complete", iso); return; }
+  if(f.mode==="sel"){ QT.sel[f.key]=iso; renderJobs(); return; }
+  if(f.mode==="all"){ Object.keys(QT.sel).forEach(function(k){ QT.sel[k]=iso; }); renderJobs(); return; }
+  qtRedate(f.key, iso);
+}
+/* Change the date on a job that is already marked complete. Still waiting out
+   its 5 seconds: just change the queued date. Otherwise send Complete again with
+   the new completedDate (the server re-dates the log); a failure restores the old date. */
+function qtRedate(key, iso){
+  var j=wlFind(key); if(!j || !qtMay(j)) return;
+  var cur=QT.pend[key];
+  if(cur){ cur.date=iso; qtApply(j,"Complete",iso); toast("Dated "+qtDateLabel(iso,true)); renderJobs(); return; }
+  if(j.completed===iso && !QT.fly[key]) return;
+  var p={ to:"Complete", orig:{ status:j.status, completed:j.completed||"" }, key:key, title:(j.task||j.desc||"job"), date:iso, redate:true };
+  QT.pend[key]=p; qtApply(j,"Complete",iso); qtSend(key);
+  toast("Dated "+qtDateLabel(iso,true)); renderJobs();
+}
+/* The small "Done today ✎" chip, shown beside the circle. */
+function qtDateChip(j, k){
+  if(QT.selMode){
+    if(!QT.sel[j.key]) return "";
+    var d=QT.sel[j.key]; d=qtDateOk(d)?d:qtToday();
+    return '<button type="button" class="qtdc'+(d!==qtToday()?' past':'')+'" onclick="event.stopPropagation();qtDatePick(\''+k+'\',\'sel\')">'+(d===qtToday()?'Today':qtDateLabel(d))+' \u270e</button>';
+  }
+  if(qtRank(j)!==2 || !qtDateOk(j.completed)) return "";
+  var c=j.completed, t=qtToday();
+  return '<button type="button" class="qtdc'+(c!==t?' past':'')+'" onclick="event.stopPropagation();qtDatePick(\''+k+'\',\'row\')">Done '+(c===t?'today':qtDateLabel(c))+' \u270e</button>';
+}
+function qtApply(j, to, date){
+  if(to==="Complete"){ j.status="Complete"; j.completed=date||j.completed||qtToday(); }
   else { j.status=to; j.completed=""; }   // "To do" or "In Progress" — the exact words crewJobStatus accepts
 }
 /* Re-apply anything still waiting/in flight over a freshly loaded list, so a
    refresh arriving inside the 5 seconds doesn't flip the row back. */
 function qtOverlay(){
   [QT.fly, QT.pend].forEach(function(m){
-    Object.keys(m).forEach(function(k){ var j=wlFind(k); if(j) qtApply(j, m[k].to); });
+    Object.keys(m).forEach(function(k){ var j=wlFind(k); if(j) qtApply(j, m[k].to, m[k].date); });
   });
 }
 function qtTap(key){
@@ -10493,20 +10587,24 @@ function qtTap(key){
   if(QT.pend[key]){ qtCancel([key]); toast("Put back"); return; }
   qtQueue([key], qtRank(j)===2 ? "To do" : "Complete");   // tap: straight to Complete, or back to To do
 }
-function qtQueue(keys, to){
+function qtQueue(keys, to, date){
   var done=[];
+  var _dm=(date && typeof date==="object") ? date : null, _td=qtToday(), _ds={};
+  function _dOf(k){ var d=_dm ? _dm[k] : date; return (to==="Complete" && qtDateOk(d,_td)) ? d : (to==="Complete" ? _td : ""); }
   keys.forEach(function(k){
     var j=wlFind(k); if(!j || !qtMay(j) || QT.pend[k]) return;
     if(qtRank(j)===QT_RANK[to]) return;   // already there
     var orig={ status:j.status, completed:j.completed||"" };
-    var p={ to:to, orig:orig, key:k, title:(j.task||j.desc||"job") };
+    var p={ to:to, orig:orig, key:k, title:(j.task||j.desc||"job"), date:_dOf(k) };
     p.t=setTimeout(function(){ qtSend(k); }, QT_MS);
-    QT.pend[k]=p; qtApply(j, to); done.push(k);
+    QT.pend[k]=p; qtApply(j, to, p.date); done.push(k); _ds[p.date]=1;
   });
   if(!done.length) return;
+  var _dk=Object.keys(_ds);
+  function _past(){ return _dk.length>1 ? " (various dates)" : ((_dk[0] && _dk[0]!==_td) ? " ("+qtDateLabel(_dk[0])+")" : ""); }
   QT.batch=done; QT.sel={};
   var _n=done.length>1 ? (done.length+" ") : "";
-  qtShowToast(to==="Complete" ? (done.length>1 ? ("Marked "+_n+"complete") : "Marked complete")
+  qtShowToast(to==="Complete" ? (done.length>1 ? ("Marked "+_n+"complete") : "Marked complete")+_past()
             : to==="In Progress" ? (done.length>1 ? (_n+"moved to in progress") : "Moved to in progress")
             : (done.length>1 ? (_n+"back to to do") : "Back to to do"));
   renderJobs();
@@ -10536,13 +10634,13 @@ function qtSend(key){
   var p=QT.pend[key]; if(!p) return;
   clearTimeout(p.t); delete QT.pend[key]; QT.fly[key]=p;
   var body={ action:"crewJobStatus", email:ME.email, code:ME.code, jobKey:key, status:p.to,
-             completedDate:(p.to==="Complete" ? qtToday() : "") };
+             completedDate:(p.to==="Complete" ? (p.date||qtToday()) : "") };
   // one call per job at a time, in the order they were made
   QT.chain[key]=(QT.chain[key]||Promise.resolve()).then(function(){ return apiPost(body); }).then(function(r){
     if(QT.fly[key]===p) delete QT.fly[key];
     var j=wlFind(key);
     if(r && r.ok){
-      if(j && !QT.pend[key]){ j.status=p.to; j.completed=(p.to==="Complete") ? (r.completed||qtToday()) : ""; }
+      if(j && !QT.pend[key]){ j.status=p.to; j.completed=(p.to==="Complete") ? (r.completed||p.date||qtToday()) : ""; }
       if(p.to==="Complete"){ try{ copOfferResolve(j||{key:key}); }catch(e){} }
     } else {
       qtFail(p, j, (r&&r.error)||"Couldn’t update");
@@ -10569,13 +10667,13 @@ function qtSelToggleMode(){
 }
 function qtSelPick(key){
   var j=wlFind(key); if(!j || !qtMay(j) || qtRank(j)===2) return;
-  if(QT.sel[key]) delete QT.sel[key]; else QT.sel[key]=1;
+  if(QT.sel[key]) delete QT.sel[key]; else QT.sel[key]=qtToday();   // each ticked row carries its own date, default today
   renderJobs();
 }
 function qtSelDone(){
   var keys=Object.keys(QT.sel); QT.selMode=false;
   if(!keys.length){ renderJobs(); return; }
-  qtQueue(keys, "Complete");
+  qtQueue(keys, "Complete", QT.sel);
 }
 function qtBarPaint(){
   var b=$("qtBar"); if(!b) return;
@@ -10584,6 +10682,7 @@ function qtBarPaint(){
   if(!QT.selMode || JOBSEG!=="all"){ b.className=""; b.innerHTML=""; document.body.classList.remove("qtsel"); return; }
   b.className="show";
   b.innerHTML='<button type="button" '+(n?'':'disabled ')+'onclick="qtSelDone()">✓ Mark '+(n||"")+' complete</button>'+
+              '<button type="button" class="qtdt"'+(n?'':' disabled')+' onclick="qtDatePick(\'\',\'all\')">Set all to…</button>'+
               '<button type="button" class="qtx" onclick="qtSelToggleMode()">Cancel</button>';
 }
 /* The tap control for a row ("" when this person can't use it) and the wrapper
@@ -10594,10 +10693,10 @@ function qtCtl(j, done){
   if(QT.selMode){
     if(done) return "";
     var on=!!QT.sel[j.key];
-    return '<button type="button" class="qtbtn qtsq'+(on?' on':'')+'" aria-label="Select this job" onclick="event.stopPropagation();qtSelPick(\''+k+'\')"><span class="qtc">'+(on?'\u2713':'')+'</span></button>';
+    return qtDateChip(j,k)+'<button type="button" class="qtbtn qtsq'+(on?' on':'')+'" aria-label="Select this job" onclick="event.stopPropagation();qtSelPick(\''+k+'\')"><span class="qtc">'+(on?'\u2713':'')+'</span></button>';
   }
   var ip=!done && qtRank(j)===1;
-  return '<button type="button" class="qtbtn'+(done?' on':(ip?' ip':''))+(QT.pend[j.key]?' pend':'')+'" data-k="'+esc(j.key)+'" aria-label="'+(done?'Complete \u2014 tap to put back to To do':'Mark complete (hold for more choices)')+'" onclick="event.stopPropagation();qtTap(\''+k+'\')"><span class="qtc">'+(done?'\u2713':(ip?'\u25d0':''))+'</span></button>';
+  return qtDateChip(j,k)+'<button type="button" class="qtbtn'+(done?' on':(ip?' ip':''))+(QT.pend[j.key]?' pend':'')+'" data-k="'+esc(j.key)+'" aria-label="'+(done?'Complete \u2014 tap to put back to To do':'Mark complete (hold for more choices)')+'" onclick="event.stopPropagation();qtTap(\''+k+'\')"><span class="qtc">'+(done?'\u2713':(ip?'\u25d0':''))+'</span></button>';
 }
 function qtWrap(j, rowHtml, done){
   return '<div class="qtwrap" data-k="'+esc(j.key)+'" data-rank="'+qtRank(j)+'"><div class="qtrev r"></div><div class="qtrev l"></div>'+rowHtml+'</div>';
@@ -10672,8 +10771,9 @@ function qtWrap(j, rowHtml, done){
     var k=btn.getAttribute("data-k"), j=wlFind(k); if(!j || !qtMay(j)) return;
     QT.lpAt=Date.now();
     var cur=qtRank(j), pk=$("qtPick");
-    pk.innerHTML=[["To do","todo","To do"],["In Progress","ip","In progress"],["Complete","done","✓ Complete"]].map(function(o,i){
-      return '<button type="button" class="'+o[1]+(i===cur?' cur':'')+'" data-st="'+o[0]+'">'+o[2]+'</button>';
+    var _t=qtToday();
+    pk.innerHTML=[["To do","todo","To do",""],["In Progress","ip","In progress",""],["Complete","done","✓ Complete today",_t],["Complete","done","✓ Complete on…","pick"]].map(function(o,i){
+      return '<button type="button" class="'+o[1]+(o[0]==="Complete"?(cur===2&&i===2?' cur':''):(i===cur?' cur':''))+'" data-st="'+o[0]+'"'+(o[3]?' data-dt="'+o[3]+'"':'')+'>'+o[2]+'</button>';
     }).join("");
     pk.classList.add("show");
     var r=btn.getBoundingClientRect(), w=pk.offsetWidth, h=pk.offsetHeight;
@@ -10702,7 +10802,10 @@ function qtWrap(j, rowHtml, done){
     var pk=$("qtPick");
     if(pk && pk.contains(e.target)){
       var bt=e.target.closest("button[data-st]");
-      if(bt){ var k=pk.getAttribute("data-k"); closePick(); qtQueue([k], bt.getAttribute("data-st")); }
+      if(bt){
+        var k=pk.getAttribute("data-k"), dt=bt.getAttribute("data-dt"); closePick();
+        if(dt==="pick") qtDatePick(k,"one"); else qtQueue([k], bt.getAttribute("data-st"), dt||undefined);
+      }
       e.stopPropagation(); return;
     }
     if(pk && pk.classList.contains("show")){ closePick(); if(!(e.target.closest&&e.target.closest(".qtbtn"))) return; }
