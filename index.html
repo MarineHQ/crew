@@ -2011,7 +2011,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-13·t</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-13·u</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -13485,7 +13485,7 @@ function tripReportHtml(t,withCheck){
       });
       h+='<h2>Defects &amp; actions</h2><div style="margin:0 16px">'+(d.pre.defects?esc(d.pre.defects).replace(/\n/g,"<br>"):"None recorded")+'</div>'+
         '<h2>Sign-off</h2><table>'+rpRow("Signed by",esc(d.pre.by||""))+
-        rpRow("Date",d.pre.at?esc(new Date(d.pre.at).toLocaleString("en-AU",{day:"numeric",month:"short",year:"numeric",hour:"numeric",minute:"2-digit"})):"")+'</table>'+
+        rpRow("Date",esc(rpDate(d.pre.date||t.departed)))+'</table>'+
         (d.pre.sig?'<img class="sg" src="'+d.pre.sig+'" alt="signature" style="display:block;margin:8px 16px;height:80px;border:1px solid #dfe5ec;background:#fff">':'<div style="margin:8px 16px;color:#A34E0E">Not signed.</div>');
     }
   }
@@ -13568,7 +13568,7 @@ function tlPreStatus(){
 function preOpen(stateOverride,ro){
   PRE_RO=!!ro;
   var src=stateOverride||TLPRE||{items:[],defects:"",by:"",at:""};
-  PRE_WORK={items:(src.items||[]).slice(), defects:src.defects||"", by:src.by||ME.name||"", at:src.at||"", sig:src.sig||""};
+  PRE_WORK={items:(src.items||[]).slice(), defects:src.defects||"", by:src.by||ME.name||"", at:src.at||"", date:src.date||"", sig:src.sig||""};
   preRender();
   $("pre_save").style.display=PRE_RO?"none":"";
   $("preModal").classList.add("show");
@@ -13591,7 +13591,7 @@ function preRender(){
   if(PRE_WORK.sig){
     h+='<img src="'+PRE_WORK.sig+'" alt="signature" style="display:block;max-width:100%;height:90px;object-fit:contain;border:1px solid var(--line);border-radius:10px;background:#fff">'+
        (PRE_RO?'':'<button type="button" class="cancel" style="margin:4px 0 0" onclick="PRE_WORK.sig=\'\';PRE_WORK.defects=$(\'pre_defects\').value;PRE_WORK.by=$(\'pre_by\').value;preRender()">Sign again</button>');
-    if(PRE_WORK.at) h+='<div class="hmeta" style="margin-top:4px">Signed '+esc(new Date(PRE_WORK.at).toLocaleString("en-AU",{day:"numeric",month:"short",year:"numeric",hour:"numeric",minute:"2-digit"}))+'</div>';
+    var pdt=PRE_WORK.date||(TD_KEY&&tripFindByKey(TD_KEY)?tripFindByKey(TD_KEY).departed:"")||""; if(pdt) h+='<div class="hmeta" style="margin-top:4px">Checks dated '+esc(rpDate(pdt))+'</div>';
   } else if(!PRE_RO){
     h+='<p class="mhint" style="margin:0 0 6px">I confirm the checks above were carried out. Sign with your finger:</p>'+
        '<canvas class="sigpad" id="presig" style="height:140px"></canvas>'+
@@ -13635,7 +13635,7 @@ function preSave(){
   var name=($("pre_by").value||"").trim();
   if(c0.answered>=PRE_TOTAL && !name){ toast("Type your name above the signature"); return; }
   if(c0.answered>=PRE_TOTAL && !sig){ toast("Sign in the box to sign off the checklist"); return; }
-  TLPRE={items:items, defects:($("pre_defects").value||"").trim(), by:name||ME.name||"", at:new Date().toISOString(), sig:sig};
+  TLPRE={items:items, defects:($("pre_defects").value||"").trim(), by:name||ME.name||"", at:new Date().toISOString(), date:($("tl_ddate").value||""), sig:sig};
   TLPREDIRTY=true; tlPreStatus(); closeModal("preModal");
   toast(c0.answered>=PRE_TOTAL?"\u2713 Checklist signed off":"Checklist saved \u2014 "+c0.answered+" of "+PRE_TOTAL+" done, not signed yet");
 }
