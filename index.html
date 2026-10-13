@@ -1990,7 +1990,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-13·o</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-13·p</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -13304,6 +13304,7 @@ function tripExtrasHtml(t){
   if(d.weather) r.push("Weather: "+esc(d.weather));
   var e=d.equip||{}, eq=[]; if(e.v240) eq.push("240 V "+esc(e.v240)); if(e.shore) eq.push("Shore power "+esc(e.shore)); if(e.desal) eq.push("Desalination "+esc(e.desal));
   if(eq.length||e.note) r.push("Equipment &amp; vessel: "+eq.join(" &middot; ")+(e.note?((eq.length?"<br>":"")+esc(e.note).replace(/\n/g,"<br>")):""));
+  (d.startFlags||[]).forEach(function(f){ r.push('<span style="color:#C0392B">&#9888; '+esc(f)+'</span>'); });
   var hs=d.hrsStart||{}, fin={}; (t.hours||[]).forEach(function(h){fin[h.unit]=h.reading;});
   var units=Object.keys(hs).concat(Object.keys(fin).filter(function(u){return !(u in hs);}));
   if(units.length) r.push("Hours (start &rarr; finish):<br>"+units.map(function(u){return esc(u)+" <b>"+esc(hs[u]||"?")+" &rarr; "+esc(fin[u]!=null?fin[u]:"?")+"</b>";}).join("<br>"));
@@ -13520,7 +13521,8 @@ function saveTripLater(){
       btn.disabled=false; btn.innerHTML="Save departure &mdash; finish later";
       if(r&&r.ok){
         if(TPF.tl.length && r.key){ tripUploadPhotos(r.key, TPF.tl); TPF.tl=[]; }
-        closeModal("tripLogModal"); toast("&#9973; Departure saved \u2014 finish it when you arrive");
+        closeModal("tripLogModal");
+        if(r.warnings&&r.warnings.length) alert("Departure saved \u2014 but check this:\n\n"+r.warnings.join("\n\n")); else toast("&#9973; Departure saved \u2014 finish it when you arrive");
         if(r.trip && r.trip.vessel && myVessels().indexOf(r.trip.vessel)>=0) CURVESSEL=r.trip.vessel;
         loadTrips();
       } else toast((r&&r.error)||"Couldn\u2019t save the trip");
