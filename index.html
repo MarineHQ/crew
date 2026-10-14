@@ -1052,6 +1052,7 @@
   .addtaskbtn{margin-left:auto;background:var(--navy);color:#fff;border:none;border-radius:9px;padding:7px 13px;font-size:13px;font-weight:700;cursor:pointer}
   .fldhint{font-weight:600;color:var(--muted);font-size:11.5px}
   /* ---- Work agent: tell it what to do, read the plan, confirm ---- */
+  .shjobbtn{margin-top:6px;background:#fff;color:var(--navy);border:1.5px solid var(--navy);border-radius:9px;padding:6px 10px;font-size:13px;font-weight:700;cursor:pointer}
   .agentbtn{background:linear-gradient(135deg,var(--orange),var(--orange2));color:#fff;border:none;border-radius:9px;padding:7px 12px;font-size:13px;font-weight:700;cursor:pointer;margin-left:auto}   /* auto, so when the row wraps it right-aligns under ＋ Add task */
   .agtxt{min-height:96px}
   .agbox{margin-top:12px}
@@ -2061,7 +2062,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-14·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-14·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2201,6 +2202,7 @@ button:active{ filter: brightness(.93); }
     <label class="fld">Which job?</label>
     <input class="fld-in" id="ahSearch" placeholder="Start typing — boat or job" oninput="ahFilter()" autocomplete="off">
     <div class="ahlist" id="ahList"></div>
+    <button type="button" class="go alt2" id="ahShiftNew" style="display:none;margin-top:10px" onclick="shiftLogNew()">＋ Not on a list? Add a new job for these hours</button>
   </div>
   <div id="ahForm" style="display:none">
     <div id="ahBundle"></div>
@@ -4629,7 +4631,10 @@ function ahSetWhat(){
     : "Pick the day and the times.";
 }
 
+var SHIFTPRE=null, SHIFTPRE_ARM=null;
 function ahOpen(key){
+  SHIFTPRE=SHIFTPRE_ARM; SHIFTPRE_ARM=null;
+  try{ var nb=$("ahShiftNew"); if(nb) nb.style.display=SHIFTPRE?"":"none"; }catch(_){}
   EHSWAP = false;
   AHKEY = key || null;
   AHALSO = []; AHADDING = false;
@@ -4855,12 +4860,14 @@ function ahChoose(key){
   if(EHSWAP){ ehTakeSwap(key); return; }          // moving an entry to another job
   if(EHADDING){ ehTakeJob(key); return; }      // adding to an entry already saved
   if(AHADDING){ ahAlsoChoose(key); return; }   // second job for the same block
+  var pre=SHIFTPRE;                                // ahOpen clears it, keep a copy
   ahOpen(key);
   /* Start on the day the job was marked finished — nine times in ten that is
      the day being logged, and it saves scrolling a date picker back a week. */
   var j=((AHJOBS&&AHJOBS.length?AHJOBS:CREWJOBS)||[]).filter(function(x){return x.key===key;})[0];
   var iso=j && hubBucket(j.status)==="Done" ? ahIsoFrom(j.completed) : "";
   if(iso){ var d=$("ahDate"); if(d && iso<=sdToday()) d.value=iso; }
+  if(pre) shiftApplyPre(pre);
 }
 /* "4 Sep" / "04/09/2026" -> yyyy-mm-dd, or "" if it isn't a date we know. */
 /* "2026-07-31" -> "Fri 31 Jul". A bare date is harder to place than a day name
@@ -4891,6 +4898,39 @@ function ahIsoFrom(v){
    logging 08:53, and a job card full of odd minutes reads like a stopwatch
    receipt. step="1800" drives the phone's wheel, but a typed value ignores it,
    so the value is snapped to the nearest half hour on the way out. */
+/* From the Time page: a finished shift becomes hours on a job. The day and the
+   clock-on / clock-off times come off the shift, so nobody retypes them. */
+function shiftPreOf(sh){
+  var p2=function(n){return (n<10?"0":"")+n;};
+  var a=new Date(sh.inAt), b=sh.outAt?new Date(sh.outAt):null;
+  return { vessel:sh.vessel||"",
+    date:a.getFullYear()+"-"+p2(a.getMonth()+1)+"-"+p2(a.getDate()),
+    start:p2(a.getHours())+":"+p2(a.getMinutes()),
+    finish:b?(p2(b.getHours())+":"+p2(b.getMinutes())):"",
+    hours:Math.max(0.25, Math.round((sh.minutes||0)/60*4)/4) };
+}
+function shiftApplyPre(pre){
+  var d=$("ahDate"); if(d && pre.date<=sdToday()) d.value=pre.date;
+  var st=$("ahStart"), fi=$("ahFinish");
+  if(st && pre.finish){ st.value=pre.start; fi.value=pre.finish; snapHalf(st); snapHalf(fi); }
+  else { ahMode(true); var h=$("ahHours"); if(h) h.value=pre.hours; }
+  ahCalc();
+}
+function shiftAttach(id){
+  var sh=(SHIFTS||[]).filter(function(x){return x.id===id;})[0]; if(!sh) return;
+  SHIFTPRE_ARM=shiftPreOf(sh);
+  ahOpen();
+  $("ahWhat").textContent="Which job were these hours on? ("+(sh.vessel||"this boat")+")";
+}
+function shiftLogNew(){
+  var pre=SHIFTPRE; closeModal("addHoursModal");
+  openWorkLog();
+  if(!pre) return;
+  var sel=$("wl_vessel"), has=false;
+  for(var i=0;i<sel.options.length;i++){ if(sel.options[i].value===pre.vessel||sel.options[i].text===pre.vessel){ sel.selectedIndex=i; has=true; break; } }
+  if(!has && pre.vessel){ sel.value="__other__"; $("wl_other").style.display="block"; $("wl_other").value=pre.vessel; }
+  $("wl_hours").value=pre.hours; $("wl_done").value=pre.date;
+}
 function snapHalf(el){
   if(!el) return;
   var v=(el.value||"").trim(); if(!/^\d{1,2}:\d{2}$/.test(v)) return;
@@ -12302,8 +12342,9 @@ function renderShifts(){
     else if(s.desc) descLine='<div class="sd">'+esc(s.desc)+' <span style="color:var(--navy);font-weight:bold">· edit</span></div>';
     else descLine='<div class="sd" style="color:var(--orange);font-weight:bold">＋ Add what you did</div>';
     var clickable=(!s.open && !s.submitted);
+    var jobBtn = clickable ? '<div><button class="shjobbtn" onclick="event.stopPropagation();shiftAttach(\''+s.id+'\')">＋ Put these hours on a job</button></div>' : '';
     return '<div class="shiftrow"'+(clickable?' onclick="openShiftEditor(\''+s.id+'\')" style="cursor:pointer"':'')+'>'+
-      '<div style="flex:1"><div><span class="sv">'+esc(s.vessel)+'</span> <span class="sd">'+when+'</span></div>'+descLine+'</div>'+right+'</div>';
+      '<div style="flex:1"><div><span class="sv">'+esc(s.vessel)+'</span> <span class="sd">'+when+'</span></div>'+descLine+jobBtn+'</div>'+right+'</div>';
   }).join("");
   if(readyToSend){
     html+='<button class="eodbtn" style="margin-top:6px" onclick="sendMyDay()">Send my day to Marine HQ ('+readyToSend+')</button>'+
