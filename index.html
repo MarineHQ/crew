@@ -2062,7 +2062,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-14·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-14·c</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -3847,6 +3847,7 @@ function chLoad(force){
       CHTIMER=(r[0]&&r[0].ok)?r[0]:null;
       CHDAY  =(r[1]&&r[1].ok)?r[1]:null;
       chPaint();
+      try{ if(SHIFTS&&SHIFTS.length) renderShifts(); }catch(e){}
       chUnsubLoad();
     }).catch(function(){ _chBusy=false; });
 }
@@ -12326,22 +12327,32 @@ function loadShifts(){
   if(!ME||!ME.email) return;
   apiGet("fn=crewshifts&email="+encodeURIComponent(ME.email)+"&code="+encodeURIComponent(ME.code||"")).then(function(j){ SHIFTS=(j&&j.shifts)||[]; renderShifts(); }).catch(function(){});
 }
+/* A shift whose hours are already on a job is done with — the shift record and
+   the job-hours record are separate, and only the hours get marked sent. So ask
+   the hours: anything logged today on this boat covers the shift. */
+function shiftCover(s){
+  var es=(CHDAY&&CHDAY.entries)||[], v=(s.vessel||"").toLowerCase(), n=0, sent=0;
+  es.forEach(function(e){ if((e.vessel||"").toLowerCase()===v){ n++; if((e.pushed||"").toLowerCase()==="yes") sent++; } });
+  return n ? {n:n, sent:sent, all:sent===n} : null;
+}
 function renderShifts(){
   var sw=$("shiftsWrap"); if(!sw) return;
+  SHIFTS.forEach(function(x){ x._cov = x.open ? null : shiftCover(x); });
   if(!SHIFTS.length){ sw.innerHTML='<p class="hello" style="padding:10px 2px 0">No shifts yet today. <b>Clock in</b> when you start on a boat and <b>clock out</b> when you move to the next — then add what you did at the end of the day.</p>'; return; }
   var closed=SHIFTS.filter(function(s){return !s.open;});
-  var readyToSend=closed.filter(function(s){return s.desc && !s.submitted;}).length;
-  var needDesc=closed.filter(function(s){return !s.desc && !s.submitted;}).length;
+  var readyToSend=closed.filter(function(s){return s.desc && !s.submitted && !s._cov;}).length;
+  var needDesc=closed.filter(function(s){return !s.desc && !s.submitted && !s._cov;}).length;
   var html='<div class="subbar" style="padding:12px 2px 8px"><h2 style="font-size:15px">Today’s shifts</h2><span class="count">'+SHIFTS.length+(SHIFTS.length===1?" boat":" boats")+'</span></div>';
   html+=SHIFTS.map(function(s){
     var when=fmtClockTime(s.inAt)+(s.outAt?(' – '+fmtClockTime(s.outAt)):' – now');
-    var right = s.submitted ? '<span class="sh" style="color:var(--ok)">✓ Sent</span>' : '<span class="sh">'+shiftDur(s.minutes)+'</span>';
+    var right = (s.submitted||(s._cov&&s._cov.all)) ? '<span class="sh" style="color:var(--ok)">✓ Sent</span>' : '<span class="sh">'+shiftDur(s.minutes)+'</span>';
     var descLine;
-    if(s.open) descLine='<div class="sd" style="color:var(--amber)">On the clock — clock out to finish</div>';
+    if(s._cov) descLine='<div class="sd" style="color:var(--ok);font-weight:bold">✓ Hours are on '+(s._cov.n>1?(s._cov.n+' jobs'):'a job')+(s._cov.all?' · sent':' · tap My hours to send')+'</div>';
+    else if(s.open) descLine='<div class="sd" style="color:var(--amber)">On the clock — clock out to finish</div>';
     else if(s.submitted) descLine='<div class="sd">'+esc(s.desc||"")+'</div>';
     else if(s.desc) descLine='<div class="sd">'+esc(s.desc)+' <span style="color:var(--navy);font-weight:bold">· edit</span></div>';
     else descLine='<div class="sd" style="color:var(--orange);font-weight:bold">＋ Add what you did</div>';
-    var clickable=(!s.open && !s.submitted);
+    var clickable=(!s.open && !s.submitted && !s._cov);
     var jobBtn = clickable ? '<div><button class="shjobbtn" onclick="event.stopPropagation();shiftAttach(\''+s.id+'\')">＋ Put these hours on a job</button></div>' : '';
     return '<div class="shiftrow"'+(clickable?' onclick="openShiftEditor(\''+s.id+'\')" style="cursor:pointer"':'')+'>'+
       '<div style="flex:1"><div><span class="sv">'+esc(s.vessel)+'</span> <span class="sd">'+when+'</span></div>'+descLine+jobBtn+'</div>'+right+'</div>';
