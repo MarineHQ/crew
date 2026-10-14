@@ -2061,7 +2061,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-13·z</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-14·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -6095,9 +6095,18 @@ var CREWNAMES=[];
 function loadCrewNames(cb){
   var c=_cGet(_ck("names")); if(c&&c.length) CREWNAMES=c;                // instant from cache
   apiGet("fn=crewnames&code="+encodeURIComponent(ME.code||"")+"&email="+encodeURIComponent(ME.email||""))
-    .then(function(j){ if(j&&j.ok&&j.crew){ CREWNAMES=j.crew; _cSet(_ck("names"), CREWNAMES); } if(cb) cb(); })
-    .catch(function(){ if(cb) cb(); });
+    .then(function(j){ var changed=false; if(j&&j.ok&&j.crew){ changed=JSON.stringify(j.crew)!==JSON.stringify(CREWNAMES); CREWNAMES=j.crew; _cSet(_ck("names"), CREWNAMES); } _crewNamesAt=Date.now(); if(cb) cb(changed); })
+    .catch(function(){ if(cb) cb(false); });
 }
+// The roster changes when crew are onboarded or archived — never trust a stale copy.
+// Re-fetch (throttled) on every job open, every activity poll and every return to the app.
+var _crewNamesAt=0;
+function refreshCrewNames(force, cb){
+  if(!ME) return;
+  if(!force && Date.now()-_crewNamesAt<20000) return;
+  loadCrewNames(cb);
+}
+document.addEventListener("visibilitychange", function(){ if(!document.hidden) refreshCrewNames(true); });
 /* ── Real push notifications ───────────────────────────────────────────────
    The 30-second poll above only fires while the app is open, and the email
    only lands if an address is on file. This is the channel that reaches a
@@ -6234,6 +6243,7 @@ function startActivityWatch(){
 }
 function pollActivity(){
   if(!ME) return;
+  refreshCrewNames(false);
   apiGet("fn=crewactivity&code="+encodeURIComponent(ME.code||"")+"&email="+encodeURIComponent(ME.email||"")+"&limit=80")
     .then(function(j){
       var evs=(j&&j.events)||[]; UPDATES=evs; _cSet(_ck("upd"), evs);
@@ -8917,6 +8927,7 @@ function wlFactsHtml(j){
 
 function openWLJob(key){
   var j=wlFind(key); if(!j)return;
+  refreshCrewNames(false, function(changed){ if(changed && openJobId===key){ try{ openWLJob(key); }catch(e){} } });   // pickers must show who is on the roster NOW
   openJobId=key; WLMENTIONS=[]; WLLANE=""; PHTAG=""; WHERE_OPEN="";
   try{ chLoad(); chJobLoad(key, true); }catch(e){}
   try{ wlIncLoad(key); }catch(e){}                 // what this job included (tick-list)
