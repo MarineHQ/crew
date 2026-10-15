@@ -580,6 +580,10 @@
             text-transform:uppercase;color:var(--muted)}
   .ahcatrow{border:1px dashed var(--line);border-radius:10px;padding:9px 12px;margin-bottom:6px;cursor:pointer;background:#fff}
   .ahcatrow:hover{border-color:var(--navy);border-style:solid}
+  .ahcatrow:active{background:#eef4fb}
+  .rjsugg mark{background:#fde9c8;color:inherit;border-radius:3px;padding:0 1px}
+  .rjsugg .rjnone,.rjsugg .rjmorerow{text-align:center;background:#f6f9fc}
+  .rjsugg .rjnone b,.rjsugg .rjmorerow b{font-size:13px;display:block}
   .ahcatrow b{display:block;font-size:14px;color:var(--navy)}
   .ahcatrow span{display:block;margin-top:2px;font:600 11.5px/1.5 ui-monospace,Menlo,monospace;color:var(--muted)}
   .wlxref{width:100%;text-align:left;border:1px dashed var(--line);background:#fff;
@@ -2062,7 +2066,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-14·d</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-15·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -13353,6 +13357,7 @@ function rjSuggest(){
   clearTimeout(_rjT);
   _rjT=setTimeout(function(){
     var q=($("r_title").value||"").trim();
+    RJMORE=false;
     if(q.length<2){ RJSUGG=[]; rjRenderMatch(); return; }
     var mine={q:q}; _rjReq=mine;
     apiGet("fn=tasksuggest&code="+encodeURIComponent(ME.code||"")+"&email="+encodeURIComponent(ME.email||"")+
@@ -13371,14 +13376,27 @@ function rjRenderMatch(){
     el.style.display=""; return;
   }
   if(!RJSUGG.length){ el.innerHTML=""; el.style.display="none"; return; }
-  el.innerHTML='<div class="atm-sugg"><div class="atm-sugg-hd">Is it one of these? Tap to file it there:</div>'+
-    RJSUGG.map(function(x){
-      return '<button type="button" class="atm-row" onclick="rjChoose('+x.num+')"><span class="atm-row-j">'+esc(x.job)+'</span>'+
-        (x.category?('<span class="atm-row-c">'+esc(x.category)+'</span>'):'')+(x.code?('<span class="jcode">'+esc(x.code)+'</span>'):'')+'</button>';
+  /* Same look as Log job: the job's name in bold, the code and category quiet
+     underneath, one full-width row each. The words being typed are marked in the
+     name so the eye lands on why it matched. Top five first — a long list is
+     slower to read than to type another word. */
+  var q=(($("r_title")||{}).value||"").trim().toLowerCase().split(/\s+/).filter(function(w){return w.length>1;});
+  function hl(t){
+    var h=esc(t||"");
+    q.forEach(function(w){ var re=new RegExp("("+w.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+")","ig"); h=h.replace(re,"<mark>$1</mark>"); });
+    return h;
+  }
+  var more=RJSUGG.length>5 && !RJMORE, shown=more?RJSUGG.slice(0,5):RJSUGG;
+  el.innerHTML='<div class="ahcat rjsugg"><h6>Is it one of these? Tap to file it there</h6>'+
+    shown.map(function(x){
+      return '<div class="ahcatrow" onclick="rjChoose('+x.num+')"><b>'+hl(x.job)+'</b><span>'+esc(x.code||"")+
+        (x.category?(' \u00b7 '+esc(x.category)):'')+'</span></div>';
     }).join("")+
-    '<button type="button" class="atm-row new" onclick="rjClear(1)">&#10133; None of these &mdash; use my own words</button></div>';
+    (more?'<div class="ahcatrow rjmorerow" onclick="RJMORE=true;rjRenderMatch()"><b>Show '+(RJSUGG.length-5)+' more</b></div>':'')+
+    '<div class="ahcatrow rjnone" onclick="rjClear(1)"><b>&#10133; None of these &mdash; use my own words</b></div></div>';
   el.style.display="";
 }
+var RJMORE=false;
 function rjChoose(num){
   RJNUM=num; fjRender("r", rjVessel(), isPickupNum(num), "");
   var pick=RJSUGG.filter(function(x){return x.num===num;})[0];
