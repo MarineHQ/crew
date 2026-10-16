@@ -2066,7 +2066,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-16·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-16·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -4802,7 +4802,11 @@ function ahFilter(){
     return a<b?1:-1;                                   // newest day first
   });
   var busy = AHBUSY ? '<div class="ahbusy">checking your other boats\u2026</div>' : '';
-  var html = chips + busy + keys.map(function(v){
+  /* WHILE TYPING, THE CATALOGUE COMES FIRST (Trish, 16 Oct 2026). The standard
+     jobs sat under the whole list, so "detailing" found them but they were
+     below every job already sent — you had to scroll past work you are not
+     adding to. Nothing is hidden; it is only the order. */
+  var html = chips + busy + (q ? cat : "") + keys.map(function(v){
     var lbl = v===IN_HAND ? "No date yet \u2014 not finished, no hours logged" : ahNiceDay(v);
     return '<div class="ahhd">'+esc(lbl)+' <span>'+by[v].length+'</span></div>' +
       by[v].slice(0,60).map(function(j){
@@ -4840,7 +4844,7 @@ function ahFilter(){
           '<span>'+esc(j.vessel||"")+' \u00b7 '+esc(j.code||"no code yet")+got+'</span></div>';
       }).join("");
   }).join("");
-  $("ahList").innerHTML = html + cat;
+  $("ahList").innerHTML = html + (q ? "" : cat);
 }
 
 /* Standard jobs that are NOT on this boat's list, with the code they would
