@@ -472,7 +472,7 @@ function loadAll(){
   document.getElementById("v-now").innerHTML='<div class="spin">Loading…</div>';
   Promise.all([get("crewonshift"),get("crewallshifts"),get("hub"),get("crewlist"),get("crewcerts&all=1"),
                get("crewjobs&code="+encodeURIComponent(KEY)+"&all=1&mine=0"),
-               get("crewhoursall&"+hoursQuery()),get("crewtimersopen"),get("vesselaccess")]).then(function(res){
+               get("crewhoursall&"+hoursQuery()),get("crewtimersopen"),get("vesselaccess"),get("crewtrail")]).then(function(res){
     if((res[0]&&res[0].locked)||(res[3]&&res[3].locked)){KEY="";try{localStorage.removeItem("mhq_crew_key");}catch(e){}document.getElementById("gate").classList.add("show");return;}
     document.getElementById("gate").classList.remove("show");   // the code worked — no need to ask
     DATA.onShift=(res[0]&&res[0].onShift)||[];
@@ -484,6 +484,7 @@ function loadAll(){
     DATA.wl=(res[5]&&res[5].jobs)||[];        // every boat's worklist — what crew are actually on
     DATA.hours=(res[6]&&res[6].ok)?res[6]:null;      // this month's ledger, totalled
     DATA.timers=(res[7]&&res[7].running)||[];        // timers running right now
+    DATA.trails=(res[9]&&res[9].trails)||{};          // location points per open shift
     DATA.where=(res[8]&&res[8].vessels)||[];         // where each boat is + whether access notes are on file
     SHIFTC={};                                 // today moved on / data refreshed
     document.getElementById("refresh").textContent="Updated "+tclock(Date.now());
@@ -529,7 +530,14 @@ function drawMap(){
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(map); }
     markers.forEach(function(m){map.removeLayer(m);}); markers=[];
     var pts=[];
-    DATA.onShift.forEach(function(s){ if(s.lat!==""&&s.lat!=null){ var m=L.marker([s.lat,s.lng]).addTo(map).bindPopup("<b>"+esc(s.crew)+"</b><br>"+esc(s.vessel)+" · since "+tclock(s.inAt)); markers.push(m); pts.push([s.lat,s.lng]); } });
+    DATA.onShift.forEach(function(s){
+      var tr=(DATA.trails&&DATA.trails[s.id])||[], last=tr.length?tr[tr.length-1]:null;
+      var lat=last?last.lat:s.lat, lng=last?last.lng:s.lng;
+      if(lat===""||lat==null) return;
+      if(tr.length>1){ var ll=tr.map(function(p){return [p.lat,p.lng];}); markers.push(L.polyline(ll,{color:"#1b6ca8",weight:3,opacity:.7}).addTo(map)); ll.forEach(function(q){pts.push(q);}); }
+      var ago=last?(" · last seen "+tclock(last.at)):(" · pinned at clock-in");
+      var m=L.marker([lat,lng]).addTo(map).bindPopup("<b>"+esc(s.crew)+"</b><br>"+esc(s.vessel)+" · since "+tclock(s.inAt)+ago); markers.push(m); pts.push([lat,lng]);
+    });
     if(pts.length) map.fitBounds(pts,{padding:[40,40],maxZoom:14});
     setTimeout(function(){map.invalidateSize();},80);
   }catch(e){}
