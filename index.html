@@ -2083,7 +2083,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-18·e</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-19·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -7120,7 +7120,7 @@ function wlJobCard(j, idx, noNum, forceNo){
    owner), then "Completed & filed" — the permanent record, one tap away.
    Nothing is ever deleted or hidden; it just stops crowding the live list. */
 var WLDONE={};
-function toggleDone(k){ WLDONE[k]=!WLDONE[k]; renderJobs(); }
+function toggleDone(k){ WLDONE[k]=(k in WLDONE)?!WLDONE[k]:(k.split("|")[1]||"").indexOf("sys")===0?false:true; renderJobs(); }
 function wlFiled(j){ return !!(j.signoff && j.signoff.disp); }   // logged internally or approved to the owner
 function wlDoneTs(j){ var t=Date.parse(j.completed||""); return isNaN(t) ? (j.updated||0) : t; }
 function wlSplit(jobs){
@@ -7137,13 +7137,29 @@ function doneBlock(g, kind, arr, label){
   if(!arr.length) return "";
   // Filtering to "Done" means you came looking for it — open the section for them.
   // The Unassigned fold is not a "done" section: it never auto-opens.
-  var k=g+"|"+kind, open=(k in WLDONE) ? !!WLDONE[k] : (kind!=="unass" && JOBFILTER==="Done");
+  var isUn = kind.indexOf("unass")===0, isSys = kind.indexOf("sys")===0;
+  var k=g+"|"+kind, open=(k in WLDONE) ? !!WLDONE[k] : (isSys ? true : (!isUn && JOBFILTER==="Done"));
   var kJs=k.replace(/\\/g,"\\\\").replace(/'/g,"\\'");
-  return '<div class="dnacc'+(kind==="sign"?" sign":"")+(kind==="unass"?" unass":"")+(kind==="filed"?" filed":"")+(open?"":" closed")+'" onclick="event.stopPropagation();toggleDone(\''+esc(kJs)+'\')">'+
+  return '<div class="dnacc'+(kind==="sign"?" sign":"")+(isUn?" unass":"")+(kind==="filed"?" filed":"")+(open?"":" closed")+'" onclick="event.stopPropagation();toggleDone(\''+esc(kJs)+'\')">'+
     '<span class="car">&#9662;</span><h4>'+label+'</h4><span class="n">'+arr.length+'</span></div>'+
     '<div class="dnbody'+(open?"":" closed")+'">'+arr.map(function(j,i){
-      return (kind==="unass") ? wlJobCard(j,i,false,"U"+(i+1)) : wlJobCard(j,i);
+      return isUn ? wlJobCard(j,i,false,"U"+(i+1)) : wlJobCard(j,i);
     }).join("")+'</div>';
+}
+/* Big lists are split into sections by AREA, read from the system in the job's code
+   (EW-DECK-0225 -> DECK). Small lists (under 8) stay flat. Lists keep their tasks;
+   this only changes how they are laid out. (Trish, 19 Oct 2026) */
+var SYS_NAMES={DECK:"Deck & topsides",HULL:"Hull",RUN:"Running gear",ENG:"Engines & engine room",ELEC:"Electrical",PLUMB:"Plumbing & water",INT:"Interior",TOYS:"Tender & toys",SAFE:"Safety & compliance",OPS:"Operations"};
+function sysOfJob(j){ var p=((j&&j.code)||"").toString().toUpperCase().split("-"); for(var i=0;i<p.length;i++){ if(SYS_NAMES[p[i]]) return p[i]; } return "OTHER"; }
+function sysBlocks(g, kind, arr, label, flatFn){
+  if(!arr.length) return "";
+  if(arr.length<8) return flatFn(arr, label);
+  var by={}, order=[];
+  arr.forEach(function(j){ var k=sysOfJob(j); if(!by[k]){by[k]=[];order.push(k);} by[k].push(j); });
+  order.sort(function(a,b){ return (a==="OTHER")-(b==="OTHER") || by[b].length-by[a].length; });
+  return order.map(function(k){
+    return doneBlock(g, kind+":"+k, by[k], label+" &middot; "+esc(k==="OTHER"?"Other":SYS_NAMES[k]));
+  }).join("");
 }
 function renderJobs(){
   qtOverlay(); qtBarPaint();   // quick-done changes still waiting to be sent stay on screen
@@ -7208,13 +7224,14 @@ function wlGroupHTML(g, groups){
       _unass = live.filter(function(x){ return !((x.allocatedTo||"").toString().trim()); });
       _mineWork = live.filter(function(x){ return !!((x.allocatedTo||"").toString().trim()); });
     }
-    var cards=_mineWork.map(function(x,i){ return wlJobCard(x,i); }).join("");
+    var cards=(_mineWork.length>=8) ? sysBlocks(g,"sys",_mineWork,"&#128736; Open",function(a){ return a.map(function(x,i){ return wlJobCard(x,i); }).join(""); })
+                                    : _mineWork.map(function(x,i){ return wlJobCard(x,i); }).join("");
     if(!_mineWork.length){
       cards = _unass.length
         ? '<div class="wldone-none">Nothing handed out yet &mdash; '+_unass.length+' waiting below.</div>'
         : '<div class="wldone-none">'+(jobs.length?'&#10003; Everything on this list is done &mdash; it&rsquo;s all filed below.':'Nothing on this list yet.')+'</div>';
     }
-    cards+=doneBlock(g,"unass",_unass,'&#128100; Unassigned / raised jobs');
+    cards+=sysBlocks(g,"unass",_unass,'&#128100; Unassigned',function(a,l){ return doneBlock(g,"unass",a,'&#128100; Unassigned / raised jobs'); });
     cards+=dueFold(g, (jobs[0]&&jobs[0].vessel)||"", wlPeriodOfList(g));
     cards+=doneBlock(g,"sign",toSign,(isMgrRole()?'&#10003; Done &mdash; waiting on sign-off':'&#10003; Done &mdash; with Marine HQ'));
     cards+=doneBlock(g,"filed",filed,'&#128193; Completed &amp; filed');
