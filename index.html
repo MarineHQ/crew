@@ -2014,7 +2014,7 @@ button:active{ filter: brightness(.93); }
       <div id="clockCard"></div>
       <div id="shiftsWrap"></div>
       <div class="subbar" style="padding-top:16px"><h2 style="font-size:15px">EOD form (backup)</h2></div>
-      <p class="hello" style="padding-top:2px">Your clocked shifts above go to Marine HQ when you tap <b>Send my day</b> — no need to fill a form. Prefer the old form? It’s here as a backup.</p>
+      <p class="hello" style="padding-top:2px"><b>Clocking in and out does not log your hours.</b> Put each shift on a job (<b>＋ Put these hours on a job</b>), then press <b>Submit my day</b>. The EOD form below is only a backup.</p>
       <button class="eodbtn" onclick="openEOD()">📋 Open my EOD form →</button>
       <p class="eodsub" id="eodSub"></p>
     </div>
@@ -2066,7 +2066,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-16·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-18·d</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2231,7 +2231,7 @@ button:active{ filter: brightness(.93); }
     </div>
     <div id="ahJustHours" style="display:none">
       <label class="fld">How many hours?</label>
-      <input type="number" min="0.25" max="18" step="0.25" inputmode="decimal" class="fld-in"
+      <input type="number" min="0.5" max="18" step="0.5" inputmode="decimal" class="fld-in"
              id="ahHours" placeholder="e.g. 4" onchange="ahCalc()" oninput="ahCalc()">
       <p class="mhint" style="margin:6px 0 0">No times recorded — just the hours. Use this when
         nobody wrote down when they started, rather than inventing a time that then reads as fact.</p>
@@ -2298,7 +2298,7 @@ button:active{ filter: brightness(.93); }
   </div>
   <div id="ehJustHours" style="display:none">
     <label class="fld">How many hours?</label>
-    <input type="number" min="0.25" max="18" step="0.25" inputmode="decimal" class="fld-in"
+    <input type="number" min="0.5" max="18" step="0.5" inputmode="decimal" class="fld-in"
            id="ehHours" placeholder="e.g. 4" oninput="ehCalc()">
   </div>
   <div class="ehcalc" id="ehCalc">—</div>
@@ -2379,7 +2379,7 @@ button:active{ filter: brightness(.93); }
     </div>
     <div style="max-width:120px">
       <label class="fld">Hours <span class="fldhint" id="wl_hrsHint">(opt)</span></label>
-      <input type="number" step="0.25" min="0" class="fld-in" id="wl_hours" placeholder="e.g. 1.5">
+      <input type="number" step="0.5" min="0" class="fld-in" id="wl_hours" placeholder="e.g. 1.5">
     </div>
   </div>
   <label class="fld">Photos &amp; documents <span class="fldhint">(optional)</span></label>
@@ -4211,7 +4211,7 @@ function ehMins(v){ var m=/^(\d{1,2}):(\d{2})$/.exec((v||"").trim()); return m?(
 function ehCalc(){
   var el0=$("ehCalc"); if(!el0) return;
   if(EHHOURSONLY){
-    var hv=Math.round((parseFloat(($("ehHours")||{}).value)||0)*4)/4;
+    var hv=Math.round((parseFloat(($("ehHours")||{}).value)||0)*2)/2;
     el0.textContent = hv>0 ? (chFmt(hv)+" \u00b7 no times recorded") : "\u2014";
     return;
   }
@@ -4221,7 +4221,7 @@ function ehCalc(){
   if(a<0||b<0){ el.textContent="\u2014"; return; }
   var d=b-a; if(d<0) d+=1440; d-=br;
   if(d<=0){ el.textContent="That gives no time worked"; return; }
-  var billable=Math.round((d/60)*4)/4;
+  var billable=Math.round((d/60)*2)/2;
   el.textContent=Math.floor(d/60)+"h "+(d%60)+"m actual \u2192 "+chFmt(billable)+" billable"+
     (d>=1440-60?"  (overnight)":"");
 }
@@ -4231,7 +4231,7 @@ function ehSave(){
              date:($("ehDate").value||""), note:$("ehNote").value,
              also:EHALSO.map(function(a){ return { jobKey:a.key, task:a.task, jobCode:a.code, cat:a.cat }; }) };
   if(EHHOURSONLY){
-    var hv=Math.round((parseFloat(($("ehHours")||{}).value)||0)*4)/4;
+    var hv=Math.round((parseFloat(($("ehHours")||{}).value)||0)*2)/2;
     if(!(hv>0)){ toast("How many hours?"); return; }
     body.hoursOnly=true; body.hours=hv; body.start=""; body.finish=""; body.breakMins=0;
   } else {
@@ -4917,7 +4917,7 @@ function shiftPreOf(sh){
     date:a.getFullYear()+"-"+p2(a.getMonth()+1)+"-"+p2(a.getDate()),
     start:p2(a.getHours())+":"+p2(a.getMinutes()),
     finish:b?(p2(b.getHours())+":"+p2(b.getMinutes())):"",
-    hours:Math.max(0.25, Math.round(((sh.minutes||0)-done)/60*4)/4) };
+    hours:Math.max(0.5, Math.round(((sh.minutes||0)-done)/60*2)/2) };
 }
 function shiftApplyPre(pre){
   var d=$("ahDate"); if(d && pre.date<=sdToday()) d.value=pre.date;
@@ -4963,7 +4963,7 @@ function ahOvernight(st, fi){
   if(a<0||b<0) return null;
   if(b>a) return null;
   var pm = (b+720) % 1440;                       // what they probably meant
-  return { hours: Math.round(((b-a+1440)/60)*4)/4,
+  return { hours: Math.round(((b-a+1440)/60)*2)/2,
            suggest: ("0"+Math.floor(pm/60)).slice(-2)+":"+("0"+(pm%60)).slice(-2) };
 }
 function ahOvernightOk(st, fi, label){
@@ -4992,7 +4992,7 @@ function ahCalc(){
   var el=$("ahSum"); if(!el) return;
   if(AHHOURSONLY){
     var hv=parseFloat(($("ahHours")||{}).value);
-    hv = Math.round((hv||0)*4)/4;
+    hv = Math.round((hv||0)*2)/2;
     el.style.color="";
     el.innerHTML = hv>0 ? (esc(chFmt(hv))+"  ·  no times recorded"+ahRunning(hv)) : "—";
     return;
@@ -5013,7 +5013,7 @@ function ahCalc(){
 function ahSave(){
   if(!AHKEY){ toast("Pick the job first"); return; }
   var st=($("ahStart").value||"").trim(), fi=($("ahFinish").value||"").trim();
-  var justHrs = AHHOURSONLY ? (Math.round((parseFloat(($("ahHours")||{}).value)||0)*4)/4) : 0;
+  var justHrs = AHHOURSONLY ? (Math.round((parseFloat(($("ahHours")||{}).value)||0)*2)/2) : 0;
   if(AHHOURSONLY){
     if(!(justHrs>0)){ toast("How many hours?"); return; }
     st=""; fi="";
@@ -12333,7 +12333,7 @@ function openEOD(){
 }
 function closeEOD(){ $("eodwrap").classList.remove("show"); $("eodframe").innerHTML=""; }
 function renderHours(){
-  $("eodSub").innerHTML = "Backup only — your shifts above are the main way to send your day. Same EOD form as before, pre‑filled as <b>"+esc(ME.name)+"</b>.";
+  $("eodSub").innerHTML = "Backup only — the normal way is to put each shift on a job, then Submit my day. Same EOD form as before, pre‑filled as <b>"+esc(ME.name)+"</b>.";
 }
 
 /* ===== Crew Onboarding Guide + finger signature ===== */
@@ -12386,51 +12386,79 @@ function signAccept(){
 }
 
 /* ===== today's shifts (real — from the Crew Clock tab) ===== */
-var SHIFTS = [], editShiftId = null;
+var SHIFTS = [], HOURSBYDAY = {}, editShiftId = null;
 function loadShifts(){
   if(!ME||!ME.email) return;
-  apiGet("fn=crewshifts&email="+encodeURIComponent(ME.email)+"&code="+encodeURIComponent(ME.code||"")).then(function(j){ SHIFTS=(j&&j.shifts)||[]; renderShifts(); }).catch(function(){});
+  apiGet("fn=crewshifts&days=14&email="+encodeURIComponent(ME.email)+"&code="+encodeURIComponent(ME.code||"")).then(function(j){ SHIFTS=(j&&j.shifts)||[]; HOURSBYDAY=(j&&j.hoursByDay)||{}; renderShifts(); }).catch(function(){});
 }
 /* A shift whose hours are already on a job is done with — the shift record and
    the job-hours record are separate, and only the hours get marked sent. So ask
    the hours: anything logged today on this boat covers the shift. */
 function shiftCoverAll(){
-  var es=(CHDAY&&CHDAY.entries)||[], pool=Math.round(((CHDAY&&CHDAY.loggedHours)||0)*60);
-  var allSent = es.length && es.every(function(e){ return (e.pushed||"").toLowerCase()==="yes"; });
-  SHIFTS.slice().sort(function(x,y){return x.inAt-y.inAt;}).forEach(function(x){
-    x._cov=null; if(x.open || !es.length) return;
-    var mins=x.minutes||0, got=Math.min(pool, mins); pool-=got;
-    if(got>0) x._cov={ alloc:got, left:mins-got, done:(mins-got)<=15, sent:allSent };
+  var td=sdToday(), byDay={};
+  SHIFTS.forEach(function(x){ var d=x.day||td; (byDay[d]=byDay[d]||[]).push(x); });
+  Object.keys(byDay).forEach(function(d){
+    var es, pool, allSent;
+    if(d===td){                                   // today: the live day record
+      es=(CHDAY&&CHDAY.entries)||[]; pool=Math.round(((CHDAY&&CHDAY.loggedHours)||0)*60);
+      allSent = es.length && es.every(function(e){ return (e.pushed||"").toLowerCase()==="yes"; });
+    } else {                                      // an earlier day: hours the ledger holds for that date
+      var h=HOURSBYDAY[d]; es=h?[1]:[]; pool=h?h.mins:0; allSent=!!(h&&h.allSent);
+    }
+    byDay[d].slice().sort(function(x,y){return x.inAt-y.inAt;}).forEach(function(x){
+      x._cov=null; if(x.open || !es.length) return;
+      var mins=x.minutes||0, got=Math.min(pool, mins); pool-=got;
+      if(got>0) x._cov={ alloc:got, left:mins-got, done:(mins-got)<=30, sent:allSent };   // within half an hour counts as covered: hours now round to the half hour (and lunch)
+    });
   });
+}
+function shiftRowHtml(s){
+  var when=fmtClockTime(s.inAt)+(s.outAt?(' – '+fmtClockTime(s.outAt)):' – now');
+  var right = (s.submitted||(s._cov&&s._cov.done&&s._cov.sent)) ? '<span class="sh" style="color:var(--ok)">✓ Sent</span>' : '<span class="sh">'+shiftDur(s.minutes)+'</span>';
+  var descLine;
+  if(s._cov && s._cov.done) descLine='<div class="sd" style="color:var(--ok);font-weight:bold">✓ All '+shiftDur(s.minutes)+' is on jobs'+(s._cov.sent?' · sent':' · tap My hours to send')+'</div>';
+  else if(s._cov) descLine='<div class="sd" style="color:var(--ok);font-weight:bold">'+shiftDur(s._cov.alloc)+' on jobs</div><div class="sd" style="color:var(--orange);font-weight:bold">'+shiftDur(s._cov.left)+' still to put on a job</div>';
+  else if(s.open) descLine='<div class="sd" style="color:var(--amber)">On the clock — clock out to finish</div>';
+  else if(s.submitted) descLine='<div class="sd">'+esc(s.desc||"")+'</div>';
+  else if(s.desc) descLine='<div class="sd">'+esc(s.desc)+' <span style="color:var(--navy);font-weight:bold">· edit</span></div>';
+  else descLine='<div class="sd" style="color:var(--orange);font-weight:bold">＋ Add what you did</div>';
+  var clickable=(!s.open && !s.submitted && !(s._cov&&s._cov.done));
+  var jobBtn = clickable ? '<div><button class="shjobbtn" onclick="event.stopPropagation();shiftAttach(\''+s.id+'\')">'+(s._cov?'＋ Put the rest on a job (any boat)':'＋ Put these hours on a job')+'</button></div>' : '';
+  return '<div class="shiftrow"'+(clickable?' onclick="openShiftEditor(\''+s.id+'\')" style="cursor:pointer"':'')+'>'+
+    '<div style="flex:1"><div><span class="sv">'+esc(s.vessel)+'</span> <span class="sd">'+when+'</span></div>'+descLine+jobBtn+'</div>'+right+'</div>';
 }
 function renderShifts(){
   var sw=$("shiftsWrap"); if(!sw) return;
   shiftCoverAll();
-  if(!SHIFTS.length){ sw.innerHTML='<p class="hello" style="padding:10px 2px 0">No shifts yet today. <b>Clock in</b> when you start on a boat and <b>clock out</b> when you move to the next — then add what you did at the end of the day.</p>'; return; }
-  var closed=SHIFTS.filter(function(s){return !s.open;});
-  var readyToSend=closed.filter(function(s){return s.desc && !s.submitted && !(s._cov&&s._cov.done);}).length;
-  var needDesc=closed.filter(function(s){return !s.desc && !s.submitted && !(s._cov&&s._cov.done);}).length;
-  var html='<div class="subbar" style="padding:12px 2px 8px"><h2 style="font-size:15px">Today’s shifts</h2><span class="count">'+SHIFTS.length+(SHIFTS.length===1?" boat":" boats")+'</span></div>';
-  html+=SHIFTS.map(function(s){
-    var when=fmtClockTime(s.inAt)+(s.outAt?(' – '+fmtClockTime(s.outAt)):' – now');
-    var right = (s.submitted||(s._cov&&s._cov.done&&s._cov.sent)) ? '<span class="sh" style="color:var(--ok)">✓ Sent</span>' : '<span class="sh">'+shiftDur(s.minutes)+'</span>';
-    var descLine;
-    if(s._cov && s._cov.done) descLine='<div class="sd" style="color:var(--ok);font-weight:bold">✓ All '+shiftDur(s.minutes)+' is on jobs'+(s._cov.sent?' · sent':' · tap My hours to send')+'</div>';
-    else if(s._cov) descLine='<div class="sd" style="color:var(--ok);font-weight:bold">'+shiftDur(s._cov.alloc)+' on jobs</div><div class="sd" style="color:var(--orange);font-weight:bold">'+shiftDur(s._cov.left)+' still to put on a job</div>';
-    else if(s.open) descLine='<div class="sd" style="color:var(--amber)">On the clock — clock out to finish</div>';
-    else if(s.submitted) descLine='<div class="sd">'+esc(s.desc||"")+'</div>';
-    else if(s.desc) descLine='<div class="sd">'+esc(s.desc)+' <span style="color:var(--navy);font-weight:bold">· edit</span></div>';
-    else descLine='<div class="sd" style="color:var(--orange);font-weight:bold">＋ Add what you did</div>';
-    var clickable=(!s.open && !s.submitted && !(s._cov&&s._cov.done));
-    var jobBtn = clickable ? '<div><button class="shjobbtn" onclick="event.stopPropagation();shiftAttach(\''+s.id+'\')">'+(s._cov?'＋ Put the rest on a job (any boat)':'＋ Put these hours on a job')+'</button></div>' : '';
-    return '<div class="shiftrow"'+(clickable?' onclick="openShiftEditor(\''+s.id+'\')" style="cursor:pointer"':'')+'>'+
-      '<div style="flex:1"><div><span class="sv">'+esc(s.vessel)+'</span> <span class="sd">'+when+'</span></div>'+descLine+jobBtn+'</div>'+right+'</div>';
-  }).join("");
-  if(readyToSend){
-    html+='<button class="eodbtn" style="margin-top:6px" onclick="sendMyDay()">Send my day to Marine HQ ('+readyToSend+')</button>'+
-      '<p class="eodsub">Sends each boat’s hours + description to Marine HQ, onto the job cards — same as the EOD form, no form to fill.</p>';
-  } else if(needDesc){
-    html+='<p class="eodsub" style="color:var(--amber)">Add a description to each shift, then a <b>Send my day</b> button appears.</p>';
+  var td=sdToday();
+  var todayS=SHIFTS.filter(function(s){ return !s.day || s.day===td; });
+  /* EARLIER DAYS STAY HERE UNTIL THEY ARE SENT (Trish, 17 Oct 2026: Jay clocked on 15 and
+     16 Oct, never put the shifts on a job, and next morning they had vanished from the app).
+     A past shift is shown until its hours are on a job — so a day that wasn't submitted on
+     the day can still be found and finished from the phone. Last 14 days. */
+  var earlier=SHIFTS.filter(function(s){ return s.day && s.day!==td && !s.open && !s.submitted && !(s._cov&&s._cov.done); });
+  var html='';
+  if(!todayS.length){
+    html+='<p class="hello" style="padding:10px 2px 0">No shifts yet today. <b>Clock in</b> when you start on a boat and <b>clock out</b> when you move to the next. Clocking in and out only records where you were — <b>to log hours, put each shift on a job</b>, then Submit my day.</p>';
+  } else {
+    html+='<div class="subbar" style="padding:12px 2px 8px"><h2 style="font-size:15px">Today’s shifts</h2><span class="count">'+todayS.length+(todayS.length===1?" boat":" boats")+'</span></div>';
+    html+=todayS.map(shiftRowHtml).join("");
+  }
+  if(earlier.length){
+    html+='<div class="subbar" style="padding:16px 2px 4px"><h2 style="font-size:15px;color:var(--orange)">Earlier days — not sent yet</h2><span class="count">'+earlier.length+(earlier.length===1?" shift":" shifts")+'</span></div>'+
+          '<p class="eodsub" style="margin-top:0;color:var(--amber)">You clocked on these days, but the hours aren’t on a job yet, so <b>nothing has gone to the office</b>. Tap <b>＋ Put these hours on a job</b>, check the hours, then <b>Submit my day</b>.</p>';
+    var days={}; earlier.forEach(function(s){ (days[s.day]=days[s.day]||[]).push(s); });
+    Object.keys(days).sort().reverse().forEach(function(d){
+      var lab=new Date(d+"T12:00:00").toLocaleDateString("en-AU",{weekday:"short",day:"numeric",month:"short"});
+      html+='<div class="sd" style="font-weight:800;color:var(--navy);padding:8px 2px 2px">'+esc(lab)+'</div>'+days[d].map(shiftRowHtml).join("");
+    });
+  }
+  /* No "Send my day" button here any more (17 Oct 2026). It only ever sent hours that were
+     already on a job, so a shift with a description and no job answered "Nothing to send yet"
+     and crew thought it had gone (Jay, 15–16 Oct). Say what to do instead. */
+  var notToday=todayS.filter(function(s){return !s.open && !s.submitted && !(s._cov&&s._cov.done);}).length;
+  if(notToday){
+    html+='<p class="eodsub" style="color:var(--amber)"><b>'+notToday+(notToday>1?' shifts aren’t':' shift isn’t')+' on a job yet.</b> Tap <b>＋ Put these hours on a job</b> under each one, then press <b>Submit my day</b>. The clock alone does not send your hours.</p>';
   }
   sw.innerHTML=html;
 }
