@@ -2083,7 +2083,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-19·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-19·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -7149,6 +7149,7 @@ function doneBlock(g, kind, arr, label){
 /* Big lists are split into sections by AREA, read from the system in the job's code
    (EW-DECK-0225 -> DECK). Small lists (under 8) stay flat. Lists keep their tasks;
    this only changes how they are laid out. (Trish, 19 Oct 2026) */
+function isOwnerListJob(j){ return /^owner.?s list\b/i.test(((j&&j.subNote)||"").toString().trim()); }
 var SYS_NAMES={DECK:"Deck & topsides",HULL:"Hull",RUN:"Running gear",ENG:"Engines & engine room",ELEC:"Electrical",PLUMB:"Plumbing & water",INT:"Interior",TOYS:"Tender & toys",SAFE:"Safety & compliance",OPS:"Operations"};
 function sysOfJob(j){ var p=((j&&j.code)||"").toString().toUpperCase().split("-"); for(var i=0;i<p.length;i++){ if(SYS_NAMES[p[i]]) return p[i]; } return "OTHER"; }
 function sysBlocks(g, kind, arr, label, flatFn){
@@ -7219,10 +7220,13 @@ function wlGroupHTML(g, groups){
        under the assigned work, opens closed, and is separate from the fleet-wide
        Unassigned section further down the screen. Crew never see it: their feed
        is their own jobs, and who else is on what is management's business. */
-    var _mineWork=live, _unass=[];
+    /* Tasks tagged "Owner's list" (Sub Note) sit in their OWN section at the top of the
+       ONE list, not in a separate list (Trish, 19 Oct 2026). */
+    var _own=live.filter(isOwnerListJob), _live2=live.filter(function(x){ return !isOwnerListJob(x); });
+    var _mineWork=_live2, _unass=[];
     if(isMgrRole() && !SCHEDVIEW){
-      _unass = live.filter(function(x){ return !((x.allocatedTo||"").toString().trim()); });
-      _mineWork = live.filter(function(x){ return !!((x.allocatedTo||"").toString().trim()); });
+      _unass = _live2.filter(function(x){ return !((x.allocatedTo||"").toString().trim()); });
+      _mineWork = _live2.filter(function(x){ return !!((x.allocatedTo||"").toString().trim()); });
     }
     var cards=(_mineWork.length>=8) ? sysBlocks(g,"sys",_mineWork,"&#128736; Open",function(a){ return a.map(function(x,i){ return wlJobCard(x,i); }).join(""); })
                                     : _mineWork.map(function(x,i){ return wlJobCard(x,i); }).join("");
@@ -7230,6 +7234,10 @@ function wlGroupHTML(g, groups){
       cards = _unass.length
         ? '<div class="wldone-none">Nothing handed out yet &mdash; '+_unass.length+' waiting below.</div>'
         : '<div class="wldone-none">'+(jobs.length?'&#10003; Everything on this list is done &mdash; it&rsquo;s all filed below.':'Nothing on this list yet.')+'</div>';
+    }
+    if(_own.length){
+      if(!_mineWork.length && !_unass.length) cards="";
+      cards=doneBlock(g,"sys:OWNER",_own,"&#128100; Owner&rsquo;s list")+cards;
     }
     cards+=sysBlocks(g,"unass",_unass,'&#128100; Unassigned',function(a,l){ return doneBlock(g,"unass",a,'&#128100; Unassigned / raised jobs'); });
     cards+=dueFold(g, (jobs[0]&&jobs[0].vessel)||"", wlPeriodOfList(g));
