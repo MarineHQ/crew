@@ -172,6 +172,10 @@
   #qtDate button{flex:1;border:0;border-radius:12px;min-height:46px;font-size:14px;font-weight:800;color:#fff;background:#5b6b7d;cursor:pointer}
   #qtDate button.go{background:#1F7A54}
   #qtDate input[type=date]{width:100%;box-sizing:border-box;min-height:46px;font-size:16px;border:1.5px solid var(--line);border-radius:12px;padding:0 12px;margin-bottom:10px;color:var(--navy);background:#fff}
+  /* Owner's list: its own outlined section at the top of the one list (Trish, 19 Oct 2026) */
+  .ownsec{border:2px solid var(--orange);border-radius:14px;background:#FFF7F0;padding:8px 8px 4px;margin:8px 0 12px;box-shadow:0 2px 10px rgba(232,119,34,.14)}
+  .ownsec .dnacc{background:var(--orange);color:#fff;border-radius:9px;margin:0 0 8px}
+  .ownsec .dnacc h4,.ownsec .dnacc .n,.ownsec .dnacc .car{color:#fff}
   .listhd{font-size:12px;font-weight:bold;letter-spacing:.5px;text-transform:uppercase;color:var(--orange);margin:6px 2px 9px;padding-top:2px}
   .jnum{color:var(--orange);font-weight:900}
   .jnum.un{color:var(--navy)}
@@ -2083,7 +2087,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-19·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-19·c</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -7237,7 +7241,7 @@ function wlGroupHTML(g, groups){
     }
     if(_own.length){
       if(!_mineWork.length && !_unass.length) cards="";
-      cards=doneBlock(g,"sys:OWNER",_own,"&#128100; Owner&rsquo;s list")+cards;
+      cards='<div class="ownsec">'+doneBlock(g,"sys:OWNER",_own,"&#128100; Owner&rsquo;s list")+'</div>'+cards;
     }
     cards+=sysBlocks(g,"unass",_unass,'&#128100; Unassigned',function(a,l){ return doneBlock(g,"unass",a,'&#128100; Unassigned / raised jobs'); });
     cards+=dueFold(g, (jobs[0]&&jobs[0].vessel)||"", wlPeriodOfList(g));
