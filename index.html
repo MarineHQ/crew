@@ -1400,6 +1400,23 @@
   .wpop-go{width:100%;background:var(--orange);color:#fff;border:none;border-radius:12px;padding:13px;font-size:15px;font-weight:700;cursor:pointer}
   .wpop-dismiss{width:100%;background:none;border:none;color:var(--muted);font-size:13px;font-weight:700;padding:11px 0 2px;cursor:pointer}
   .modal .card2{background:#fff;width:100%;max-width:620px;border-radius:18px 18px 0 0;padding:18px 16px calc(24px + env(safe-area-inset-bottom));max-height:94vh;overflow-y:auto}
+  /* ADD HOURS — make it obvious this is a pop-up and that you must TAP a job (Trish, 18 Oct 2026:
+     "cluttered, you don't know which is the pop-up and which is the back"). The page behind is
+     dimmed, the sheet gets an orange top edge and a shadow, a numbered tip says what to do next,
+     and every result is a bordered, arrowed row that reads as a button. */
+  #addHoursModal{background:rgba(10,20,50,.66)}
+  #addHoursModal .card2{border-top:6px solid var(--orange);box-shadow:0 -12px 40px rgba(0,0,0,.45)}
+  #addHoursModal .card2 h3{font-size:20px;margin-bottom:2px}
+  .ahtip{display:flex;gap:10px;align-items:flex-start;background:#fff4e6;border:2px solid var(--orange);border-radius:12px;padding:10px 12px;margin:10px 0 6px;font-size:13.5px;line-height:1.4;color:#5a3a0a}
+  .ahtip .n{flex:0 0 auto;width:24px;height:24px;border-radius:50%;background:var(--orange);color:#fff;font-weight:800;text-align:center;line-height:24px;font-size:13px}
+  .ahtip b{color:#b8520a}
+  #ahSearch{border:2px solid var(--navy);font-size:16px}
+  #ahSearch:focus{border-color:var(--orange);outline:none;box-shadow:0 0 0 3px rgba(232,119,34,.25)}
+  #addHoursModal .ahlist{border:2px solid var(--navy);box-shadow:0 3px 12px rgba(26,43,92,.18);max-height:42vh}
+  #addHoursModal .ahrow{border-left:6px solid var(--orange);padding-right:38px;position:relative}
+  #addHoursModal .ahrow::after,#addHoursModal .ahcatrow::after{content:"\203A";position:absolute;right:13px;top:50%;transform:translateY(-50%);font-size:28px;line-height:1;color:var(--orange);font-weight:700}
+  #addHoursModal .ahrow:active,#addHoursModal .ahcatrow:active{background:#fff4e6}
+  #addHoursModal .ahcatrow{border:2px solid var(--orange);position:relative;padding-right:38px}
   #tripReport{position:fixed;inset:0;z-index:300;background:#fff;overflow:auto;display:none;-webkit-overflow-scrolling:touch}
   #tripReport.show{display:block}
   #tripReport .rp{max-width:760px;margin:0 auto;padding:0 0 30px;font-family:Arial,Helvetica,sans-serif;color:#1a2433;font-size:12.5px;line-height:1.4}
@@ -2066,7 +2083,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-18·d</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-18·e</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2203,6 +2220,7 @@ button:active{ filter: brightness(.93); }
   <h3>➕ Add hours</h3>
   <p class="mhint" id="ahWhat">Pick the job, the day and the times.</p>
   <div id="ahPick" style="display:none">
+    <div class="ahtip" id="ahTip"><span class="n">1</span><span><b>Type a word</b> for the job or boat (try <b>“wash”</b> or <b>“detail”</b>), then pick from the list.</span></div>
     <label class="fld">Which job?</label>
     <input class="fld-in" id="ahSearch" placeholder="Start typing — boat or job" oninput="ahFilter()" autocomplete="off">
     <div class="ahlist" id="ahList"></div>
@@ -4691,6 +4709,10 @@ function ahBoat(v){ AHBOAT=v; ahFilter(); }
 function ahDueOnly(){ AHONLYDUE=!AHONLYDUE; ahFilter(); }
 function ahFilter(){
   var q=($("ahSearch").value||"").toLowerCase().trim();
+  var tip=$("ahTip");
+  if(tip) tip.innerHTML = q
+    ? '<span class="n">2</span><span>Now <b>TAP the job you want</b> in the list below. Tapping it chooses it. Can’t see it? Close this and tap <b>✓ Log job</b> to add it as a new job.</span>'
+    : '<span class="n">1</span><span><b>Type a word</b> for the job or boat (try <b>“wash”</b> or <b>“detail”</b>), then pick from the list.</span>';
   if(q!==AHCATQ) ahCatLoad(q);
   if(!q){ AHCAT=[]; AHCATQ=""; }
   var src = (AHJOBS && AHJOBS.length) ? AHJOBS : (CREWJOBS || []);
