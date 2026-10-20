@@ -2095,7 +2095,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-20·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-20·c</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -4616,6 +4616,16 @@ function ahAlsoChoose(key){
           "Those are kept apart, so they can't share one block of hours. Log this one separately.");
     return;
   }
+  /* A BLOCK OF TIME IS ONE BOAT (Trish, 20 Oct 2026). Jay put Engine-room detail
+     on Miyabi and Tender detail on Everywhen in one block and the whole nine
+     hours followed the first job's boat. Different boats can't share one set of
+     times, so refuse it here (the server refuses it too). */
+  var vn=function(v){ return (v||"").toString().trim().toLowerCase(); };
+  if(vn(first&&first.vessel) && vn(j.vessel) && vn(first.vessel)!==vn(j.vessel)){
+    alert("\u201c"+(j.task||"That job")+"\u201d is on "+j.vessel+", and the first job is on "+first.vessel+".\n\n"+
+          "Different boats can\u2019t share one block of hours. Add this one as its own entry, with its own hours.");
+    return;
+  }
   AHALSO.push({ key:key, task:(j.task||""), code:(j.code||""),
                 vessel:(j.vessel||""), cat:ahCatOf(j) });
   ahWarnOwnEntry(key, j.task);
@@ -5473,10 +5483,12 @@ function sdRender(){
   }).join("");
   var gap="";
   if(SD.shiftHours>0){
-    var u=SD.unallocated, ok=Math.abs(u)<0.26;
+    var u=SD.unallocated, ok=Math.abs(u)<=0.5;      // hours now round to the half hour
     gap='<div class="chwarn" style="'+(ok?'background:#eaf5ee;border-color:#bfe0cc;color:#2e7d5b':'')+'">'+
       'Clocked on the boat <b>'+chFmt(SD.shiftHours)+'</b> \u00b7 logged on jobs <b>'+chFmt(SD.loggedHours)+'</b>'+
-      (ok?' \u2014 that ties up.':(u>0?(' \u2014 <b>'+chFmt(u)+'</b> not on a job.'):' \u2014 more on jobs than clocked.'))+'</div>';
+      (ok?' \u2014 that ties up.':
+        (u>0?(' \u2014 <b>UNDER by '+chFmt(u)+'</b>. That much of your shift isn\u2019t on a job. Close this, tap <b>\uff0b Put the rest on a job</b> under the shift, or check your times.')
+            :(' \u2014 <b>OVER by '+chFmt(-u)+'</b>. You\u2019ve logged more than you were clocked on. Check your times (\u270e) before you send.')))+'</div>';
   }
   el.innerHTML=rows+
     '<div class="sdtot"><b>'+chFmt(SD.loggedHours)+'</b><span>total across '+nJobs+
@@ -5512,6 +5524,11 @@ function sdSubmitOne(entryId){
 
 function sdSubmit(){
   if(!SD||!SD.canSubmit) return;
+  if(SD.shiftHours>0 && Math.abs(SD.unallocated)>0.5){
+    var un=SD.unallocated>0;
+    if(!confirm("Your hours don\u2019t match your clock.\n\nClocked on: "+chFmt(SD.shiftHours)+"\nOn jobs: "+chFmt(SD.loggedHours)+
+                "\n\nThat is "+chFmt(Math.abs(SD.unallocated))+(un?" UNDER":" OVER")+". Once it\u2019s sent only a director can change it.\n\nSend anyway?")) return;
+  }
   var comments={};
   (SD.entries||[]).forEach(function(e){
     var i=document.getElementById("sdc-"+e.entryId);
