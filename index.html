@@ -2069,6 +2069,14 @@ button:active{ filter: brightness(.93); }
       <div id="tripsWrap"></div>
     </div>
 
+    <!-- KEYS & FOBS -->
+    <div id="tab-keys" class="hidden">
+      <div class="subbar"><h2>Keys &amp; fobs</h2><span class="count" id="kyCount"></span></div>
+      <p class="hello" style="padding-top:0">Marina fobs, gate keys and access cards. You see the ones you&rsquo;re holding; sign them back in when returned. <b>If a fob or key isn&rsquo;t returned, you pay $50.</b></p>
+      <button class="ofnewbtn" id="kyAddBtn" onclick="kyAdd()" style="display:none">&#65291; Add a key or fob</button>
+      <div id="kyList"></div>
+    </div>
+
     <!-- SOP -->
     <div id="tab-sop" class="hidden">
       <div class="subbar"><h2>SOP &amp; guides</h2></div>
@@ -2087,7 +2095,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-19·c</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-20·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -3268,7 +3276,7 @@ function apiPost(body){
    and nothing is redrawn while a field has focus. */
 var TAB_REFRESH={ jobs:function(){ loadJobs(); }, mine:function(){ renderMine(); loadJobs(); }, photos:function(){ loadGallery(); },
   updates:function(){ renderUpdates(); }, cal:function(){ loadCal(); }, maint:function(){ loadMaint(); },
-  hours:function(){ renderClock(); loadShifts(); }, check:function(){ loadChecklists(); }, off:function(){ loadOffFleet(); }, trip:function(){ loadTrips(); } };
+  hours:function(){ renderClock(); loadShifts(); }, check:function(){ loadChecklists(); }, off:function(){ loadOffFleet(); }, trip:function(){ loadTrips(); }, keys:function(){ loadKeys(); } };
 function apiFresh(fn){
   apiFresh._fns=apiFresh._fns||{}; apiFresh._fns[fn]=1;
   clearTimeout(apiFresh._t);
@@ -3644,7 +3652,7 @@ function bootExpired(){
 var NAVGROUPS = [
   ["work",  "Activity", [["jobs","Worklist"],["mine","My Tasks",true],["photos","Photos"],["updates","Updates"],["off","Off-Fleet"],["trip","Trip Log"],["cal","Calendar"]]],
   ["fleet", "Fleet",    [["fleet","Fleet",true],["maint","Maintenance",true],["vessel","Engine & Parts"],["induct","Induction",true],["sys","Systems","sys"]]],
-  ["day",   "My Day",   [["hours","Time"]]],
+  ["day",   "My Day",   [["hours","Time"],["keys","Keys & Fobs"]]],
   ["guides","Guides",   [["check","Checklists"],["sop","SOP"]]]
 ];
 // Profile lives OFF the tab bar — the 👤 button next to Sign out and the avatar
@@ -3694,12 +3702,12 @@ function navGroup(g){
 }
 function go(tab){
   TAB=tab; 
-  ["jobs","mine","photos","updates","cal","fleet","maint","induct","sys","check","off","trip","hours","vessel","sop","profile"].forEach(function(t){ $("tab-"+t).classList.toggle("hidden", t!==tab); });
+  ["jobs","mine","photos","updates","cal","fleet","maint","induct","sys","check","off","trip","hours","keys","vessel","sop","profile"].forEach(function(t){ $("tab-"+t).classList.toggle("hidden", t!==tab); });
   renderNav();
   $("actBar").classList.toggle("hidden", tab!=="jobs");
   document.body.classList.toggle("has-actbar", tab==="jobs");
   if(tab==="updates"){ try{ MHQPush.render(); }catch(e){} }
-  var titles={jobs:["Marine HQ Crew","Your jobs, checklists & hours"],mine:["My Tasks","Just what's assigned or offered to you"],photos:["Photos","Every shot on this yacht — newest first"],updates:["Updates","Crew activity — newest first"],cal:["Calendar","Scheduled jobs by day"],fleet:["Fleet","Director view — whole operation"],maint:["Maintenance","Care schedule — directors control"],induct:["Vessel induction","Particulars & specialised gear"],sys:["Systems","Her kit — what it is, where it is"],check:["Checklists","Tick & sign off"],off:["Off-Fleet","Deliveries, polishes & callouts"],trip:["Trip Log","Passages — tanks out, hours in"],hours:["Time clock","Clock in · EOD · hours"],vessel:["Engine & parts","Hour meters & spares on board"],sop:["SOP & guides","Marine HQ standards"],profile:["My profile","You & your certificates"]};
+  var titles={jobs:["Marine HQ Crew","Your jobs, checklists & hours"],mine:["My Tasks","Just what's assigned or offered to you"],photos:["Photos","Every shot on this yacht — newest first"],updates:["Updates","Crew activity — newest first"],cal:["Calendar","Scheduled jobs by day"],fleet:["Fleet","Director view — whole operation"],maint:["Maintenance","Care schedule — directors control"],induct:["Vessel induction","Particulars & specialised gear"],sys:["Systems","Her kit — what it is, where it is"],check:["Checklists","Tick & sign off"],off:["Off-Fleet","Deliveries, polishes & callouts"],trip:["Trip Log","Passages — tanks out, hours in"],hours:["Time clock","Clock in · EOD · hours"],keys:["Keys & Fobs","Sign out · sign in"],vessel:["Engine & parts","Hour meters & spares on board"],sop:["SOP & guides","Marine HQ standards"],profile:["My profile","You & your certificates"]};
   $("hdrTitle").textContent=titles[tab][0]; $("hdrSub").textContent=titles[tab][1];
   if(tab==="jobs") loadJobs();
   if(tab==="jobs"||tab==="maint"||tab==="sys") loadCOP();   // how she has to be run, above the list
@@ -3715,6 +3723,7 @@ function go(tab){
   if(tab==="check") loadChecklists();
   if(tab==="off") loadOffFleet();
   if(tab==="trip") loadTrips();
+  if(tab==="keys") loadKeys();
   if(tab==="vessel") loadVessel();
   if(tab==="profile"){ renderProfile(); loadCerts(); }
   updateStrip();
@@ -12808,6 +12817,80 @@ function wlogRenderStat(){
   $("wl_dayLbl").textContent = (WLOGSTAT==="Complete") ? "Day you did it" : "Day you started";
 }
 function wlogSetStat(s){ WLOGSTAT=s; wlogRenderStat(); }
+/* =====================================================================
+   KEYS & FOBS (front end) — backend is KeyRegister.gs. Signing out needs the
+   $50 box ticked; the server refuses without it, this just asks nicely first.
+   ===================================================================== */
+var KEYS=[], KEYMETA={fee:50,mgr:false,crew:[],me:{}};
+function loadKeys(){
+  if(!ME) return;
+  if(!KEYS.length && $("kyList")) $("kyList").innerHTML='<div class="loadingbox"><span class="spin"></span> Loading keys…</div>';
+  apiPost({action:"crewKeys", email:ME.email, code:ME.code}).then(function(r){
+    if(r&&r.ok){ KEYS=r.items||[]; KEYMETA={fee:r.fee||50,mgr:!!r.mgr,crew:r.crew||[],me:r.me||{}}; }
+    else if($("kyList")) $("kyList").innerHTML='<p class="hello">'+esc((r&&r.error)||"Couldn\u2019t load keys.")+'</p>';
+    renderKeys();
+  }).catch(function(){ renderKeys(); });
+}
+function kyWhen(ms){ if(!ms) return ""; var d=new Date(ms); return d.getDate()+" "+["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()]; }
+function renderKeys(){
+  var el=$("kyList"); if(!el) return;
+  $("kyAddBtn").style.display=KEYMETA.mgr?"":"none";
+  var out=KEYS.filter(function(k){return k.status!=="In";}).length;
+  $("kyCount").textContent=KEYS.length?(out+" out \u00b7 "+(KEYS.length-out)+" in"):"";
+  if(!KEYS.length){ el.innerHTML='<p class="hello">No keys or fobs registered yet.</p>'; return; }
+  var rank={Lost:0,Out:1,In:2};
+  el.innerHTML=KEYS.slice().sort(function(a,b){return rank[a.status]-rank[b.status];}).map(function(k){
+    var mine=k.holderId&&k.holderId===KEYMETA.me.id;
+    var pill=k.status==="Lost"?'<span class="fact f-late" style="padding:2px 9px;border-radius:9px">Lost \u00b7 $'+KEYMETA.fee+' owing</span>'
+            :k.status==="Out"?'<span class="fact f-prog" style="padding:2px 9px;border-radius:9px">With '+esc(k.holder)+'</span>'
+            :'<span class="fact f-done" style="padding:2px 9px;border-radius:9px">In</span>';
+    var meta=[k.vessel,k.tag?("Tag "+k.tag):""].filter(String).map(esc).join(" \u00b7 ");
+    var sub=k.status==="Out"?('<div class="meta"><span>Out since '+(kyWhen(k.outAt)||"before the register")+'</span>'+(k.due?'<span>Due back '+esc(k.due)+'</span>':'')+
+             '<span>'+(k.ackAt?'\u2713 $'+KEYMETA.fee+' agreed':'\u26a0 $'+KEYMETA.fee+' not yet agreed')+'</span></div>'):"";
+    var btns="";
+    if(k.status==="In") btns='<button class="jobbtn" style="margin-top:10px;color:#fff" onclick="kyOut(\''+esc(k.id)+'\')">\ud83d\udd11 Sign out</button>';
+    else{
+      if(mine&&!k.ackAt) btns+='<button class="jobbtn" style="margin-top:10px;color:#fff" onclick="kyAck(\''+esc(k.id)+'\')">\u270d Agree to the $'+KEYMETA.fee+' fee</button> ';
+      if(mine||KEYMETA.mgr) btns+='<button class="jobbtn" style="margin-top:10px;color:#fff" onclick="kyIn(\''+esc(k.id)+'\')">\u21a9 Sign back in</button> ';
+      if(KEYMETA.mgr&&k.status==="Out") btns+='<button class="jobbtn" style="margin-top:10px;color:#fff;background:#b3261e" onclick="kyLost(\''+esc(k.id)+'\')">Not returned \u2014 $'+KEYMETA.fee+'</button>';
+    }
+    var hist=(k.history||[]).map(function(h){return '<div>'+kyWhen(h.at)+' \u00b7 '+esc(h.action)+(h.person?' \u00b7 '+esc(h.person):'')+'</div>';}).join("");
+    return '<div class="ofcard" style="cursor:default"><div class="oftop"><div style="flex:1"><h3>'+esc(k.name)+'</h3><div class="desc">'+(meta||esc(k.type))+'</div></div>'+pill+'</div>'+sub+btns+
+      (hist?'<div class="desc" style="margin-top:10px;font-size:11.5px">'+hist+'</div>':'')+'</div>';
+  }).join("");
+}
+function kyFeeOK(what){
+  return confirm(what+"\n\nBy signing this out you agree that if it is not returned you will pay Marine HQ $"+KEYMETA.fee+".\n\nOK = I agree");
+}
+function kyPost(body, msg){
+  body.email=ME.email; body.code=ME.code;
+  apiPost(body).then(function(r){ if(r&&r.ok){ toast(msg); loadKeys(); } else toast((r&&r.error)||"Didn\u2019t save"); })
+    .catch(function(){ toast("No connection \u2014 try again"); });
+}
+function kyFind(id){ return KEYS.filter(function(k){return k.id===id;})[0]||{}; }
+function kyOut(id){
+  var k=kyFind(id), forId="";
+  if(KEYMETA.mgr && KEYMETA.crew.length){
+    var names=KEYMETA.crew.map(function(c,i){return (i+1)+". "+c.name;}).join("\n");
+    var a=prompt("Who is taking "+k.name+"?\n"+names+"\n\nType a number, or leave blank for you.","");
+    if(a===null) return;
+    var c=KEYMETA.crew[(parseInt(a,10)||0)-1]; if(c&&c.id!==KEYMETA.me.id) forId=c.id;
+  }
+  if(forId){
+    if(!confirm("Sign "+k.name+" out to them?\n\nThey will be asked to agree to the $"+KEYMETA.fee+" fee in their app.")) return;
+  } else if(!kyFeeOK("Sign out: "+k.name)) return;
+  kyPost({action:"crewKeyOut", keyId:id, ack:true, forId:forId}, "\u2713 Signed out");
+}
+function kyAck(id){ var k=kyFind(id); if(!kyFeeOK("Agree for: "+k.name)) return; kyPost({action:"crewKeyAck", keyId:id, ack:true}, "\u2713 Agreed"); }
+function kyIn(id){ var k=kyFind(id); if(!confirm("Sign "+k.name+" back in?")) return; kyPost({action:"crewKeyIn", keyId:id}, "\u2713 Signed back in"); }
+function kyLost(id){ var k=kyFind(id); if(!confirm("Mark "+k.name+" as NOT returned? $"+KEYMETA.fee+" is recorded as owing from "+k.holder+".")) return; kyPost({action:"crewKeyLost", keyId:id}, "Marked lost \u2014 $"+KEYMETA.fee+" owing"); }
+function kyAdd(){
+  var n=prompt("Name of the key or fob (e.g. Mantaray Marina access fob)"); if(!n) return;
+  var v=prompt("Which vessel or site? (optional)","")||"";
+  var t=prompt("Tag or serial number? (optional)","")||"";
+  kyPost({action:"crewKeyAdd", name:n, vessel:v, tag:t}, "\u2713 Added");
+}
+
 /* =====================================================================
    RECEIPTS (front end) — see #rcptModal above for why this screen exists.
    The form is deliberately short: a photo, what it was, how much, and WHO
