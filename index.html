@@ -2074,7 +2074,7 @@ button:active{ filter: brightness(.93); }
     <!-- KEYS & FOBS -->
     <div id="tab-keys" class="hidden">
       <div class="subbar"><h2>Keys &amp; fobs</h2><span class="count" id="kyCount"></span></div>
-      <p class="hello" style="padding-top:0">Marina fobs, gate keys and access cards. You see the ones you&rsquo;re holding; sign them back in when returned. <b>If a fob or key isn&rsquo;t returned, you pay $50.</b></p>
+      <p class="hello" style="padding-top:0">Marina fobs, gate keys and access cards. A director sends you one, you accept it here, and a director signs it back in when you return it. <b>If a fob or key isn&rsquo;t returned, you pay $50.</b></p>
       <button class="ofnewbtn" id="kyAddBtn" onclick="kyAdd()" style="display:none">&#65291; Add a key or fob</button>
       <div id="kyList"></div>
     </div>
@@ -2097,7 +2097,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-20·e</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-21·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2483,6 +2483,16 @@ button:active{ filter: brightness(.93); }
 
   <button class="go" onclick="submitReceipt()">🧾 Log the receipt</button>
   <button class="cancel" onclick="closeModal('rcptModal')">Cancel</button>
+</div></div>
+
+<!-- Accept a key / fob -->
+<div class="modal" id="kyAccModal"><div class="card2">
+  <h3>\ud83d\udd11 Accept this key</h3>
+  <p class="body" style="font-size:15px;font-weight:bold;margin:0 0 10px" id="kyAccName"></p>
+  <p class="mhint" style="font-size:13px;color:#1a2b5c">By accepting, you confirm you have this in your hands and you take responsibility for it. <b>If it is not returned, you will pay Marine HQ <span id="kyAccFee">$50</span>.</b> When you&rsquo;re done with it, hand it back to a director so they can sign it back in.</p>
+  <label style="display:flex;gap:10px;align-items:flex-start;margin:14px 0;font-size:14px"><input type="checkbox" id="kyAccTick" style="width:22px;height:22px;flex:none"> <span>I accept responsibility for this key and agree to pay the fee if I don&rsquo;t return it.</span></label>
+  <button class="go" onclick="kyAccGo()">Accept</button>
+  <button class="cancel" onclick="closeModal('kyAccModal')">Cancel</button>
 </div></div>
 
 <!-- Request time off -->
@@ -12949,32 +12959,42 @@ function kyWhen(ms){ if(!ms) return ""; var d=new Date(ms); return d.getDate()+"
 function renderKeys(){
   var el=$("kyList"); if(!el) return;
   $("kyAddBtn").style.display=KEYMETA.mgr?"":"none";
-  var out=KEYS.filter(function(k){return k.status!=="In";}).length;
-  $("kyCount").textContent=KEYS.length?(out+" out \u00b7 "+(KEYS.length-out)+" in"):"";
-  if(!KEYS.length){ el.innerHTML='<p class="hello">No keys or fobs registered yet.</p>'; return; }
-  var rank={Lost:0,Out:1,In:2};
+  var out=KEYS.filter(function(k){return k.status==="Out"||k.status==="Lost";}).length;
+  var waiting=KEYS.filter(function(k){return k.status==="Pending"&&k.holderId===KEYMETA.me.id;}).length;
+  setNavBadge("keys", waiting);
+  $("kyCount").textContent=KEYS.length?(KEYMETA.mgr?(out+" out \u00b7 "+(KEYS.length-out)+" in"):""):"";
+  if(!KEYS.length){ el.innerHTML='<p class="hello">'+(KEYMETA.mgr?'No keys or fobs registered yet.':'You\u2019re not holding any keys or fobs.')+'</p>'; return; }
+  var rank={Pending:0,Lost:1,Out:2,In:3};
   el.innerHTML=KEYS.slice().sort(function(a,b){return rank[a.status]-rank[b.status];}).map(function(k){
-    var mine=k.holderId&&k.holderId===KEYMETA.me.id;
-    var pill=k.status==="Lost"?'<span class="fact f-late" style="padding:2px 9px;border-radius:9px">Lost \u00b7 $'+KEYMETA.fee+' owing</span>'
+    var mine=k.holderId&&k.holderId===KEYMETA.me.id, id=esc(k.id), F=KEYMETA.fee;
+    var pill=k.status==="Lost"?'<span class="fact f-late" style="padding:2px 9px;border-radius:9px">Not returned \u00b7 $'+F+' owing</span>'
+            :k.status==="Pending"?'<span class="fact f-wait" style="padding:2px 9px;border-radius:9px">Sent to '+esc(k.holder)+' \u2014 not accepted</span>'
             :k.status==="Out"?'<span class="fact f-prog" style="padding:2px 9px;border-radius:9px">With '+esc(k.holder)+'</span>'
             :'<span class="fact f-done" style="padding:2px 9px;border-radius:9px">In</span>';
     var meta=[k.vessel,k.tag?("Tag "+k.tag):""].filter(String).map(esc).join(" \u00b7 ");
     var sub=k.status==="Out"?('<div class="meta"><span>Out since '+(kyWhen(k.outAt)||"before the register")+'</span>'+(k.due?'<span>Due back '+esc(k.due)+'</span>':'')+
-             '<span>'+(k.ackAt?'\u2713 $'+KEYMETA.fee+' agreed':'\u26a0 $'+KEYMETA.fee+' not yet agreed')+'</span></div>'):"";
-    var btns="";
-    if(k.status==="In") btns='<button class="jobbtn" style="margin-top:10px;color:#fff" onclick="kyOut(\''+esc(k.id)+'\')">\ud83d\udd11 Sign out</button>';
-    else{
-      if(mine&&!k.ackAt) btns+='<button class="jobbtn" style="margin-top:10px;color:#fff" onclick="kyAck(\''+esc(k.id)+'\')">\u270d Agree to the $'+KEYMETA.fee+' fee</button> ';
-      if(mine||KEYMETA.mgr) btns+='<button class="jobbtn" style="margin-top:10px;color:#fff" onclick="kyIn(\''+esc(k.id)+'\')">\u21a9 Sign back in</button> ';
-      if(KEYMETA.mgr&&k.status==="Out") btns+='<button class="jobbtn" style="margin-top:10px;color:#fff;background:#b3261e" onclick="kyLost(\''+esc(k.id)+'\')">Not returned \u2014 $'+KEYMETA.fee+'</button>';
+             '<span>'+(k.ackAt?'\u2713 $'+F+' accepted':'\u26a0 $'+F+' not yet accepted')+'</span></div>'):"";
+    var B=function(label,fn,bg){ return '<button class="jobbtn" style="margin:10px 8px 0 0;color:#fff'+(bg?';background:'+bg:'')+'" onclick="'+fn+'(\''+id+'\')">'+label+'</button>'; };
+    var btns="", note="";
+    if(k.status==="Pending"&&mine){
+      btns=B('\u270d Accept \u2014 I\u2019m responsible for $'+F,'kyAccept')+B('Not me','kyIn','#8a8f9c');
+      note='<div class="desc" style="margin-top:8px"><b>You&rsquo;ve been given this.</b> Accept it to confirm you have it and that you&rsquo;ll pay $'+F+' if it isn&rsquo;t returned.</div>';
+    } else if(k.status==="Out"&&mine&&!k.ackAt){
+      btns=B('\u270d Accept \u2014 I\u2019m responsible for $'+F,'kyAccept');
+    } else if(k.status==="Out"&&mine&&!KEYMETA.mgr){
+      note='<div class="desc" style="margin-top:8px">When you&rsquo;re finished, hand it back to a director \u2014 they sign it back in.</div>';
+    }
+    if(KEYMETA.mgr){
+      if(k.status==="In") btns+=B('\ud83d\udce8 Send to\u2026','kySend');
+      if(k.status==="Pending") btns+=B('Cancel send','kyIn','#8a8f9c');
+      if(k.status==="Out"||k.status==="Lost") btns+=B('\u21a9 Received back \u2014 sign in','kyIn');
+      if(k.status==="Out") btns+=B('Not returned \u2014 $'+F,'kyLost','#b3261e');
+      btns+=B('Delete','kyDel','#8a8f9c');
     }
     var hist=(k.history||[]).map(function(h){return '<div>'+kyWhen(h.at)+' \u00b7 '+esc(h.action)+(h.person?' \u00b7 '+esc(h.person):'')+'</div>';}).join("");
-    return '<div class="ofcard" style="cursor:default"><div class="oftop"><div style="flex:1"><h3>'+esc(k.name)+'</h3><div class="desc">'+(meta||esc(k.type))+'</div></div>'+pill+'</div>'+sub+btns+
+    return '<div class="ofcard" style="cursor:default"><div class="oftop"><div style="flex:1"><h3>'+esc(k.name)+'</h3><div class="desc">'+(meta||esc(k.type))+'</div></div>'+pill+'</div>'+sub+note+btns+
       (hist?'<div class="desc" style="margin-top:10px;font-size:11.5px">'+hist+'</div>':'')+'</div>';
   }).join("");
-}
-function kyFeeOK(what){
-  return confirm(what+"\n\nBy signing this out you agree that if it is not returned you will pay Marine HQ $"+KEYMETA.fee+".\n\nOK = I agree");
 }
 function kyPost(body, msg){
   body.email=ME.email; body.code=ME.code;
@@ -12982,22 +13002,38 @@ function kyPost(body, msg){
     .catch(function(){ toast("No connection \u2014 try again"); });
 }
 function kyFind(id){ return KEYS.filter(function(k){return k.id===id;})[0]||{}; }
-function kyOut(id){
-  var k=kyFind(id), forId="";
-  if(KEYMETA.mgr && KEYMETA.crew.length){
-    var names=KEYMETA.crew.map(function(c,i){return (i+1)+". "+c.name;}).join("\n");
-    var a=prompt("Who is taking "+k.name+"?\n"+names+"\n\nType a number, or leave blank for you.","");
-    if(a===null) return;
-    var c=KEYMETA.crew[(parseInt(a,10)||0)-1]; if(c&&c.id!==KEYMETA.me.id) forId=c.id;
-  }
-  if(forId){
-    if(!confirm("Sign "+k.name+" out to them?\n\nThey will be asked to agree to the $"+KEYMETA.fee+" fee in their app.")) return;
-  } else if(!kyFeeOK("Sign out: "+k.name)) return;
-  kyPost({action:"crewKeyOut", keyId:id, ack:true, forId:forId}, "\u2713 Signed out");
+/* Director sends it to a person — they then have to accept it in their own app. */
+function kySend(id){
+  var k=kyFind(id);
+  var list=KEYMETA.crew||[]; if(!list.length){ toast("No crew list yet \u2014 try again"); return; }
+  var a=prompt("Send "+k.name+" to who?\n"+list.map(function(c,i){return (i+1)+". "+c.name;}).join("\n")+"\n\nType a number.","");
+  if(a===null) return;
+  var c=list[(parseInt(a,10)||0)-1]; if(!c){ toast("Pick a number from the list"); return; }
+  kyPost({action:"crewKeyOut", keyId:id, forId:c.id}, "\u2713 Sent to "+c.name+" \u2014 waiting for them to accept");
 }
-function kyAck(id){ var k=kyFind(id); if(!kyFeeOK("Agree for: "+k.name)) return; kyPost({action:"crewKeyAck", keyId:id, ack:true}, "\u2713 Agreed"); }
-function kyIn(id){ var k=kyFind(id); if(!confirm("Sign "+k.name+" back in?")) return; kyPost({action:"crewKeyIn", keyId:id}, "\u2713 Signed back in"); }
-function kyLost(id){ var k=kyFind(id); if(!confirm("Mark "+k.name+" as NOT returned? $"+KEYMETA.fee+" is recorded as owing from "+k.holder+".")) return; kyPost({action:"crewKeyLost", keyId:id}, "Marked lost \u2014 $"+KEYMETA.fee+" owing"); }
+/* The holder's acceptance: an explicit tick, then it is theirs. */
+var KY_ACC="";
+function kyAccept(id){
+  var k=kyFind(id); KY_ACC=id;
+  $("kyAccName").textContent=k.name+(k.vessel?" \u2014 "+k.vessel:"");
+  $("kyAccFee").textContent="$"+KEYMETA.fee;
+  $("kyAccTick").checked=false;
+  $("kyAccModal").classList.add("show");
+}
+function kyAccGo(){
+  if(!$("kyAccTick").checked){ toast("Tick the box to accept"); return; }
+  closeModal("kyAccModal");
+  kyPost({action:"crewKeyAck", keyId:KY_ACC, ack:true}, "\u2713 Accepted \u2014 it\u2019s signed out to you");
+}
+function kyIn(id){
+  var k=kyFind(id), pend=k.status==="Pending";
+  var q=pend?(k.holderId===KEYMETA.me.id?"Hand "+k.name+" back without accepting it?":"Cancel sending "+k.name+" to "+k.holder+"?")
+            :"Confirm you have "+k.name+" back from "+k.holder+"?";
+  if(!confirm(q)) return;
+  kyPost({action:"crewKeyIn", keyId:id}, pend?"Done":"\u2713 Signed back in");
+}
+function kyLost(id){ var k=kyFind(id); if(!confirm("Mark "+k.name+" as NOT returned? $"+KEYMETA.fee+" is recorded as owing from "+k.holder+".")) return; kyPost({action:"crewKeyLost", keyId:id}, "Marked not returned \u2014 $"+KEYMETA.fee+" owing"); }
+function kyDel(id){ var k=kyFind(id); if(!confirm("Delete "+k.name+" from the register?"+(k.holder?"\n\nIt is currently with "+k.holder+".":"")+"\n\nThe history is kept in the sheet.")) return; kyPost({action:"crewKeyDelete", keyId:id}, "Deleted"); }
 function kyAdd(){
   var n=prompt("Name of the key or fob (e.g. Mantaray Marina access fob)"); if(!n) return;
   var v=prompt("Which vessel or site? (optional)","")||"";
