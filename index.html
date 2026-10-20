@@ -1899,6 +1899,8 @@ button:active{ filter: brightness(.93); }
       </div>
       <div id="calWeekWrap" class="hidden"></div>
       <div id="calDay"></div>
+      <button class="ofnewbtn" style="margin-top:16px" onclick="leaveOpen()">\ud83c\udf34 Request time off</button>
+      <div id="leaveWrap"></div>
     </div>
 
     <!-- FLEET (directors/managers only) -->
@@ -2095,7 +2097,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-20·d</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-20·e</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2481,6 +2483,20 @@ button:active{ filter: brightness(.93); }
 
   <button class="go" onclick="submitReceipt()">🧾 Log the receipt</button>
   <button class="cancel" onclick="closeModal('rcptModal')">Cancel</button>
+</div></div>
+
+<!-- Request time off -->
+<div class="modal" id="leaveModal"><div class="card2">
+  <h3>\ud83c\udf34 Request time off</h3>
+  <p class="mhint">Pick the first and last day you&rsquo;ll be off. A director approves it, and once it&rsquo;s approved it shows on the calendar.</p>
+  <div style="display:flex;gap:8px">
+    <div style="flex:1"><label class="fld">From</label><input type="date" class="fld-in" id="lv_from" onchange="if(!$('lv_to').value||$('lv_to').value<this.value)$('lv_to').value=this.value"></div>
+    <div style="flex:1"><label class="fld">To <span class="fldhint">(last day off)</span></label><input type="date" class="fld-in" id="lv_to"></div>
+  </div>
+  <label class="fld">Reason <span class="fldhint">(optional)</span></label>
+  <textarea class="fld-ta" id="lv_reason" placeholder="e.g. family holiday, medical appointment"></textarea>
+  <button class="go" onclick="leaveSubmit()">Send request</button>
+  <button class="cancel" onclick="closeModal('leaveModal')">Cancel</button>
 </div></div>
 
 <!-- Crew profile: add / edit a certificate or ticket -->
@@ -8593,18 +8609,18 @@ var CAL_EVENTS=[], CAL_VIEW="month", CAL_WOFF=0;
 var _CEVMON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 var CEV_STYLE={CHARTER:{bg:"#E8EEFA",fg:"#3D6DC4"},SHIPYARD:{bg:"#F9E7E5",fg:"#C0392B"},
   SURVEY:{bg:"#F3EAF7",fg:"#8E4FA8"},DELIVERY:{bg:"#E5F4F8",fg:"#1F8FA9"},
-  "OWNER TRIP":{bg:"#E7F6EC",fg:"#2E9E5B"},JOB:{bg:"#E8F8EF",fg:"#27AE60"},
+  "OWNER TRIP":{bg:"#E7F6EC",fg:"#2E9E5B"},OFF:{bg:"#FFF1E6",fg:"#E8650A"},"OFF REQUEST":{bg:"#F4F4F6",fg:"#8a8f9c"},JOB:{bg:"#E8F8EF",fg:"#27AE60"},
   INSURANCE:{bg:"#FDF5E0",fg:"#B8860B"},ARRIVAL:{bg:"#E7F6EC",fg:"#1F7A43"},
   DEPARTURE:{bg:"#FDEEE3",fg:"#C2410C"}};
 /* Tolerates the vessel prefix the events are actually named with —
    "EW - CHARTER — Everywhen (Trip 3)". */
-var CEV_RE=/^(?:[A-Z]{2,5}\s*[-–—]\s*)?(CHARTER|SHIPYARD|SURVEY|DELIVERY|OWNER TRIP|INSURANCE|ARRIVAL|DEPARTURE|ARR|DEP|JOB)\b[\s—:–-]*/i;
+var CEV_RE=/^(?:[A-Z]{2,5}\s*[-–—]\s*)?(CHARTER|SHIPYARD|SURVEY|DELIVERY|OWNER TRIP|INSURANCE|ARRIVAL|DEPARTURE|ARR|DEP|JOB|OFF REQUEST|OFF)\b[\s—:–-]*/i;
 function cevType(ev){ var m=(ev.title||"").match(CEV_RE); if(!m) return "";
   var t=m[1].toUpperCase(); if(t==="ARR")t="ARRIVAL"; if(t==="DEP")t="DEPARTURE"; return t; }
 function cevLabel(ev){ var t=(ev.title||""), m=t.match(CEV_RE);
   var l=m?t.substring(m[0].length).trim():t; return l.replace(/✓|\[done\]/gi,"").trim()||t; }
 function cevStyle(ev){ return CEV_STYLE[cevType(ev)]||{bg:"#eef1f6",fg:"#1a2b5c"}; }
-function cevBadge(t){ return t==="JOB"?"WORK DONE":t==="ARRIVAL"?"ARR":t==="DEPARTURE"?"DEP":t; }
+function cevBadge(t){ return t==="OFF"?"TIME OFF":t==="OFF REQUEST"?"REQUESTED":t==="JOB"?"WORK DONE":t==="ARRIVAL"?"ARR":t==="DEPARTURE"?"DEP":t; }
 function cevTime(d){ var h=d.getHours(),mi=("0"+d.getMinutes()).slice(-2); return (h%12||12)+":"+mi+(h<12?"am":"pm"); }
 function cevSpan(ev){ return (ev.end-ev.start)>86400000*1.5; }   // runs across more than a day
 function cevRange(ev){ var a=new Date(ev.start), b=new Date(ev.end-(ev.allDay?86400000:0));
@@ -8705,10 +8721,12 @@ function loadCal(){
                      "&key="+encodeURIComponent(ME.code||""))
                 .then(function(c){ return (c&&c.events)||[]; })
                 .catch(function(){ return []; });   // the calendar never blocks the jobs
-  Promise.all([jobsP, calP]).then(function(r){
+  var leaveP = leaveLoad();
+  Promise.all([jobsP, calP, leaveP]).then(function(r){
     var j=r[0];
     CAL_JOBS=((j&&j.jobs)||[]).filter(function(x){ return x.dueTs; });
-    CAL_EVENTS=r[1]||[];
+    CAL_EVENTS=(r[1]||[]).concat(leaveEvents());
+    leaveRender();
     if(!CAL_MONTH){ var t=new Date(); CAL_MONTH=new Date(t.getFullYear(),t.getMonth(),1); }
     renderCalAll();
     var td=new Date(); calShowDay(new Date(td.getFullYear(),td.getMonth(),td.getDate(),12,0,0).getTime());
@@ -12834,6 +12852,85 @@ function wlogRenderStat(){
   $("wl_dayLbl").textContent = (WLOGSTAT==="Complete") ? "Day you did it" : "Day you started";
 }
 function wlogSetStat(s){ WLOGSTAT=s; wlogRenderStat(); }
+/* =====================================================================
+   TIME OFF (front end) — backend is TimeOff.gs. Crew see their own requests,
+   directors/managers see all and decide them. Pending + approved leave is
+   drawn on the calendar as all-day events (approved = orange, requested = grey).
+   ===================================================================== */
+var LEAVE=[], LEAVEMETA={mgr:false,me:{}};
+function leaveLoad(){
+  return apiPost({action:"crewLeave", email:ME.email, code:ME.code}).then(function(r){
+    if(r&&r.ok){ LEAVE=r.items||[]; LEAVEMETA={mgr:!!r.mgr,me:r.me||{}}; }
+    return LEAVE;
+  }).catch(function(){ return LEAVE; });
+}
+function lvDate(s){ var p=(s||"").split("-"); return new Date(+p[0],+p[1]-1,+p[2]); }
+function lvPretty(s){ var d=lvDate(s); return d.getDate()+" "+_CEVMON[d.getMonth()]; }
+function lvRange(x){ return x.from===x.to ? lvPretty(x.from) : lvPretty(x.from)+" \u2013 "+lvPretty(x.to); }
+function leaveEvents(){
+  return LEAVE.filter(function(x){ return x.status==="Approved"||x.status==="Pending"; }).map(function(x){
+    var a=lvDate(x.from), b=lvDate(x.to);
+    return {title:(x.status==="Approved"?"OFF":"OFF REQUEST")+" \u2014 "+(LEAVEMETA.mgr?x.crew:"You")+" ("+x.days+(x.days===1?" day":" days")+")",
+            start:a.getTime(), end:b.getTime()+86400000, allDay:true, vessel:"", note:x.reason||""};
+  });
+}
+function leaveRender(){
+  var el=$("leaveWrap"); if(!el) return;
+  var mgr=LEAVEMETA.mgr, today=new Date().toISOString().slice(0,10);
+  var pend=LEAVE.filter(function(x){return x.status==="Pending";});
+  if(mgr) setNavBadge("cal", pend.length);
+  function row(x, acts){
+    var cls=x.status==="Approved"?"f-done":x.status==="Pending"?"f-prog":"f-todo";
+    return '<div class="ofcard" style="cursor:default"><div class="oftop"><div style="flex:1"><h3>'+(mgr?esc(x.crew)+' \u00b7 ':'')+esc(lvRange(x))+
+      '</h3><div class="desc">'+x.days+(x.days===1?' day':' days')+(x.reason?' \u00b7 '+esc(x.reason):'')+'</div></div>'+
+      '<span class="fact '+cls+'" style="padding:2px 9px;border-radius:9px">'+esc(x.status)+'</span></div>'+
+      (x.note?'<div class="desc" style="margin-top:6px">'+esc(x.decidedBy||"Manager")+': '+esc(x.note)+'</div>':'')+(acts||'')+'</div>';
+  }
+  var h="";
+  if(mgr){
+    if(pend.length) h+='<div class="listhd">Waiting for approval <span style="color:var(--muted)">('+pend.length+')</span></div>'+pend.map(function(x){
+      return row(x,'<div style="margin-top:10px;display:flex;gap:8px"><button class="jobbtn" style="color:#fff;margin:0" onclick="leaveDecide(\''+esc(x.id)+'\',\'approve\')">\u2713 Approve</button>'+
+        '<button class="jobbtn" style="color:#fff;margin:0;background:#b3261e" onclick="leaveDecide(\''+esc(x.id)+'\',\'decline\')">Decline</button></div>');
+    }).join("");
+    var appr=LEAVE.filter(function(x){return x.status==="Approved"&&x.to>=today;}).sort(function(a,b){return a.from<b.from?-1:1;});
+    if(appr.length) h+='<div class="listhd">Approved time off</div>'+appr.map(function(x){
+      return row(x,'<button class="cancel" style="margin-top:10px" onclick="leaveCancel(\''+esc(x.id)+'\')">Cancel this leave</button>'); }).join("");
+  }
+  var mine=LEAVE.filter(function(x){return x.crewId===LEAVEMETA.me.id && (x.status!=="Cancelled") && (x.status!=="Approved"||x.to>=today);});
+  if(mine.length) h+='<div class="listhd">My requests</div>'+mine.map(function(x){
+    return row(x,(x.status==="Pending"||x.status==="Approved")?'<button class="cancel" style="margin-top:10px" onclick="leaveCancel(\''+esc(x.id)+'\')">Withdraw</button>':''); }).join("");
+  el.innerHTML=h;
+}
+function leaveOpen(){
+  $("lv_from").value=""; $("lv_to").value=""; $("lv_reason").value="";
+  $("lv_from").min=$("lv_to").min=new Date().toISOString().slice(0,10);
+  $("leaveModal").classList.add("show");
+}
+function leaveSubmit(){
+  var f=$("lv_from").value, t=$("lv_to").value||f;
+  if(!f){ toast("Pick the first day off"); return; }
+  if(t<f){ toast("The last day can\u2019t be before the first"); return; }
+  apiPost({action:"crewLeaveRequest", email:ME.email, code:ME.code, from:f, to:t, reason:$("lv_reason").value.trim()}).then(function(r){
+    if(r&&r.ok){ closeModal("leaveModal"); toast("\u2713 Request sent for approval"); loadCal(); }
+    else toast((r&&r.error)||"Didn\u2019t send");
+  }).catch(function(){ toast("No connection \u2014 try again"); });
+}
+function leaveFind(id){ return LEAVE.filter(function(x){return x.id===id;})[0]||{}; }
+function leaveDecide(id, d){
+  var x=leaveFind(id), note="";
+  if(d==="decline"){ note=prompt("Reason for declining "+x.crew+"? (optional)","")||""; }
+  else if(!confirm("Approve "+x.crew+" off "+lvRange(x)+"? It will show on the calendar.")) return;
+  apiPost({action:"crewLeaveDecide", email:ME.email, code:ME.code, id:id, decision:d, note:note}).then(function(r){
+    if(r&&r.ok){ toast(d==="approve"?"\u2713 Approved":"Declined"); loadCal(); } else toast((r&&r.error)||"Didn\u2019t save");
+  }).catch(function(){ toast("No connection \u2014 try again"); });
+}
+function leaveCancel(id){
+  var x=leaveFind(id); if(!confirm("Cancel "+(x.crew&&LEAVEMETA.mgr?x.crew+"\u2019s ":"")+"time off "+lvRange(x)+"?")) return;
+  apiPost({action:"crewLeaveCancel", email:ME.email, code:ME.code, id:id}).then(function(r){
+    if(r&&r.ok){ toast("Cancelled"); loadCal(); } else toast((r&&r.error)||"Didn\u2019t save");
+  }).catch(function(){ toast("No connection \u2014 try again"); });
+}
+
 /* =====================================================================
    KEYS & FOBS (front end) — backend is KeyRegister.gs. Signing out needs the
    $50 box ticked; the server refuses without it, this just asks nicely first.
