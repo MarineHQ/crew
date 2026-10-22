@@ -2097,7 +2097,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-22·h</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-22·i</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2511,7 +2511,7 @@ button:active{ filter: brightness(.93); }
   <h3>\ud83d\udd11 Accept this key</h3>
   <p class="body" style="font-size:15px;font-weight:bold;margin:0 0 10px" id="kyAccName"></p>
   <p class="mhint" style="font-size:13px;color:#1a2b5c">By accepting, you confirm you have this in your hands and you take responsibility for it. <b>If it is not returned, you will pay Marine HQ <span id="kyAccFee">$50</span>.</b> When you&rsquo;re done with it, hand it back to a director so they can sign it back in.</p>
-  <label style="display:flex;gap:10px;align-items:flex-start;margin:14px 0;font-size:14px"><input type="checkbox" id="kyAccTick" style="width:22px;height:22px;flex:none"> <span>I accept responsibility for this key and agree to pay the fee if I don&rsquo;t return it.</span></label>
+  <label style="display:flex;gap:10px;align-items:flex-start;margin:14px 0;font-size:14px"><input type="checkbox" id="kyAccTick" style="width:22px;height:22px;flex:none"> <span>I accept responsibility for this key and agree to pay the fee if I don&rsquo;t return it when requested.</span></label>
   <button class="go" onclick="kyAccGo()">Accept</button>
   <button class="cancel" onclick="closeModal('kyAccModal')">Cancel</button>
 </div></div>
@@ -13017,71 +13017,97 @@ function loadKeys(){
   }).catch(function(){ renderKeys(); });
 }
 function kyWhen(ms){ if(!ms) return ""; var d=new Date(ms); return d.getDate()+" "+["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()]; }
+var KY_OPEN={};
+function kyToggle(id){ KY_OPEN[id]=!KY_OPEN[id]; var d=document.getElementById("kyd-"+id); if(d) d.style.display=KY_OPEN[id]?"":"none"; }
 function renderKeys(){
   var el=$("kyList"); if(!el) return;
   $("kyAddBtn").style.display=KEYMETA.mgr?"":"none";
   var out=KEYS.filter(function(k){return k.status==="Out"||k.status==="Lost";}).length;
-  var waiting=KEYS.filter(function(k){return k.status==="Pending"&&k.mine;}).length;
+  var waiting=KEYS.filter(function(k){return (k.status==="Pending"&&k.mine)||k.incoming;}).length;
   setNavBadge("keys", waiting);
-  $("kyCount").textContent=KEYS.length?(KEYMETA.mgr?(out+" out \u00b7 "+(KEYS.length-out)+" in"):""):"";
-  if(!KEYS.length){ el.innerHTML='<p class="hello">'+(KEYMETA.mgr?'No keys or fobs registered yet.':'You\u2019re not holding any keys or fobs.')+'</p>'; return; }
-  var rank={Pending:0,Lost:1,Out:2,In:3};
-  var cardOf=function(k){
-    var mine=!!k.mine, id=esc(k.id), F=KEYMETA.fee;
-    var pill=k.status==="Lost"?'<span class="fact f-late" style="padding:2px 9px;border-radius:9px">Not returned \u00b7 $'+F+' owing</span>'
-            :k.status==="Pending"?'<span class="fact f-wait" style="padding:2px 9px;border-radius:9px">Sent to '+esc(k.holder)+' \u2014 not accepted</span>'
-            :k.status==="Out"?'<span class="fact f-prog" style="padding:2px 9px;border-radius:9px">With '+esc(k.holder)+'</span>'
-            :'<span class="fact f-done" style="padding:2px 9px;border-radius:9px">In</span>';
-    var meta=[(k.boats||[]).length?("For "+k.boats.join(", ")):"",k.tag?("No. "+k.tag):""].filter(String).map(esc).join(" \u00b7 ");
-    var sub=k.status==="Out"?('<div class="meta"><span>Out since '+(kyWhen(k.outAt)||"before the register")+'</span>'+(k.due?'<span>Due back '+esc(k.due)+'</span>':'')+
-             '<span>'+(k.ackAt?'\u2713 $'+F+' accepted':'\u26a0 $'+F+' not yet accepted')+'</span></div>'):"";
-    var B=function(label,fn,bg){ return '<button class="jobbtn" style="margin:10px 8px 0 0;color:#fff;background:'+(bg||'#1A2B5C')+'" onclick="'+fn+'(\''+id+'\')">'+label+'</button>'; };
-    var btns="", note="";
-    if(k.status==="Pending"&&mine){
-      btns=B('\u270d Accept \u2014 I\u2019m responsible for $'+F,'kyAccept')+B('Not me','kyIn','#8a8f9c');
-      note='<div class="desc" style="margin-top:8px"><b>You&rsquo;ve been given this.</b> Accept it to confirm you have it and that you&rsquo;ll pay $'+F+' if it isn&rsquo;t returned.</div>';
-    } else if(k.status==="Out"&&mine&&!k.ackAt){
-      btns=B('\u270d Accept \u2014 I\u2019m responsible for $'+F,'kyAccept');
-    } else if(k.status==="Out"&&mine&&!KEYMETA.mgr){
-      note='<div class="desc" style="margin-top:8px">When you&rsquo;re finished, hand it back to a director \u2014 they sign it back in.</div>';
+  $("kyCount").textContent=KEYS.length?(KEYMETA.mgr?(out+" out · "+(KEYS.length-out)+" in"):""):"";
+  if(!KEYS.length){ el.innerHTML='<p class="hello">'+(KEYMETA.mgr?'No keys or fobs registered yet.':'You’re not holding any keys or fobs.')+'</p>'; return; }
+  var F=KEYMETA.fee, rank={Pending:0,Lost:1,Out:2,In:3};
+  var B=function(label,fn,id,bg){ return '<button class="jobbtn" style="margin:8px 8px 0 0;width:auto;padding:10px 14px;color:#fff;background:'+(bg||'#1A2B5C')+'" onclick="'+fn+'(\''+esc(id)+'\')">'+label+'</button>'; };
+  /* One line per fob: name, who has it, a status pill. Tap the line for the buttons. */
+  var rowOf=function(k){
+    var who=k.status==="In"?"On the hook":k.status==="Pending"?"Sent to "+k.holder+" — not accepted":k.holder+(k.passTo?" → "+k.passTo:"")+(k.status==="Lost"?" — not returned":"");
+    var pill=k.status==="Lost"?["Not returned","#b3261e","#fde8e6"]:k.status==="Pending"?["Waiting","#8a5a12","#fff6e8"]
+            :k.incoming?["For you","#8a5a12","#fff6e8"]:k.passTo?["Handover","#8a5a12","#fff6e8"]:k.status==="Out"?["Out","#1A2B5C","#e8eefa"]:["In","#1b7f43","#e5f5ea"];
+    var detail="", id=esc(k.id), btns="", note="";
+    if(k.status==="Out") detail+='<div class="desc">Out since '+(kyWhen(k.outAt)||"before the register")+(k.due?' · due back '+esc(k.due):'')+' · '+(k.ackAt?'✓ $'+F+' accepted':'⚠ $'+F+' not yet accepted')+'</div>';
+    if(k.tag) detail+='<div class="desc">Number on the fob: '+esc(k.tag)+'</div>';
+    if(k.status==="Pending"&&k.mine){
+      btns+=B('✍ Accept — I’m responsible for $'+F,'kyAccept',k.id)+B('Not me','kyIn',k.id,'#8a8f9c');
+      note='<div class="desc" style="margin-top:6px"><b>You&rsquo;ve been given this.</b> Accept it to confirm you have it and will pay $'+F+' if it isn&rsquo;t returned.</div>';
+    } else if(k.incoming){
+      btns+=B('✍ Accept — I’m responsible for $'+F,'kyAccept',k.id)+B('Not me','kyPassCancel',k.id,'#8a8f9c');
+      note='<div class="desc" style="margin-top:6px"><b>'+esc(k.holder)+' is handing this to you.</b> It stays '+esc(k.holder)+'&rsquo;s until you accept.</div>';
+    } else if(k.status==="Out"&&k.mine&&!k.ackAt){
+      btns+=B('✍ Accept — I’m responsible for $'+F,'kyAccept',k.id);
+    } else if(k.status==="Out"&&k.mine&&k.passTo){
+      note='<div class="desc" style="margin-top:6px">Waiting for <b>'+esc(k.passTo)+'</b> to accept. It&rsquo;s still yours until they do.</div>';
+      btns+=B('Cancel handover','kyPassCancel',k.id,'#8a8f9c');
+    } else if(k.status==="Out"&&k.mine){
+      btns+=B('↪ Pass to someone','kyPass',k.id);
+      if(!KEYMETA.mgr) note='<div class="desc" style="margin-top:6px">To return it, hand it to a director — they sign it back in.</div>';
     }
     if(KEYMETA.mgr){
-      if(k.status==="In") btns+=B('\ud83d\udce8 Send to\u2026','kySend');
-      if(k.status==="Pending") btns+=B('Cancel send','kyIn','#8a8f9c');
-      if(k.status==="Out"||k.status==="Lost") btns+=B('\u21a9 Received back \u2014 sign in','kyIn');
-      if(k.status==="Out") btns+=B('Not returned \u2014 $'+F,'kyLost','#b3261e');
-      btns+=B('Edit','kyEdit','#8a8f9c')+B('Delete','kyDel','#8a8f9c');
+      if(k.status==="In") btns+=B('📨 Send to…','kySend',k.id);
+      if(k.status==="Pending"&&!k.mine) btns+=B('Cancel send','kyIn',k.id,'#8a8f9c');
+      if(k.status==="Out"&&!k.mine&&k.ackAt&&!k.passTo) btns+=B('↪ Pass to someone','kyPass',k.id);
+      if(k.status==="Out"&&k.passTo&&!k.mine) btns+=B('Cancel handover','kyPassCancel',k.id,'#8a8f9c');
+      if(k.status==="Out"||k.status==="Lost") btns+=B('↩ Received back — sign in','kyIn',k.id);
+      if(k.status==="Out") btns+=B('Not returned — $'+F,'kyLost',k.id,'#b3261e');
+      btns+=B('Edit','kyEdit',k.id,'#8a8f9c')+B('Delete','kyDel',k.id,'#8a8f9c');
     }
-    var hist=(k.history||[]).map(function(h){return '<div>'+kyWhen(h.at)+' \u00b7 '+esc(h.action)+(h.person?' \u00b7 '+esc(h.person):'')+'</div>';}).join("");
-    return '<div class="ofcard" style="cursor:default"><div class="oftop"><div style="flex:1"><h3>'+esc(k._title||k.name)+'</h3><div class="desc">'+(meta||esc(k.type))+'</div></div>'+pill+'</div>'+sub+note+btns+
-      (hist?'<div class="desc" style="margin-top:10px;font-size:11.5px">'+hist+'</div>':'')+'</div>';
+    var hist=(k.history||[]).map(function(h){return '<div>'+kyWhen(h.at)+' · '+esc(h.action)+(h.person?' · '+esc(h.person):'')+'</div>';}).join("");
+    var open=!!KY_OPEN[k.id]||((k.mine&&k.status==="Pending")||k.incoming);   // things waiting for YOU start open
+    return '<div style="border-top:1px solid var(--line)"><div onclick="kyToggle(\''+id+'\')" style="display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer">'+
+      '<div style="flex:1;min-width:0"><div style="font-weight:bold;color:var(--navy);font-size:14.5px">'+esc(k._title||k.name)+'</div><div class="desc" style="margin:1px 0 0">'+esc(who)+'</div></div>'+
+      '<span style="font-size:11.5px;font-weight:bold;padding:3px 10px;border-radius:10px;color:'+pill[1]+';background:'+pill[2]+';white-space:nowrap">'+pill[0]+'</span></div>'+
+      '<div id="kyd-'+id+'" style="display:'+(open?'':'none')+';padding:0 14px 12px">'+detail+note+btns+(hist?'<div class="desc" style="margin-top:10px;font-size:11.5px">'+hist+'</div>':'')+'</div></div>';
   };
-  /* One group per marina AND boat set — "Mantaray Marina · Everywhen" holds the
-     fobs for Everywhen; "Mantaray Marina · Okean 52" holds that boat's. */
-  var by={}, order=[]; KY_GROUPS=[];
-  KEYS.slice().sort(function(a,b){return rank[a.status]-rank[b.status];}).forEach(function(k){
-    var bt=(k.boats||[]).slice().sort(), key=(k.marina||"No marina set")+"\u0001"+bt.join(", ");
-    if(!by[key]){ by[key]={marina:k.marina||"",boats:bt,list:[]}; order.push(key); } by[key].list.push(k); });
-  order.sort(function(a,b){ return a.localeCompare(b); });
-  /* The marina is already the heading, so a card is just "Fob" — and "Fob 1", "Fob 2"
-     when a group holds several. A name that only repeats the marina (an older entry)
-     is shown the same way. The stored name is never changed. */
-  order.forEach(function(key){
-    var g=by[key], mar=(g.marina||"").toLowerCase();
-    g.list.forEach(function(k){
-      var t=(k.name||"").trim(), low=t.toLowerCase();
-      if(mar && low.indexOf(mar)===0){ t=t.substring(mar.length).replace(/^[\s\-\u2014:]+/,"").trim(); }
-      k._title=t||"Fob";
+  /* Marina banner -> one block per boat -> one line per fob. */
+  var mar={}, mOrder=[]; KY_GROUPS=[];
+  KEYS.slice().sort(function(a,b){return rank[a.status]-rank[b.status]||(a.id<b.id?-1:1);}).forEach(function(k){
+    var m=k.marina||"No marina set"; if(!mar[m]){ mar[m]={boats:{},order:[],n:0}; mOrder.push(m); }
+    var bt=(k.boats||[]).slice().sort(), bk=bt.join(", ")||"—";
+    if(!mar[m].boats[bk]){ mar[m].boats[bk]={boats:bt,list:[]}; mar[m].order.push(bk); }
+    mar[m].boats[bk].list.push(k); mar[m].n++; });
+  mOrder.sort(function(a,b){ return a==="No marina set"?1:b==="No marina set"?-1:a.localeCompare(b); });
+  el.innerHTML=mOrder.map(function(m){
+    var M=mar[m];
+    var h='<div style="display:flex;align-items:center;justify-content:space-between;background:var(--navy);color:#fff;border-radius:11px;padding:11px 14px;margin:16px 0 8px"><span style="font-weight:bold;font-size:15px">⚓ '+esc(m)+'</span><span style="font-size:12.5px;opacity:.85">'+M.n+(M.n===1?' fob':' fobs')+'</span></div>';
+    M.order.sort().forEach(function(bk){
+      var g=M.boats[bk];
+      var names={}; g.list.forEach(function(k){ var t=(k.name||"").trim(), low=t.toLowerCase(), ml=(k.marina||"").toLowerCase();
+        if(ml&&low.indexOf(ml)===0) t=t.substring(ml.length).replace(/^[\s\-—:]+/,"").trim(); k._title=t||"Fob"; names[k._title]=(names[k._title]||0)+1; });
+      var c={}; g.list.slice().sort(function(a,b){return a.id<b.id?-1:1;}).forEach(function(k){ if(names[k._title]>1){ c[k._title]=(c[k._title]||0)+1; k._title=k._title+" "+c[k._title]; } });
+      var n=KY_GROUPS.push({marina:k0(g),boats:g.boats})-1;
+      function k0(x){ return x.list[0].marina||""; }
+      h+='<div class="ofcard" style="cursor:default;padding:0;overflow:hidden;margin-bottom:10px"><div style="display:flex;align-items:center;gap:8px;padding:11px 14px">'+
+        '<div style="flex:1;font-weight:bold;color:var(--navy);font-size:15px">'+esc(g.boats.join(", ")||"No boat set")+'</div>'+
+        '<span class="desc" style="margin:0">'+g.list.length+(g.list.length===1?' fob':' fobs')+'</span>'+
+        (KEYMETA.mgr?'<button onclick="kyAddHere('+n+')" style="border:0;background:#eef1f6;color:var(--navy);font-weight:bold;border-radius:9px;padding:6px 11px;font-size:13px;cursor:pointer">＋</button>':'')+
+        '</div>'+g.list.map(rowOf).join("")+'</div>';
     });
-    var dup={}; g.list.forEach(function(k){ dup[k._title]=(dup[k._title]||0)+1; });
-    var n={}; g.list.slice().sort(function(a,b){return a.id<b.id?-1:1;}).forEach(function(k){
-      if(dup[k._title]>1){ n[k._title]=(n[k._title]||0)+1; k._title=k._title+" "+n[k._title]; } });
-  });
-  el.innerHTML=order.map(function(key){
-    var g=by[key], n=KY_GROUPS.push({marina:g.marina,boats:g.boats})-1;
-    return '<div class="listhd">\u2693 '+esc(g.marina||"No marina set")+(g.boats.length?' \u00b7 '+esc(g.boats.join(", ")):'')+' <span style="color:var(--muted)">('+g.list.length+')</span></div>'+g.list.map(cardOf).join("")+
-      (KEYMETA.mgr?'<button class="cancel" style="margin:0 0 14px" onclick="kyAddHere('+n+')">\uff0b Add another fob here</button>':'');
+    return h;
   }).join("");
+}
+/* Pass a key you hold to someone else. It stays yours until they accept. */
+function kyPass(id){
+  var k=kyFind(id), list=(KEYMETA.crew||[]).filter(function(c){ return c.id!==KEYMETA.me.id && (c.name||"").split(" ")[0].toLowerCase()!==(k.holder||"").split(" ")[0].toLowerCase(); });
+  if(!list.length){ toast("No one to pass it to"); return; }
+  var a=prompt("Pass "+(k._title||k.name)+" to who?\n"+list.map(function(c,i){return (i+1)+". "+c.name;}).join("\n")+"\n\nType a number. It stays with "+(k.holder||"you")+" until they accept.","");
+  if(a===null) return;
+  var c=list[(parseInt(a,10)||0)-1]; if(!c){ toast("Pick a number from the list"); return; }
+  kyPost({action:"crewKeyPass", keyId:id, toId:c.id}, "✓ Offered to "+c.name+" — waiting for them to accept");
+}
+function kyPassCancel(id){
+  var k=kyFind(id);
+  if(!confirm(k.incoming?"Turn down "+(k._title||k.name)+"? It stays with "+k.holder+".":"Cancel passing it to "+k.passTo+"?")) return;
+  kyPost({action:"crewKeyPassCancel", keyId:id}, "Done");
 }
 function kyPost(body, msg){
   body.email=ME.email; body.code=ME.code;
