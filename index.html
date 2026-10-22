@@ -2097,7 +2097,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-21·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-22·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2483,6 +2483,23 @@ button:active{ filter: brightness(.93); }
 
   <button class="go" onclick="submitReceipt()">🧾 Log the receipt</button>
   <button class="cancel" onclick="closeModal('rcptModal')">Cancel</button>
+</div></div>
+
+<!-- Add / edit a key or fob -->
+<div class="modal" id="kyModal"><div class="card2">
+  <h3 id="kyM_title">Add a key or fob</h3>
+  <label class="fld">Marina</label>
+  <select class="fld-in" id="kyM_marina" onchange="kyMarinaPick()"></select>
+  <input class="fld-in" id="kyM_marinaNew" placeholder="Name of the marina" style="display:none;margin-top:8px">
+  <label class="fld">Fob name or number <span class="fldhint">(e.g. Fob 1)</span></label>
+  <input class="fld-in" id="kyM_name" placeholder="e.g. Fob 1">
+  <label class="fld">Boats it&rsquo;s for <span class="fldhint">(tick any that apply)</span></label>
+  <div id="kyM_boats"></div>
+  <input class="fld-in" id="kyM_other" placeholder="Another boat not listed (optional)" style="margin-top:6px">
+  <label class="fld">Number on the fob <span class="fldhint">(optional)</span></label>
+  <input class="fld-in" id="kyM_tag" placeholder="Serial or tag number">
+  <button class="go" onclick="kySave()">Save</button>
+  <button class="cancel" onclick="closeModal('kyModal')">Cancel</button>
 </div></div>
 
 <!-- Accept a key / fob -->
@@ -12985,12 +13002,12 @@ function leaveCancel(id){
    KEYS & FOBS (front end) — backend is KeyRegister.gs. Signing out needs the
    $50 box ticked; the server refuses without it, this just asks nicely first.
    ===================================================================== */
-var KEYS=[], KEYMETA={fee:50,mgr:false,crew:[],me:{}};
+var KEYS=[], KEYMETA={fee:50,mgr:false,crew:[],me:{},marinas:[]};
 function loadKeys(){
   if(!ME) return;
   if(!KEYS.length && $("kyList")) $("kyList").innerHTML='<div class="loadingbox"><span class="spin"></span> Loading keys…</div>';
   apiPost({action:"crewKeys", email:ME.email, code:ME.code}).then(function(r){
-    if(r&&r.ok){ KEYS=r.items||[]; KEYMETA={fee:r.fee||50,mgr:!!r.mgr,crew:r.crew||[],me:r.me||{}}; }
+    if(r&&r.ok){ KEYS=r.items||[]; KEYMETA={fee:r.fee||50,mgr:!!r.mgr,crew:r.crew||[],me:r.me||{},marinas:r.marinas||[]}; }
     else if($("kyList")) $("kyList").innerHTML='<p class="hello">'+esc((r&&r.error)||"Couldn\u2019t load keys.")+'</p>';
     renderKeys();
   }).catch(function(){ renderKeys(); });
@@ -13005,13 +13022,13 @@ function renderKeys(){
   $("kyCount").textContent=KEYS.length?(KEYMETA.mgr?(out+" out \u00b7 "+(KEYS.length-out)+" in"):""):"";
   if(!KEYS.length){ el.innerHTML='<p class="hello">'+(KEYMETA.mgr?'No keys or fobs registered yet.':'You\u2019re not holding any keys or fobs.')+'</p>'; return; }
   var rank={Pending:0,Lost:1,Out:2,In:3};
-  el.innerHTML=KEYS.slice().sort(function(a,b){return rank[a.status]-rank[b.status];}).map(function(k){
+  var cardOf=function(k){
     var mine=k.holderId&&k.holderId===KEYMETA.me.id, id=esc(k.id), F=KEYMETA.fee;
     var pill=k.status==="Lost"?'<span class="fact f-late" style="padding:2px 9px;border-radius:9px">Not returned \u00b7 $'+F+' owing</span>'
             :k.status==="Pending"?'<span class="fact f-wait" style="padding:2px 9px;border-radius:9px">Sent to '+esc(k.holder)+' \u2014 not accepted</span>'
             :k.status==="Out"?'<span class="fact f-prog" style="padding:2px 9px;border-radius:9px">With '+esc(k.holder)+'</span>'
             :'<span class="fact f-done" style="padding:2px 9px;border-radius:9px">In</span>';
-    var meta=[k.vessel,k.tag?("Tag "+k.tag):""].filter(String).map(esc).join(" \u00b7 ");
+    var meta=[(k.boats||[]).length?("For "+k.boats.join(", ")):"",k.tag?("No. "+k.tag):""].filter(String).map(esc).join(" \u00b7 ");
     var sub=k.status==="Out"?('<div class="meta"><span>Out since '+(kyWhen(k.outAt)||"before the register")+'</span>'+(k.due?'<span>Due back '+esc(k.due)+'</span>':'')+
              '<span>'+(k.ackAt?'\u2713 $'+F+' accepted':'\u26a0 $'+F+' not yet accepted')+'</span></div>'):"";
     var B=function(label,fn,bg){ return '<button class="jobbtn" style="margin:10px 8px 0 0;color:#fff;background:'+(bg||'#1A2B5C')+'" onclick="'+fn+'(\''+id+'\')">'+label+'</button>'; };
@@ -13029,11 +13046,19 @@ function renderKeys(){
       if(k.status==="Pending") btns+=B('Cancel send','kyIn','#8a8f9c');
       if(k.status==="Out"||k.status==="Lost") btns+=B('\u21a9 Received back \u2014 sign in','kyIn');
       if(k.status==="Out") btns+=B('Not returned \u2014 $'+F,'kyLost','#b3261e');
-      btns+=B('Delete','kyDel','#8a8f9c');
+      btns+=B('Edit','kyEdit','#8a8f9c')+B('Delete','kyDel','#8a8f9c');
     }
     var hist=(k.history||[]).map(function(h){return '<div>'+kyWhen(h.at)+' \u00b7 '+esc(h.action)+(h.person?' \u00b7 '+esc(h.person):'')+'</div>';}).join("");
     return '<div class="ofcard" style="cursor:default"><div class="oftop"><div style="flex:1"><h3>'+esc(k.name)+'</h3><div class="desc">'+(meta||esc(k.type))+'</div></div>'+pill+'</div>'+sub+note+btns+
       (hist?'<div class="desc" style="margin-top:10px;font-size:11.5px">'+hist+'</div>':'')+'</div>';
+  };
+  /* One heading per marina — Mantaray first, then any others as they are added. */
+  var by={}, order=[];
+  KEYS.slice().sort(function(a,b){return rank[a.status]-rank[b.status];}).forEach(function(k){
+    var m=k.marina||"No marina set"; if(!by[m]){ by[m]=[]; order.push(m); } by[m].push(k); });
+  order.sort(function(a,b){ return a==="No marina set"?1:b==="No marina set"?-1:a.localeCompare(b); });
+  el.innerHTML=order.map(function(m){
+    return '<div class="listhd">\u2693 '+esc(m)+' <span style="color:var(--muted)">('+by[m].length+')</span></div>'+by[m].map(cardOf).join("");
   }).join("");
 }
 function kyPost(body, msg){
@@ -13074,11 +13099,35 @@ function kyIn(id){
 }
 function kyLost(id){ var k=kyFind(id); if(!confirm("Mark "+k.name+" as NOT returned? $"+KEYMETA.fee+" is recorded as owing from "+k.holder+".")) return; kyPost({action:"crewKeyLost", keyId:id}, "Marked not returned \u2014 $"+KEYMETA.fee+" owing"); }
 function kyDel(id){ var k=kyFind(id); if(!confirm("Delete "+k.name+" from the register?"+(k.holder?"\n\nIt is currently with "+k.holder+".":"")+"\n\nThe history is kept in the sheet.")) return; kyPost({action:"crewKeyDelete", keyId:id}, "Deleted"); }
-function kyAdd(){
-  var n=prompt("Name of the key or fob (e.g. Mantaray Marina access fob)"); if(!n) return;
-  var v=prompt("Which vessel or site? (optional)","")||"";
-  var t=prompt("Tag or serial number? (optional)","")||"";
-  kyPost({action:"crewKeyAdd", name:n, vessel:v, tag:t}, "\u2713 Added");
+/* Add / edit a key or fob: which marina, which fob, which boats it is for. */
+var KY_EDIT="";
+function kyAdd(){ kyForm(""); }
+function kyEdit(id){ kyForm(id); }
+function kyForm(id){
+  KY_EDIT=id; var k=id?kyFind(id):{boats:[]};
+  var ms=KEYMETA.marinas.slice(); if(k.marina&&ms.indexOf(k.marina)<0) ms.push(k.marina);
+  $("kyM_title").textContent=id?"Edit this key or fob":"Add a key or fob";
+  $("kyM_marina").innerHTML=ms.map(function(m){return '<option'+(m===k.marina?' selected':'')+'>'+esc(m)+'</option>';}).join("")+'<option value="__new">\uff0b A new marina\u2026</option>';
+  if(!ms.length||(!id&&!k.marina&&!ms.length)) $("kyM_marina").value="__new";
+  $("kyM_marinaNew").value=""; $("kyM_marinaNew").style.display=($("kyM_marina").value==="__new")?"":"none";
+  $("kyM_name").value=k.name||""; $("kyM_tag").value=k.tag||"";
+  var fleet=(FLEETVESSELS||[]).slice(), mine=k.boats||[];
+  mine.forEach(function(b){ if(fleet.indexOf(b)<0) fleet.push(b); });
+  $("kyM_boats").innerHTML=fleet.map(function(b,i){
+    return '<label style="display:inline-flex;align-items:center;gap:6px;margin:4px 12px 4px 0;font-size:14px"><input type="checkbox" class="kyBoat" value="'+esc(b)+'"'+(mine.indexOf(b)>=0?' checked':'')+'> '+esc(b)+'</label>'; }).join("");
+  $("kyM_other").value="";
+  $("kyModal").classList.add("show");
+}
+function kyMarinaPick(){ $("kyM_marinaNew").style.display=($("kyM_marina").value==="__new")?"":"none"; }
+function kySave(){
+  var marina=$("kyM_marina").value==="__new"?$("kyM_marinaNew").value.trim():$("kyM_marina").value;
+  var name=$("kyM_name").value.trim();
+  if(!marina){ toast("Which marina is it for?"); return; }
+  if(!name){ toast("Give the fob a name or number"); return; }
+  var boats=[].map.call(document.querySelectorAll(".kyBoat:checked"),function(c){return c.value;});
+  var other=$("kyM_other").value.trim(); if(other) boats=boats.concat(other.split(",").map(function(x){return x.trim();}).filter(String));
+  closeModal("kyModal");
+  kyPost({action:KY_EDIT?"crewKeyEdit":"crewKeyAdd", keyId:KY_EDIT, name:name, marina:marina, boats:boats, tag:$("kyM_tag").value.trim()}, KY_EDIT?"\u2713 Saved":"\u2713 Added");
 }
 
 /* =====================================================================
