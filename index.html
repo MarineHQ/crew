@@ -2097,7 +2097,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-21·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-21·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -3537,6 +3537,7 @@ function enterReal(crew, shift, quiet){
     $("signedInAs").textContent = "Signed in as " + ME.name;
     try{ setHdrAv(); renderNav(); renderClock(); updateStrip(); }catch(e){}
     try{ loadCerts(); }catch(e){}
+    try{ loadAgreement(); }catch(e){}
     return;
   }
   // Wipe the previous session's lists. REQJOBS is director-only data — never let it
@@ -3550,7 +3551,7 @@ function enterReal(crew, shift, quiet){
   try{ MHQPush.signIn(ME.code); }catch(e){}      // tie push on this phone to this person
   try{ chLoad(); }catch(e){}                     // running timer + today's hours
   $("login").classList.add("hidden"); $("app").classList.remove("hidden");
-  go("jobs"); refreshAll(); try{ loadCerts(); }catch(e){}
+  go("jobs"); refreshAll(); try{ loadCerts(); }catch(e){} try{ loadAgreement(); }catch(e){}
   try{ MHQQ.refresh().then(function(){ MHQQ.drain(); }); }catch(e){}   // photos parked on this phone last time
 }
 // Stay signed in on this device (90-day style) — auto sign-in if remembered.
@@ -7226,7 +7227,7 @@ function renderJobs(){
   var first=(ME.name||"").split(" ")[0].replace(/\(test\)/,"").trim();
   var openN=CREWJOBS.filter(function(j){return hubBucket(j.status)!=="Done";}).length;
   $("jobsHello").innerHTML="Hi <b>"+esc(first)+"</b> — <b>"+openN+"</b> open "+(openN===1?"job":"jobs")+(isMgrRole()?(" on <b>"+esc(JOBSVESSEL||"your vessel")+"</b>"):" assigned to you")+"."+
-    (ME.signedAt ? "" : '<div class="guideprompt" onclick="openGuide()">📋 Please read &amp; sign the Crew Onboarding Guide — tap here.</div>')+inductBanner()
+    (ME.signedAt ? "" : '<div class="guideprompt" onclick="openGuide()">📋 Please read &amp; sign the Crew Onboarding Guide — tap here.</div>')+agreementPrompt()+inductBanner()
     + chUnsubHtml(true);
   var _atb=$("addTaskBtn"); if(_atb) _atb.style.display=isMgrRole()?"":"none";
   var _agb=$("agentBtn"); if(_agb) _agb.style.display=(isMgrRole()&&AGENTREADY)?"":"none";
@@ -12173,7 +12174,7 @@ function openChecklistForm(id){
     '<iframe src="'+esc(c.link)+'" title="'+esc(c.title)+'" style="height:calc(100% - 38px)"></iframe>';
   $("formwrap").classList.add("show");
 }
-function closeForm(){ $("formwrap").classList.remove("show"); $("formFrame").innerHTML=""; }
+function closeForm(){ $("formwrap").classList.remove("show"); $("formFrame").innerHTML=""; closeAgreementIfOpen(); }
 /* per-crew checklist state kept on the object keyed by crew id */
 function clState(cl){ cl._state=cl._state||{}; cl._state[ME.id]=cl._state[ME.id]||{ticks:{},signedBy:null,signedAt:null}; var s=cl._state[ME.id]; s.checked=Object.keys(s.ticks).filter(function(k){return s.ticks[k];}).length; return s; }
 function openChecklist(id){
@@ -12443,6 +12444,45 @@ function renderHours(){
 
 /* ===== Crew Onboarding Guide + finger signature ===== */
 var sigCtx=null, sigDrawn=false;
+/* ---- Crew Agreement: a banner until the crew member has signed (21 Oct 2026) ---- */
+var AGREE_API="https://script.google.com/macros/s/AKfycbxHJfMaCMMxG1k1a1I5WlM5dBeq4nD1q4jr-ad5cw8MTM8_5QuDi4qFpf3SjN9MyBEB/exec";
+var AGREE_FORM="https://form.jotform.com/262928704687068";
+var AGREE={known:false,signed:false,signedAt:"",active:true}, AGREE_OPEN=false;
+function agreeKey(){ return "mhq_agree_pending_"+(ME&&ME.id); }
+function agreePending(){ try{ var t=+localStorage.getItem(agreeKey()); return !!t && (Date.now()-t)<30*60*1000; }catch(e){ return false; } }
+function loadAgreement(){
+  if(!ME||!ME.email||!window.fetch) return;
+  fetch(AGREE_API+"?fn=agreement&email="+encodeURIComponent(ME.email)).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok) return;
+    AGREE={known:!!j.known,signed:!!j.signed,signedAt:j.signedAt||"",active:j.active!==false};
+    if(AGREE.signed){ try{ localStorage.removeItem(agreeKey()); }catch(e){} }
+    try{ renderJobs(); }catch(e){}
+  }).catch(function(){});
+}
+function agreementPrompt(){
+  if(!ME||!AGREE.known||AGREE.signed||AGREE.active===false) return "";
+  if(agreePending()) return '<div class="guideprompt" onclick="openAgreement()" style="background:#eef7f1;border-color:#bfe3cd;color:#1f7a54">&#10003; If you have just signed your Crew Agreement, it shows here within about 15 minutes. Not signed yet? Tap here.</div>';
+  return '<div class="guideprompt" onclick="openAgreement()">&#9997;&#65039; Please sign your Crew Agreement &mdash; tap here. It takes two minutes.</div>';
+}
+function openAgreement(){
+  if(!ME) return;
+  var u=AGREE_FORM+"?q3_textbox1="+encodeURIComponent(ME.name||"")+"&q4_email2="+encodeURIComponent(ME.email||"");
+  $("formTitle").textContent="Crew Agreement";
+  $("formSub").textContent="Read it, sign, and tick the box";
+  $("formFrame").innerHTML=
+    '<div style="background:#eef2f8;border-bottom:1px solid var(--line);padding:9px 13px;font-size:12px;color:var(--muted);text-align:center">'+
+      'Form not loading? <a href="'+esc(u)+'" target="_blank" rel="noopener" style="color:var(--navy);font-weight:bold">Open it in your browser &#8599;</a>'+
+    '</div>'+
+    '<iframe src="'+esc(u)+'" title="Crew Agreement" style="height:calc(100% - 38px)"></iframe>';
+  $("formwrap").classList.add("show");
+  AGREE_OPEN=true;
+}
+function closeAgreementIfOpen(){
+  if(!AGREE_OPEN) return; AGREE_OPEN=false;
+  try{ localStorage.setItem(agreeKey(), String(Date.now())); }catch(e){}
+  try{ renderJobs(); }catch(e){}
+  setTimeout(loadAgreement, 20000);
+}
 function openGuide(){
   var signed = !!(ME && ME.signedAt);
   $("guideSub").textContent = signed ? ("Signed " + ME.signedAt) : "Read it through, then sign to accept";
@@ -12974,7 +13014,7 @@ function renderKeys(){
     var meta=[k.vessel,k.tag?("Tag "+k.tag):""].filter(String).map(esc).join(" \u00b7 ");
     var sub=k.status==="Out"?('<div class="meta"><span>Out since '+(kyWhen(k.outAt)||"before the register")+'</span>'+(k.due?'<span>Due back '+esc(k.due)+'</span>':'')+
              '<span>'+(k.ackAt?'\u2713 $'+F+' accepted':'\u26a0 $'+F+' not yet accepted')+'</span></div>'):"";
-    var B=function(label,fn,bg){ return '<button class="jobbtn" style="margin:10px 8px 0 0;color:#fff'+(bg?';background:'+bg:'')+'" onclick="'+fn+'(\''+id+'\')">'+label+'</button>'; };
+    var B=function(label,fn,bg){ return '<button class="jobbtn" style="margin:10px 8px 0 0;color:#fff;background:'+(bg||'#1A2B5C')+'" onclick="'+fn+'(\''+id+'\')">'+label+'</button>'; };
     var btns="", note="";
     if(k.status==="Pending"&&mine){
       btns=B('\u270d Accept \u2014 I\u2019m responsible for $'+F,'kyAccept')+B('Not me','kyIn','#8a8f9c');
