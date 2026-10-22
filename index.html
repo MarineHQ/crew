@@ -2097,7 +2097,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-22·c</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-22·d</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2491,8 +2491,8 @@ button:active{ filter: brightness(.93); }
   <label class="fld">Marina</label>
   <select class="fld-in" id="kyM_marina" onchange="kyMarinaPick()"></select>
   <input class="fld-in" id="kyM_marinaNew" placeholder="Name of the marina" style="display:none;margin-top:8px">
-  <label class="fld">Fob name or number <span class="fldhint">(e.g. Fob &mdash; numbered automatically if you tick more than one person)</span></label>
-  <input class="fld-in" id="kyM_name" placeholder="e.g. Fob">
+  <label class="fld">Fob name <span class="fldhint">(optional &mdash; leave blank and it&rsquo;s called &ldquo;Fob&rdquo;)</span></label>
+  <input class="fld-in" id="kyM_name" placeholder="Fob">
   <label class="fld">Boats it&rsquo;s for <span class="fldhint">(tick any that apply)</span></label>
   <div id="kyM_boats"></div>
   <input class="fld-in" id="kyM_other" placeholder="Another boat not listed (optional)" style="margin-top:6px">
@@ -13130,7 +13130,7 @@ function kySave(){
   var marina=$("kyM_marina").value==="__new"?$("kyM_marinaNew").value.trim():$("kyM_marina").value;
   var name=$("kyM_name").value.trim();
   if(!marina){ toast("Which marina is it for?"); return; }
-  if(!name){ toast("Give the fob a name or number"); return; }
+  if(!name) name="Fob";   // optional — the marina and boats say what it is
   var boats=[].map.call(document.querySelectorAll(".kyBoat:checked"),function(c){return c.value;});
   var other=$("kyM_other").value.trim(); if(other) boats=boats.concat(other.split(",").map(function(x){return x.trim();}).filter(String));
   var sendTo=KY_EDIT?[]:[].map.call(document.querySelectorAll(".kySendTo:checked"),function(c){return c.value;});
