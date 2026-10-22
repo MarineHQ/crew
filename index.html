@@ -2097,7 +2097,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-22·g</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-22·h</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2493,7 +2493,7 @@ button:active{ filter: brightness(.93); }
   <input class="fld-in" id="kyM_marinaNew" placeholder="Name of the marina" style="display:none;margin-top:8px">
   <label class="fld">Fob name <span class="fldhint">(optional &mdash; leave blank and it&rsquo;s called &ldquo;Fob&rdquo;)</span></label>
   <input class="fld-in" id="kyM_name" placeholder="Fob">
-  <label class="fld">Boats it&rsquo;s for <span class="fldhint">(tick any that apply)</span></label>
+  <label class="fld">Boats it&rsquo;s for <span class="fldhint">(tick any that apply &mdash; Marine HQ if it isn&rsquo;t for a boat)</span></label>
   <div id="kyM_boats"></div>
   <input class="fld-in" id="kyM_other" placeholder="Another boat not listed (optional)" style="margin-top:6px">
   <label class="fld">Number on the fob <span class="fldhint">(optional)</span></label>
@@ -13139,7 +13139,8 @@ function kyForm(id){
   if(pre&&pre.marina) $("kyM_marina").value=pre.marina;
   $("kyM_marinaNew").value=""; $("kyM_marinaNew").style.display=($("kyM_marina").value==="__new")?"":"none";
   $("kyM_name").value=k.name||""; $("kyM_tag").value=k.tag||"";
-  var fleet=(FLEETVESSELS||[]).slice(), mine=pre?pre.boats:(k.boats||[]);
+  var fleet=(FLEETVESSELS||[]).filter(function(b){return b!=="Marine HQ";}), mine=pre?pre.boats:(k.boats||[]);
+  fleet.unshift("Marine HQ");   // a fob that belongs to the business, not to a boat
   mine.forEach(function(b){ if(fleet.indexOf(b)<0) fleet.push(b); });
   $("kyM_boats").innerHTML=fleet.map(function(b,i){
     return '<label style="display:inline-flex;align-items:center;gap:6px;margin:4px 12px 4px 0;font-size:14px"><input type="checkbox" class="kyBoat" value="'+esc(b)+'"'+(mine.indexOf(b)>=0?' checked':'')+'> '+esc(b)+'</label>'; }).join("");
