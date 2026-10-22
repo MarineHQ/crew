@@ -2097,7 +2097,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-22·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-22·c</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2491,13 +2491,17 @@ button:active{ filter: brightness(.93); }
   <label class="fld">Marina</label>
   <select class="fld-in" id="kyM_marina" onchange="kyMarinaPick()"></select>
   <input class="fld-in" id="kyM_marinaNew" placeholder="Name of the marina" style="display:none;margin-top:8px">
-  <label class="fld">Fob name or number <span class="fldhint">(e.g. Fob 1)</span></label>
-  <input class="fld-in" id="kyM_name" placeholder="e.g. Fob 1">
+  <label class="fld">Fob name or number <span class="fldhint">(e.g. Fob &mdash; numbered automatically if you tick more than one person)</span></label>
+  <input class="fld-in" id="kyM_name" placeholder="e.g. Fob">
   <label class="fld">Boats it&rsquo;s for <span class="fldhint">(tick any that apply)</span></label>
   <div id="kyM_boats"></div>
   <input class="fld-in" id="kyM_other" placeholder="Another boat not listed (optional)" style="margin-top:6px">
   <label class="fld">Number on the fob <span class="fldhint">(optional)</span></label>
   <input class="fld-in" id="kyM_tag" placeholder="Serial or tag number">
+  <div id="kyM_sendWrap">
+    <label class="fld">Who has it? <span class="fldhint">(tick everyone who holds one &mdash; each gets their own fob to accept)</span></label>
+    <div id="kyM_send"></div>
+  </div>
   <button class="go" onclick="kySave()">Save</button>
   <button class="cancel" onclick="closeModal('kyModal')">Cancel</button>
 </div></div>
@@ -13116,6 +13120,9 @@ function kyForm(id){
   $("kyM_boats").innerHTML=fleet.map(function(b,i){
     return '<label style="display:inline-flex;align-items:center;gap:6px;margin:4px 12px 4px 0;font-size:14px"><input type="checkbox" class="kyBoat" value="'+esc(b)+'"'+(mine.indexOf(b)>=0?' checked':'')+'> '+esc(b)+'</label>'; }).join("");
   $("kyM_other").value="";
+  $("kyM_sendWrap").style.display=id?"none":"";
+  $("kyM_send").innerHTML=(KEYMETA.crew||[]).map(function(c){
+    return '<label style="display:inline-flex;align-items:center;gap:6px;margin:4px 12px 4px 0;font-size:14px"><input type="checkbox" class="kySendTo" value="'+esc(c.id)+'"> '+esc(c.name)+'</label>'; }).join("");
   $("kyModal").classList.add("show");
 }
 function kyMarinaPick(){ $("kyM_marinaNew").style.display=($("kyM_marina").value==="__new")?"":"none"; }
@@ -13126,8 +13133,10 @@ function kySave(){
   if(!name){ toast("Give the fob a name or number"); return; }
   var boats=[].map.call(document.querySelectorAll(".kyBoat:checked"),function(c){return c.value;});
   var other=$("kyM_other").value.trim(); if(other) boats=boats.concat(other.split(",").map(function(x){return x.trim();}).filter(String));
+  var sendTo=KY_EDIT?[]:[].map.call(document.querySelectorAll(".kySendTo:checked"),function(c){return c.value;});
   closeModal("kyModal");
-  kyPost({action:KY_EDIT?"crewKeyEdit":"crewKeyAdd", keyId:KY_EDIT, name:name, marina:marina, boats:boats, tag:$("kyM_tag").value.trim()}, KY_EDIT?"\u2713 Saved":"\u2713 Added");
+  kyPost({action:KY_EDIT?"crewKeyEdit":"crewKeyAdd", keyId:KY_EDIT, name:name, marina:marina, boats:boats, tag:$("kyM_tag").value.trim(), sendTo:sendTo},
+         KY_EDIT?"\u2713 Saved":sendTo.length?("\u2713 "+sendTo.length+(sendTo.length===1?" fob":" fobs")+" sent \u2014 waiting for them to accept"):"\u2713 Added");
 }
 
 /* =====================================================================
