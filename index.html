@@ -2097,7 +2097,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-22·d</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-22·e</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -13021,13 +13021,13 @@ function renderKeys(){
   var el=$("kyList"); if(!el) return;
   $("kyAddBtn").style.display=KEYMETA.mgr?"":"none";
   var out=KEYS.filter(function(k){return k.status==="Out"||k.status==="Lost";}).length;
-  var waiting=KEYS.filter(function(k){return k.status==="Pending"&&k.holderId===KEYMETA.me.id;}).length;
+  var waiting=KEYS.filter(function(k){return k.status==="Pending"&&k.mine;}).length;
   setNavBadge("keys", waiting);
   $("kyCount").textContent=KEYS.length?(KEYMETA.mgr?(out+" out \u00b7 "+(KEYS.length-out)+" in"):""):"";
   if(!KEYS.length){ el.innerHTML='<p class="hello">'+(KEYMETA.mgr?'No keys or fobs registered yet.':'You\u2019re not holding any keys or fobs.')+'</p>'; return; }
   var rank={Pending:0,Lost:1,Out:2,In:3};
   var cardOf=function(k){
-    var mine=k.holderId&&k.holderId===KEYMETA.me.id, id=esc(k.id), F=KEYMETA.fee;
+    var mine=!!k.mine, id=esc(k.id), F=KEYMETA.fee;
     var pill=k.status==="Lost"?'<span class="fact f-late" style="padding:2px 9px;border-radius:9px">Not returned \u00b7 $'+F+' owing</span>'
             :k.status==="Pending"?'<span class="fact f-wait" style="padding:2px 9px;border-radius:9px">Sent to '+esc(k.holder)+' \u2014 not accepted</span>'
             :k.status==="Out"?'<span class="fact f-prog" style="padding:2px 9px;border-radius:9px">With '+esc(k.holder)+'</span>'
@@ -13096,7 +13096,7 @@ function kyAccGo(){
 }
 function kyIn(id){
   var k=kyFind(id), pend=k.status==="Pending";
-  var q=pend?(k.holderId===KEYMETA.me.id?"Hand "+k.name+" back without accepting it?":"Cancel sending "+k.name+" to "+k.holder+"?")
+  var q=pend?(k.mine?"Hand "+k.name+" back without accepting it?":"Cancel sending "+k.name+" to "+k.holder+"?")
             :"Confirm you have "+k.name+" back from "+k.holder+"?";
   if(!confirm(q)) return;
   kyPost({action:"crewKeyIn", keyId:id}, pend?"Done":"\u2713 Signed back in");
