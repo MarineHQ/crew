@@ -2097,7 +2097,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-22·e</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-22·f</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -13006,7 +13006,7 @@ function leaveCancel(id){
    KEYS & FOBS (front end) — backend is KeyRegister.gs. Signing out needs the
    $50 box ticked; the server refuses without it, this just asks nicely first.
    ===================================================================== */
-var KEYS=[], KEYMETA={fee:50,mgr:false,crew:[],me:{},marinas:[]};
+var KY_GROUPS=[], KEYS=[], KEYMETA={fee:50,mgr:false,crew:[],me:{},marinas:[]};
 function loadKeys(){
   if(!ME) return;
   if(!KEYS.length && $("kyList")) $("kyList").innerHTML='<div class="loadingbox"><span class="spin"></span> Loading keys…</div>';
@@ -13056,13 +13056,17 @@ function renderKeys(){
     return '<div class="ofcard" style="cursor:default"><div class="oftop"><div style="flex:1"><h3>'+esc(k.name)+'</h3><div class="desc">'+(meta||esc(k.type))+'</div></div>'+pill+'</div>'+sub+note+btns+
       (hist?'<div class="desc" style="margin-top:10px;font-size:11.5px">'+hist+'</div>':'')+'</div>';
   };
-  /* One heading per marina — Mantaray first, then any others as they are added. */
-  var by={}, order=[];
+  /* One group per marina AND boat set — "Mantaray Marina · Everywhen" holds the
+     fobs for Everywhen; "Mantaray Marina · Okean 52" holds that boat's. */
+  var by={}, order=[]; KY_GROUPS=[];
   KEYS.slice().sort(function(a,b){return rank[a.status]-rank[b.status];}).forEach(function(k){
-    var m=k.marina||"No marina set"; if(!by[m]){ by[m]=[]; order.push(m); } by[m].push(k); });
-  order.sort(function(a,b){ return a==="No marina set"?1:b==="No marina set"?-1:a.localeCompare(b); });
-  el.innerHTML=order.map(function(m){
-    return '<div class="listhd">\u2693 '+esc(m)+' <span style="color:var(--muted)">('+by[m].length+')</span></div>'+by[m].map(cardOf).join("");
+    var bt=(k.boats||[]).slice().sort(), key=(k.marina||"No marina set")+"\u0001"+bt.join(", ");
+    if(!by[key]){ by[key]={marina:k.marina||"",boats:bt,list:[]}; order.push(key); } by[key].list.push(k); });
+  order.sort(function(a,b){ return a.localeCompare(b); });
+  el.innerHTML=order.map(function(key){
+    var g=by[key], n=KY_GROUPS.push({marina:g.marina,boats:g.boats})-1;
+    return '<div class="listhd">\u2693 '+esc(g.marina||"No marina set")+(g.boats.length?' \u00b7 '+esc(g.boats.join(", ")):'')+' <span style="color:var(--muted)">('+g.list.length+')</span></div>'+g.list.map(cardOf).join("")+
+      (KEYMETA.mgr?'<button class="cancel" style="margin:0 0 14px" onclick="kyAddHere('+n+')">\uff0b Add another fob here</button>':'');
   }).join("");
 }
 function kyPost(body, msg){
@@ -13105,17 +13109,23 @@ function kyLost(id){ var k=kyFind(id); if(!confirm("Mark "+k.name+" as NOT retur
 function kyDel(id){ var k=kyFind(id); if(!confirm("Delete "+k.name+" from the register?"+(k.holder?"\n\nIt is currently with "+k.holder+".":"")+"\n\nThe history is kept in the sheet.")) return; kyPost({action:"crewKeyDelete", keyId:id}, "Deleted"); }
 /* Add / edit a key or fob: which marina, which fob, which boats it is for. */
 var KY_EDIT="";
-function kyAdd(){ kyForm(""); }
+var KY_PRE=null;
+function kyAdd(){ KY_PRE=null; kyForm(""); }
+/* "＋ Add another fob here" — the form opens with this group's marina and boats already set. */
+function kyAddHere(n){ KY_PRE=KY_GROUPS[n]||null; kyForm(""); }
 function kyEdit(id){ kyForm(id); }
 function kyForm(id){
   KY_EDIT=id; var k=id?kyFind(id):{boats:[]};
   var ms=KEYMETA.marinas.slice(); if(k.marina&&ms.indexOf(k.marina)<0) ms.push(k.marina);
+  KEYS.forEach(function(x){ if(x.marina&&ms.indexOf(x.marina)<0) ms.push(x.marina); }); ms.sort();
+  var pre=(!id&&KY_PRE)?KY_PRE:null; if(pre&&pre.marina&&ms.indexOf(pre.marina)<0) ms.push(pre.marina);
   $("kyM_title").textContent=id?"Edit this key or fob":"Add a key or fob";
   $("kyM_marina").innerHTML=ms.map(function(m){return '<option'+(m===k.marina?' selected':'')+'>'+esc(m)+'</option>';}).join("")+'<option value="__new">\uff0b A new marina\u2026</option>';
   if(!ms.length||(!id&&!k.marina&&!ms.length)) $("kyM_marina").value="__new";
+  if(pre&&pre.marina) $("kyM_marina").value=pre.marina;
   $("kyM_marinaNew").value=""; $("kyM_marinaNew").style.display=($("kyM_marina").value==="__new")?"":"none";
   $("kyM_name").value=k.name||""; $("kyM_tag").value=k.tag||"";
-  var fleet=(FLEETVESSELS||[]).slice(), mine=k.boats||[];
+  var fleet=(FLEETVESSELS||[]).slice(), mine=pre?pre.boats:(k.boats||[]);
   mine.forEach(function(b){ if(fleet.indexOf(b)<0) fleet.push(b); });
   $("kyM_boats").innerHTML=fleet.map(function(b,i){
     return '<label style="display:inline-flex;align-items:center;gap:6px;margin:4px 12px 4px 0;font-size:14px"><input type="checkbox" class="kyBoat" value="'+esc(b)+'"'+(mine.indexOf(b)>=0?' checked':'')+'> '+esc(b)+'</label>'; }).join("");
