@@ -2097,7 +2097,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-22·f</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-22·g</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -13053,7 +13053,7 @@ function renderKeys(){
       btns+=B('Edit','kyEdit','#8a8f9c')+B('Delete','kyDel','#8a8f9c');
     }
     var hist=(k.history||[]).map(function(h){return '<div>'+kyWhen(h.at)+' \u00b7 '+esc(h.action)+(h.person?' \u00b7 '+esc(h.person):'')+'</div>';}).join("");
-    return '<div class="ofcard" style="cursor:default"><div class="oftop"><div style="flex:1"><h3>'+esc(k.name)+'</h3><div class="desc">'+(meta||esc(k.type))+'</div></div>'+pill+'</div>'+sub+note+btns+
+    return '<div class="ofcard" style="cursor:default"><div class="oftop"><div style="flex:1"><h3>'+esc(k._title||k.name)+'</h3><div class="desc">'+(meta||esc(k.type))+'</div></div>'+pill+'</div>'+sub+note+btns+
       (hist?'<div class="desc" style="margin-top:10px;font-size:11.5px">'+hist+'</div>':'')+'</div>';
   };
   /* One group per marina AND boat set — "Mantaray Marina · Everywhen" holds the
@@ -13063,6 +13063,20 @@ function renderKeys(){
     var bt=(k.boats||[]).slice().sort(), key=(k.marina||"No marina set")+"\u0001"+bt.join(", ");
     if(!by[key]){ by[key]={marina:k.marina||"",boats:bt,list:[]}; order.push(key); } by[key].list.push(k); });
   order.sort(function(a,b){ return a.localeCompare(b); });
+  /* The marina is already the heading, so a card is just "Fob" — and "Fob 1", "Fob 2"
+     when a group holds several. A name that only repeats the marina (an older entry)
+     is shown the same way. The stored name is never changed. */
+  order.forEach(function(key){
+    var g=by[key], mar=(g.marina||"").toLowerCase();
+    g.list.forEach(function(k){
+      var t=(k.name||"").trim(), low=t.toLowerCase();
+      if(mar && low.indexOf(mar)===0){ t=t.substring(mar.length).replace(/^[\s\-\u2014:]+/,"").trim(); }
+      k._title=t||"Fob";
+    });
+    var dup={}; g.list.forEach(function(k){ dup[k._title]=(dup[k._title]||0)+1; });
+    var n={}; g.list.slice().sort(function(a,b){return a.id<b.id?-1:1;}).forEach(function(k){
+      if(dup[k._title]>1){ n[k._title]=(n[k._title]||0)+1; k._title=k._title+" "+n[k._title]; } });
+  });
   el.innerHTML=order.map(function(key){
     var g=by[key], n=KY_GROUPS.push({marina:g.marina,boats:g.boats})-1;
     return '<div class="listhd">\u2693 '+esc(g.marina||"No marina set")+(g.boats.length?' \u00b7 '+esc(g.boats.join(", ")):'')+' <span style="color:var(--muted)">('+g.list.length+')</span></div>'+g.list.map(cardOf).join("")+
