@@ -902,6 +902,12 @@
   .aopt{border:1px solid var(--line);background:#fff;border-radius:20px;padding:8px 13px;font-size:13px;font-weight:700;color:var(--navy);cursor:pointer}
   .aopt.on{border-color:var(--navy);background:var(--navy);color:#fff}
   .aopt.contractor{border-style:dashed}
+  .acctog{display:inline-flex;align-items:center;gap:7px;float:right;border:0;background:none;padding:2px 0;font-size:12px;font-weight:700;color:var(--navy);cursor:pointer}
+  .acctog .sw{width:34px;height:20px;border-radius:10px;background:#cdd4de;position:relative;transition:background .15s}
+  .acctog .sw:after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.3);transition:left .15s}
+  .acctog.on .sw{background:var(--navy)}
+  .acctog.on .sw:after{left:16px}
+  .acctall{display:block;margin:0 0 10px auto;padding:5px 12px;font-size:12px}
   /* Conversation lanes */
   .lanebar{display:flex;gap:7px;flex-wrap:wrap;border-radius:12px;padding:3px;transition:box-shadow .2s}
   .lanebar.pulse{box-shadow:0 0 0 3px rgba(232,119,34,.5)}
@@ -2097,7 +2103,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-23·c</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-23·d</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -7139,9 +7145,9 @@ function renderSegBody(){
     empty="Nothing waiting on you. 🎉<br><span style=\"font-size:12px\">Jobs assigned to you show here until you accept them.</span>";
     list=list.map(function(j){
       var kJs=(j.key||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
-      return segCard(j,'<span class="acptchip urgent">🚨 Please accept</span> <button type="button" class="jobbtn complete" style="margin-left:6px;padding:6px 14px" onclick="event.stopPropagation();wlQuickAccept(\''+esc(kJs)+'\',this)">✓ Yes</button>');
+      return segCard(j,'<span class="acptchip urgent">🚨 Please accept</span> <button type="button" class="acctog" onclick="event.stopPropagation();wlQuickAccept(\''+esc(kJs)+'\',this)"><span class="sw"></span>Accept</button>');
     });
-    if(list.length>1) list.unshift('<button type="button" class="jobbtn complete" style="width:100%;margin-bottom:10px" onclick="wlAcceptAll(this)">✓ Yes to all '+list.length+'</button>');
+    if(list.length>1) list.unshift('<button type="button" class="aopt acctall" onclick="wlAcceptAll(this)">Accept all '+list.length+'</button>');
   } else {
     title="My raised jobs"; list=(CREWRAISED||[]).slice().sort(function(a,b){ return reqTs(b)-reqTs(a); });
     empty="You haven't raised anything yet.<br><span style=\"font-size:12px\">Everything you raise or log stays here as your record.</span>";
@@ -8864,10 +8870,10 @@ function wlAcceptOne(key){
   }).catch(function(){ toast("Couldn’t connect"); return false; });
 }
 function wlQuickAccept(key, btn){
-  if(btn){ btn.disabled=true; btn.textContent="…"; }
+  if(btn){ btn.disabled=true; btn.classList.add("on"); }
   wlAcceptOne(key).then(function(ok){
-    if(ok){ toast("✓ Task accepted"); renderJobs(); updateJobsBadge(); loadJobs(); }
-    else if(btn){ btn.disabled=false; btn.textContent="✓ Yes"; }
+    if(ok){ toast("✓ Task accepted"); setTimeout(function(){ renderJobs(); updateJobsBadge(); loadJobs(); }, 350); }
+    else if(btn){ btn.disabled=false; btn.classList.remove("on"); }
   });
 }
 function wlAcceptAll(btn){
