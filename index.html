@@ -902,12 +902,12 @@
   .aopt{border:1px solid var(--line);background:#fff;border-radius:20px;padding:8px 13px;font-size:13px;font-weight:700;color:var(--navy);cursor:pointer}
   .aopt.on{border-color:var(--navy);background:var(--navy);color:#fff}
   .aopt.contractor{border-style:dashed}
-  .acctog{display:inline-flex;align-items:center;gap:7px;float:right;border:0;background:none;padding:2px 0;font-size:12px;font-weight:700;color:var(--navy);cursor:pointer}
-  .acctog .sw{width:34px;height:20px;border-radius:10px;background:#cdd4de;position:relative;transition:background .15s}
+  .acctog{display:inline-flex;align-items:center;gap:7px;float:right;border:0;background:none;padding:2px 0;font-size:12px;font-weight:700;color:#1f7a54;cursor:pointer}
+  .acctog .sw{width:34px;height:20px;border-radius:10px;background:#a9d9bf;box-shadow:inset 0 0 0 1px #6fba93;position:relative;transition:background .15s}
   .acctog .sw:after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.3);transition:left .15s}
-  .acctog.on .sw{background:var(--navy)}
+  .acctog.on .sw{background:#1f9d63}
   .acctog.on .sw:after{left:16px}
-  .acctall{display:block;margin:0 0 10px auto;padding:5px 12px;font-size:12px}
+  .acctall{display:block;margin:0 0 10px auto;padding:5px 12px;font-size:12px;border-color:#6fba93;color:#1f7a54;background:#eaf5ee}
   /* Conversation lanes */
   .lanebar{display:flex;gap:7px;flex-wrap:wrap;border-radius:12px;padding:3px;transition:box-shadow .2s}
   .lanebar.pulse{box-shadow:0 0 0 3px rgba(232,119,34,.5)}
@@ -2103,7 +2103,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-23·d</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-23·e</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
