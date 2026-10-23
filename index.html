@@ -5316,7 +5316,7 @@ function mhPeriodHtml(){
     var d = e.date || "\u2014";
     if (!seenDay[d]){ seenDay[d] = { date:d, items:[], hours:0, boats:{} }; byDay.push(seenDay[d]); }
     seenDay[d].items.push(e);
-    if (e.finish) seenDay[d].hours += (parseFloat(e.hours)||0);
+    if (!e.running) seenDay[d].hours += (parseFloat(e.hours)||0);   /* hours-only entries have no finish time — count them too */
     if (e.vessel) seenDay[d].boats[e.vessel] = 1;
   });
   byDay.sort(function(a,b){ return a.date < b.date ? 1 : (a.date > b.date ? -1 : 0); });
