@@ -2103,7 +2103,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-23·f</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-23·g</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -4092,8 +4092,9 @@ function chJobEntriesHtml(key){
       '<span>'+esc(e.date)+' \u00b7 '+when+'</span>'+
       (e.note?('<span class="chwords" style="display:block;color:var(--ink,#333);font-style:italic;margin-top:2px;white-space:normal">\u201c'+esc(e.note)+'\u201d</span>'):'')+'</div>'+
       '<div class="hh">'+(e.running?"\u2014":chFmt(e.hours))+'</div>'+
-      (e.mine&&!e.running?('<button class="ed" title="Fix the times" onclick="ehOpen(\''+esc(e.entryId)+'\')">\u270e</button>'+
-                           '<button class="ed del" title="Delete" onclick="chDel(\''+esc(e.entryId)+'\',1)">\u2715</button>'):'')+
+      (e.mine&&!e.running?('<button class="ed" title="Fix the times" onclick="ehOpen(\''+esc(e.entryId)+'\')">\u270e</button>'):'')+
+      /* a director can delete anyone's entry, even one already on a job card (Trish, 23 Oct 2026) */
+      ((e.mine||isMgrRole())&&!e.running?('<button class="ed del" title="Delete" onclick="chDel(\''+esc(e.entryId)+'\',1)">\u2715</button>'):'')+
       '</div>';
   }).join("");
   /* Send it from here rather than remembering to do the whole day later. Only
@@ -5388,11 +5389,26 @@ function chEdit(entryId){
 }
 /* A wrong tap shouldn't need a director. Crew can remove their own entry right
    up until the day lands on a job card — after that it's a real record. */
+/* Directors: take back an entry that is already on a job card. Dry run first so the confirm says exactly what
+   goes — the entry AND its rows in the EOD workbook / job card. (crewHoursPurge, backend @376.) */
+function chPurge(entryId, what, fromJob){
+  apiPost({action:"crewHoursPurge", email:ME.email, code:ME.code, entryId:entryId, dry:true}).then(function(r){
+    if(!r||!r.ok){ toast((r&&r.error)||"Couldn\u2019t check that entry"); return; }
+    var n=r.count||0;
+    if(!confirm(what+" is already on a job card.\n\nRemoving it also deletes "+n+" matching row"+(n===1?"":"s")+" from the job card / EOD workbook. This can\u2019t be undone.\n\nRemove it?")) return;
+    apiPost({action:"crewHoursPurge", email:ME.email, code:ME.code, entryId:entryId, dry:false}).then(function(r2){
+      if(!r2||!r2.ok){ toast((r2&&r2.error)||"Couldn\u2019t remove it"); return; }
+      toast("Removed"); chLoad(true); if(fromJob&&openJobId) chJobLoad(openJobId,true);
+      if($("submitDayModal") && $("submitDayModal").classList.contains("show")) openSubmitDay(SDDATE);
+    });
+  });
+}
 function chDel(entryId, fromJob){
   var e=(CHDAY&&CHDAY.entries||[]).concat(CHUNSENT||[]).filter(function(x){return x.entryId===entryId;})[0];
   var what = e ? (chFmt(e.hours)+" on "+(e.task||"this job")) : "this entry";
   if(!confirm("Delete "+what+"?")) return;
   apiPost({action:"crewHoursDelete", email:ME.email, code:ME.code, entryId:entryId}).then(function(r){
+    if(r && !r.ok && isMgrRole() && /already on a job card/i.test(r.error||"")){ chPurge(entryId, what, fromJob); return; }
     if(!r||!r.ok){ toast((r&&r.error)||"Couldn\u2019t delete"); return; }
     toast("Deleted"); chLoad(true); if(fromJob&&openJobId) chJobLoad(openJobId,true);
     if($("submitDayModal") && $("submitDayModal").classList.contains("show")) openSubmitDay(SDDATE);
