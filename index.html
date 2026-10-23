@@ -2103,7 +2103,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-23·e3</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-23·e4</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -13720,20 +13720,29 @@ var ATVLISTS={};
 function atLoadVesselLists(vessel){
   if(!vessel || vessel==="__other__") return;
   if(ATVLISTS[vessel]){ atFillLists(); return; }
-  apiGet("fn=crewjobs&code="+encodeURIComponent(ME.code||"")+"&vessel="+encodeURIComponent(vessel)+"&mine=0").then(function(j){
-    var set={}; ((j&&j.jobs)||[]).forEach(function(x){ if(x.list) set[x.list]=1; });
-    if(j&&j.listMeta) Object.keys(j.listMeta).forEach(function(n){ if(n) set[n]=1; });
-    ATVLISTS[vessel]=Object.keys(set); delete ATVLFAIL[vessel]; if($("addTaskModal").classList.contains("show")) atFillLists();
-  }).catch(function(){ ATVLFAIL[vessel]=1; if($("addTaskModal").classList.contains("show")) atFillLists(); });
+  /* Only THIS boat's lists, and never a closed month (Trish, 23 Oct 2026: every boat's lists and the
+     archived 0826/0926 were turning up). fn=worklists is the server's own record of each list — its
+     boat and its live / waiting / closed state. Where that is refused, fall back to the lists on this
+     boat's own jobs (crewjobs), still filtered to the boat. */
+  var done=function(names){ ATVLISTS[vessel]=names; delete ATVLFAIL[vessel]; if($("addTaskModal").classList.contains("show")) atFillLists(); };
+  var fail=function(){ ATVLFAIL[vessel]=1; if($("addTaskModal").classList.contains("show")) atFillLists(); };
+  var vl=vessel.toLowerCase();
+  apiGet("fn=worklists&code="+encodeURIComponent(ME.code||"")+"&email="+encodeURIComponent(ME.email||"")+"&vessel="+encodeURIComponent(vessel)).then(function(j){
+    if(j&&j.ok){
+      var set={}; (j.lists||[]).forEach(function(r){
+        if((r.vessel||"").toLowerCase()!==vl || (r.state||"")==="closed" || !r.list) return; set[r.list]=1; });
+      return done(Object.keys(set));
+    }
+    return apiGet("fn=crewjobs&code="+encodeURIComponent(ME.code||"")+"&vessel="+encodeURIComponent(vessel)+"&mine=0").then(function(k){
+      var set={}; ((k&&k.jobs)||[]).forEach(function(x){ if(x.list && (x.vessel||"").toLowerCase()===vl) set[x.list]=1; });
+      done(Object.keys(set));
+    });
+  }).catch(fail);
 }
 /* The Worklist box is a type-ahead field, and on a phone that shows nothing until you type — so the
    boat's lists also show as buttons under it (Trish, 23 Oct 2026), with a visible loading / retry state. */
 var ATVLFAIL={};
-function atListNames(v){
-  var set={}; (ATVLISTS[v]||[]).forEach(function(n){ if(n) set[n]=1; });
-  (CREWJOBS||[]).forEach(function(j){ if(j.list && (j.vessel||"").toLowerCase()===v.toLowerCase()) set[j.list]=1; });
-  return Object.keys(set).sort().reverse();
-}
+function atListNames(v){ return (ATVLISTS[v]||[]).slice().sort().reverse(); }
 function atRenderListChips(){
   var el=$("at_listChips"); if(!el) return;
   var v=atVessel(); if(!v || v==="__other__"){ el.innerHTML=""; return; }
@@ -13741,7 +13750,8 @@ function atRenderListChips(){
   if(!names.length){
     el.innerHTML = ATVLFAIL[v]
       ? '<button type="button" class="aopt" onclick="delete ATVLFAIL[atVessel()];atRenderListChips();atLoadVesselLists(atVessel())">Couldn’t load the lists — tap to retry</button>'
-      : '<span class="fldhint">Loading '+esc(v)+' lists…</span>';
+      : (ATVLISTS[v] ? '<span class="fldhint">No open lists on '+esc(v)+' — type a name above to start one.</span>'
+                  : '<span class="fldhint">Loading '+esc(v)+' lists…</span>');
     return;
   }
   el.innerHTML=names.map(function(n){
@@ -13989,9 +13999,7 @@ function rjChoose(num){
 }
 function rjClear(hide){ RJNUM=null; fjRender("r","",false); if(hide){ RJSUGG=[]; } rjRenderMatch(); }
 function atFillLists(){
-  var names={}; Object.keys(LISTMETA||{}).forEach(function(n){ if(n) names[n]=1; });
-  (CREWJOBS||[]).forEach(function(j){ if(j.list) names[j.list]=1; });
-  var v=atVessel(); if(v && ATVLISTS[v]) ATVLISTS[v].forEach(function(n){ if(n) names[n]=1; });   // this boat's own worklists
+  var v=atVessel(), names={}; if(v) atListNames(v).forEach(function(n){ names[n]=1; });   // this boat's open lists only
   var el=$("at_listOpts"); if(el) el.innerHTML=Object.keys(names).sort().map(function(n){return '<option value="'+esc(n)+'">';}).join("");
   atRenderListChips();
 }
