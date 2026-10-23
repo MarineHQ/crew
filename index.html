@@ -2103,7 +2103,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-23·g</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-24·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -12973,9 +12973,15 @@ function wlMergeGo(){
       (p.categoryChange?("\n\nCategory changes: "+p.categoryChange+" \u2014 the hours will count in the kept job\u2019s category from now on."):"")+
       "\n\nThe sheet rows already sent are NOT changed. Nothing is deleted.";
     if(!confirm(msg)) return;
-    return apiPost({action:"crewJobMerge", email:ME.email, code:ME.code, fromKey:MJFROM, intoKey:into, dry:false}).then(function(r2){
+    var act="move";
+    if(p.hoursEntries>0){
+      if(!confirm("Move its "+p.hours+" hrs onto the kept job too?\n\nOK = move the hours across.\nCancel = don\u2019t move them (next question)")){
+        act = confirm("Delete its "+p.hours+" hrs instead?\n\nOK = delete them (kept job\u2019s own hours stay as they are).\nCancel = leave them where they are.") ? "delete" : "leave";
+      }
+    }
+    return apiPost({action:"crewJobMerge", email:ME.email, code:ME.code, fromKey:MJFROM, intoKey:into, dry:false, hoursAction:act}).then(function(r2){
       if(!r2||!r2.ok){ toast((r2&&r2.error)||"Couldn\u2019t merge"); return; }
-      closeModal("mergeJobModal"); toast("\u2713 Merged into one job");
+      closeModal("mergeJobModal"); toast("\u2713 Merged into one job"+(r2.deletedAlreadySent?(" \u2014 "+r2.deletedAlreadySent+" deleted hours entr"+(r2.deletedAlreadySent===1?"y was":"ies were")+" already sent: remove them from the sheet too"):""));
       loadJobs(); chLoad(true); openWLJob(into);
     });
   }).catch(function(){ toast("Couldn\u2019t connect"); });
