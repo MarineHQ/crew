@@ -2097,7 +2097,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-22·i</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-23·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -6661,6 +6661,8 @@ function beep(){
 // Red count badge on the Worklist tab = new crew activity (managers only).
 function updateJobsBadge(){
   var n = (typeof CREWJOBS!=="undefined" && CREWJOBS) ? CREWJOBS.filter(jobRecent).length : 0;
+  // Crew: the number is tasks Marine HQ has assigned that they haven't accepted yet.
+  if(!isMgrRole()) n = (typeof CREWJOBS!=="undefined" && CREWJOBS) ? segToApprove().length : 0;
   setNavBadge("jobs", n);
   // Bonus: real home-screen badge where the platform supports it (Android/desktop PWAs; iOS ignores it).
   try{ if(navigator.setAppBadge){ n>0 ? navigator.setAppBadge(n) : navigator.clearAppBadge(); } }catch(e){}
@@ -7042,7 +7044,7 @@ function jobSegs(){
 function renderJobSeg(){
   var el=$("jobSeg"); if(!el) return;
   el.innerHTML=jobSegs().map(function(s){
-    return '<button type="button" class="aopt'+(s[0]===JOBSEG?' on':'')+'" onclick="jobSetSeg(\''+s[0]+'\')">'+s[1]+(s[2]?(" ("+s[2]+")"):"")+'</button>';
+    return '<button type="button" class="aopt'+(s[0]===JOBSEG?' on':'')+'" onclick="jobSetSeg(\''+s[0]+'\')">'+s[1]+(s[2]?(s[0]==="approve"&&!isMgrRole()?' <span class="tabbadge" style="position:static;display:inline-block;vertical-align:middle;margin-left:4px">'+s[2]+'</span>':(" ("+s[2]+")")):"")+'</button>';
   }).join("");
 }
 /* THE standard body of a task card — the description, the sub-note, the photo
