@@ -3355,7 +3355,7 @@ var CREW = [
   { id:"gracie", name:"Gracie Adams",  role:"Detailer", email:"gracie.adams@gmail.com",   vessels:["Everywhen"],                  eod:"" },
   { id:"paloma", name:"Paloma Diaz",   role:"Detailer", email:"paloma.diaz@icloud.com",   vessels:["Andiamo"],                    eod:"" }
 ];
-var VESSELS = ["Everywhen","Andiamo","Sheer Bliss","Abel Tasman III","Sea Ya","SS88 - Krystyna","Ara Roa","Flagship"];
+var VESSELS = ["Everywhen","Andiamo","Sheer Bliss","Abel Tasman III","Sea Ya","SS88 - Krystyna","Ara Roa","Miyabi","Okean 52 / De Mare","Karajas","Flagship"];
 // Full fleet + an "Other" option for a yacht not in the system yet (Marine HQ gets alerted).
 function vesselOpts(sel){ return VESSELS.map(function(v){return '<option'+(v===sel?' selected':'')+'>'+esc(v)+'</option>';}).join("") + '<option value="__other__">Other — a yacht not in the system…</option>'; }
 function onVesselPick(selId, otherId){ var s=document.getElementById(selId), o=document.getElementById(otherId); if(o) o.style.display = (s.value==="__other__") ? "block" : "none"; }
