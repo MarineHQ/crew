@@ -2097,7 +2097,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-23·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-23·c</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -6490,7 +6490,7 @@ function renderMine(){
     var due=j.dueTs?('<span class="duechip'+dueCls(j.dueTs,false)+'">📅 '+esc(dayLabel(j.dueTs))+'</span>'):'';
     var acc=(j.accepted&&j.accepted.by);
     var stat = mode==="offer" ? '<span class="acptchip urgent">🚨 Approve to take it on</span>'
-             : (acc ? '<span class="acptchip ok">✓ accepted</span>' : '<span class="acptchip urgent">🚨 Please approve</span>');
+             : (acc ? '<span class="acptchip ok">✓ accepted</span>' : '<span class="acptchip urgent">🚨 Please accept</span>');
     return '<div class="offercard" onclick="openWLJob(\''+esc(kJs)+'\')">'+
       '<div class="top"><div style="flex:1"><h3>'+esc(j.task||j.desc||"(job)")+(j.code?(' <span class="jcode">'+esc(j.code)+'</span>'):'')+' '+due+'</h3>'+
       '<div style="font-size:12px;color:var(--muted);margin-top:2px">'+esc(j.vessel||"")+(j.list?(" · "+esc(j.list)):"")+'</div></div></div>'+
@@ -6532,7 +6532,7 @@ function checkPendingAccepts(){
   _acceptPromptShown=true; window._wpopLock=true;
   var ic=$("wpopIc"), tt=$("wpopTitle"), ls=$("wpopList"); if(!ls) return;
   ic.textContent="🚨";
-  tt.textContent = all.length>1 ? (all.length+" tasks to approve") : "You have a task to approve";
+  tt.textContent = all.length>1 ? (all.length+" tasks to accept") : "You have a task to accept";
   ls.innerHTML='<div class="wpop-accept-lead">Marine HQ has sent '+(all.length>1?('you <b>'+all.length+' tasks</b>'):'<b>you a task</b>')+' — please open and <b>approve</b> so we know you’ve got it. 🙌</div>'+
     all.map(function(it){ var j=it.j;
       var oc = it.off ? 'welcomeGoOffers()' : ('welcomeOpen(\''+esc(j.key)+'\',\''+esc(j.vessel)+'\')');
@@ -7037,9 +7037,10 @@ function jobSegs(){
                           ["raised","🔔 Raised by crew",(REQJOBS||[]).length],
                           ["waitowner","⏳ Waiting on owner",segWaitOwner().length],
                           ["variations","💲 Variations",segVariations().length]];
-  return [["all","📋 My worklist"],["ownerask","👤 Owner asked",segOwnerAsk().length],
-          ["offered","🗂 Offered to me",segOffered().length],
-          ["approve","🚨 To approve",segToApprove().length],["raised","📤 My raised jobs",(CREWRAISED||[]).length]];
+  // Offering is parked: "Offered to me" only appears if something is still sitting offered.
+  return [["all","📋 My worklist"],["ownerask","👤 Owner asked",segOwnerAsk().length]]
+    .concat(segOffered().length?[["offered","🗂 Offered to me",segOffered().length]]:[])
+    .concat([["approve","🚨 To accept",segToApprove().length],["raised","📤 My raised jobs",(CREWRAISED||[]).length]]);
 }
 function renderJobSeg(){
   var el=$("jobSeg"); if(!el) return;
@@ -7134,9 +7135,13 @@ function renderSegBody(){
     empty="Nothing on offer right now. 🎉<br><span style=\"font-size:12px\">Jobs Marine HQ offer you land here — tap ✓ Accept to take one on.</span>";
     list=list.map(function(j){ return segCard(j,'<span class="acptchip urgent">🚨 Tap to accept</span>'); });
   } else if(JOBSEG==="approve"){
-    title="To approve"; list=segToApprove();
-    empty="Nothing waiting on you. 🎉<br><span style=\"font-size:12px\">Jobs assigned to you show here until you approve them.</span>";
-    list=list.map(function(j){ return segCard(j,'<span class="acptchip urgent">🚨 Please approve</span>'); });
+    title="To accept"; list=segToApprove();
+    empty="Nothing waiting on you. 🎉<br><span style=\"font-size:12px\">Jobs assigned to you show here until you accept them.</span>";
+    list=list.map(function(j){
+      var kJs=(j.key||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
+      return segCard(j,'<span class="acptchip urgent">🚨 Please accept</span> <button type="button" class="jobbtn complete" style="margin-left:6px;padding:6px 14px" onclick="event.stopPropagation();wlQuickAccept(\''+esc(kJs)+'\',this)">✓ Yes</button>');
+    });
+    if(list.length>1) list.unshift('<button type="button" class="jobbtn complete" style="width:100%;margin-bottom:10px" onclick="wlAcceptAll(this)">✓ Yes to all '+list.length+'</button>');
   } else {
     title="My raised jobs"; list=(CREWRAISED||[]).slice().sort(function(a,b){ return reqTs(b)-reqTs(a); });
     empty="You haven't raised anything yet.<br><span style=\"font-size:12px\">Everything you raise or log stays here as your record.</span>";
@@ -7182,7 +7187,7 @@ function wlJobCard(j, idx, noNum, forceNo){
     // A Work Log entry never carries an accept chip — see openWLJob. Directors
     // still want to know WHO did it; the crew member who logged it already knows.
     if(isWorkLog(j)){ if(isMgrRole() && j.allocatedTo) codeChip += ' <span class="acptchip ok">✓ done by '+esc(firstNames(j.allocatedTo))+'</span>'; }
-    else if(isMgrRole() && j.allocatedTo){ codeChip += (j.accepted&&j.accepted.by) ? ' <span class="acptchip ok">✓ '+esc(firstName(j.accepted.by))+'</span>' : ' <span class="acptchip wait">⏳ '+esc(firstNames(j.allocatedTo))+'</span>'; }
+    else if(isMgrRole() && j.allocatedTo){ codeChip += (j.accepted&&j.accepted.by) ? ' <span class="acptchip ok">✓ '+esc(firstName(j.accepted.by))+' accepted</span>' : ' <span class="acptchip wait">⏳ Waiting for '+esc(firstNames(j.allocatedTo))+'</span>'; }
     else if(!isMgrRole() && j.allocatedTo){ var _meLc=(ME.name||"").toLowerCase().replace(/\s*\(test\)/,"").trim(); if(_meLc && j.allocatedTo.toLowerCase().indexOf(_meLc)>=0){ codeChip += (j.accepted&&j.accepted.by) ? ' <span class="acptchip ok">✓ accepted</span>' : ' <span class="acptchip urgent">🚨 Accept</span>'; } }
     var upd = jobRecent(j) ? '<span class="upd">● updated '+relTime(j.updated)+'</span>' : '';
     var _qt=qtCtl(j, done);   // quick tick on the row's right edge, when this person may use it
@@ -8851,6 +8856,28 @@ function wlAccept(key){
     else toast((r&&r.error)||"Couldn’t accept");
   }).catch(function(){ toast("Couldn’t connect"); });
 }
+/* Accept straight from the To approve list — no need to open the task first. */
+function wlAcceptOne(key){
+  return apiPost({action:"crewJobAccept", email:ME.email, code:ME.code, jobKey:key}).then(function(r){
+    if(r&&r.ok){ var j=wlFind(key); if(j)j.accepted=r.accepted; return true; }
+    toast((r&&r.error)||"Couldn’t accept"); return false;
+  }).catch(function(){ toast("Couldn’t connect"); return false; });
+}
+function wlQuickAccept(key, btn){
+  if(btn){ btn.disabled=true; btn.textContent="…"; }
+  wlAcceptOne(key).then(function(ok){
+    if(ok){ toast("✓ Task accepted"); renderJobs(); updateJobsBadge(); loadJobs(); }
+    else if(btn){ btn.disabled=false; btn.textContent="✓ Yes"; }
+  });
+}
+function wlAcceptAll(btn){
+  var keys=segToApprove().map(function(j){return j.key;});
+  if(!keys.length || !confirm("Accept all "+keys.length+" tasks?")) return;
+  if(btn){ btn.disabled=true; btn.textContent="Accepting…"; }
+  var n=0;
+  keys.reduce(function(p,k){ return p.then(function(){ return wlAcceptOne(k).then(function(ok){ if(ok)n++; }); }); }, Promise.resolve())
+    .then(function(){ toast("✓ "+n+" of "+keys.length+" accepted"); renderJobs(); updateJobsBadge(); loadJobs(); });
+}
 /* Set / clear a job's day (Directors & Managers) */
 function fmtTime12(t){ var m=/^(\d{1,2}):(\d{2})/.exec(t||""); if(!m)return""; var h=+m[1],mi=m[2],ap=h<12?"am":"pm",hh=h%12||12; return hh+":"+mi+ap; }
 function wlSetDue(key, clear){
@@ -9064,7 +9091,7 @@ function wlFactsHtml(j){
   }
   // Who it's on is a management view. Crew see "you" when it's theirs, otherwise
   // nothing at all — never the other names (Trish, 15 Sep 2026).
-  if(isMgrRole()) out += j.allocatedTo ? cell("On", firstNames(j.allocatedTo)) : cell("On", "nobody yet", "soft");
+  if(isMgrRole()) out += j.allocatedTo ? cell("On", firstNames(j.allocatedTo)+((j.accepted&&j.accepted.by)?" \u00b7 \u2713 accepted":" \u00b7 waiting to accept"), "", (j.accepted&&j.accepted.by)?"f-yes":"f-wait") : cell("On", "nobody yet", "soft");
   else {
     // Crew get a two-line strip: Status · Due · (Yours, accepted). Cost pot and
     // "last moved" are management facts — they only made the page longer.
@@ -9178,7 +9205,8 @@ function openWLJob(key){
   var stateLbl = offerAll?'🗂 Offered to <b>everyone</b> — anyone can accept it'
     : (j.offer?('🗂 Offered to <b>'+esc(firstNames(j.offer))+'</b> — they can accept it'+(allocList.length?' (as well as those assigned above)':''))
              : (allocList.length?'Not offered to anyone else — tap a name to also offer it':'⏳ <b>Pending</b> — sitting in your backlog, crew can’t see it yet'));
-  var offerHTML = isMgrRole() ? (
+  var OFFER_ON=false;   // offering is parked while we trial assign + accept only (Trish, 23 Oct 2026)
+  var offerHTML = (isMgrRole() && OFFER_ON) ? (
     '<div class="sec"><h4>Or offer it</h4>'+
     '<div class="offstate">'+stateLbl+'</div>'+
     '<div class="assignrow">'+
