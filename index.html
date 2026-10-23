@@ -2103,7 +2103,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-23·e5</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-23·f</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -4089,7 +4089,8 @@ function chJobEntriesHtml(key){
     var when = e.running ? "running since "+esc(e.start)
              : esc(e.start)+"\u2013"+esc(e.finish)+(e.breakMins?(" \u00b7 "+e.breakMins+"m break"):"");
     return '<div class="chent"><div class="w"><b>'+esc(e.crew)+'</b>'+
-      '<span>'+esc(e.date)+' \u00b7 '+when+'</span></div>'+
+      '<span>'+esc(e.date)+' \u00b7 '+when+'</span>'+
+      (e.note?('<span class="chwords" style="display:block;color:var(--ink,#333);font-style:italic;margin-top:2px;white-space:normal">\u201c'+esc(e.note)+'\u201d</span>'):'')+'</div>'+
       '<div class="hh">'+(e.running?"\u2014":chFmt(e.hours))+'</div>'+
       (e.mine&&!e.running?('<button class="ed" title="Fix the times" onclick="ehOpen(\''+esc(e.entryId)+'\')">\u270e</button>'+
                            '<button class="ed del" title="Delete" onclick="chDel(\''+esc(e.entryId)+'\',1)">\u2715</button>'):'')+
@@ -4105,6 +4106,7 @@ function chJobEntriesHtml(key){
        '\u2705 Submit this job now \u00b7 '+chFmt(unsent.reduce(function(a,e){return a+(parseFloat(e.hours)||0);},0))+
        ' hrs'+(unsent.length>1?(" over "+unsent.length+" days"):"")+'</button>')
     : '';
+  var addVisit = '<button class="chsend" style="background:transparent;color:inherit;border:1px solid var(--line,#ccc);margin-top:6px" onclick="wlAddVisit(\''+esc(String(key).replace(/'/g,"\\'"))+'\')">\uff0b Add another visit to this job</button>';
   var hdr = CHJOB.everyone ? "TIME ON THIS JOB \u00b7 EVERYONE" : "MY TIME ON THIS JOB";
   var mth = (CHJOB.codeMonthHours && CHJOB.code)
     ? ('<div class="chmonth"><b>'+chFmt(CHJOB.codeMonthHours)+'</b> on '+esc(CHJOB.code)+
@@ -4116,7 +4118,7 @@ function chJobEntriesHtml(key){
   // open it. The Submit button is an action, so it stays out.
   return '<div style="margin-top:10px"><details class="chfold"><summary><div class="chtothdr">'+
     '<b style="font-size:12px;color:var(--muted)">'+hdr+' \u203a</b>'+
-    '<b class="chtot">'+chFmt(CHJOB.totalHours)+' total</b></div></summary>'+rows+mth+oth+'</details>'+sendBtn+'</div>';
+    '<b class="chtot">'+chFmt(CHJOB.totalHours)+' total</b></div></summary>'+rows+mth+oth+'</details>'+sendBtn+addVisit+'</div>';
 }
 
 /* Send this job's hours without waiting for the end of the day. Stop the clock,
@@ -13413,6 +13415,16 @@ function rcptListHtml(key){
   }).join("");
 }
 
+/* Back into the same job on another day: open Log job with its boat and exact title
+   filled in. Saving finds the open job by that title and adds a dated entry to it. */
+function wlAddVisit(key){
+  var j=wlFind(key); if(!j){ toast("Open the job first"); return; }
+  openWorkLog();
+  var v=j.vessel||"", sel=$("wl_vessel");
+  if(v){ for(var i=0;i<sel.options.length;i++){ if(sel.options[i].value===v){ sel.value=v; break; } } }
+  $("wl_title").value=j.task||j.title||"";
+  WLOGSTAT="In hand"; wlogRenderStat();
+}
 function openWorkLog(){
   $("wl_vessel").innerHTML=vesselOpts(ME.vessels[0]); $("wl_other").style.display="none"; $("wl_other").value="";
   $("wl_title").value=""; $("wl_desc").value=""; $("wl_hours").value="";
@@ -13523,17 +13535,34 @@ function submitWorkLog(startTimer){
   }
   toast("Logging…");
   var wlForKey = fjValue("wl");            // the job a supplies pick-up is FOR ("" for anything else)
-  apiPost({action:"crewWorkLog", email:ME.email, code:ME.code, vessel:vessel, title:t,
+  /* ONE JOB, MANY DATED ENTRIES (Trish, 23 Oct 2026). A job that takes more than one
+     visit stays ONE job. If this boat already has an OPEN job with exactly this title,
+     offer to add today's visit to it instead of making a second one. Strict match,
+     decided by the server; a block of jobs skips the question. */
+  var ask = also.length ? Promise.resolve({ok:true,matches:[]})
+          : apiPost({action:"crewWorkLogMatch", email:ME.email, code:ME.code, vessel:vessel, title:t}).catch(function(){ return {ok:true,matches:[]}; });
+  ask.then(function(m){
+    var hit = (m&&m.ok&&m.matches&&m.matches.length) ? m.matches[0] : null;
+    var contKey = "";
+    if(hit){
+      var lastTxt = hit.visits ? (" Last visit "+chNiceDate(hit.last)+(hit.lastBy?(" ("+firstName(hit.lastBy)+")"):"")+", "+chFmt(hit.hours)+" so far.") : "";
+      if(confirm("\u201c"+hit.title+"\u201d is already open on "+vessel+"."+lastTxt+"\n\nOK = add this visit to that job (same job, new dated entry).\nCancel = it\u2019s a different job.")) contKey = hit.key;
+    }
+    return doLog(contKey);
+  });
+  function doLog(contKey){
+  return apiPost({action:"crewWorkLog", email:ME.email, code:ME.code, vessel:vessel, title:t,
            desc:wlDesc,
+           continueKey:contKey,
            doneOn:$("wl_done").value||"",
            /* The hours go on ONE entry covering the block, made below — not on
               each job, which would bill the block once per job. */
            hours: also.length ? "" : hrs,
-           status: startTimer ? "In hand" : WLOGSTAT}).then(fjChain(wlForKey)).then(function(r){
+           status: startTimer ? "In hand" : WLOGSTAT}).then(contKey ? function(x){return x;} : fjChain(wlForKey)).then(function(r){
     if(!r||!r.ok){ toast((r&&r.error)||"Couldn’t log it"); return; }
     if(also.length) return wlLogBlock(r, also, vessel, hrs, photos, docs);
     closeModal("workLogModal");
-    toast((r.status==="In hand"?"◐ Logged — still in hand":"✓ Logged")+(r.code?(" — "+r.code):""));
+    toast(r.continued ? ((r.status==="Complete"?"✓ Finished — ":"◐ Added to the same job — ")+(r.code||"")) : ((r.status==="In hand"?"◐ Logged — still in hand":"✓ Logged")+(r.code?(" — "+r.code):"")));
     /* HOURS TYPED HERE USED TO BE A NOTE ONLY. crewWorkLog writes "· 5 hrs" on the
        job card as text and never makes a Crew Hours row, so nothing reached Submit
        my day or the EOD sheet (Tyrone, Flagship 29 Sep 2026: 5 hrs logged, none
@@ -13544,7 +13573,7 @@ function submitWorkLog(startTimer){
       var dayDone=$("wl_done").value||"";
       apiPost({action:"crewHoursLog", email:ME.email, code:ME.code, jobKey:r.key,
                vessel:(r.vessel||vessel), task:t, jobCode:(r.code||""), cat:(r.category||""),
-               date:dayDone, hours:hv}).then(function(h){
+               date:dayDone, hours:hv, note:(r.continued?wlDesc:"")}).then(function(h){
         if(h&&h.ok){ toast("\u2713 Logged \u2014 "+chFmt(h.hours)+" added to My hours, ready to submit"); }
         else { toast("Job logged, but the hours didn\u2019t save \u2014 add them from \u23f1 My hours"); }
         chLoad(true); chUnsubLoad();
@@ -13556,6 +13585,7 @@ function submitWorkLog(startTimer){
     afterCreate(r.key, photos, docs);
     if(startTimer && r.key){ chStart(r.key); }         // straight onto the clock
   }).catch(function(){ toast("Couldn’t connect"); });
+  }
 }
 
 /* ===== Directors: add a task / new worklist, and rename a worklist ===== */
