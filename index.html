@@ -2103,7 +2103,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-23·e4</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-23·e5</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -7230,7 +7230,7 @@ function doneBlock(g, kind, arr, label){
   // Filtering to "Done" means you came looking for it — open the section for them.
   // The Unassigned fold is not a "done" section: it never auto-opens.
   var isUn = kind.indexOf("unass")===0, isSys = kind.indexOf("sys")===0;
-  var k=g+"|"+kind, open=(k in WLDONE) ? !!WLDONE[k] : (isSys ? true : (!isUn && JOBFILTER==="Done"));
+  var k=g+"|"+kind, open=(k in WLDONE) ? !!WLDONE[k] : (isSys ? (kind!=="sys:OWNER") : (!isUn && JOBFILTER==="Done"));   // Owner's list starts closed (Trish, 23 Oct 2026); the other area sections stay open
   var kJs=k.replace(/\\/g,"\\\\").replace(/'/g,"\\'");
   return '<div class="dnacc'+(kind==="sign"?" sign":"")+(isUn?" unass":"")+(kind==="filed"?" filed":"")+(open?"":" closed")+'" onclick="event.stopPropagation();toggleDone(\''+esc(kJs)+'\')">'+
     '<span class="car">&#9662;</span><h4>'+label+'</h4><span class="n">'+arr.length+'</span></div>'+
