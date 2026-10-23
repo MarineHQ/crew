@@ -2928,6 +2928,15 @@ button:active{ filter: brightness(.93); }
   <button class="cancel" onclick="closeModal('forJobModal')">Cancel</button>
 </div></div>
 
+<div class="modal" id="mergeJobModal"><div class="card2">
+  <h3>Merge into another job</h3>
+  <p class="mhint" id="mj_hint"></p>
+  <label class="fld">Keep this job</label>
+  <select class="fld-in" id="mj_into"></select>
+  <button class="go" onclick="wlMergeGo()">Check it first</button>
+  <button class="cancel" onclick="closeModal('mergeJobModal')">Cancel</button>
+</div></div>
+
 <div class="modal" id="moveListModal"><div class="card2">
   <h3>Move to a worklist</h3>
   <p class="mhint" id="ml_hint"></p>
@@ -9366,6 +9375,7 @@ function openWLJob(key){
       ((isMgrRole() && j.zoho)?('<div class="sec"><h4>Source</h4><div class="srcref">🔗 Matched to <b>Zoho '+esc(String(j.zoho).slice(-7))+'</b>'+(j.project?(' · '+esc(j.project)):'')+'<div class="srcsub">Zoho task id '+esc(j.zoho)+'</div></div></div>'):'') +
       ((isMgrRole() && j.zoho)?('<div class="sec"><h4>Send to Michael’s Zoho</h4><button onclick="zohoSendJob(\''+esc(key)+'\')" style="width:100%;border:0;background:#1a2b5c;color:#fff;font-weight:800;font-size:13px;padding:12px;border-radius:10px;cursor:pointer">📷 Send this job’s photos + note to his Zoho</button><div class="srcsub" style="margin-top:6px">Posts the photos (as links) and a note onto the matched Zoho task.</div></div>'):'') +
       ((isMgrRole() && j.zoho)?('<div class="sec"><h4>From Michael’s Zoho <span style="font-size:10px;color:#9aa7b4;font-weight:700">directors only</span></h4><div id="zinbox" style="font-size:12.5px;color:var(--muted)">Loading his Zoho comments…</div></div>'):'') +
+      (isMgrRole()?('<div class="sec"><h4>Merge into another job</h4><div class="subnote-box" onclick="wlMergeOpen(\''+esc(key)+'\')">\u21aa One job, not two \u2014 fold this into another <span class="wlnote-ed">\u270e</span></div></div>'):'') +
       (isMgrRole()?('<div class="sec"><h4>Move to another worklist</h4><div class="subnote-box" onclick="wlMoveList(\''+esc(key)+'\')">\ud83d\udccb '+esc(j.list||"\u2014 not on a worklist \u2014")+' <span class="wlnote-ed">\u270e</span></div></div>'):'') +
       (varVisible?'':wlVariationBlock(j,key)) +
       (apprVisible?'':wlApproveBlock(j,key)) +
@@ -12934,6 +12944,41 @@ function mlFill(){
   $("ml_quick").innerHTML=mlStandard().map(function(n,i){
     return '<button type="button" class="aopt" onclick="mlPick('+i+')">\ud83d\udee0 Next Shipyard Period</button>';
   }).join("");
+}
+/* MERGE ONE JOB INTO ANOTHER (Trish, 23 Oct 2026). Directors. Asks the server for a
+   DRY RUN first, shows what would move, and only writes when it is confirmed. */
+var MJFROM="";
+function wlMergeOpen(key){
+  if(!isMgrRole()){ toast("Directors only"); return; }
+  var all=(CREWJOBS||[]).concat(CREWOPEN||[]);
+  var j=all.filter(function(x){ return x.key===key; })[0]; if(!j) return;
+  MJFROM=key;
+  var seen={}, opts=all.filter(function(x){
+    if(x.key===key || x.vessel!==j.vessel || seen[x.key]) return false;
+    if(/cancel/i.test(x.status||"")) return false;
+    seen[x.key]=1; return true; });
+  if(!opts.length){ toast("No other job on this yacht to merge into"); return; }
+  $("mj_hint").innerHTML='<b>'+esc(j.task||"This job")+'</b> will fold into the job you pick: its hours, photos and notes move across, and it shows there as a ticked sub-task. Nothing is deleted.';
+  $("mj_into").innerHTML=opts.map(function(x){ return '<option value="'+esc(x.key)+'">'+esc((x.code?x.code+" \u00b7 ":"")+(x.task||"")+(x.status?(" ("+x.status+")"):""))+'</option>'; }).join("");
+  $("mergeJobModal").classList.add("show");
+}
+function wlMergeGo(){
+  var into=$("mj_into").value; if(!into) return;
+  toast("Checking\u2026");
+  apiPost({action:"crewJobMerge", email:ME.email, code:ME.code, fromKey:MJFROM, intoKey:into, dry:true}).then(function(r){
+    if(!r||!r.ok){ toast((r&&r.error)||"Couldn\u2019t check"); return; }
+    var p=r.plan;
+    var msg="Fold \u201c"+p.from.title+"\u201d ("+p.from.code+")\ninto \u201c"+p.into.title+"\u201d ("+p.into.code+")?\n\n"+
+      "Moves across: "+p.hoursEntries+" hours entr"+(p.hoursEntries===1?"y":"ies")+" ("+p.hours+" hrs), "+p.photos+" photos, "+p.docs+" docs, "+p.notes+" notes."+
+      (p.categoryChange?("\n\nCategory changes: "+p.categoryChange+" \u2014 the hours will count in the kept job\u2019s category from now on."):"")+
+      "\n\nThe sheet rows already sent are NOT changed. Nothing is deleted.";
+    if(!confirm(msg)) return;
+    return apiPost({action:"crewJobMerge", email:ME.email, code:ME.code, fromKey:MJFROM, intoKey:into, dry:false}).then(function(r2){
+      if(!r2||!r2.ok){ toast((r2&&r2.error)||"Couldn\u2019t merge"); return; }
+      closeModal("mergeJobModal"); toast("\u2713 Merged into one job");
+      loadJobs(); chLoad(true); openWLJob(into);
+    });
+  }).catch(function(){ toast("Couldn\u2019t connect"); });
 }
 function wlMoveList(key){
   if(!isMgrRole()){ toast("Directors only"); return; }
