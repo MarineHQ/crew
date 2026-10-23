@@ -2103,7 +2103,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-23·e</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-23·e2</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -13868,7 +13868,12 @@ function atCheckMatch(){
 }
 // One place decides what the match panel shows, from the current state.
 function atMode(){ var title=($("at_title").value||"").trim(); if(ATCHOSEN) return "chosen"; if(ATNEW) return "new"; if(ATSUGG.length) return "suggest"; return title?"new":"empty"; }
-function atChoose(num){ var s=ATSUGG.filter(function(x){return x.num===num;})[0]; if(!s) return; ATCHOSEN=s; ATNEW=false; if(s.category){ ADDCAT=s.category; atRenderCats(); } atRenderMatch(); }
+function atChoose(num){ var s=ATSUGG.filter(function(x){return x.num===num;})[0]; if(!s) return; ATCHOSEN=s; ATNEW=false;
+  /* The catalogue name becomes the heading; what they typed drops into Detail (Trish, 23 Oct 2026) —
+     same as the Log job form. Detail is only filled if empty, so nothing already written is lost. */
+  var typed=($("at_title").value||"").trim(), dEl=$("at_desc");
+  if(typed && s.job && typed.toLowerCase()!==String(s.job).toLowerCase() && dEl && !(dEl.value||"").trim()) dEl.value=typed;
+  if(s.job) $("at_title").value=s.job; if(s.category){ ADDCAT=s.category; atRenderCats(); } atRenderMatch(); }
 function atChooseNew(){ ATNEW=true; ATCHOSEN=null; atRenderMatch(); }
 function atClearChoice(){ ATCHOSEN=null; ATNEW=false; atRenderMatch(); }
 function atRenderMatch(){
