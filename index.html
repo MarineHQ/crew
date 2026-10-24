@@ -2103,7 +2103,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-24·o</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-24·p</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2388,8 +2388,8 @@ button:active{ filter: brightness(.93); }
   <label class="fld">Vessel</label>
   <select class="fld-in" id="wl_vessel" onchange="onVesselPick('wl_vessel','wl_other');wlSuggest();fjRender('wl',wlVesselNow(),isPickupNum(WLNUM))"></select>
   <input class="fld-in" id="wl_other" placeholder="Type the yacht name" style="display:none;margin-top:8px">
-  <label class="fld">What did you do?</label>
-  <input class="fld-in" id="wl_title" placeholder="Start typing — e.g. rinse, vacuum, teak"
+  <label class="fld">What did you do? <span class="fldhint">(say it your way \u2014 then tap the job it was)</span></label>
+  <input class="fld-in" id="wl_title" placeholder="e.g. replaced corroded connectors under the VIP toilet"
          oninput="wlSuggest()" autocomplete="off">
   <!-- The catalogue, offered as you type. Without it this was a plain text box:
        whatever got typed became the job's NAME and the auto-coder guessed a
@@ -2927,6 +2927,16 @@ button:active{ filter: brightness(.93); }
   <div id="fj_forjob"></div>
   <button class="go" onclick="fjSave()">✓ Save</button>
   <button class="cancel" onclick="closeModal('forJobModal')">Cancel</button>
+</div></div>
+
+<div class="modal" id="titleGateModal"><div class="card2">
+  <h3>Which job is this?</h3>
+  <p class="mhint">Pick the closest job so it gets the right name and code. <b>What you wrote is kept</b> as the detail.</p>
+  <div id="tg_list"></div>
+  <label class="fld">None fit? Give it a short title <span class="fldhint">(a few words)</span></label>
+  <input class="fld-in" id="tg_title" placeholder="e.g. Electrical fault \u2014 VIP toilet" maxlength="60">
+  <button class="go" onclick="wlTitleGateShort()">Use this short title</button>
+  <button class="cancel" onclick="closeModal('titleGateModal')">Cancel</button>
 </div></div>
 
 <div class="modal" id="blockKindModal"><div class="card2">
@@ -10548,7 +10558,7 @@ function catPaint(){ var b=$("catBox"); if(b) b.innerHTML=catInner(); }
 function catSel(num){ CATM.sel=(CATM.sel===num)?null:num; catPaint(); }
 function catPick(num){
   toast("Filing…");
-  apiPost({action:"crewJobCatalogue", email:ME.email, code:ME.code, jobKey:CATM.key, matchNum:num})
+  apiPost({action:"crewJobCatalogue", email:ME.email, code:ME.code, jobKey:CATM.key, matchNum:num, useStandardTitle:true})
     .then(function(r){
       if(!r||!r.ok){ toast((r&&r.error)||"Couldn’t file it"); return; }
       toast("✓ Filed as "+r.code);
@@ -13648,11 +13658,51 @@ function wlBlockKindPaint(){
   }).join("");
 }
 function wlBlockKindGo(){ var cb=BKCB; BKCB=null; closeModal("blockKindModal"); if(cb) cb(BKKIND); }
+/* A SENTENCE IS NOT A JOB TITLE (Trish, 24 Oct 2026). Crew typed whole descriptions into "What did
+   you do?" and ignored the catalogue list, so a paragraph became the job's title with a -9xxx code
+   and nothing matched across boats. If the text is long and no job was picked, ask for the closest
+   catalogue job (or a short title); their sentence moves into Detail, the grey text on the card. */
+var TGTEXT="", TGSUGG=[], TGSTART=false, TGOK=false;
+function wlLongTitle(s){ s=(s||"").trim(); return s.split(/\s+/).length>6 || s.length>45; }
+function wlTitleGate(text, startTimer){
+  TGTEXT=text; TGSTART=startTimer; TGSUGG=[];
+  $("tg_list").innerHTML='<p class="mhint">Looking\u2026</p>'; $("tg_title").value="";
+  TGEXIST=[];
+  apiPost({action:"crewJobMatch", email:ME.email, code:ME.code, vessel:wlVesselNow(), q:text.split(/\s+/).slice(0,8).join(" "), num:0}).then(function(r){ TGEXIST=(r&&r.ok&&r.matches)||[]; wlTitleGatePaint(); }).catch(function(){});
+  $("titleGateModal").classList.add("show");
+  apiGet("fn=tasksuggest&code="+encodeURIComponent(ME.code||"")+"&email="+encodeURIComponent(ME.email||"")+
+         "&vessel="+encodeURIComponent(wlVesselNow())+"&q="+encodeURIComponent(text.split(/\s+/).slice(0,8).join(" ")))
+    .then(function(r){ TGSUGG=(r&&r.ok&&r.suggestions)||[]; wlTitleGatePaint(); }).catch(function(){ wlTitleGatePaint(); });
+}
+var TGEXIST=[];
+function wlTitleGatePaint(){
+  var h='';
+  if(TGEXIST.length) h+='<div class="ahcat rjsugg"><h6>Already on this boat</h6>'+TGEXIST.map(function(m,i){
+    return '<div class="ahcatrow" onclick="wlTitleGateExist('+i+')"><b>'+esc(m.title)+'</b><span>'+esc(m.code||"")+(m.allocatedTo?(' \u00b7 '+esc(m.allocatedTo)):' \u00b7 not allocated')+'</span></div>'; }).join("")+'</div>';
+  if(TGSUGG.length) h+='<div class="ahcat rjsugg"><h6>From the job catalogue</h6>'+TGSUGG.slice(0,6).map(function(s,i){
+    return '<div class="ahcatrow" onclick="wlTitleGatePick('+i+')"><b>'+esc(s.job)+'</b><span>'+esc(s.code||"")+(s.category?(' \u00b7 '+esc(s.category)):'')+'</span></div>'; }).join("")+'</div>';
+  $("tg_list").innerHTML = h || '<p class="mhint">Nothing close \u2014 give it a short title below.</p>';
+}
+function wlTitleGateExist(i){
+  var m=TGEXIST[i]; if(!m) return;
+  WLCONT={ key:m.key, title:m.title, code:m.code, cat:(m.category||"") };
+  wlTitleGateMove(m.title);
+}
+function wlTitleGateMove(newTitle){
+  var d=$("wl_desc"), cur=(d.value||"").trim();
+  d.value = cur ? (TGTEXT+" \u2014 "+cur) : TGTEXT;       // their words are the detail
+  $("wl_title").value=newTitle; WLFIRST=newTitle;
+  closeModal("titleGateModal"); TGOK=true; submitWorkLog(TGSTART);
+}
+function wlTitleGatePick(i){ var s=TGSUGG[i]; if(!s) return; WLNUM=Number(s.num)||0; WLFIRSTCAT=s.category||""; wlTitleGateMove(s.job); }
+function wlTitleGateShort(){ var v=($("tg_title").value||"").trim(); if(!v){ toast("Type a short title"); return; } wlTitleGateMove(v); }
 function submitWorkLog(startTimer){
   /* The block's first job, whether it is in the box or only remembered — the box
      is borrowed by the picker while extra jobs are being added. */
   var t=($("wl_title").value||"").trim() || WLFIRST;
   if(!t){ toast("What did you do? Give it a short title"); return; }
+  if(!WLCONT && !WLNUM && !TGOK && !WLALSO.length){ wlTitleGate(t, startTimer); return; }
+  TGOK=false;
   var vsel=$("wl_vessel").value, vessel;
   if(vsel==="__other__"){ vessel=($("wl_other").value||"").trim(); if(!vessel){ toast("Type the yacht name"); return; } vessel="Other — "+vessel; }
   else { vessel=vsel; }
@@ -14031,6 +14081,10 @@ function wlExistPickAlso(i){
 function wlExistPick(i){
   var m=WLEXIST[i]; if(!m) return;
   WLCONT={ key:m.key, title:m.title, code:m.code, cat:(m.category||"") };
+  var typedWords=($("wl_title").value||"").trim(), dd=$("wl_desc");
+  /* Their words are what happened today; the job's own name is the job's. */
+  if(dd && typedWords && typedWords.toLowerCase()!==m.title.toLowerCase() && (dd.value||"").toLowerCase().indexOf(typedWords.toLowerCase())<0)
+    dd.value = (dd.value||"").trim() ? (typedWords+" \u2014 "+dd.value.trim()) : typedWords;
   $("wl_title").value=m.title; WLFIRST=m.title;
   WLEXIST=[]; WLSUGG=[]; if($("wl_sugg")) $("wl_sugg").innerHTML="";
   wlExistRender(); wlRenderBundle();      // the "＋ Also did another job in this block" button
