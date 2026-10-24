@@ -2103,7 +2103,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-24·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-24·d</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2396,6 +2396,7 @@ button:active{ filter: brightness(.93); }
        number afterwards, which is how "Tender.   Get rid of growth on prop…"
        ended up as the tender REFUELLING task and "Run systems" as a battery
        check (Trish, 12 Sep 2026). -->
+  <div id="wl_exist"></div>
   <div id="wl_sugg"></div>
   <!-- A supplies pick-up is not a kind of work of its own: it takes the category of
        the job it is FOR (Trish, 13 Oct 2026). Shown only once the catalogue's pick-up
@@ -4116,7 +4117,7 @@ function chJobEntriesHtml(key){
        '\u2705 Submit this job now \u00b7 '+chFmt(unsent.reduce(function(a,e){return a+(parseFloat(e.hours)||0);},0))+
        ' hrs'+(unsent.length>1?(" over "+unsent.length+" days"):"")+'</button>')
     : '';
-  var addVisit = '<button class="chsend" style="background:transparent;color:inherit;border:1px solid var(--line,#ccc);margin-top:6px" onclick="wlAddVisit(\''+esc(String(key).replace(/'/g,"\\'"))+'\')">\uff0b Add another visit to this job</button>';
+  var addVisit = '';
   var hdr = CHJOB.everyone ? "TIME ON THIS JOB \u00b7 EVERYONE" : "MY TIME ON THIS JOB";
   var mth = (CHJOB.codeMonthHours && CHJOB.code)
     ? ('<div class="chmonth"><b>'+chFmt(CHJOB.codeMonthHours)+'</b> on '+esc(CHJOB.code)+
@@ -13490,13 +13491,14 @@ function wlAddVisit(key){
   var v=j.vessel||"", sel=$("wl_vessel");
   if(v){ for(var i=0;i<sel.options.length;i++){ if(sel.options[i].value===v){ sel.value=v; break; } } }
   $("wl_title").value=j.task||j.title||"";
+  WLCONT={ key:key, title:(j.task||j.title||""), code:(j.code||"") }; wlExistRender();
   WLOGSTAT="In hand"; wlogRenderStat();
 }
 function openWorkLog(){
   $("wl_vessel").innerHTML=vesselOpts(ME.vessels[0]); $("wl_other").style.display="none"; $("wl_other").value="";
   $("wl_title").value=""; $("wl_desc").value=""; $("wl_hours").value="";
   WLALSO=[]; WLADDING=false; WLFIRST=""; if($("wl_sugg")) $("wl_sugg").innerHTML=""; wlRenderBundle();
-  WLNUM=0; fjRender("wl","",false);
+  WLNUM=0; WLCONT=null; WLEXIST=[]; wlExistRender(); fjRender("wl","",false);
   stagedReset("wl_ph"); stagedReset("wl_dc");
   WLOGSTAT="Complete"; wlogRenderStat();
   var d=new Date(), p=function(n){return (n<10?"0":"")+n;};
@@ -13606,12 +13608,12 @@ function submitWorkLog(startTimer){
      visit stays ONE job. If this boat already has an OPEN job with exactly this title,
      offer to add today's visit to it instead of making a second one. Strict match,
      decided by the server; a block of jobs skips the question. */
-  var ask = also.length ? Promise.resolve({ok:true,matches:[]})
+  var ask = (also.length || WLCONT) ? Promise.resolve({ok:true,matches:[]})
           : apiPost({action:"crewWorkLogMatch", email:ME.email, code:ME.code, vessel:vessel, title:t}).catch(function(){ return {ok:true,matches:[]}; });
   ask.then(function(m){
     var hit = (m&&m.ok&&m.matches&&m.matches.length) ? m.matches[0] : null;
-    var contKey = "";
-    if(hit){
+    var contKey = WLCONT ? WLCONT.key : "";
+    if(hit && !contKey){
       var lastTxt = hit.visits ? (" Last visit "+chNiceDate(hit.last)+(hit.lastBy?(" ("+firstName(hit.lastBy)+")"):"")+", "+chFmt(hit.hours)+" so far.") : "";
       if(confirm("\u201c"+hit.title+"\u201d is already open on "+vessel+"."+lastTxt+"\n\nOK = add this visit to that job (same job, new dated entry).\nCancel = it\u2019s a different job.")) contKey = hit.key;
     }
@@ -13865,13 +13867,64 @@ function wlVesselNow(){
   var v=$("wl_vessel"); if(!v) return "";
   return v.value==="__other__" ? (($("wl_other")||{}).value||"").trim() : v.value;
 }
+/* "IS IT ONE OF THESE?" (Trish, 24 Oct 2026). Crew only see the jobs allocated to them, so the
+   same job got logged again under another name. As they type, the server is asked whether an
+   open job on this boat — anyone's, or nobody's, any month — already matches; only matches come
+   back, never the lists. Picking one logs this visit ON that job instead of making a new one. */
+var WLEXIST=[], WLCONT=null, _wlExT=null;
+function wlExistLoad(q, boat){
+  clearTimeout(_wlExT);
+  _wlExT=setTimeout(function(){
+    apiPost({action:"crewJobMatch", email:ME.email, code:ME.code, vessel:boat, q:q, num:(WLNUM||0)}).then(function(r){
+      if((($("wl_title")||{}).value||"").trim()!==q) return;
+      WLEXIST=(r&&r.ok&&r.matches)||[]; wlExistRender();
+    }).catch(function(){});
+  }, 250);
+}
+function wlExistRender(){
+  var el=$("wl_exist"); if(!el) return;
+  if(WLCONT){
+    el.innerHTML='<div class="atm-ok">&#9989; Logging on the existing job <b>'+esc(WLCONT.title)+'</b>'+(WLCONT.code?(' <span class="jcode">'+esc(WLCONT.code)+'</span>'):'')+
+      '<button type="button" class="atm-open" style="background:#64748b" onclick="wlExistClear()">Change</button>'+
+      '<div class="atm-sub">Same job, new dated entry \u2014 the hours add to its total.</div></div>';
+    return;
+  }
+  if(!WLEXIST.length){ el.innerHTML=""; return; }
+  /* Same look as Raise a job: the name in bold with the words you typed marked, the code and
+     where it stands quiet underneath, one full-width row each, and a way out at the bottom. */
+  var q=(($("wl_title")||{}).value||"").trim().toLowerCase().split(/\s+/).filter(function(w){return w.length>1;});
+  function hl(t){
+    var h=esc(t||"");
+    q.forEach(function(w){ var re=new RegExp("("+w.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+")","ig"); h=h.replace(re,"<mark>$1</mark>"); });
+    return h;
+  }
+  el.innerHTML='<div class="ahcat rjsugg"><h6>Is it one of these? Tap to log it on that job</h6>'+
+    WLEXIST.map(function(m,i){
+      var tot = m.visits ? (chFmt(m.hours)+' over '+(m.days||m.visits)+' day'+((m.days||m.visits)===1?'':'s')) : 'no hours yet';
+      return '<div class="ahcatrow" onclick="wlExistPick('+i+')"><b>'+hl(m.title)+'</b><span>'+esc(m.code||"")+
+        ' \u00b7 '+(m.allocatedTo?esc(m.allocatedTo):'not allocated')+' \u00b7 '+tot+
+        (m.list?(' \u00b7 '+esc(m.list)):'')+'</span></div>';
+    }).join("")+
+    '<div class="ahcatrow rjnone" onclick="wlExistClear()"><b>&#10133; None of these &mdash; it\u2019s a new job</b></div></div>';
+}
+function wlExistPick(i){
+  var m=WLEXIST[i]; if(!m) return;
+  WLCONT={ key:m.key, title:m.title, code:m.code };
+  $("wl_title").value=m.title; WLFIRST=m.title;
+  WLEXIST=[]; WLSUGG=[]; if($("wl_sugg")) $("wl_sugg").innerHTML="";
+  wlExistRender();
+  toast("Logging on the existing job");
+}
+function wlExistClear(){ WLCONT=null; WLEXIST=[]; wlExistRender(); }  // a new job after all: nothing is suggested again until they type more
 function wlSuggest(){
   clearTimeout(_wlSuggT);
   // Typing over a picked catalogue job un-picks it; the extra-job picker borrows this box, so leave it then.
   if(WLNUM && !WLADDING && (($("wl_title")||{}).value||"").trim().toLowerCase()!==(WLFIRST||"").toLowerCase()){ WLNUM=0; fjRender("wl","",false); }
   var q=($("wl_title").value||"").trim(), boat=wlVesselNow(), box=$("wl_sugg");
   if(!box) return;
-  if(q.length<3 || !boat){ WLSUGG=[]; box.innerHTML=""; return; }
+  if(WLCONT && q.toLowerCase()!==(WLCONT.title||"").toLowerCase()){ WLCONT=null; wlExistRender(); }   // typed over it: no longer that job
+  if(q.length<3 || !boat){ WLSUGG=[]; box.innerHTML=""; WLEXIST=[]; wlExistRender(); return; }
+  if(!WLADDING) wlExistLoad(q, boat);
   _wlSuggT=setTimeout(function(){
     apiGet("fn=tasksuggest&code="+encodeURIComponent(ME.code||"")+
            "&email="+encodeURIComponent(ME.email||"")+
