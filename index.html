@@ -2103,7 +2103,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-24·j</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-24·l</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -13630,6 +13630,33 @@ function submitWorkLog(startTimer){
     also.forEach(function(a){ var c=a.category||""; if(!c) return; var k=ahCatKey(c); if(!kinds[k]) kinds[k]=a.job+" ("+c+")"; });
     names=Object.keys(kinds).map(function(k){ return kinds[k]; });
     if(names.length>1){
+      /* One kind per block. Ask which, then put every job that doesn't match right (the server lets
+         crew make exactly this change, and writes it on the job so directors can see who). A first job
+         that is new from the catalogue can't be changed from here. */
+      var ks=Object.keys(kinds).sort().join(",");
+      if(ks==="scheduled,unscheduled"){
+        var kind = confirm("You can\u2019t mix kinds in one block:\n\n"+names.join("\n")+"\n\nMark the WHOLE block UNSCHEDULED?\n\nOK = Unscheduled\nCancel = more choices") ? "unscheduled"
+                 : (confirm("Mark the WHOLE block SCHEDULED instead?\n\nOK = Scheduled\nCancel = don\u2019t log yet") ? "scheduled" : "");
+        if(kind){
+          var Kind = kind==="scheduled" ? "Scheduled" : "Unscheduled";
+          var jobs = also.filter(function(a){ return ahCatKey(a.category)!==kind; });
+          if(firstCat && ahCatKey(firstCat)!==kind){
+            if(WLCONT && WLCONT.key) jobs.push(WLCONT); else { alert("\u201c"+t+"\u201d is a new "+firstCat+" job, so it can\u2019t be changed from here. Start the block with the "+Kind+" kind, or log them separately. Nothing has been saved."); return; }
+          }
+          if(jobs.some(function(a){ return !a.key; })){ alert("A new job from the catalogue can\u2019t be changed from here. Nothing has been saved."); return; }
+          toast("Marking the block "+Kind+"\u2026");
+          var chain=Promise.resolve(true);
+          jobs.forEach(function(a){
+            chain=chain.then(function(ok){
+              if(!ok) return false;
+              return apiPost({action:"crewJobCategory", email:ME.email, code:ME.code, jobKey:a.key, category:Kind, forBlock:true})
+                .then(function(r){ if(r&&r.ok){ if(a.cat!==undefined || a===WLCONT) a.cat=Kind; a.category=Kind; return true; } toast((r&&r.error)||"Couldn\u2019t change it"); return false; });
+            });
+          });
+          chain.then(function(ok){ if(ok) submitWorkLog(startTimer); }).catch(function(){ toast("Couldn\u2019t connect"); });
+        }
+        return;
+      }
       alert("These can\u2019t share one block of hours:\n\n"+names.join("\n")+"\n\nA job card splits those apart. Log the different kinds separately, with their own hours. Nothing has been saved.");
       return;
     }
