@@ -2103,7 +2103,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-24·n</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-24·o</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -5207,12 +5207,25 @@ function mhRange(p){
   }
   if(p==="month"){ var a=new Date(now.getFullYear(),now.getMonth(),1),
                        b=new Date(now.getFullYear(),now.getMonth()+1,0); return {from:d(a),to:d(b)}; }
+  if(p==="custom") return {from:MHFROM, to:MHTO};     // picked dates
   var a2=new Date(now.getFullYear(),now.getMonth()-1,1),
       b2=new Date(now.getFullYear(),now.getMonth(),0);
   return {from:d(a2), to:d(b2)};                     // last month
 }
 var MHVESSEL="";
-function mhSet(p){ MHPERIOD=p; MHVESSEL=""; MHDATA=null; renderMyHours(); mhLoad(); }
+/* Picked dates, for looking further back than last month. Starts as the last 30 days. */
+var MHFROM="", MHTO="";
+function mhDefaultRange(){
+  var n=new Date(), b=new Date(n); b.setDate(n.getDate()-29);
+  function d(x){ return x.getFullYear()+"-"+String(x.getMonth()+1).padStart(2,"0")+"-"+String(x.getDate()).padStart(2,"0"); }
+  MHFROM=d(b); MHTO=d(n);
+}
+function mhDates(which,v){
+  if(!v) return;
+  if(which==="from"){ MHFROM=v; if(MHTO&&MHTO<v) MHTO=v; } else { MHTO=v; if(MHFROM&&MHFROM>v) MHFROM=v; }
+  MHVESSEL=""; MHDATA=null; renderMyHours(); mhLoad();
+}
+function mhSet(p){ if(p==="custom" && !MHFROM) mhDefaultRange(); MHPERIOD=p; MHVESSEL=""; MHDATA=null; renderMyHours(); mhLoad(); }
 function mhBoat(v){ MHVESSEL=v; MHDATA=null; renderMyHours(); mhLoad(); }
 function mhLoad(){
   if(!ME) return;
@@ -5238,9 +5251,15 @@ function renderMyHours(){
     '</div>';
   if(MHVIEW==="todo"){ el.innerHTML = tabs + mhTodoHtml(); return; }
   var chips='<div class="mhchips">'+
-    [["today","Today"],["week","This week"],["month","This month"],["last","Last month"]]
+    [["today","Today"],["week","This week"],["month","This month"],["last","Last month"],["custom","Pick dates"]]
       .map(function(o){ return '<button class="mhchip'+(MHPERIOD===o[0]?" on":"")+
         '" onclick="mhSet(\''+o[0]+'\')">'+o[1]+'</button>'; }).join("")+'</div>';
+  var picker="";
+  if(MHPERIOD==="custom"){
+    picker='<div class="mhchips" style="align-items:center;gap:8px;font-size:12.5px;color:var(--muted)">'+
+      '<label>From <input type="date" value="'+esc(MHFROM)+'" max="'+esc(sdToday())+'" onchange="mhDates(\'from\',this.value)" style="font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:8px"></label>'+
+      '<label>to <input type="date" value="'+esc(MHTO)+'" max="'+esc(sdToday())+'" onchange="mhDates(\'to\',this.value)" style="font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:8px"></label></div>';
+  }
   var boats="";
   if(MHDATA && (MHDATA.vessels||[]).length>1){
     boats='<div class="mhchips sub">'+
@@ -5249,7 +5268,7 @@ function renderMyHours(){
         return '<button class="mhchip'+(MHVESSEL===v?" on":"")+'" onclick="mhBoat(\''+
           esc(String(v).replace(/'/g,"\\'"))+'\')">'+esc(v)+'</button>'; }).join("")+'</div>';
   }
-  el.innerHTML = tabs + chips + boats +
+  el.innerHTML = tabs + chips + picker + boats +
     '<p class="mhnote">Everything here you\u2019ve already submitted. Nothing can be sent twice.</p>' +
     (MHPERIOD==="today" ? chDayHtml() : mhPeriodHtml());
 }
@@ -5360,7 +5379,7 @@ function mhPeriodHtml(){
   });
   byDay.sort(function(a,b){ return a.date < b.date ? 1 : (a.date > b.date ? -1 : 0); });
 
-  var rows = byDay.slice(0,31).map(function(day){
+  var rows = byDay.slice(0,400).map(function(day){
     var boats = Object.keys(day.boats);
     var head = '<div class="mhlogday">'+
       '<b>'+esc(chNiceDate(day.date))+'</b>'+
