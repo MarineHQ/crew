@@ -2103,7 +2103,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-24·h</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-24·i</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -4680,8 +4680,23 @@ function ahAlsoChoose(key){
   var j=ahJobOf(key), first=ahJobOf(AHKEY);
   var pc=ahCatKey(ahCatOf(first)), ac=ahCatKey(ahCatOf(j));
   if(pc && ac && pc!==ac){
-    alert("“"+(j.task||"That job")+"” is "+ahCatOf(j)+", and the first job is "+ahCatOf(first)+".\n\n"+
-          "Those are kept apart, so they can't share one block of hours. Log this one separately.");
+    /* The first job is Unscheduled and this one is Scheduled: offer to mark THIS one Unscheduled so
+       they can share a block. The server only ever lets crew make that one change. The other way
+       round (this one Unscheduled, the first Scheduled) stays refused — swap which is first. */
+    if(pc==="unscheduled" && j.key && confirm("\u201c"+(j.task||"That job")+"\u201d is "+ahCatOf(j)+", and the first job is "+ahCatOf(first)+".\n\n"+
+         "Mark \u201c"+(j.task||"it")+"\u201d as Unscheduled so they can share one block of hours?\n\n(Directors can see this change.)")){
+      toast("Marking it Unscheduled\u2026");
+      apiPost({action:"crewJobCategory", email:ME.email, code:ME.code, jobKey:j.key, category:"Unscheduled", forBlock:true}).then(function(r){
+        if(!r||!r.ok){ toast((r&&r.error)||"Couldn\u2019t change it"); return; }
+        j.category="Unscheduled"; j.cat="Unscheduled";
+        ahAlsoChoose(key);
+      }).catch(function(){ toast("Couldn\u2019t connect"); });
+      return;
+    }
+    if(pc!=="unscheduled" || !j.key){
+      alert("\u201c"+(j.task||"That job")+"\u201d is "+ahCatOf(j)+", and the first job is "+ahCatOf(first)+".\n\n"+
+            "Those are kept apart, so they can't share one block of hours. Try starting with the "+ahCatOf(j)+" one, or log this one separately.");
+    }
     return;
   }
   /* A BLOCK OF TIME IS ONE BOAT (Trish, 20 Oct 2026). Jay put Engine-room detail
