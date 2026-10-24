@@ -2103,7 +2103,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-24·g</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-24·h</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -13498,7 +13498,7 @@ function openWorkLog(){
   WLEXISTINFO=null;
   $("wl_vessel").innerHTML=vesselOpts(ME.vessels[0]); $("wl_other").style.display="none"; $("wl_other").value="";
   $("wl_title").value=""; $("wl_desc").value=""; $("wl_hours").value="";
-  WLALSO=[]; WLADDING=false; WLFIRST=""; if($("wl_sugg")) $("wl_sugg").innerHTML=""; wlRenderBundle();
+  WLALSO=[]; WLADDING=false; WLFIRST=""; WLFIRSTCAT=""; if($("wl_sugg")) $("wl_sugg").innerHTML=""; wlRenderBundle();
   WLNUM=0; WLCONT=null; WLEXIST=[]; wlExistRender(); fjRender("wl","",false);
   stagedReset("wl_ph"); stagedReset("wl_dc");
   WLOGSTAT="Complete"; wlogRenderStat();
@@ -13602,6 +13602,21 @@ function submitWorkLog(startTimer){
   var hrs  = startTimer ? "" : ($("wl_hours").value||"");
   if(also.length && !(parseFloat(hrs)>0)){
     toast("How many hours for the whole block?"); return;
+  }
+  /* A BLOCK MUST BE ONE CATEGORY, AND WE SAY SO BEFORE ANYTHING IS SAVED (Trish, 24 Oct 2026).
+     The job card splits scheduled from unscheduled, so one lot of hours can't span both. The server
+     refuses it \u2014 but only at the hours step, after every job was already marked done, which
+     left finished jobs with no time on them. Check what we know first. */
+  if(also.length){
+    var kinds={}, names=[];
+    var firstCat=(WLCONT&&WLCONT.cat)||WLFIRSTCAT||"";
+    if(firstCat){ kinds[ahCatKey(firstCat)]=t+" ("+firstCat+")"; }
+    also.forEach(function(a){ var c=a.category||""; if(!c) return; var k=ahCatKey(c); if(!kinds[k]) kinds[k]=a.job+" ("+c+")"; });
+    names=Object.keys(kinds).map(function(k){ return kinds[k]; });
+    if(names.length>1){
+      alert("These can\u2019t share one block of hours:\n\n"+names.join("\n")+"\n\nA job card splits those apart. Log the different kinds separately, with their own hours. Nothing has been saved.");
+      return;
+    }
   }
   toast("Logging…");
   var wlForKey = fjValue("wl");            // the job a supplies pick-up is FOR ("" for anything else)
@@ -13919,7 +13934,7 @@ function wlExistRender(){
 function wlExistPickAlso(i){
   var m=WLEXIST[i]; if(!m) return;
   if(WLALSO.some(function(a){ return a.key===m.key; })){ toast("That one's already in"); return; }
-  WLALSO.push({ key:m.key, job:m.title, code:m.code, existing:true });
+  WLALSO.push({ key:m.key, job:m.title, code:m.code, category:(m.category||""), existing:true });
   WLADDING=false; WLSUGG=[]; WLEXIST=[];
   $("wl_title").value=WLFIRST; $("wl_title").placeholder="Start typing \u2014 e.g. rinse, vacuum, teak";
   if($("wl_sugg")) $("wl_sugg").innerHTML="";
@@ -13928,7 +13943,7 @@ function wlExistPickAlso(i){
 }
 function wlExistPick(i){
   var m=WLEXIST[i]; if(!m) return;
-  WLCONT={ key:m.key, title:m.title, code:m.code };
+  WLCONT={ key:m.key, title:m.title, code:m.code, cat:(m.category||"") };
   $("wl_title").value=m.title; WLFIRST=m.title;
   WLEXIST=[]; WLSUGG=[]; if($("wl_sugg")) $("wl_sugg").innerHTML="";
   wlExistRender(); wlRenderBundle();      // the "＋ Also did another job in this block" button
@@ -13987,14 +14002,14 @@ function wlPickSugg(num){
   var d=$("wl_desc");
   /* Their own words are not the job's name — they are what happened on it. */
   if(d && !d.value.trim() && typed && typed.toLowerCase()!==s.job.toLowerCase()) d.value=typed;
-  $("wl_title").value=s.job; WLFIRST=s.job;
+  $("wl_title").value=s.job; WLFIRST=s.job; WLFIRSTCAT=s.category||"";
   WLNUM=Number(s.num)||0; fjRender("wl", wlVesselNow(), isPickupNum(WLNUM), "");   // a supplies pick-up asks which job it is for
   WLSUGG=[]; $("wl_sugg").innerHTML="";
   wlRenderBundle();
   toast("Logging as "+s.code);
 }
 
-var WLALSO=[], WLADDING=false, WLFIRST="";
+var WLALSO=[], WLADDING=false, WLFIRST="", WLFIRSTCAT="";
 function wlRenderBundle(){
   var el=$("wl_bundle"); if(!el) return;
   var first=WLADDING ? WLFIRST : (($("wl_title").value||"").trim() || WLFIRST);
