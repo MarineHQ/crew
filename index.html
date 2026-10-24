@@ -2103,7 +2103,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-24·d</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-24·e</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -13540,7 +13540,7 @@ function wlLogBlock(first, also, vessel, hrs, photos, docs){
   function next(i){
     if(i>=also.length) return finish();
     return apiPost({action:"crewWorkLog", email:ME.email, code:ME.code, vessel:vessel,
-                    title:also[i].job, desc:"", doneOn:day,
+                    title:also[i].job, desc:"", doneOn:day, continueKey:(also[i].key||""),
                     hours:"", status:WLOGSTAT})
       .then(function(r){ if(r&&r.ok) made.push(r); return next(i+1); });
   }
@@ -13883,13 +13883,15 @@ function wlExistLoad(q, boat){
 }
 function wlExistRender(){
   var el=$("wl_exist"); if(!el) return;
-  if(WLCONT){
+  if(WLCONT && !WLADDING){
     el.innerHTML='<div class="atm-ok">&#9989; Logging on the existing job <b>'+esc(WLCONT.title)+'</b>'+(WLCONT.code?(' <span class="jcode">'+esc(WLCONT.code)+'</span>'):'')+
       '<button type="button" class="atm-open" style="background:#64748b" onclick="wlExistClear()">Change</button>'+
       '<div class="atm-sub">Same job, new dated entry \u2014 the hours add to its total.</div></div>';
     return;
   }
-  if(!WLEXIST.length){ el.innerHTML=""; return; }
+  var taken={}; if(WLCONT) taken[WLCONT.key]=1; WLALSO.forEach(function(a){ if(a.key) taken[a.key]=1; });
+  var list=WLEXIST.map(function(m,i){ return { m:m, i:i }; }).filter(function(x){ return !(WLADDING && taken[x.m.key]); });
+  if(!list.length){ el.innerHTML=""; return; }
   /* Same look as Raise a job: the name in bold with the words you typed marked, the code and
      where it stands quiet underneath, one full-width row each, and a way out at the bottom. */
   var q=(($("wl_title")||{}).value||"").trim().toLowerCase().split(/\s+/).filter(function(w){return w.length>1;});
@@ -13899,13 +13901,23 @@ function wlExistRender(){
     return h;
   }
   el.innerHTML='<div class="ahcat rjsugg"><h6>Is it one of these? Tap to log it on that job</h6>'+
-    WLEXIST.map(function(m,i){
+    list.map(function(x){ var m=x.m, i=x.i;
       var tot = m.visits ? (chFmt(m.hours)+' over '+(m.days||m.visits)+' day'+((m.days||m.visits)===1?'':'s')) : 'no hours yet';
-      return '<div class="ahcatrow" onclick="wlExistPick('+i+')"><b>'+hl(m.title)+'</b><span>'+esc(m.code||"")+
+      return '<div class="ahcatrow" onclick="'+(WLADDING?'wlExistPickAlso':'wlExistPick')+'('+i+')"><b>'+hl(m.title)+'</b><span>'+esc(m.code||"")+
         ' \u00b7 '+(m.allocatedTo?esc(m.allocatedTo):'not allocated')+' \u00b7 '+tot+
         (m.list?(' \u00b7 '+esc(m.list)):'')+'</span></div>';
     }).join("")+
-    '<div class="ahcatrow rjnone" onclick="wlExistClear()"><b>&#10133; None of these &mdash; it\u2019s a new job</b></div></div>';
+    (WLADDING?'':'<div class="ahcatrow rjnone" onclick="wlExistClear()"><b>&#10133; None of these &mdash; it\u2019s a new job</b></div>')+'</div>';
+}
+function wlExistPickAlso(i){
+  var m=WLEXIST[i]; if(!m) return;
+  if(WLALSO.some(function(a){ return a.key===m.key; })){ toast("That one's already in"); return; }
+  WLALSO.push({ key:m.key, job:m.title, code:m.code, existing:true });
+  WLADDING=false; WLSUGG=[]; WLEXIST=[];
+  $("wl_title").value=WLFIRST; $("wl_title").placeholder="Start typing \u2014 e.g. rinse, vacuum, teak";
+  if($("wl_sugg")) $("wl_sugg").innerHTML="";
+  wlExistRender(); wlRenderBundle();
+  toast("Added \u2014 it will be logged on that job");
 }
 function wlExistPick(i){
   var m=WLEXIST[i]; if(!m) return;
@@ -13922,9 +13934,9 @@ function wlSuggest(){
   if(WLNUM && !WLADDING && (($("wl_title")||{}).value||"").trim().toLowerCase()!==(WLFIRST||"").toLowerCase()){ WLNUM=0; fjRender("wl","",false); }
   var q=($("wl_title").value||"").trim(), boat=wlVesselNow(), box=$("wl_sugg");
   if(!box) return;
-  if(WLCONT && q.toLowerCase()!==(WLCONT.title||"").toLowerCase()){ WLCONT=null; wlExistRender(); }   // typed over it: no longer that job
+  if(WLCONT && !WLADDING && q.toLowerCase()!==(WLCONT.title||"").toLowerCase()){ WLCONT=null; wlExistRender(); }   // typed over it: no longer that job
   if(q.length<3 || !boat){ WLSUGG=[]; box.innerHTML=""; WLEXIST=[]; wlExistRender(); return; }
-  if(!WLADDING) wlExistLoad(q, boat);
+  wlExistLoad(q, boat);
   _wlSuggT=setTimeout(function(){
     apiGet("fn=tasksuggest&code="+encodeURIComponent(ME.code||"")+
            "&email="+encodeURIComponent(ME.email||"")+
