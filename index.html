@@ -2103,7 +2103,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-24·m</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-24·n</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -3980,6 +3980,7 @@ function chUnsubLoad(){
       var seen={}; CHUNSENT=[]; CHHASHRS={};
       ((j&&j.ok&&j.entries)||[]).forEach(function(e){
         if(e.jobKey) CHHASHRS[e.jobKey]=1;             // this job has hours on it somewhere
+        (e.alsoKeys||[]).forEach(function(k){ if(k) CHHASHRS[k]=1; });   // ...and so does every other job in its block
         if(!e.date || e.pushed==="Yes") return;
         CHUNSENT.push(e);                                      // running ones included — they need stopping
         if(chIsRunning(e)) return;                             // a running timer isn't a day yet
@@ -5303,7 +5304,11 @@ function mhTodoHtml(){
         (run?' \u00b7 still running'
             :(e.start?(' \u00b7 '+esc(e.start)+'\u2013'+esc(e.finish)):' \u00b7 hours only'))+
         (e.alsoTasks?(' \u00b7 \u2021 '+(e.alsoTasks.split("\n").filter(Boolean).length+1)+' jobs in one block'):'')+
-        '</span></div>'+
+        '</span>'+
+        (e.alsoTasks?('<span style="display:block;margin-top:3px;white-space:normal;color:var(--ink,#333)">\u2021 also: '+
+          e.alsoTasks.split("\n").filter(Boolean).map(function(x){ var b=x.split(" \u00b7 "); return esc(b.length>1?b.slice(1).join(" \u00b7 "):x); }).join(' \u00b7 ')+'</span>'):'')+
+        (e.note?('<span style="display:block;margin-top:3px;white-space:normal;font-style:italic">\u201c'+esc(e.note)+'\u201d</span>'):'')+
+        '</div>'+
         '<div class="h">'+(run?'\u2014':chFmt(e.hours))+'</div>'+
         (run?'<span class="chpill open">running</span>'
             :'<button class="ed" onclick="event.stopPropagation();ehOpen(\''+esc(e.entryId)+'\')">\u270e</button>'+
