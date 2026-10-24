@@ -2103,7 +2103,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-24·e</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-24·g</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -13495,6 +13495,7 @@ function wlAddVisit(key){
   WLOGSTAT="In hand"; wlogRenderStat();
 }
 function openWorkLog(){
+  WLEXISTINFO=null;
   $("wl_vessel").innerHTML=vesselOpts(ME.vessels[0]); $("wl_other").style.display="none"; $("wl_other").value="";
   $("wl_title").value=""; $("wl_desc").value=""; $("wl_hours").value="";
   WLALSO=[]; WLADDING=false; WLFIRST=""; if($("wl_sugg")) $("wl_sugg").innerHTML=""; wlRenderBundle();
@@ -13871,13 +13872,13 @@ function wlVesselNow(){
    same job got logged again under another name. As they type, the server is asked whether an
    open job on this boat — anyone's, or nobody's, any month — already matches; only matches come
    back, never the lists. Picking one logs this visit ON that job instead of making a new one. */
-var WLEXIST=[], WLCONT=null, _wlExT=null;
+var WLEXIST=[], WLCONT=null, _wlExT=null, WLEXISTINFO=null;
 function wlExistLoad(q, boat){
   clearTimeout(_wlExT);
   _wlExT=setTimeout(function(){
     apiPost({action:"crewJobMatch", email:ME.email, code:ME.code, vessel:boat, q:q, num:(WLNUM||0)}).then(function(r){
       if((($("wl_title")||{}).value||"").trim()!==q) return;
-      WLEXIST=(r&&r.ok&&r.matches)||[]; wlExistRender();
+      WLEXIST=(r&&r.ok&&r.matches)||[]; WLEXISTINFO=(r&&r.ok)?{ q:q, boat:boat, scanned:r.scanned, open:r.open }:{ q:q, boat:boat, err:(r&&r.error)||'no answer' }; wlExistRender();
     }).catch(function(){});
   }, 250);
 }
@@ -13891,7 +13892,13 @@ function wlExistRender(){
   }
   var taken={}; if(WLCONT) taken[WLCONT.key]=1; WLALSO.forEach(function(a){ if(a.key) taken[a.key]=1; });
   var list=WLEXIST.map(function(m,i){ return { m:m, i:i }; }).filter(function(x){ return !(WLADDING && taken[x.m.key]); });
-  if(!list.length){ el.innerHTML=""; return; }
+  if(!list.length){
+    var inf=WLEXISTINFO;
+    el.innerHTML = (inf && !WLADDING) ? ('<p class="mhint" style="margin:4px 0 8px">'+
+      (inf.err ? ('Couldn\u2019t check existing jobs ('+esc(inf.err)+')')
+               : ('No open job on '+esc(inf.boat)+' matches \u201c'+esc(inf.q)+'\u201d (checked '+(inf.open||0)+' open job'+((inf.open||0)===1?'':'s')+').'))+'</p>') : '';
+    return;
+  }
   /* Same look as Raise a job: the name in bold with the words you typed marked, the code and
      where it stands quiet underneath, one full-width row each, and a way out at the bottom. */
   var q=(($("wl_title")||{}).value||"").trim().toLowerCase().split(/\s+/).filter(function(w){return w.length>1;});
@@ -13904,7 +13911,7 @@ function wlExistRender(){
     list.map(function(x){ var m=x.m, i=x.i;
       var tot = m.visits ? (chFmt(m.hours)+' over '+(m.days||m.visits)+' day'+((m.days||m.visits)===1?'':'s')) : 'no hours yet';
       return '<div class="ahcatrow" onclick="'+(WLADDING?'wlExistPickAlso':'wlExistPick')+'('+i+')"><b>'+hl(m.title)+'</b><span>'+esc(m.code||"")+
-        ' \u00b7 '+(m.allocatedTo?esc(m.allocatedTo):'not allocated')+' \u00b7 '+tot+
+        ' \u00b7 '+(m.allocatedTo?esc(m.allocatedTo):'not allocated')+(/^(requested|noticed)$/i.test(m.status||'')?(' \u00b7 '+esc(m.status)):'')+' \u00b7 '+tot+
         (m.list?(' \u00b7 '+esc(m.list)):'')+'</span></div>';
     }).join("")+
     (WLADDING?'':'<div class="ahcatrow rjnone" onclick="wlExistClear()"><b>&#10133; None of these &mdash; it\u2019s a new job</b></div>')+'</div>';
@@ -13924,7 +13931,7 @@ function wlExistPick(i){
   WLCONT={ key:m.key, title:m.title, code:m.code };
   $("wl_title").value=m.title; WLFIRST=m.title;
   WLEXIST=[]; WLSUGG=[]; if($("wl_sugg")) $("wl_sugg").innerHTML="";
-  wlExistRender();
+  wlExistRender(); wlRenderBundle();      // the "＋ Also did another job in this block" button
   toast("Logging on the existing job");
 }
 function wlExistClear(){ WLCONT=null; WLEXIST=[]; wlExistRender(); }  // a new job after all: nothing is suggested again until they type more
@@ -13935,7 +13942,8 @@ function wlSuggest(){
   var q=($("wl_title").value||"").trim(), boat=wlVesselNow(), box=$("wl_sugg");
   if(!box) return;
   if(WLCONT && !WLADDING && q.toLowerCase()!==(WLCONT.title||"").toLowerCase()){ WLCONT=null; wlExistRender(); }   // typed over it: no longer that job
-  if(q.length<3 || !boat){ WLSUGG=[]; box.innerHTML=""; WLEXIST=[]; wlExistRender(); return; }
+  if(!WLADDING) wlRenderBundle();     // the "＋ Also did another job" button is there as soon as there is a job to bundle with
+  if(q.length<3 || !boat){ WLSUGG=[]; box.innerHTML=""; WLEXIST=[]; WLEXISTINFO=null; wlExistRender(); return; }
   wlExistLoad(q, boat);
   _wlSuggT=setTimeout(function(){
     apiGet("fn=tasksuggest&code="+encodeURIComponent(ME.code||"")+
