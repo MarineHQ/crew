@@ -2103,7 +2103,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-24·l</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-24·m</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2927,6 +2927,14 @@ button:active{ filter: brightness(.93); }
   <div id="fj_forjob"></div>
   <button class="go" onclick="fjSave()">✓ Save</button>
   <button class="cancel" onclick="closeModal('forJobModal')">Cancel</button>
+</div></div>
+
+<div class="modal" id="blockKindModal"><div class="card2">
+  <h3>One kind per block</h3>
+  <p class="mhint" id="bk_hint"></p>
+  <div class="assignrow" id="bk_tog"></div>
+  <button class="go" onclick="wlBlockKindGo()">\u2713 Mark the block and log it</button>
+  <button class="cancel" onclick="closeModal('blockKindModal')">Cancel \u2014 don\u2019t log yet</button>
 </div></div>
 
 <div class="modal" id="mergeJobModal"><div class="card2">
@@ -13602,6 +13610,20 @@ function catAlias(title, desc){
   }
   return { title:title, desc:desc };
 }
+/* One kind per block: a Scheduled / Unscheduled toggle instead of two yes/no questions. */
+var BKKIND="unscheduled", BKCB=null;
+function wlBlockKindAsk(names, cb){
+  BKCB=cb; BKKIND="unscheduled";
+  $("bk_hint").innerHTML="You can\u2019t mix kinds in one block:<br><b>"+names.map(esc).join("<br>")+"</b><br><br>Which kind is this whole block?";
+  wlBlockKindPaint();
+  $("blockKindModal").classList.add("show");
+}
+function wlBlockKindPaint(){
+  $("bk_tog").innerHTML=[["unscheduled","Unscheduled"],["scheduled","Scheduled"]].map(function(k){
+    return '<button type="button" class="aopt'+(k[0]===BKKIND?' on':'')+'" onclick="BKKIND=\''+k[0]+'\';wlBlockKindPaint()">'+k[1]+'</button>';
+  }).join("");
+}
+function wlBlockKindGo(){ var cb=BKCB; BKCB=null; closeModal("blockKindModal"); if(cb) cb(BKKIND); }
 function submitWorkLog(startTimer){
   /* The block's first job, whether it is in the box or only remembered — the box
      is borrowed by the picker while extra jobs are being added. */
@@ -13635,9 +13657,7 @@ function submitWorkLog(startTimer){
          that is new from the catalogue can't be changed from here. */
       var ks=Object.keys(kinds).sort().join(",");
       if(ks==="scheduled,unscheduled"){
-        var kind = confirm("You can\u2019t mix kinds in one block:\n\n"+names.join("\n")+"\n\nMark the WHOLE block UNSCHEDULED?\n\nOK = Unscheduled\nCancel = more choices") ? "unscheduled"
-                 : (confirm("Mark the WHOLE block SCHEDULED instead?\n\nOK = Scheduled\nCancel = don\u2019t log yet") ? "scheduled" : "");
-        if(kind){
+        wlBlockKindAsk(names, function(kind){
           var Kind = kind==="scheduled" ? "Scheduled" : "Unscheduled";
           var jobs = also.filter(function(a){ return ahCatKey(a.category)!==kind; });
           if(firstCat && ahCatKey(firstCat)!==kind){
@@ -13650,11 +13670,11 @@ function submitWorkLog(startTimer){
             chain=chain.then(function(ok){
               if(!ok) return false;
               return apiPost({action:"crewJobCategory", email:ME.email, code:ME.code, jobKey:a.key, category:Kind, forBlock:true})
-                .then(function(r){ if(r&&r.ok){ if(a.cat!==undefined || a===WLCONT) a.cat=Kind; a.category=Kind; return true; } toast((r&&r.error)||"Couldn\u2019t change it"); return false; });
+                .then(function(r){ if(r&&r.ok){ a.cat=Kind; a.category=Kind; return true; } toast((r&&r.error)||"Couldn\u2019t change it"); return false; });
             });
           });
           chain.then(function(ok){ if(ok) submitWorkLog(startTimer); }).catch(function(){ toast("Couldn\u2019t connect"); });
-        }
+        });
         return;
       }
       alert("These can\u2019t share one block of hours:\n\n"+names.join("\n")+"\n\nA job card splits those apart. Log the different kinds separately, with their own hours. Nothing has been saved.");
