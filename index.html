@@ -2103,7 +2103,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-24·i</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-24·j</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -13541,6 +13541,7 @@ function wlLogBlock(first, also, vessel, hrs, photos, docs){
      felt broken (Trish, 12 Sep 2026). The first job is already saved by the time
      we get here, so the screen closes now and the rest finishes behind it. */
   var day = $("wl_done").value||"";
+  var blockNote = ($("wl_desc").value||"").trim();    // their words ride on the block's hours entry, so they print under that day on the card
   var n = also.length + 1;
   closeModal("workLogModal");
   toast("Logging " + n + " jobs\u2026");
@@ -13562,7 +13563,7 @@ function wlLogBlock(first, also, vessel, hrs, photos, docs){
   }
   function finish(){
     return apiPost({action:"crewHoursLog", email:ME.email, code:ME.code,
-                    date:day, jobKey:first.key, hours:hrs,
+                    date:day, jobKey:first.key, hours:hrs, note:blockNote,
                     also:made.map(function(m){ return { jobKey:m.key }; })})
       .then(function(h){
         if(h&&h.ok) toast("\u2713 "+n+" jobs logged \u00b7 "+chFmt(parseFloat(hrs)||0)+" across the block");
