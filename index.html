@@ -2103,7 +2103,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-24·p</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-29·sd</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -3072,6 +3072,8 @@ button:active{ filter: brightness(.93); }
     <label class="fld" style="margin-top:6px">Engine &amp; genset hours &mdash; start / finish</label>
     <div id="tl_meters"></div>
     <select class="fld-in" id="tl_addsel" onchange="tripAddMeter(this,&#39;tl&#39;)" style="border-style:dashed"></select>
+    <label class="fld" style="margin-top:12px">Stand-down checklist <span class="fldhint">(securing her at the berth)</span></label>
+    <button type="button" class="prebtn" id="tl_sdbtn" onclick="preOpen(null,false,'sd')"></button>
     <label class="fld" style="margin-top:12px">Equipment &amp; vessel status</label>
     <div style="font-size:12px;font-weight:bold;color:var(--navy);margin-bottom:3px">240 V system</div>
     <div class="tgl" data-k="v240"><button type="button" data-v="Good" onclick="tglSet(this)">Good</button><button type="button" data-v="Issue" class="bad" onclick="tglSet(this)">Issue</button></div>
@@ -3133,7 +3135,7 @@ button:active{ filter: brightness(.93); }
 
 <!-- Pre-departure checklist -->
 <div class="modal" id="preModal"><div class="card2">
-  <h3>Pre-departure vessel check</h3>
+  <h3 id="pre_h3">Pre-departure vessel check</h3>
   <p class="mhint" id="pre_hint">Tap Pass, Fail or N/A on each line. Anything marked Fail is listed as a defect.</p>
   <div id="pre_body"></div>
   <button class="go" id="pre_save" onclick="preSave()">Save checklist</button>
@@ -14791,6 +14793,9 @@ function tripExtrasHtml(t){
   if(d.pre){ var c=preCounts(d.pre);
     h+='<button type="button" class="prebtn'+(c.answered>=PRE_TOTAL&&!c.fails?" ok":"")+'" onclick="preOpen(tripFindByKey(TD_KEY).details.pre,true)">'+(c.answered>=PRE_TOTAL&&d.pre.sig?"&#9989; Pre-departure checklist signed off":c.answered>=PRE_TOTAL?"&#9680; Pre-departure checklist checked, not signed":"&#9680; Pre-departure checklist "+c.answered+" of "+PRE_TOTAL)+(d.pre.by?" by "+esc(d.pre.by):"")+(c.fails?" &mdash; "+c.fails+" fail"+(c.fails>1?"s":""):"")+" &middot; tap to view</button>";
   } else h+='<p class="mhint">Pre-departure checklist: not recorded.</p>';
+  if(d.sd){ var s2=preCounts(d.sd);
+    h+='<button type="button" class="prebtn'+(s2.answered>=SD_TOTAL&&!s2.fails?" ok":"")+'" onclick="preOpen(tripFindByKey(TD_KEY).details.sd,true,\'sd\')">'+(s2.answered>=SD_TOTAL&&d.sd.sig?"&#9989; Stand-down checklist signed off":s2.answered>=SD_TOTAL?"&#9680; Stand-down checklist checked, not signed":"&#9680; Stand-down checklist "+s2.answered+" of "+SD_TOTAL)+(d.sd.by?" by "+esc(d.sd.by):"")+(s2.fails?" &mdash; "+s2.fails+" fail"+(s2.fails>1?"s":""):"")+" &middot; tap to view</button>";
+  } else if(t.status!=="Underway") h+='<p class="mhint">Stand-down checklist: not recorded.</p>';
   return h;
 }
 function openTripDetail(key){
@@ -14907,25 +14912,27 @@ function tripReportHtml(t,withCheck){
   if((notes||"").trim()) h+='<h2>Notes</h2><div style="margin:0 16px">'+esc(notes).replace(/\n/g,"<br>")+'</div>';
   (d.startFlags||[]).forEach(function(f){ h+='<div style="margin:8px 16px;color:#A34E0E">&#9888; '+esc(f)+'</div>'; });
   if(withCheck){
-    h+='<h2>Pre-departure vessel check</h2>';
-    if(!d.pre){ h+='<div style="margin:0 16px">No pre-departure checklist was recorded for this trip.</div>'; }
-    else{
-      var n=0, c=preCounts(d.pre);
-      h+='<div style="margin:0 16px 6px">'+c.answered+' of '+PRE_TOTAL+' items checked'+(c.fails?' &middot; <b style="color:#A34E0E">'+c.fails+' fail'+(c.fails>1?'s':'')+'</b>':' &middot; no fails')+'</div>';
-      PRE_SECTIONS.forEach(function(sec){
-        h+='<table style="margin-top:8px"><tr><th>'+esc(sec[0])+'</th><th style="width:60px">Result</th></tr>';
-        sec[1].forEach(function(it){ var st=(d.pre.items||[])[n++]||""; h+='<tr'+(st==="Fail"?' class="fail"':'')+'><td>'+esc(it)+'</td><td>'+esc(st||"&mdash;")+'</td></tr>'; });
-        h+='</table>';
-      });
-      h+='<h2>Defects &amp; actions</h2><div style="margin:0 16px">'+(d.pre.defects?esc(d.pre.defects).replace(/\n/g,"<br>"):"None recorded")+'</div>'+
-        '<h2>Sign-off</h2><table>'+rpRow("Signed by",esc(d.pre.by||""))+
-        rpRow("Date",esc(rpDate(d.pre.date||t.departed)))+'</table>'+
-        (d.pre.sig?'<img class="sg" src="'+d.pre.sig+'" alt="signature" style="display:block;margin:8px 16px;height:80px;border:1px solid #dfe5ec;background:#fff">':'<div style="margin:8px 16px;color:#A34E0E">Not signed.</div>');
-    }
+    h+=rpCheck("Pre-departure vessel check","pre-departure",d.pre,PRE_SECTIONS,PRE_TOTAL,t.departed);
+    if(d.sd||t.status!=="Underway") h+=rpCheck("Stand-down vessel check","stand-down",d.sd,SD_SECTIONS,SD_TOTAL,t.arrived);
   }
   h+='<div style="margin:18px 16px 6px;color:#8795a5;font-size:10.5px">Generated '+esc(new Date().toLocaleString("en-AU",{day:"numeric",month:"short",year:"numeric",hour:"numeric",minute:"2-digit"}))+' &middot; Marine HQ</div>'+
     '<img class="bn" src="footer-banner.jpg" alt="Marine HQ" style="margin-top:6px"></div>';
   return h;
+}
+function rpCheck(title,what,ck,secs,tot,dflt){
+  var h='<h2>'+title+'</h2>';
+  if(!ck) return h+'<div style="margin:0 16px">No '+what+' checklist was recorded for this trip.</div>';
+  var n=0, c=preCounts(ck);
+  h+='<div style="margin:0 16px 6px">'+c.answered+' of '+tot+' items checked'+(c.fails?' &middot; <b style="color:#A34E0E">'+c.fails+' fail'+(c.fails>1?'s':'')+'</b>':' &middot; no fails')+'</div>';
+  secs.forEach(function(sec){
+    h+='<table style="margin-top:8px"><tr><th>'+esc(sec[0])+'</th><th style="width:60px">Result</th></tr>';
+    sec[1].forEach(function(it){ var st=(ck.items||[])[n++]||""; h+='<tr'+(st==="Fail"?' class="fail"':'')+'><td>'+esc(it)+'</td><td>'+esc(st||"&mdash;")+'</td></tr>'; });
+    h+='</table>';
+  });
+  return h+'<h2>Defects &amp; actions</h2><div style="margin:0 16px">'+(ck.defects?esc(ck.defects).replace(/\n/g,"<br>"):"None recorded")+'</div>'+
+    '<h2>Sign-off</h2><table>'+rpRow("Signed by",esc(ck.by||""))+
+    rpRow("Date",esc(rpDate(ck.date||dflt)))+'</table>'+
+    (ck.sig?'<img class="sg" src="'+ck.sig+'" alt="signature" style="display:block;margin:8px 16px;height:80px;border:1px solid #dfe5ec;background:#fff">':'<div style="margin:8px 16px;color:#A34E0E">Not signed.</div>');
 }
 var RP_TITLE="";
 function tripReportOpen(withCheck){
@@ -14955,7 +14962,17 @@ var PRE_SECTIONS=[
  ["6  Deck & Securing",["Anchor and ground tackle ready","Lines and fenders aboard","Tender/toys secured","Hatches and ports secured","Loose gear stowed below and on deck"]]
 ];
 var PRE_TOTAL=PRE_SECTIONS.reduce(function(n,s){return n+s[1].length;},0);
+var SD_SECTIONS=[
+ ["1  Secure & Shut Down",["Made fast \u2014 bow, stern and springs, fenders set","Engines cooled at idle, then shut down \u2014 no alarms","Generator(s) shut down once shore power is on","Stabilisers / gyro spun down","Thrusters and joystick off","Electronics, radar and VHF off (ZipWake stays ON)"]],
+ ["2  Systems",["Shore power connected, charger on","Air conditioning set or off as agreed","Fridges and freezers running","Watermaker shut down and flushed","Fuel transfer / polishing off","Fresh-water pump off if unattended","Holding tank pumped out if due"]],
+ ["3  Tender & Deck",["Tender recovered and secured, fuel off","Swim platform raised and locked","Passerelle / boarding ladder stowed","Fresh-water wash down and dried","Covers on, hardtop / sunroof closed","Lines coiled, loose gear stowed"]],
+ ["4  Safety & Security",["Non-essential seacocks closed","Bilges dry, bilge pumps on AUTO","Fire suppression armed","Hatches, doors and windows locked","Keys returned to the agreed place"]]
+];
+var SD_TOTAL=SD_SECTIONS.reduce(function(n,s){return n+s[1].length;},0);
 var TLPRE=null, TLPREDIRTY=false, PRE_WORK=null, PRE_RO=false;
+var TLSD=null, TLSDDIRTY=false, PRE_MODE="pre";
+function ckSecs(m){ return (m||PRE_MODE)==="sd"?SD_SECTIONS:PRE_SECTIONS; }
+function ckTotal(m){ return (m||PRE_MODE)==="sd"?SD_TOTAL:PRE_TOTAL; }
 function tglSet(b){
   if(b.parentNode.getAttribute("data-locked")) return;
   var on=b.classList.contains("on");
@@ -14979,29 +14996,34 @@ function tlHoursStart(){
 }
 function tlEquip(){ var v=tglGet("v240"); return {v240:v, v240note:v==="Issue"?($("tl_v240note").value||"").trim():"", shore:tglGet("shore"), desal:tglGet("desal"), note:($("tl_equip").value||"").trim()}; }
 function tlDetails(full){
-  if(!full){ var d={equip:tlEquip(), bunkering:bunkList()}; if(TLPREDIRTY&&TLPRE) d.pre=TLPRE; return d; }
+  if(!full){ var d={equip:tlEquip(), bunkering:bunkList()}; if(TLPREDIRTY&&TLPRE) d.pre=TLPRE; if(TLSDDIRTY&&TLSD) d.sd=TLSD; return d; }
   var d2={use:$("tl_use").value, crew:tlNum("tl_crew"), guests:tlNum("tl_guests"), paxDesc:($("tl_pobd").value||"").trim(),
           safety:tglGet("safety"), weather:($("tl_weather").value||"").trim(), equip:tlEquip(), hrsStart:tlHoursStart(), bunkering:bunkList()};
   if(TLPRE) d2.pre=TLPRE;
+  if(TLSD) d2.sd=TLSD;
   return d2;
 }
 function preCounts(st){
   var a=0,f=0; (st.items||[]).forEach(function(x){ if(x){a++; if(x==="Fail")f++;} }); return {answered:a,fails:f};
 }
-function tlPreStatus(){
-  var b=$("tl_prebtn"), c=TLPRE?preCounts(TLPRE):{answered:0,fails:0};
-  if(TLPRE && c.answered>=PRE_TOTAL && !TLPRE.sig){
+function tlPreStatus(){ tlCkStatus($("tl_prebtn"),TLPRE,PRE_TOTAL); tlCkStatus($("tl_sdbtn"),TLSD,SD_TOTAL); }
+function tlCkStatus(b,st,tot){
+  var c=st?preCounts(st):{answered:0,fails:0};
+  if(st && c.answered>=tot && !st.sig){
     b.className="prebtn"; b.innerHTML="&#9680; All checked &mdash; <b>tap to sign off</b>";
-  } else if(TLPRE && c.answered>=PRE_TOTAL){
+  } else if(st && c.answered>=tot){
     b.className="prebtn ok";
-    b.innerHTML="&#9989; Done &amp; signed"+(TLPRE.by?" by "+esc(TLPRE.by):"")+" &mdash; "+(c.fails?('<span style="color:#C0392B">'+c.fails+' fail'+(c.fails>1?"s":"")+'</span>'):"all clear")+" &middot; tap to view";
-  } else if(TLPRE && c.answered>0){
-    b.className="prebtn"; b.innerHTML="&#9680; "+c.answered+" of "+PRE_TOTAL+" checked &mdash; tap to continue";
+    b.innerHTML="&#9989; Done &amp; signed"+(st.by?" by "+esc(st.by):"")+" &mdash; "+(c.fails?('<span style="color:#C0392B">'+c.fails+' fail'+(c.fails>1?"s":"")+'</span>'):"all clear")+" &middot; tap to view";
+  } else if(st && c.answered>0){
+    b.className="prebtn"; b.innerHTML="&#9680; "+c.answered+" of "+tot+" checked &mdash; tap to continue";
   } else { b.className="prebtn"; b.innerHTML="&#9744; Not done yet &mdash; tap to do the checklist"; }
 }
-function preOpen(stateOverride,ro){
-  PRE_RO=!!ro;
-  var src=stateOverride||TLPRE||{items:[],defects:"",by:"",at:""};
+function preOpen(stateOverride,ro,mode){
+  PRE_RO=!!ro; PRE_MODE=mode||"pre";
+  var sd=PRE_MODE==="sd";
+  $("pre_h3").textContent=sd?"Stand-down vessel check":"Pre-departure vessel check";
+  $("pre_hint").innerHTML="Tap Pass, Fail or N/A on each line. Anything marked Fail is listed as a defect."+(sd?" Engine &amp; genset hours go in the trip form.":"");
+  var src=stateOverride||(sd?TLSD:TLPRE)||{items:[],defects:"",by:"",at:""};
   PRE_WORK={items:(src.items||[]).slice(), defects:src.defects||"", by:src.by||ME.name||"", at:src.at||"", date:src.date||"", sig:src.sig||""};
   preRender();
   $("pre_save").style.display=PRE_RO?"none":"";
@@ -15011,7 +15033,7 @@ function preRender(){
   var n=0, h="";
   h+='<div class="hmeta" id="pre_count" style="margin-bottom:6px"></div>';
   if(!PRE_RO) h+='<button type="button" class="cancel" style="border:1px solid var(--line);margin:0 0 6px;color:var(--navy);font-weight:700" onclick="preAllPass()">Mark every line Pass</button>';
-  PRE_SECTIONS.forEach(function(sec){
+  ckSecs().forEach(function(sec){
     h+='<div class="psec">'+esc(sec[0])+'</div>';
     sec[1].forEach(function(it){
       var i=n++, st=PRE_WORK.items[i]||"";
@@ -15025,7 +15047,8 @@ function preRender(){
   if(PRE_WORK.sig){
     h+='<img src="'+PRE_WORK.sig+'" alt="signature" style="display:block;max-width:100%;height:90px;object-fit:contain;border:1px solid var(--line);border-radius:10px;background:#fff">'+
        (PRE_RO?'':'<button type="button" class="cancel" style="margin:4px 0 0" onclick="PRE_WORK.sig=\'\';PRE_WORK.defects=$(\'pre_defects\').value;PRE_WORK.by=$(\'pre_by\').value;preRender()">Sign again</button>');
-    var pdt=PRE_WORK.date||(PRE_RO?((TD_KEY&&tripFindByKey(TD_KEY))?tripFindByKey(TD_KEY).departed:""):($("tl_ddate").value||"")); if(pdt) h+='<div class="hmeta" style="margin-top:4px">Checks dated '+esc(rpDate(pdt))+'</div>';
+    var sdm=PRE_MODE==="sd", tdt=(TD_KEY&&tripFindByKey(TD_KEY))||null;
+    var pdt=PRE_WORK.date||(PRE_RO?(tdt?(sdm?tdt.arrived:tdt.departed):""):($(sdm?"tl_adate":"tl_ddate").value||"")); if(pdt) h+='<div class="hmeta" style="margin-top:4px">Checks dated '+esc(rpDate(pdt))+'</div>';
   } else if(!PRE_RO){
     h+='<p class="mhint" style="margin:0 0 6px">I confirm the checks above were carried out. Sign with your finger:</p>'+
        '<canvas class="sigpad" id="presig" style="height:140px"></canvas>'+
@@ -15054,7 +15077,7 @@ function preSigData(){
   x.fillStyle="#fff"; x.fillRect(0,0,360,120); x.drawImage(c,0,0,360,120);
   var d=t.toDataURL("image/jpeg",0.6); if(d.length>16000) d=t.toDataURL("image/jpeg",0.4); return d;
 }
-function preCount(){ var c=preCounts(PRE_WORK); $("pre_count").innerHTML="<b>"+c.answered+" of "+PRE_TOTAL+"</b> checked"+(c.fails?(' &middot; <span style="color:#C0392B"><b>'+c.fails+' fail'+(c.fails>1?"s":"")+'</b></span>'):""); }
+function preCount(){ var c=preCounts(PRE_WORK); $("pre_count").innerHTML="<b>"+c.answered+" of "+ckTotal()+"</b> checked"+(c.fails?(' &middot; <span style="color:#C0392B"><b>'+c.fails+' fail'+(c.fails>1?"s":"")+'</b></span>'):""); }
 function preSet(i,v){
   if(PRE_RO) return;
   PRE_WORK.items[i]=(PRE_WORK.items[i]===v)?"":v;
@@ -15062,16 +15085,18 @@ function preSet(i,v){
   [].forEach.call(row.children,function(b){ b.classList.toggle("on",b.textContent===PRE_WORK.items[i]); });
   preCount();
 }
-function preAllPass(){ for(var i=0;i<PRE_TOTAL;i++) if(!PRE_WORK.items[i]) PRE_WORK.items[i]="Pass"; var d=$("pre_defects").value, b=$("pre_by").value; preRender(); $("pre_defects").value=d; $("pre_by").value=b; }
+function preAllPass(){ for(var i=0;i<ckTotal();i++) if(!PRE_WORK.items[i]) PRE_WORK.items[i]="Pass"; var d=$("pre_defects").value, b=$("pre_by").value; preRender(); $("pre_defects").value=d; $("pre_by").value=b; }
 function preSave(){
-  var items=[]; for(var i=0;i<PRE_TOTAL;i++) items.push(PRE_WORK.items[i]||"");
+  var tot=ckTotal(), sd=PRE_MODE==="sd";
+  var items=[]; for(var i=0;i<tot;i++) items.push(PRE_WORK.items[i]||"");
   var c0=preCounts({items:items}), sig=PRE_WORK.sig||preSigData();
   var name=($("pre_by").value||"").trim();
-  if(c0.answered>=PRE_TOTAL && !name){ toast("Type your name above the signature"); return; }
-  if(c0.answered>=PRE_TOTAL && !sig){ toast("Sign in the box to sign off the checklist"); return; }
-  TLPRE={items:items, defects:($("pre_defects").value||"").trim(), by:name||ME.name||"", at:new Date().toISOString(), date:($("tl_ddate").value||""), sig:sig};
-  TLPREDIRTY=true; tlPreStatus(); closeModal("preModal");
-  toast(c0.answered>=PRE_TOTAL?"\u2713 Checklist signed off":"Checklist saved \u2014 "+c0.answered+" of "+PRE_TOTAL+" done, not signed yet");
+  if(c0.answered>=tot && !name){ toast("Type your name above the signature"); return; }
+  if(c0.answered>=tot && !sig){ toast("Sign in the box to sign off the checklist"); return; }
+  var rec={items:items, defects:($("pre_defects").value||"").trim(), by:name||ME.name||"", at:new Date().toISOString(), date:($(sd?"tl_adate":"tl_ddate").value||""), sig:sig};
+  if(sd){ TLSD=rec; TLSDDIRTY=true; } else { TLPRE=rec; TLPREDIRTY=true; }
+  tlPreStatus(); closeModal("preModal");
+  toast(c0.answered>=tot?"\u2713 Checklist signed off":"Checklist saved \u2014 "+c0.answered+" of "+tot+" done, not signed yet");
 }
 function tlUnits(){
   var known=((HOURS&&HOURS.units)||[]).map(function(u){return u.unit;});
@@ -15108,7 +15133,7 @@ function openTripLog(key){
   $("tl_adate").value=new Date().toISOString().slice(0,10);
   $("tl_meters").innerHTML="";
   TPF.tl=[]; $("tl_pfiles").textContent="";
-  TLPRE=null; TLPREDIRTY=false;
+  TLPRE=null; TLPREDIRTY=false; TLSD=null; TLSDDIRTY=false;
   $("tl_form").style.display=""; $("tl_result").innerHTML=""; $("tl_result").style.display="none";
   $("tl_save").disabled=false; $("tl_later").disabled=false;
   var t=key?tripFindByKey(key):null;
@@ -15121,7 +15146,7 @@ function openTripLog(key){
     $("tl_use").value=d.use||""; $("tl_crew").value=d.crew||""; $("tl_guests").value=d.guests||""; $("tl_pobd").value=d.paxDesc||(d.crew||d.guests?"":(t.pob||""));
     tglPut("safety",d.safety||""); $("tl_weather").value=d.weather||"";
     var e=d.equip||{}; tglPut("v240",e.v240||""); tglPut("shore",e.shore||""); tglPut("desal",e.desal||""); $("tl_equip").value=e.note||""; $("tl_v240note").value=e.v240note||""; tlIssueSync();
-    TLPRE=d.pre||null;
+    TLPRE=d.pre||null; TLSD=d.sd||null;
     (d.bunkering||[]).forEach(function(b){ var pre=b.stage==="departure"?"tl1":b.stage==="arrival"?"tl2":"tlm"; bunkAdd(pre,b.litres,b.where,b.stage==="departure"); });
     var hs=d.hrsStart||{}; Object.keys(hs).forEach(function(u){ $("tl_meters").insertAdjacentHTML("beforeend",tripMeterRowHtml(u,"tl",hs[u],true)); });
     tlLock(true);
