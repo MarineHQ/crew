@@ -2103,7 +2103,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-10-29·sd</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-11-02·cl</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -12309,6 +12309,16 @@ function renderChecklists(){
 }
 function openChecklistForm(id){
   var c=CHECKLISTS_REAL.filter(function(x){return x.id===id;})[0]; if(!c)return;
+  // Long sign-off forms open in the browser, not in the frame below. Inside the
+  // app, anything that reloads it (the update check when the phone comes back,
+  // iOS reclaiming memory) wipes a half-filled form — Bruce lost a whole
+  // pre-departure that way. A browser tab survives the app reloading.
+  if(/jotform\.com/i.test(c.link||"")){
+    var w=window.open(c.link,"_blank","noopener");
+    if(!w) location.href=c.link;
+    else toast("Opened in your browser — tap Submit there, then come back");
+    return;
+  }
   $("formTitle").textContent=c.title;
   $("formSub").textContent=(c.vessel && c.vessel!=="All" ? (c.vessel+" · ") : "")+(c.notes||"");
   // fallback bar — if the form can't load inside the app (poor signal / blocked
