@@ -2103,7 +2103,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-11-02·cl</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-11-03·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2313,6 +2313,17 @@ button:active{ filter: brightness(.93); }
 <!-- Fixing a logged time. Forgetting to stop is the ordinary case, not the
      exception, so correcting it has to be a proper form rather than a stack of
      prompt boxes. -->
+<!-- A VESSEL MOVEMENT SAYS WHY (Trish, 3 Nov 2026) — asked by whyAsk() when the
+     server answers needWhy. Above the other sheets, since it can open from one. -->
+<div class="modal" id="whyModal" style="z-index:75"><div class="card2">
+  <h3>Why was she moved?</h3>
+  <p class="mhint">This decides where the hours go on the job card.</p>
+  <button class="go" onclick="whyPick('Charter')">Charter</button>
+  <button class="go" onclick="whyPick('Scheduled')">Scheduled maintenance</button>
+  <button class="go" onclick="whyPick('Unscheduled')">Repair (unscheduled)</button>
+  <button class="go" onclick="whyPick('Upgrade')">Upgrade</button>
+  <button class="cancel" onclick="whyPick('')">Cancel</button>
+</div></div>
 <div class="modal" id="editHoursModal"><div class="card2">
   <h3>Fix this entry</h3>
   <p class="mhint" id="ehWhat">—</p>
@@ -2340,6 +2351,15 @@ button:active{ filter: brightness(.93); }
            id="ehHours" placeholder="e.g. 4" oninput="ehCalc()">
   </div>
   <div class="ehcalc" id="ehCalc">—</div>
+  <div id="ehWhyRow" style="display:none">
+    <label class="fld">Why was she moved?</label>
+    <select class="fld-in" id="ehWhy">
+      <option value="Charter">Charter</option>
+      <option value="Scheduled">Scheduled maintenance</option>
+      <option value="Unscheduled">Repair (unscheduled)</option>
+      <option value="Upgrade">Upgrade</option>
+    </select>
+  </div>
   <label class="fld">Note <span class="fldhint">(optional)</span></label>
   <input class="fld-in" id="ehNote" placeholder="e.g. port side only">
   <label class="fld">Photos <span class="fldhint">(optional \u2014 they go on the job)</span></label>
@@ -3353,7 +3373,25 @@ function apiGet(params){
 function apiPost(body){
   _apiWrote(); _apiBar(true);
   return fetch(API, {method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body:JSON.stringify(body)}).then(function(r){return r.json();})
-    .then(function(d){ _apiWrote(); _apiBar(false); return d; }, function(e){ _apiBar(false); throw e; });
+    .then(function(d){ _apiWrote(); _apiBar(false);
+      /* A vessel movement has to say why (Trish, 3 Nov 2026). The server knows which
+         jobs are movements; when it asks, ask the person and send the same thing again. */
+      if(d && d.needWhy && body && !body.why){
+        return whyAsk().then(function(w){
+          if(!w) return { ok:false, error:"Not saved — choose why she was moved" };
+          var b2={}; for(var k in body) b2[k]=body[k]; b2.why=w;
+          return apiPost(b2);
+        });
+      }
+      return d; }, function(e){ _apiBar(false); throw e; });
+}
+var WHYRES=null;
+function whyAsk(){
+  return new Promise(function(res){ WHYRES=res; $("whyModal").classList.add("show"); });
+}
+function whyPick(w){
+  $("whyModal").classList.remove("show");
+  var r=WHYRES; WHYRES=null; if(r) r(w);
 }
 /* Fresh data landed for the screen you're on — redraw it. List screens only:
    a form (Induction, Profile, Engine & parts) is never redrawn under someone,
@@ -4315,6 +4353,11 @@ function ehOpen(entryId){
                code:(bit.length>1 ? bit[0] : ""), vessel:e.vessel||"", cat:e.category||"" };
     });
   $("ehDate").value = e.date || "";
+  // a movement shows its reason, changeable here (MoveWhy.gs)
+  EHWHY = e.move ? (/^unsched/i.test(e.category||"") ? "Unscheduled" : /^sched/i.test(e.category||"") ? "Scheduled"
+                   : /upgrade/i.test(e.category||"") ? "Upgrade" : /charter/i.test(e.category||"") ? "Charter" : "") : null;
+  $("ehWhyRow").style.display = e.move ? "" : "none";
+  if(e.move) $("ehWhy").value = EHWHY || "Scheduled";
   $("ehStart").value=e.start||""; $("ehFinish").value=e.finish||"";
   $("ehBreak").value=String(e.breakMins||0); $("ehNote").value=e.note||"";
   /* Always prefilled, not only when the entry had no times. Switching a timed
@@ -4326,7 +4369,7 @@ function ehOpen(entryId){
   ehCalc();
   $("editHoursModal").classList.add("show");
 }
-var EHID=null;
+var EHID=null, EHWHY=null;
 function ehMins(v){ var m=/^(\d{1,2}):(\d{2})$/.exec((v||"").trim()); return m?((+m[1])*60+(+m[2])):-1; }
 function ehCalc(){
   var el0=$("ehCalc"); if(!el0) return;
@@ -4350,6 +4393,7 @@ function ehSave(){
   var body={ action:"crewHoursEdit", email:ME.email, code:ME.code, entryId:EHID,
              date:($("ehDate").value||""), note:$("ehNote").value,
              also:EHALSO.map(function(a){ return { jobKey:a.key, task:a.task, jobCode:a.code, cat:a.cat }; }) };
+  if(EHWHY!==null && $("ehWhy").value!==EHWHY) body.why=$("ehWhy").value;
   if(EHHOURSONLY){
     var hv=Math.round((parseFloat(($("ehHours")||{}).value)||0)*2)/2;
     if(!(hv>0)){ toast("How many hours?"); return; }
