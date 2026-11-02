@@ -161,6 +161,11 @@
   font-weight:700;padding:7px 13px;border-radius:20px;cursor:pointer;font-family:inherit}
 .hchips.sub .hchip{font-size:11.5px;padding:5px 11px}
 .hchip.on{background:#1A2B5C;color:#fff;border-color:#1A2B5C}
+.hrange{font-size:13px;font-weight:700;color:#1A2B5C;margin:-2px 0 12px}
+.hrangeinline{font-size:12px;font-weight:600;color:var(--muted);margin-left:6px}
+.hcustom{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 8px}
+.hcustom label{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.hcustom input{border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:13px;background:#fff}
 .totrow{display:flex;gap:10px;flex-wrap:wrap;margin:2px 0 10px}
 .tot{flex:1;min-width:96px;background:#eef3fa;border:1px solid #d8e2f0;border-radius:11px;padding:11px 13px}
 .tot.alt{background:#fff}
@@ -286,21 +291,48 @@ function go(t){TAB=t;["now","shifts","jobs","crew","who","hours","certs"].forEac
    it go. Everything comes from the one ledger, so these can't disagree. */
 function hoursMonth(){ var d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"); }
 function hDay(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
-var HPERIOD="month", HVESSEL="", HCREW="";
+var HPERIOD="month", HVESSEL="", HCREW="", HFROM="", HTO="";
 /* Week runs Monday to Sunday — the way a roster reads, not the way JS numbers days. */
 function hoursQuery(){
-  var q=[], now=new Date();
-  if(HPERIOD==="today"){ q.push("from="+hDay(now),"to="+hDay(now)); }
-  else if(HPERIOD==="week"){
-    var dow=(now.getDay()+6)%7, mon=new Date(now); mon.setDate(now.getDate()-dow);
-    var sun=new Date(mon); sun.setDate(mon.getDate()+6);
-    q.push("from="+hDay(mon),"to="+hDay(sun));
-  } else { q.push("month="+hoursMonth()); }
+  var q=[], r=hRange();
+  if(HPERIOD==="month"){ q.push("month="+hoursMonth()); }
+  else { q.push("from="+r.from,"to="+r.to); }
   if(HVESSEL) q.push("vessel="+encodeURIComponent(HVESSEL));
   if(HCREW)   q.push("crew="+encodeURIComponent(HCREW));
   return q.join("&");
 }
-function hSet(k,v){ if(k==="p")HPERIOD=v; if(k==="v")HVESSEL=v; if(k==="c")HCREW=v; loadAll(); }
+/* The dates the screen is showing, as ISO strings — so the label and the query can never disagree. */
+function hRange(){
+  var now=new Date(), dow=(now.getDay()+6)%7, f, t;
+  if(HPERIOD==="today"){ f=t=new Date(now); }
+  else if(HPERIOD==="week"){ f=new Date(now); f.setDate(now.getDate()-dow); t=new Date(f); t.setDate(f.getDate()+6); }
+  else if(HPERIOD==="lastweek"){ f=new Date(now); f.setDate(now.getDate()-dow-7); t=new Date(f); t.setDate(f.getDate()+6); }
+  else if(HPERIOD==="lastmonth"){ f=new Date(now.getFullYear(),now.getMonth()-1,1); t=new Date(now.getFullYear(),now.getMonth(),0); }
+  else if(HPERIOD==="custom" && HFROM && HTO){ var x=HFROM.split("-"), y=HTO.split("-"); f=new Date(+x[0],+x[1]-1,+x[2]); t=new Date(+y[0],+y[1]-1,+y[2]); if(t<f){var z=f;f=t;t=z;} }
+  else { f=new Date(now.getFullYear(),now.getMonth(),1); t=new Date(now.getFullYear(),now.getMonth()+1,0); }   // this month
+  return { from:hDay(f), to:hDay(t), fromD:f, toD:t };
+}
+function hDayLabel(iso){
+  var m=/^(\d{4})-(\d{2})-(\d{2})/.exec(iso||""); if(!m) return iso||"";
+  var d=new Date(+m[1],+m[2]-1,+m[3]);
+  return d.toLocaleDateString("en-AU",{weekday:"short",day:"numeric",month:"short"});
+}
+function hRangeText(){
+  var r=hRange(), opt={weekday:"short",day:"numeric",month:"short"};
+  if(r.from===r.to) return r.fromD.toLocaleDateString("en-AU",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+  return r.fromD.toLocaleDateString("en-AU",opt)+" – "+r.toD.toLocaleDateString("en-AU",Object.assign({year:"numeric"},opt));
+}
+function hSet(k,v){
+  if(k==="p"){
+    HPERIOD=v;
+    if(v==="custom" && (!HFROM || !HTO)){ var n=new Date(), a=new Date(n); a.setDate(n.getDate()-6); HFROM=hDay(a); HTO=hDay(n); }   // start on the last 7 days
+  }
+  if(k==="v")HVESSEL=v; if(k==="c")HCREW=v; loadAll();
+}
+function hCustom(){
+  var f=document.getElementById("hfrom"), t=document.getElementById("hto");
+  if(f&&t&&f.value&&t.value){ HFROM=f.value; HTO=t.value; HPERIOD="custom"; loadAll(); }
+}
 function hFmt(h){ h=parseFloat(h)||0; return (Math.round(h*100)/100).toFixed(2).replace(/\.00$/,""); }
 function hElapsed(startHHMM){
   var m=/^(\d{1,2}):(\d{2})$/.exec(startHHMM||""); if(!m) return "";
@@ -356,7 +388,15 @@ function renderHours(){
   var periodBar='<div class="hchips">'+
     chip("p","today","Today",HPERIOD==="today")+
     chip("p","week","This week",HPERIOD==="week")+
-    chip("p","month","This month",HPERIOD==="month")+'</div>';
+    chip("p","lastweek","Last week",HPERIOD==="lastweek")+
+    chip("p","month","This month",HPERIOD==="month")+
+    chip("p","lastmonth","Last month",HPERIOD==="lastmonth")+
+    chip("p","custom","Pick dates",HPERIOD==="custom")+'</div>'+
+    (HPERIOD==="custom"
+      ? '<div class="hcustom"><label>From <input type="date" id="hfrom" value="'+esc(HFROM)+'" onchange="hCustom()"></label>'+
+        '<label>To <input type="date" id="hto" value="'+esc(HTO)+'" onchange="hCustom()"></label></div>'
+      : '')+
+    '<div class="hrange">📅 '+esc(hRangeText())+'</div>';
   var vesselBar='', crewBar='';
   if(H){
     vesselBar='<div class="hchips sub">'+chip("v","","All yachts",!HVESSEL)+
@@ -401,13 +441,13 @@ function renderHours(){
     }).join("");
   }
 
-  var recent=(H.entries||[]).slice(0,30).map(function(e){
+  var recent=(H.entries||[]).slice(0,150).map(function(e){
     var exact=e.exactMins||0;
     var eh=Math.floor(exact/60), em=exact%60;
     var rounded=(e.finish && Math.abs(e.hours-(exact/60))>0.001);
     return '<div class="row"><div class="rmain"><b>'+esc(e.crew)+'</b>'+
       '<span>'+(e.code?(esc(e.code)+' · '):'')+esc(e.task||'')+'</span>'+
-      '<span class="sub">'+esc(e.vessel||'')+' · '+esc(e.date)+
+      '<span class="sub">'+esc(e.vessel||'')+' · '+esc(hDayLabel(e.date))+
       (e.start?(' · '+esc(e.start)+'–'+esc(e.finish||'…')):'')+
       (e.breakMins?(' · '+e.breakMins+'m break'):'')+'</span></div>'+
       '<div class="hpair">'+
@@ -439,7 +479,8 @@ function renderHours(){
       '<div class="jwho" id="jwho'+ix+'" hidden>'+who+'</div>';
   }).join("") : '<div class="muted">Nothing logged for this period.</div>';
 
-  var label = HPERIOD==="today" ? "Today" : (HPERIOD==="week" ? "This week" : esc(H.month));
+  var label = ({today:"Today",week:"This week",lastweek:"Last week",month:"This month",lastmonth:"Last month",custom:"Dates picked"})[HPERIOD]||"This period";
+  label += ' <span class="hrangeinline">'+esc(hRangeText())+'</span>';
   var diff = H.roundingDiff||0;
   var diffTxt = Math.abs(diff)<0.005 ? "no rounding difference"
     : ((diff>0?"+":"")+hFmt(diff)+" hrs from rounding");
@@ -464,7 +505,7 @@ function renderHours(){
     '<div class="card"><h3>By job</h3>'+
       '<p class="muted" style="font-size:12px;margin:0 0 10px">Same job across every time it was done, '+
       'added up on its code. Tap one to see who.</p>'+jobsHtml+'</div>'+
-    '<div class="card"><h3>Entries</h3>'+recent+'</div>';
+    '<div class="card"><h3>Entries <span class="hrangeinline">'+Math.min((H.entries||[]).length,150)+' of '+(H.count||0)+'</span></h3>'+recent+'</div>';
   hStartTicking();
 }
 function loadAll(){
