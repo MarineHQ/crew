@@ -606,8 +606,14 @@ function renderNow(){
   if(!on.length) html+='<div class="empty">Nobody is clocked in right now.</div>';
   else html+=on.map(function(s){
     var mapl=(s.lat!==""&&s.lat!=null)?' · <a href="https://www.google.com/maps?q='+s.lat+','+s.lng+'" target="_blank" style="color:var(--navy)">map</a>':'';
+    // The job they're on = their running timer (Crew Hours). No timer running = clocked
+    // on the boat but not started a job yet — say so rather than leave it blank.
+    var mine=(DATA.timers||[]).filter(function(t){return (t.crew||"").trim().toLowerCase()===(s.crew||"").trim().toLowerCase();});
+    var jobl=mine.length
+      ? mine.map(function(t){ return '<div class="sub" style="color:var(--navy);font-weight:bold;margin-top:3px">▶ '+(t.code?esc(t.code)+' · ':'')+esc(t.task)+(t.vessel&&t.vessel!==s.vessel?' ('+esc(t.vessel)+')':'')+' <span style="font-weight:normal;color:var(--muted)">· since '+esc(t.start)+'</span></div>'; }).join("")
+      : '<div class="sub" style="margin-top:3px">No job started yet</div>';
     return '<div class="card" style="margin-bottom:9px"><div class="crewhd" style="margin:0"><div class="av on">'+esc(initials(s.crew))+'</div>'+
-      '<div style="flex:1"><h3>'+esc(s.crew)+'</h3><div class="sub">'+esc(s.vessel)+' · since '+tclock(s.inAt)+mapl+'</div></div>'+
+      '<div style="flex:1"><h3>'+esc(s.crew)+'</h3><div class="sub">'+esc(s.vessel)+' · since '+tclock(s.inAt)+mapl+'</div>'+jobl+'</div>'+
       '<div class="tot">'+dur(s.minutes)+'</div></div></div>';
   }).join("");
   html+='</div></div>';
