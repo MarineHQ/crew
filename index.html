@@ -2103,7 +2103,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-11-10·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-11-10·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -3424,10 +3424,40 @@ var CREW = [
   { id:"paloma", name:"Paloma Diaz",   role:"Detailer", email:"paloma.diaz@icloud.com",   vessels:["Andiamo"],                    eod:"" }
 ];
 var VESSELS = ["Everywhen","Andiamo","Sheer Bliss","Abel Tasman III","Sea Ya","SS88 - Krystyna","Ara Roa","Miyabi","Okean 52 / De Mare","Karajas","Flagship","Schaefer 375"];
+/* The boat list now lives on the "Clock Boats" tab (10 Nov 2026). The list above is
+   only the fallback for a first open with no signal. Only a manager/director can add
+   a boat (clock-in dropdown → "＋ Add a boat"); crew pick from the list or "Other",
+   so a mistyped name never becomes a second copy of a boat. "Other" is ALWAYS last. */
+try{ var _cbBoats=JSON.parse(localStorage.getItem("mhqc_clockboats")||"null"); if(_cbBoats&&_cbBoats.length) VESSELS=_cbBoats; }catch(e){}
+function loadClockBoats(){
+  fetch(API+"?fn=crewfleet").then(function(r){return r.json();}).then(function(d){
+    if(!d||d.ok!==true||!d.boats||!d.boats.length) return;
+    var same=JSON.stringify(d.boats)===JSON.stringify(VESSELS);
+    VESSELS=d.boats; try{ localStorage.setItem("mhqc_clockboats", JSON.stringify(d.boats)); }catch(e){}
+    var cv=$("clockVessel");
+    if(!same && cv && cv.value!=="__other__" && cv.value!=="__addboat__" && document.activeElement!==cv){ var keep=cv.value; cv.innerHTML=vesselOpts(keep,true); }
+  }).catch(function(){});
+}
 // Full fleet + an "Other" option for a yacht not in the system yet (Marine HQ gets alerted).
-function vesselOpts(sel){ return VESSELS.map(function(v){return '<option'+(v===sel?' selected':'')+'>'+esc(v)+'</option>';}).join("") + '<option value="__other__">Other — a yacht not in the system…</option>'; }
+// forClock: managers also get "＋ Add a boat" (clock-in picker only). Other stays last.
+function vesselOpts(sel, forClock){ return VESSELS.map(function(v){return '<option'+(v===sel?' selected':'')+'>'+esc(v)+'</option>';}).join("") +
+  ((forClock && isMgrRole()) ? '<option value="__addboat__">＋ Add a boat to this list…</option>' : '') +
+  '<option value="__other__">Other — a yacht not in the system…</option>'; }
+function addClockBoat(){
+  var n=(($("clockAddName")||{}).value||"").replace(/\s+/g," ").trim();
+  if(!n){ toast("Type the boat's name"); return; }
+  var b=$("clockAddBtn"); if(b){ b.disabled=true; b.textContent="Saving…"; }
+  apiPost({action:"crewClockBoatAdd", email:ME.email, code:ME.code, boat:n}).then(function(d){
+    if(b){ b.disabled=false; b.textContent="Save boat"; }
+    if(!d||!d.ok){ toast((d&&d.error)||"Couldn't add the boat"); return; }
+    VESSELS=d.boats; try{ localStorage.setItem("mhqc_clockboats", JSON.stringify(d.boats)); }catch(e){}
+    $("clockVessel").innerHTML=vesselOpts(d.boat,true); $("clockAddName").value=""; onClockVessel();
+    toast(d.already ? (d.boat+" is already on the list — picked it") : ("Added "+d.boat+" — crew will see it next time they open the app"));
+  }, function(){ if(b){ b.disabled=false; b.textContent="Save boat"; } toast("No connection — try again"); });
+}
 function onVesselPick(selId, otherId){ var s=document.getElementById(selId), o=document.getElementById(otherId); if(o) o.style.display = (s.value==="__other__") ? "block" : "none"; }
-function onClockVessel(){ var other=$("clockVessel").value==="__other__"; $("clockOther").style.display=other?"block":"none"; var n=$("clockOtherNote"); if(n) n.style.display=other?"block":"none"; }
+function onClockVessel(){ var val=$("clockVessel").value, other=val==="__other__", add=val==="__addboat__"; $("clockOther").style.display=other?"block":"none"; var n=$("clockOtherNote"); if(n) n.style.display=other?"block":"none";
+  var a=$("clockAdd"); if(a) a.style.display=add?"block":"none"; var ib=document.querySelector(".clockbtn.doin"); if(ib) ib.style.display=add?"none":""; if(add){ var f=$("clockAddName"); if(f) f.focus(); } }
 
 /* ---- jobs (assignedTo = crew id) ---- */
 var JOBS = [
@@ -3620,6 +3650,7 @@ function signOut(){
   location.reload();
 }
 function enterReal(crew, shift, quiet){
+  try{ loadClockBoats(); }catch(e){}
   // Another person on the same open page (a director's phone handed to crew) must not
   // inherit what was loaded for the last one — wipe the in-memory lists first.
   if(ME && ME.id && ME.id!==crew.id){ try{ CREWJOBS=[]; JOBS=[]; REQJOBS=[]; CREWRAISED=[]; UPDATES=[]; }catch(e){} }
@@ -12442,6 +12473,7 @@ function clockIn(){
   var vsel=$("clockVessel");
   if(!vsel){ clockFail("The boat picker isn't on screen — reload the app and try again."); return; }
   var sel=vsel.value, c=clk(), v, other=false;
+  if(sel==="__addboat__"){ toast("Save the boat first, or pick one from the list"); return; }
   if(sel==="__other__"){ v=($("clockOther").value||"").trim(); if(!v){ toast("Type the yacht name"); return; } other=true; }
   else { v=sel; }
   if(!locConsented()){ locConsentAsk(clockIn); return; }
@@ -12541,7 +12573,10 @@ function renderClock(){
       '<button class="clockbtn qshot" onclick="quickShot()">📸 Quick photo of this job</button></div>';
   } else {
     cc.innerHTML='<div class="clockcard out"><div class="clabel">Which boat are you on?</div>'+
-      '<div class="boatpick"><select id="clockVessel" onchange="onClockVessel()">'+vesselOpts()+'</select></div>'+
+      '<div class="boatpick"><select id="clockVessel" onchange="onClockVessel()">'+vesselOpts(undefined,true)+'</select></div>'+
+      '<div id="clockAdd" style="display:none;margin-bottom:12px"><input id="clockAddName" placeholder="Boat name — check the spelling" maxlength="60" style="width:100%;box-sizing:border-box;border:2px solid var(--navy);border-radius:12px;padding:14px 16px;font-size:16px;font-weight:bold;color:var(--navy);font-family:inherit;margin-bottom:8px">'+
+        '<button id="clockAddBtn" class="clockbtn" style="background:var(--navy);color:#fff" onclick="addClockBoat()">Save boat</button>'+
+        '<div class="othernote" style="display:block">Managers only. Adds this boat to everyone’s clock-in list.</div></div>'+
       '<input id="clockOther" placeholder="Boat name" style="display:none;width:100%;border:2px solid var(--navy);border-radius:12px;padding:14px 16px;font-size:16px;font-weight:bold;color:var(--navy);font-family:inherit;margin-bottom:12px">'+
       '<div id="clockOtherNote" class="othernote">⚓ This boat isn’t in the system yet — please add its name to your job description when you send your day, so Marine HQ knows which boat it was.</div>'+
       '<button class="clockbtn doin" onclick="clockIn()">🟢 Clock in</button>'+
