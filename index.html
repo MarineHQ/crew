@@ -445,6 +445,18 @@
   /* Ten of these stacked at 12px margin + 14px padding is a lot of scrolling for
      a screen you open to check one fact. Tightened 10 Sep 2026. */
   .sec{background:#fff;margin:8px 10px;border:1px solid var(--line);border-radius:10px;padding:11px 13px}
+  .sumhrs{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;margin:8px 12px 2px;padding:9px 12px;border-radius:10px;background:#eef3f8;border:1px solid #d6e0ea;cursor:pointer;font-size:13px;color:var(--ink,#222)}
+  .sumhrs .sh-t{font-weight:800;font-size:15px;color:var(--navy)}
+  .sumhrs .sh-l{color:#4a5866}
+  .sumhrs .sh-on{color:#b26a00;font-weight:700}
+  .sumhrs .sh-go{margin-left:auto;color:var(--navy);font-weight:700;font-size:12px}
+  details.fold>summary{list-style:none;cursor:pointer;display:flex;align-items:center}
+  details.fold>summary::-webkit-details-marker{display:none}
+  details.fold>summary h4{margin:0;flex:1}
+  details.fold>summary::after{content:"›";font-size:18px;color:var(--muted);transform:rotate(90deg);transition:transform .15s}
+  details.fold[open]>summary::after{transform:rotate(-90deg)}
+  details.fold[open]>summary{margin-bottom:8px}
+  .fcount{display:inline-block;min-width:18px;padding:0 5px;border-radius:9px;background:#dfe6ee;color:#3b4a5a;font-size:10.5px;text-align:center;letter-spacing:0}
   .sec h4{margin:0 0 7px;font-size:11.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
   .sec .body{margin:0}
   .sec + .sec{margin-top:8px}
@@ -2103,7 +2115,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-11-11·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-11-11·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -4192,7 +4204,28 @@ function chJobLoad(key, force){
     .then(function(r){ if(CHJOBKEY!==key) return; CHJOB=(r&&r.ok)?r:null; chPaintJob(); })
     .catch(function(){});
 }
-function chPaintJob(){ var b=$("chBox"); if(b&&openJobId) b.innerHTML=chBoxHtml(openJobId); }
+function chPaintJob(){ var b=$("chBox"); if(b&&openJobId) b.innerHTML=chBoxHtml(openJobId);
+  var sm=$("wlSumHrs"); if(sm&&openJobId) sm.innerHTML=wlSumHrsHtml(openJobId); }
+/* The one-line answer at the top of a job: how much time is on it, and whose.
+   Directors see everyone (the backend only sends crew their own). */
+function wlSumHrsHtml(key){
+  if(!CHJOB || CHJOB.jobKey!==key) return '<span class="sh-l">⏱ Checking hours…</span>';
+  var by={}, order=[], tot=0, on=[];
+  (CHJOB.entries||[]).forEach(function(e){
+    var n=firstName(e.crew||"?");
+    if(!(n in by)){ by[n]=0; order.push(n); }
+    if(e.running){ if(on.indexOf(n)<0) on.push(n); return; }
+    var h=parseFloat(e.hours)||0; by[n]+=h; tot+=h;
+  });
+  if(!order.length) return '<span class="sh-l">⏱ No hours on this job yet</span>';
+  var who = CHJOB.everyone
+    ? order.map(function(n){ return esc(n)+' '+chFmt(by[n]); }).join(' · ')
+    : 'your time';
+  return '<span class="sh-t">⏱ '+chFmt(tot)+'</span><span class="sh-l">'+who+'</span>'+
+    (on.length?('<span class="sh-on">● '+esc(on.join(', '))+' on now</span>'):'')+
+    '<span class="sh-go">see ›</span>';
+}
+function wlFoldCount(n){ return n?(' <span class="fcount">'+n+'</span>'):''; }
 function chJobEntriesHtml(key){
   /* Never render nothing. A blank space here is indistinguishable from the
      feature not existing, which is exactly how it read. */
@@ -4235,7 +4268,8 @@ function chJobEntriesHtml(key){
     ? ('<div style="font-size:11px;color:var(--muted);margin-top:6px">Others have also logged time on this job.</div>') : '';
   // The entries and the month figure fold under the total — one line unless you
   // open it. The Submit button is an action, so it stays out.
-  return '<div style="margin-top:10px"><details class="chfold"><summary><div class="chtothdr">'+
+  /* Open by default when it's short — folded, nobody found the hours (Trish, 11 Nov 2026). */
+  return '<div style="margin-top:10px"><details class="chfold"'+(CHJOB.entries.length<=6?' open':'')+'><summary><div class="chtothdr">'+
     '<b style="font-size:12px;color:var(--muted)">'+hdr+' \u203a</b>'+
     '<b class="chtot">'+chFmt(CHJOB.totalHours)+' total</b></div></summary>'+rows+mth+oth+'</details>'+sendBtn+addVisit+'</div>';
 }
@@ -9467,6 +9501,8 @@ function openWLJob(key){
     '<div class="sheet-hd"><div style="flex:1"><div style="font-size:11px;font-weight:bold;letter-spacing:.4px;color:#ffd7b0">'+esc(j.vessel)+
         (isMgrRole()?((j.list?(" · "+esc(j.list)):"")+(j.code?(' &nbsp;<span class="jcode">'+esc(j.code)+'</span>'):'')+catChip(j.category)):'')+'</div>'+
       '<h3 id="wlTitleH">'+(isMgrRole()?(num+'. '):'')+esc(j.task||"(job)")+(wlCanFix(j)?(' <span class="hd-ed" title="Edit the task name" onclick="wlEditTitle(\''+esc(key)+'\')">✎</span>'):'')+'</h3></div><button class="closeb" onclick="closeSheet()">✕</button></div>'+
+    // At a glance: the hours on this job, before anything else (Trish, 11 Nov 2026 — "very big, not easy to follow").
+    '<div id="wlSumHrs" class="sumhrs" onclick="var b=$(\'chBox\');if(b){var f=b.querySelector(\'details.chfold\');if(f)f.open=true;b.scrollIntoView({behavior:\'smooth\',block:\'start\'});}">'+wlSumHrsHtml(key)+'</div>'+
     wlFactsHtml(j)+
     // How the boat has to be RUN, when this is the job that will end it. Above
     // the description on purpose: whoever opens this job should be told before
@@ -9497,20 +9533,20 @@ function openWLJob(key){
     crewAssignHTML+
     '<div class="sec"><h4>Status</h4><div class="pillrow">'+pills+'</div>'+(j.completed?('<div class="apprOn" style="margin-top:8px">✓ Completed '+esc(j.completed)+' <span class="wlnote-ed" style="cursor:pointer" onclick="openCompleteModal(\''+esc(key)+'\')">✎ Edit date</span></div>'):'')+'</div>'+
     laneHTML+
-    '<div class="sec"><h4>Photos &amp; documents</h4><div class="photos">'+phHTML+'</div>'+phFoldBtn+'<div class="tagrow" id="phTagRow">'+phTagRowHtml()+'</div>'+((j.photos&&j.photos.length)?bulkBar('photo',key):'')+
-      '<div class="docrow" style="margin-top:8px">'+docHTML+'</div>'+((j.docs&&j.docs.length)?bulkBar('doc',key):'')+'</div>'+
+    '<details class="sec fold"><summary><h4>📷 Photos &amp; documents'+wlFoldCount(((j.photos||[]).length)+((j.docs||[]).length))+'</h4></summary><div class="photos">'+phHTML+'</div>'+phFoldBtn+'<div class="tagrow" id="phTagRow">'+phTagRowHtml()+'</div>'+((j.photos&&j.photos.length)?bulkBar('photo',key):'')+
+      '<div class="docrow" style="margin-top:8px">'+docHTML+'</div>'+((j.docs&&j.docs.length)?bulkBar('doc',key):'')+'</details>'+
     /* Receipts sit with the work they were bought for, not in a separate pile —
        a docket is evidence for the materials line on that job's invoice. */
-    '<div class="sec"><h4>Receipts</h4><div class="docrow" id="rcptBox">'+rcptListHtml(key)+'</div>'+
+    '<details class="sec fold"><summary><h4>🧾 Receipts</h4></summary><div class="docrow" id="rcptBox">'+rcptListHtml(key)+'</div>'+
       '<button class="jobbtn receipt" style="margin-top:10px" onclick="openReceipt(\''+esc(key)+'\')">🧾 Add a receipt</button>'+
-      '<p class="body" style="font-size:12px;color:var(--muted);margin-top:7px">Bought something for this job? Photograph the docket — it\u2019s read for you, priced onto the job card, and if you paid for it yourself it goes in for reimbursement.</p></div>'+
-    '<div class="sec"><h4>Notes &amp; timeline</h4><div class="cmts">'+cmtHTML+'</div>'+
+      '<p class="body" style="font-size:12px;color:var(--muted);margin-top:7px">Bought something for this job? Photograph the docket — it\u2019s read for you, priced onto the job card, and if you paid for it yourself it goes in for reimbursement.</p></details>'+
+    '<details class="sec fold"><summary><h4>💬 Notes &amp; timeline'+wlFoldCount((j.comments||[]).length)+'</h4></summary><div class="cmts">'+cmtHTML+'</div>'+
       '<textarea id="wlNote" class="fld-ta" placeholder="Add a note… (crew &amp; Marine HQ can both post here)"></textarea>'+
       '<div id="tagChips" class="tagchips"></div>'+
       '<div class="taghd"><button class="tagbtn" onclick="toggleTagPicker(\''+esc(key)+'\')">🔔 Tag someone</button><span class="taghint">they get an alert + email</span></div>'+
       '<div id="tagPicker" class="tagpicker" style="display:none"></div>'+
       '<button class="jobbtn complete" style="background:var(--navy)" onclick="wlAddComment(\''+esc(key)+'\')">Add note</button>'+
-      (isMgrRole()?'<p class="body" style="font-size:11.5px;color:var(--muted);text-align:center;margin:8px 0 0">A note is optional — everything else (status, photos, day) saves as you go.</p>':'')+'</div>'+
+      (isMgrRole()?'<p class="body" style="font-size:11.5px;color:var(--muted);text-align:center;margin:8px 0 0">A note is optional — everything else (status, photos, day) saves as you go.</p>':'')+'</details>'+
     // ---- Manage this job (directors) --------------------------------------------
     // The page was twelve stacked sections and the buttons nobody could read
     // (Trish, 15 Sep 2026). Crew-facing work stays in view; the management
