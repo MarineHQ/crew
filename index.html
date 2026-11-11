@@ -445,6 +445,16 @@
   /* Ten of these stacked at 12px margin + 14px padding is a lot of scrolling for
      a screen you open to check one fact. Tightened 10 Sep 2026. */
   .sec{background:#fff;margin:8px 10px;border:1px solid var(--line);border-radius:10px;padding:11px 13px}
+  .slimrow{margin:6px 10px;padding:7px 12px;border-radius:9px;background:#f6f9fc;border:1px dashed var(--line);font-size:12.5px;font-weight:600;color:var(--muted);cursor:pointer}
+  .slimrow.on{background:#fff8ec;border:1px solid #f0d3ad;border-left:3px solid #f0c987;color:#8a5a12;font-weight:700}
+  .lanebar.slim{flex-wrap:nowrap;gap:5px;padding:0}
+  .lanebar.slim .lanebtn{flex:1 1 0;padding:7px 2px;font-size:12px;min-width:0}
+  .chpair{display:flex;gap:8px}
+  .chpair .chbtn{flex:1;margin-top:0;padding:11px 6px;font-size:14px}
+  .fixlink{margin:12px 2px 2px;font-size:12px;color:var(--muted)}
+  .fixlink a{color:#c0392b;font-weight:700;cursor:pointer;text-decoration:underline}
+  .donebar{position:sticky;bottom:0;padding:8px 10px calc(8px + env(safe-area-inset-bottom));background:linear-gradient(rgba(244,246,249,0),var(--bg) 35%);margin-top:6px}
+  .donebtn.slim{margin:0;padding:10px;font-size:14px;border-radius:10px;width:100%}
   .sumhrs{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;margin:8px 12px 2px;padding:9px 12px;border-radius:10px;background:#eef3f8;border:1px solid #d6e0ea;cursor:pointer;font-size:13px;color:var(--ink,#222)}
   .sumhrs .sh-t{font-weight:800;font-size:15px;color:var(--navy)}
   .sumhrs .sh-l{color:#4a5866}
@@ -2115,7 +2125,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-11-11·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-11-11·c</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -4535,8 +4545,8 @@ function chBoxHtml(key){
     ? ('<div class="chwarn">You\u2019re on <b>'+esc(CHTIMER.task||"another job")+'</b> since '+esc(CHTIMER.start)+
        '. Starting here will stop that one.</div>') : '';
   return '<div class="chbox">'+other+
-    '<button class="chbtn go" onclick="chStart(\''+esc(String(key).replace(/'/g,"\\'"))+'\')">\u25b6 Start</button>'+
-    '<button class="chbtn sec" onclick="chManual(\''+esc(String(key).replace(/'/g,"\\'"))+'\')">\uff0b Add hours for another day</button>'+done+'</div>';
+    '<div class="chpair"><button class="chbtn go" onclick="chStart(\''+esc(String(key).replace(/'/g,"\\'"))+'\')">\u25b6 Start</button>'+
+    '<button class="chbtn sec" onclick="chManual(\''+esc(String(key).replace(/'/g,"\\'"))+'\')">\uff0b Add hours</button></div>'+done+'</div>';
 }
 var _hoNextKey=null;
 /* Starting a second job stops the first. That has to be a decision, not a
@@ -9447,12 +9457,12 @@ function openWLJob(key){
   // Conversation lanes — directors pick who their next note / photo / quote is for
   var laneHTML = !isMgrRole() ? '' :
     '<div class="sec"><h4>Who sees what you add next</h4>'+
-    '<div class="lanebar" id="laneBar">'+
+    '<div class="lanebar slim" id="laneBar">'+
       '<button class="lanebtn" data-lane="crew" onclick="setLane(\'crew\')">👷 Crew</button>'+
       '<button class="lanebtn" data-lane="owner" onclick="setLane(\'owner\')">👤 Owner</button>'+
-      '<button class="lanebtn" data-lane="both" onclick="setLane(\'both\')">👥 Crew + Owner</button>'+'<button class="lanebtn" data-lane="dir" onclick="setLane(\'dir\')">🔒 Directors</button>'+
+      '<button class="lanebtn" data-lane="both" onclick="setLane(\'both\')">👥 Both</button>'+'<button class="lanebtn" data-lane="dir" onclick="setLane(\'dir\')">🔒 Directors</button>'+
     '</div>'+
-    '<p class="body" style="font-size:12px;color:var(--muted);margin-top:7px">Pick a lane, then add a note, photo or quote below — <b>only that group sees it</b>. Crew and owner never see each other’s lane; you &amp; Jack see all three.</p></div>';
+    '<p class="body" style="font-size:11.5px;color:var(--muted);margin:5px 0 0">Only that group sees your next note or photo.</p></div>';
   /* Accept — so directors know the crew member has taken the task on.
      A WORK LOG entry has no accept step: the work was already done by the person
      logging it, so there is nothing to accept and nobody to nod at. The backend
@@ -9526,7 +9536,8 @@ function openWLJob(key){
     // where this job came from — the matched Zoho task, for traceability
     ((j.reqOk&&j.reqOk.by)?('<div class="sec"><h4>Approved</h4><div class="body" style="font-size:13px">\u2713 Approved by <b>'+esc(j.reqOk.by)+'</b>'+(j.reqOk.at?(' \u00b7 '+esc(dayLabel(j.reqOk.at))):'')+(j.raisedBy?('<br><span style="color:var(--muted)">Raised by '+esc(j.raisedBy)+'</span>'):'')+'</div></div>'):'')+
     // The list itself is in the facts strip now; this stays as the way to MOVE it.
-    ((j.subNote||wlCanFix(j))?('<div class="sec"><h4>Sub note</h4><div class="subnote-box'+(j.subNote?"":" empty")+'"'+(wlCanFix(j)?(' onclick="wlSetSubNote(\''+esc(key)+'\')"'):'')+'>'+(j.subNote?('📌 '+esc(j.subNote)):'＋ add a quick note')+(wlCanFix(j)?' <span class="wlnote-ed">✎</span>':'')+'</div></div>'):'')+
+    // Sub note: one slim line, not a box of its own (Trish, 11 Nov 2026 — "the sub note is really big").
+    ((j.subNote||wlCanFix(j))?('<div class="slimrow'+(j.subNote?' on':'')+'"'+(wlCanFix(j)?(' onclick="wlSetSubNote(\''+esc(key)+'\')"'):'')+'>'+(j.subNote?('📌 '+esc(j.subNote)):'＋ Add a sub note')+(wlCanFix(j)?' <span class="wlnote-ed">✎</span>':'')+'</div>'):'')+
     reqBlock+
     wlCatalogueBlock(j,key)+
     acceptHTML+
@@ -9568,10 +9579,10 @@ function openWLJob(key){
       (isMgrRole()?('<div class="sec"><h4>Move to another worklist</h4><div class="subnote-box" onclick="wlMoveList(\''+esc(key)+'\')">\ud83d\udccb '+esc(j.list||"\u2014 not on a worklist \u2014")+' <span class="wlnote-ed">\u270e</span></div></div>'):'') +
       (varVisible?'':wlVariationBlock(j,key)) +
       (apprVisible?'':wlApproveBlock(j,key)) +
-        '</div></details>'+wlFixBlock(j,key);
+      wlFixBlock(j,key) +
+        '</div></details>';
     })()+
-    '<button class="jobbtn donebtn" onclick="closeSheet()">✓ Done</button>'+
-    '<div style="height:16px"></div>';
+    '<div class="donebar"><button class="donebtn slim" onclick="closeSheet()">✓ Done</button></div>';
   showSheet();
   if(isMgrRole() && j.zoho) loadZohoInbound(j.zoho);
 }
@@ -9635,7 +9646,7 @@ function whereBlockHtml(v, id, forceOpen){
   var w=whereFor(v), mgr=isMgrRole(), vJs=esc((v||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'"));
   if(!whereHas(w)){
     if(!mgr) return '';
-    return '<div class="sec" id="'+id+'"><h4>📍 Where & access</h4><div class="wherebox empty" onclick="whereEdit(\''+vJs+'\')">No location or access notes for '+esc(v)+' yet — tap to add them, so crew allocated a job here know where to go and how to get aboard.</div></div>';
+    return '<div class="slimrow" id="'+id+'" onclick="whereEdit(\''+vJs+'\')">📍 ＋ Add where she is &amp; how to get aboard <span class="wlnote-ed">✎</span></div>';
   }
   var edit = mgr ? ('<span class="wlnote-ed" style="cursor:pointer;float:right;text-transform:none;letter-spacing:0" onclick="whereEdit(\''+vJs+'\')">✎ Update</span>') : '';
   var hd=[w.where,w.berthNo].filter(function(x){return x&&x.trim();}).join(' · ');
@@ -11631,11 +11642,10 @@ function wlCanFix(j){
 function wlFixBlock(j,key){
   if(!wlCanFix(j)) return "";
   var kk=esc(key);
-  return '<div class="sec"><h4>Raised by accident?</h4>'+
-    '<p class="body" style="font-size:12.5px;color:var(--muted);margin:0 0 9px">Everything on this task edits where it sits — tap the ✎ beside the name, the description, the sub note or the date. This removes the whole task.'+
-      (j.shared?' <b>The owner can see this task</b> — it disappears from their app too.':'')+'</p>'+
-    '<button class="jobbtn complete" style="background:#c0392b" onclick="wlDeleteJob(\''+kk+'\')">🗑 Delete this task</button>'+
-    '</div>';
+  /* A quiet link, not a big red button at the foot of every job (Trish, 11 Nov 2026).
+     Directors find it inside Manage this job. */
+  return '<div class="fixlink"><a onclick="wlDeleteJob(\''+kk+'\')">🗑 Raised by accident? Delete this task</a>'+
+    (j.shared?'<span> · the owner can see it — it goes from their app too</span>':'')+'</div>';
 }
 /* Rename in place. Was a "✎ Rename" button at the foot of the sheet driving a
    native prompt() — the one part of a task you couldn't fix on the thing itself. */
