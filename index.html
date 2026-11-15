@@ -2125,7 +2125,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-11-12·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-11-16·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -3085,6 +3085,8 @@ button:active{ filter: brightness(.93); }
     </div>
     <label class="fld">Pre-departure checklist</label>
     <button type="button" class="prebtn" id="tl_prebtn" onclick="preOpen()"></button>
+    <label class="fld" style="margin-top:12px">Guest handover checklist <span class="fldhint">(when the owner or guests are coming aboard)</span></label>
+    <button type="button" class="prebtn" id="tl_grbtn" onclick="preOpen(null,false,'gr')"></button>
     <div id="tl_dep2">
       <label class="fld">Safety check / briefing done?</label>
       <div class="tgl" data-k="safety"><button type="button" data-v="Yes" onclick="tglSet(this)">Yes</button><button type="button" data-v="No" class="bad" onclick="tglSet(this)">No</button></div>
@@ -14987,6 +14989,9 @@ function tripExtrasHtml(t){
   if(d.pre){ var c=preCounts(d.pre);
     h+='<button type="button" class="prebtn'+(c.answered>=PRE_TOTAL&&!c.fails?" ok":"")+'" onclick="preOpen(tripFindByKey(TD_KEY).details.pre,true)">'+(c.answered>=PRE_TOTAL&&d.pre.sig?"&#9989; Pre-departure checklist signed off":c.answered>=PRE_TOTAL?"&#9680; Pre-departure checklist checked, not signed":"&#9680; Pre-departure checklist "+c.answered+" of "+PRE_TOTAL)+(d.pre.by?" by "+esc(d.pre.by):"")+(c.fails?" &mdash; "+c.fails+" fail"+(c.fails>1?"s":""):"")+" &middot; tap to view</button>";
   } else h+='<p class="mhint">Pre-departure checklist: not recorded.</p>';
+  if(d.gr){ var g2=preCounts(d.gr);
+    h+='<button type="button" class="prebtn'+(g2.answered>=GR_TOTAL&&!g2.fails?" ok":"")+'" onclick="preOpen(tripFindByKey(TD_KEY).details.gr,true,\'gr\')">'+(g2.answered>=GR_TOTAL&&d.gr.sig?"&#9989; Guest handover checklist signed off":g2.answered>=GR_TOTAL?"&#9680; Guest handover checklist checked, not signed":"&#9680; Guest handover checklist "+g2.answered+" of "+GR_TOTAL)+(d.gr.by?" by "+esc(d.gr.by):"")+(g2.fails?" &mdash; "+g2.fails+" fail"+(g2.fails>1?"s":""):"")+" &middot; tap to view</button>";
+  }
   if(d.sd){ var s2=preCounts(d.sd);
     h+='<button type="button" class="prebtn'+(s2.answered>=SD_TOTAL&&!s2.fails?" ok":"")+'" onclick="preOpen(tripFindByKey(TD_KEY).details.sd,true,\'sd\')">'+(s2.answered>=SD_TOTAL&&d.sd.sig?"&#9989; Stand-down checklist signed off":s2.answered>=SD_TOTAL?"&#9680; Stand-down checklist checked, not signed":"&#9680; Stand-down checklist "+s2.answered+" of "+SD_TOTAL)+(d.sd.by?" by "+esc(d.sd.by):"")+(s2.fails?" &mdash; "+s2.fails+" fail"+(s2.fails>1?"s":""):"")+" &middot; tap to view</button>";
   } else if(t.status!=="Underway") h+='<p class="mhint">Stand-down checklist: not recorded.</p>';
@@ -15107,6 +15112,7 @@ function tripReportHtml(t,withCheck){
   (d.startFlags||[]).forEach(function(f){ h+='<div style="margin:8px 16px;color:#A34E0E">&#9888; '+esc(f)+'</div>'; });
   if(withCheck){
     h+=rpCheck("Pre-departure vessel check","pre-departure",d.pre,PRE_SECTIONS,PRE_TOTAL,t.departed);
+    if(d.gr) h+=rpCheck("Guest handover check","guest handover",d.gr,GR_SECTIONS,GR_TOTAL,t.departed);
     if(d.sd||t.status!=="Underway") h+=rpCheck("Stand-down vessel check","stand-down",d.sd,SD_SECTIONS,SD_TOTAL,t.arrived);
   }
   h+='<div style="margin:18px 16px 6px;color:#8795a5;font-size:10.5px">Generated '+esc(new Date().toLocaleString("en-AU",{day:"numeric",month:"short",year:"numeric",hour:"numeric",minute:"2-digit"}))+' &middot; Marine HQ</div>'+
@@ -15163,10 +15169,18 @@ var SD_SECTIONS=[
  ["4  Safety & Security",["Non-essential seacocks closed","Bilges dry, bilge pumps on AUTO","Fire suppression armed","Hatches, doors and windows locked","Keys returned to the agreed place"]]
 ];
 var SD_TOTAL=SD_SECTIONS.reduce(function(n,s){return n+s[1].length;},0);
+var GR_SECTIONS=[
+ ["1  Interior",["Cabins made up \u2014 fresh linen and towels","Heads cleaned and stocked (paper, soap, amenities)","Saloon, galley and helm clean, surfaces wiped","Air conditioning on and at temperature before boarding","Bins emptied, no odours"]],
+ ["2  Provisions & Preferences",["Provisioning delivered and stowed","Dietary needs and allergies checked against what is aboard","Guest preferences checked (drinks, food, music, temperature)","Drinks chilled, ice made","Welcome touches in place if requested (flowers, champagne)"]],
+ ["3  Exterior & Toys",["Hull, decks and glass washed, stainless wiped","Cushions and sun pads out, covers stowed","Tender and water toys fuelled and ready if requested","Boarding area clear, passerelle or ladder ready"]],
+ ["4  Handover to Guests",["Safety briefing given (life jackets, exits, fire, man overboard)","Heads, showers and AV explained","Wi-Fi and AV working","Itinerary and timings confirmed with the lead guest"]]
+];
+var GR_TOTAL=GR_SECTIONS.reduce(function(n,s){return n+s[1].length;},0);
+var TLGR=null, TLGRDIRTY=false;
 var TLPRE=null, TLPREDIRTY=false, PRE_WORK=null, PRE_RO=false;
 var TLSD=null, TLSDDIRTY=false, PRE_MODE="pre";
-function ckSecs(m){ return (m||PRE_MODE)==="sd"?SD_SECTIONS:PRE_SECTIONS; }
-function ckTotal(m){ return (m||PRE_MODE)==="sd"?SD_TOTAL:PRE_TOTAL; }
+function ckSecs(m){ m=m||PRE_MODE; return m==="sd"?SD_SECTIONS:m==="gr"?GR_SECTIONS:PRE_SECTIONS; }
+function ckTotal(m){ m=m||PRE_MODE; return m==="sd"?SD_TOTAL:m==="gr"?GR_TOTAL:PRE_TOTAL; }
 function tglSet(b){
   if(b.parentNode.getAttribute("data-locked")) return;
   var on=b.classList.contains("on");
@@ -15190,17 +15204,18 @@ function tlHoursStart(){
 }
 function tlEquip(){ var v=tglGet("v240"); return {v240:v, v240note:v==="Issue"?($("tl_v240note").value||"").trim():"", shore:tglGet("shore"), desal:tglGet("desal"), note:($("tl_equip").value||"").trim()}; }
 function tlDetails(full){
-  if(!full){ var d={equip:tlEquip(), bunkering:bunkList()}; if(TLPREDIRTY&&TLPRE) d.pre=TLPRE; if(TLSDDIRTY&&TLSD) d.sd=TLSD; return d; }
+  if(!full){ var d={equip:tlEquip(), bunkering:bunkList()}; if(TLPREDIRTY&&TLPRE) d.pre=TLPRE; if(TLSDDIRTY&&TLSD) d.sd=TLSD; if(TLGRDIRTY&&TLGR) d.gr=TLGR; return d; }
   var d2={use:$("tl_use").value, crew:tlNum("tl_crew"), guests:tlNum("tl_guests"), paxDesc:($("tl_pobd").value||"").trim(),
           safety:tglGet("safety"), weather:($("tl_weather").value||"").trim(), equip:tlEquip(), hrsStart:tlHoursStart(), bunkering:bunkList()};
   if(TLPRE) d2.pre=TLPRE;
   if(TLSD) d2.sd=TLSD;
+  if(TLGR) d2.gr=TLGR;
   return d2;
 }
 function preCounts(st){
   var a=0,f=0; (st.items||[]).forEach(function(x){ if(x){a++; if(x==="Fail")f++;} }); return {answered:a,fails:f};
 }
-function tlPreStatus(){ tlCkStatus($("tl_prebtn"),TLPRE,PRE_TOTAL); tlCkStatus($("tl_sdbtn"),TLSD,SD_TOTAL); }
+function tlPreStatus(){ tlCkStatus($("tl_prebtn"),TLPRE,PRE_TOTAL); tlCkStatus($("tl_sdbtn"),TLSD,SD_TOTAL); tlCkStatus($("tl_grbtn"),TLGR,GR_TOTAL); }
 function tlCkStatus(b,st,tot){
   var c=st?preCounts(st):{answered:0,fails:0};
   if(st && c.answered>=tot && !st.sig){
@@ -15214,10 +15229,10 @@ function tlCkStatus(b,st,tot){
 }
 function preOpen(stateOverride,ro,mode){
   PRE_RO=!!ro; PRE_MODE=mode||"pre";
-  var sd=PRE_MODE==="sd";
-  $("pre_h3").textContent=sd?"Stand-down vessel check":"Pre-departure vessel check";
-  $("pre_hint").innerHTML="Tap Pass, Fail or N/A on each line. Anything marked Fail is listed as a defect."+(sd?" Engine &amp; genset hours go in the trip form.":"");
-  var src=stateOverride||(sd?TLSD:TLPRE)||{items:[],defects:"",by:"",at:""};
+  var sd=PRE_MODE==="sd", gr=PRE_MODE==="gr";
+  $("pre_h3").textContent=sd?"Stand-down vessel check":gr?"Guest handover check":"Pre-departure vessel check";
+  $("pre_hint").innerHTML=gr?"Tap Pass, Fail or N/A on each line. Use N/A for anything the guests didn\u2019t ask for. Anything marked Fail is listed as an issue.":"Tap Pass, Fail or N/A on each line. Anything marked Fail is listed as a defect."+(sd?" Engine &amp; genset hours go in the trip form.":"");
+  var src=stateOverride||(sd?TLSD:gr?TLGR:TLPRE)||{items:[],defects:"",by:"",at:""};
   PRE_WORK={items:(src.items||[]).slice(), defects:src.defects||"", by:src.by||ME.name||"", at:src.at||"", date:src.date||"", sig:src.sig||""};
   preRender();
   $("pre_save").style.display=PRE_RO?"none":"";
@@ -15288,7 +15303,7 @@ function preSave(){
   if(c0.answered>=tot && !name){ toast("Type your name above the signature"); return; }
   if(c0.answered>=tot && !sig){ toast("Sign in the box to sign off the checklist"); return; }
   var rec={items:items, defects:($("pre_defects").value||"").trim(), by:name||ME.name||"", at:new Date().toISOString(), date:($(sd?"tl_adate":"tl_ddate").value||""), sig:sig};
-  if(sd){ TLSD=rec; TLSDDIRTY=true; } else { TLPRE=rec; TLPREDIRTY=true; }
+  if(sd){ TLSD=rec; TLSDDIRTY=true; } else if(PRE_MODE==="gr"){ TLGR=rec; TLGRDIRTY=true; } else { TLPRE=rec; TLPREDIRTY=true; }
   tlPreStatus(); closeModal("preModal");
   toast(c0.answered>=tot?"\u2713 Checklist signed off":"Checklist saved \u2014 "+c0.answered+" of "+tot+" done, not signed yet");
 }
@@ -15327,7 +15342,7 @@ function openTripLog(key){
   $("tl_adate").value=new Date().toISOString().slice(0,10);
   $("tl_meters").innerHTML="";
   TPF.tl=[]; $("tl_pfiles").textContent="";
-  TLPRE=null; TLPREDIRTY=false; TLSD=null; TLSDDIRTY=false;
+  TLPRE=null; TLPREDIRTY=false; TLSD=null; TLSDDIRTY=false; TLGR=null; TLGRDIRTY=false;
   $("tl_form").style.display=""; $("tl_result").innerHTML=""; $("tl_result").style.display="none";
   $("tl_save").disabled=false; $("tl_later").disabled=false;
   var t=key?tripFindByKey(key):null;
@@ -15340,7 +15355,7 @@ function openTripLog(key){
     $("tl_use").value=d.use||""; $("tl_crew").value=d.crew||""; $("tl_guests").value=d.guests||""; $("tl_pobd").value=d.paxDesc||(d.crew||d.guests?"":(t.pob||""));
     tglPut("safety",d.safety||""); $("tl_weather").value=d.weather||"";
     var e=d.equip||{}; tglPut("v240",e.v240||""); tglPut("shore",e.shore||""); tglPut("desal",e.desal||""); $("tl_equip").value=e.note||""; $("tl_v240note").value=e.v240note||""; tlIssueSync();
-    TLPRE=d.pre||null; TLSD=d.sd||null;
+    TLPRE=d.pre||null; TLSD=d.sd||null; TLGR=d.gr||null;
     (d.bunkering||[]).forEach(function(b){ var pre=b.stage==="departure"?"tl1":b.stage==="arrival"?"tl2":"tlm"; bunkAdd(pre,b.litres,b.where,b.stage==="departure"); });
     var hs=d.hrsStart||{}; Object.keys(hs).forEach(function(u){ $("tl_meters").insertAdjacentHTML("beforeend",tripMeterRowHtml(u,"tl",hs[u],true)); });
     tlLock(true);
