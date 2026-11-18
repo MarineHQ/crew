@@ -1927,7 +1927,7 @@ button:active{ filter: brightness(.93); }
       </div>
       <div id="calWeekWrap" class="hidden"></div>
       <div id="calDay"></div>
-      <button class="ofnewbtn" style="margin-top:16px" onclick="leaveOpen()">\ud83c\udf34 Request time off</button>
+      <button class="ofnewbtn" style="margin-top:16px" onclick="leaveOpen()">🌴 Request time off</button>
       <div id="leaveWrap"></div>
     </div>
 
@@ -2125,7 +2125,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-11-16·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-11-19·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2247,11 +2247,11 @@ button:active{ filter: brightness(.93); }
 
 <!-- Stopped your last job — are you leaving the boat, or moving to the next one? -->
 <div class="modal" id="clockOffModal"><div class="card2">
-  <h3>\ud83d\udd53 Finished on board?</h3>
-  <p class="mhint">That was your last running job. You\u2019re still clocked on at
+  <h3>🕓 Finished on board?</h3>
+  <p class="mhint">That was your last running job. You’re still clocked on at
     <b id="coWhere">the boat</b><span id="coFor" class="cofor"></span>.</p>
   <div class="corow">
-    <button class="jobbtn complete" onclick="coGo()">\u2713 Clock off</button>
+    <button class="jobbtn complete" onclick="coGo()">✓ Clock off</button>
     <button class="jobbtn" onclick="coStay()">Still on board</button>
   </div>
 </div></div>
@@ -2350,7 +2350,7 @@ button:active{ filter: brightness(.93); }
   <h3>Fix this entry</h3>
   <p class="mhint" id="ehWhat">—</p>
   <div id="ehBundle"></div>
-  <button type="button" class="ahb-add" onclick="ehChangeJob()">\u21c4 Wrong job? Move these hours to a different job</button>
+  <button type="button" class="ahb-add" onclick="ehChangeJob()">⇄ Wrong job? Move these hours to a different job</button>
   <label class="fld">Day it was done</label>
   <input type="date" class="fld-in" id="ehDate">
   <div class="ahmode">
@@ -2384,7 +2384,7 @@ button:active{ filter: brightness(.93); }
   </div>
   <label class="fld">Note <span class="fldhint">(optional)</span></label>
   <input class="fld-in" id="ehNote" placeholder="e.g. port side only">
-  <label class="fld">Photos <span class="fldhint">(optional \u2014 they go on the job)</span></label>
+  <label class="fld">Photos <span class="fldhint">(optional — they go on the job)</span></label>
   <div class="stagedrow"><div class="photos staged" id="eh_phGrid"></div></div>
   <input type="file" id="eh_phIn" accept="image/*" multiple style="display:none" onchange="stagedAdd('eh_ph',this)">
   <button class="go" onclick="ehSave()">Save</button>
@@ -2413,7 +2413,7 @@ button:active{ filter: brightness(.93); }
      the shift cross-check so a missing job is obvious before the day is gone. -->
 <div class="modal" id="myHoursModal"><div class="card2">
   <h3>⏱ My hours today</h3>
-  <p class="mhint">Tap ✎ to fix a start or finish time. Do it now while you remember — once you\u2019ve submitted the day, only a director can change it.</p>
+  <p class="mhint">Tap ✎ to fix a start or finish time. Do it now while you remember — once you’ve submitted the day, only a director can change it.</p>
   <div id="chDayBox"></div>
   <button class="cancel" onclick="closeModal('myHoursModal')">Close</button>
 </div></div>
@@ -2430,7 +2430,7 @@ button:active{ filter: brightness(.93); }
   <label class="fld">Vessel</label>
   <select class="fld-in" id="wl_vessel" onchange="onVesselPick('wl_vessel','wl_other');wlSuggest();fjRender('wl',wlVesselNow(),isPickupNum(WLNUM))"></select>
   <input class="fld-in" id="wl_other" placeholder="Type the yacht name" style="display:none;margin-top:8px">
-  <label class="fld">What did you do? <span class="fldhint">(say it your way \u2014 then tap the job it was)</span></label>
+  <label class="fld">What did you do? <span class="fldhint">(say it your way — then tap the job it was)</span></label>
   <input class="fld-in" id="wl_title" placeholder="e.g. replaced corroded connectors under the VIP toilet"
          oninput="wlSuggest()" autocomplete="off">
   <!-- The catalogue, offered as you type. Without it this was a plain text box:
@@ -2557,7 +2557,7 @@ button:active{ filter: brightness(.93); }
 
 <!-- Accept a key / fob -->
 <div class="modal" id="kyAccModal"><div class="card2">
-  <h3>\ud83d\udd11 Accept this key</h3>
+  <h3>🔑 Accept this key</h3>
   <p class="body" style="font-size:15px;font-weight:bold;margin:0 0 10px" id="kyAccName"></p>
   <p class="mhint" style="font-size:13px;color:#1a2b5c">By accepting, you confirm you have this in your hands and you take responsibility for it. <b>If it is not returned, you will pay Marine HQ <span id="kyAccFee">$50</span>.</b> When you&rsquo;re done with it, hand it back to a director so they can sign it back in.</p>
   <label style="display:flex;gap:10px;align-items:flex-start;margin:14px 0;font-size:14px"><input type="checkbox" id="kyAccTick" style="width:22px;height:22px;flex:none"> <span>I accept responsibility for this key and agree to pay the fee if I don&rsquo;t return it when requested.</span></label>
@@ -2567,7 +2567,7 @@ button:active{ filter: brightness(.93); }
 
 <!-- Request time off -->
 <div class="modal" id="leaveModal"><div class="card2">
-  <h3>\ud83c\udf34 Request time off</h3>
+  <h3>🌴 Request time off</h3>
   <p class="mhint">Pick the first and last day you&rsquo;ll be off. A director approves it, and once it&rsquo;s approved it shows on the calendar.</p>
   <div style="display:flex;gap:8px">
     <div style="flex:1"><label class="fld">From</label><input type="date" class="fld-in" id="lv_from" onchange="if(!$('lv_to').value||$('lv_to').value<this.value)$('lv_to').value=this.value"></div>
@@ -2976,7 +2976,7 @@ button:active{ filter: brightness(.93); }
   <p class="mhint">Pick the closest job so it gets the right name and code. <b>What you wrote is kept</b> as the detail.</p>
   <div id="tg_list"></div>
   <label class="fld">None fit? Give it a short title <span class="fldhint">(a few words)</span></label>
-  <input class="fld-in" id="tg_title" placeholder="e.g. Electrical fault \u2014 VIP toilet" maxlength="60">
+  <input class="fld-in" id="tg_title" placeholder="e.g. Electrical fault — VIP toilet" maxlength="60">
   <button class="go" onclick="wlTitleGateShort()">Use this short title</button>
   <button class="cancel" onclick="closeModal('titleGateModal')">Cancel</button>
 </div></div>
@@ -2985,8 +2985,8 @@ button:active{ filter: brightness(.93); }
   <h3>One kind per block</h3>
   <p class="mhint" id="bk_hint"></p>
   <div class="assignrow" id="bk_tog"></div>
-  <button class="go" onclick="wlBlockKindGo()">\u2713 Mark the block and log it</button>
-  <button class="cancel" onclick="closeModal('blockKindModal')">Cancel \u2014 don\u2019t log yet</button>
+  <button class="go" onclick="wlBlockKindGo()">✓ Mark the block and log it</button>
+  <button class="cancel" onclick="closeModal('blockKindModal')">Cancel — don’t log yet</button>
 </div></div>
 
 <div class="modal" id="mergeJobModal"><div class="card2">
@@ -4095,7 +4095,10 @@ var CHUNSUB=[], CHUNSENT=[], CHUNSUBREAD=false, CHHASHRS={};
 function chIsRunning(e){ return !(e&&e.finish) && !!(e&&e.start); }
 function chUnsubLoad(){
   if(!ME) return;
-  var now=new Date(), back=new Date(now.getTime()-29*864e5);
+  /* Look back as far as the "finished jobs with no hours" check does. It was 29 days
+     against 60, so every job finished 30-60 days ago looked hourless even when its
+     hours were logged and submitted (Jay, 19 Nov 2026). */
+  var now=new Date(), back=new Date(now.getTime()-NOHRS_DAYS*864e5);
   function d(x){ return x.getFullYear()+"-"+String(x.getMonth()+1).padStart(2,"0")+"-"+String(x.getDate()).padStart(2,"0"); }
   apiGet("fn=crewhours&code="+encodeURIComponent(ME.code||"")+
          "&email="+encodeURIComponent(ME.email||"")+"&from="+d(back)+"&to="+d(now))
@@ -13258,6 +13261,7 @@ function wlogRenderStat(){
   }).join("");
   // A job you're still on hasn't got a completion date — it has a start date.
   $("wl_dayLbl").textContent = (WLOGSTAT==="Complete") ? "Day you did it" : "Day you started";
+  var hh=$("wl_hrsHint"); if(hh) hh.textContent = (WLOGSTAT==="Complete") ? "(needed)" : "(opt)";
 }
 function wlogSetStat(s){ WLOGSTAT=s; wlogRenderStat(); }
 /* =====================================================================
@@ -13888,6 +13892,15 @@ function submitWorkLog(startTimer){
   var hrs  = startTimer ? "" : ($("wl_hours").value||"");
   if(also.length && !(parseFloat(hrs)>0)){
     toast("How many hours for the whole block?"); return;
+  }
+  /* A FINISHED JOB NEEDS ITS HOURS (Trish, 19 Nov 2026). "Done" with the hours box
+     left blank ticked the job off with no time on it, so it never reached a job
+     card. Crew then logged it again with hours, leaving an empty finished copy
+     behind that the "finished jobs with no hours" warning kept counting. */
+  if(!startTimer && WLOGSTAT==="Complete" && !(parseFloat(hrs)>0)){
+    toast("How many hours? A finished job needs its hours to reach the job card.");
+    try{ $("wl_hours").focus(); }catch(e){}
+    return;
   }
   /* A BLOCK MUST BE ONE CATEGORY, AND WE SAY SO BEFORE ANYTHING IS SAVED (Trish, 24 Oct 2026).
      The job card splits scheduled from unscheduled, so one lot of hours can't span both. The server
