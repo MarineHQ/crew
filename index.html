@@ -2125,7 +2125,7 @@ button:active{ filter: brightness(.93); }
     </div>
 
     <div id="apiBar"></div>
-    <div id="buildStamp">Marine HQ Crew · build <b>2026-11-19·a</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
+    <div id="buildStamp">Marine HQ Crew · build <b>2026-11-19·b</b> · <a onclick="location.href=location.pathname+'?v='+Date.now()">tap to update ↻</a></div>
 
   </div>
 
@@ -2213,6 +2213,14 @@ button:active{ filter: brightness(.93); }
   <p class="mhint" id="completeMsg">You’re marking this task as complete.</p>
   <label class="fld">Completed on</label>
   <input type="date" id="completeDate" class="fld-in">
+  <!-- A FINISHED JOB NEEDS ITS HOURS (Trish, 19 Nov 2026). Shown to crew only when
+       the job has no hours on it yet. Hours are saved FIRST, so if they fail the
+       job stays open rather than finished with no time on it. -->
+  <div id="completeHrsBox" style="display:none">
+    <label class="fld">Hours on this job</label>
+    <input type="number" step="0.5" min="0" id="completeHours" class="fld-in" placeholder="e.g. 1.5">
+    <p class="mhint" style="margin-top:6px">No hours on this job yet. Put them in here so it reaches the job card. If the time is already on another job, use ⏱ My hours → Add hours and add this job to that block.</p>
+  </div>
   <button class="jobbtn complete" style="background:#0f766e;margin-top:14px" onclick="confirmComplete()">✓ Confirm complete</button>
   <button class="jobbtn" style="background:none;color:var(--muted);margin-top:4px" onclick="closeCompleteModal()">Cancel</button>
 </div></div>
@@ -11297,10 +11305,33 @@ function openCompleteModal(key){
     ? ("Change the day <b>"+esc(j.task||j.title||"this task")+"</b> was finished.")
     : ("You’re marking <b>"+esc((j&&(j.task||j.title))||"this task")+"</b> as complete — dated below. Change it only if it was finished on a different day.");
   var ttl=$("completeTitle"); if(ttl) ttl.textContent=(j&&j.completed)?"✎ Change the completion date":"✓ Mark task complete";
+  var hb=$("completeHrsBox"); if(hb){ hb.style.display=cmNeedsHours(key, j) ? "" : "none"; $("completeHours").value=""; }
   $("completeModal").classList.add("show");
 }
 function closeCompleteModal(){ $("completeModal").classList.remove("show"); }
-function confirmComplete(){ var d=($("completeDate")&&$("completeDate").value)||""; closeCompleteModal(); wlSetStatus(_completeKey,"Complete",d); }
+/* Crew finishing a job that has no hours on it anywhere (its own or as part of a
+   block). Directors are left alone: they tick jobs off for other people. */
+function cmNeedsHours(key, j){
+  if(isMgrRole()) return false;
+  if(j && j.completed) return false;                 // just changing the date
+  return !CHHASHRS[key];
+}
+function confirmComplete(){
+  var d=($("completeDate")&&$("completeDate").value)||"", key=_completeKey, j=wlFind(key);
+  if(!cmNeedsHours(key, j)){ closeCompleteModal(); wlSetStatus(key,"Complete",d); return; }
+  var h=Math.round((parseFloat(($("completeHours")||{}).value)||0)*2)/2;
+  if(!(h>0)){ toast("How many hours? A finished job needs its hours to reach the job card."); try{ $("completeHours").focus(); }catch(e){} return; }
+  toast("Saving your hours…");
+  apiPost({action:"crewHoursLog", email:ME.email, code:ME.code, jobKey:key,
+           vessel:(j&&j.vessel)||"", task:(j&&(j.task||j.title))||"", jobCode:(j&&j.code)||"",
+           cat:(j&&(j.category||j.cat))||"", date:d, start:"", finish:"", hours:h, breakMins:0, note:""})
+    .then(function(r){
+      if(!r||!r.ok){ toast((r&&r.error)||"Couldn’t save the hours — the job is still open"); return; }
+      CHHASHRS[key]=1;
+      closeCompleteModal(); wlSetStatus(key,"Complete",d);
+      chLoad(true); chUnsubLoad();
+    }).catch(function(){ toast("Couldn’t connect — the job is still open"); });
+}
 function fmtDateTime(ms){
   if(!ms) return "earlier";
   var d=new Date(ms), mon=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()];
@@ -13984,7 +14015,7 @@ function submitWorkLog(startTimer){
                vessel:(r.vessel||vessel), task:t, jobCode:(r.code||""), cat:(r.category||""),
                date:dayDone, hours:hv, note:(r.continued?wlDesc:"")}).then(function(h){
         if(h&&h.ok){ toast("\u2713 Logged \u2014 "+chFmt(h.hours)+" added to My hours, ready to submit"); }
-        else { toast("Job logged, but the hours didn\u2019t save \u2014 add them from \u23f1 My hours"); }
+        else { alert("The job is logged, but the hours didn\u2019t save.\n\nOpen \u23f1 My hours and add them now, or the job won\u2019t reach the job card."); }
         chLoad(true); chUnsubLoad();
       }).catch(function(){ toast("Job logged, but the hours didn\u2019t save \u2014 add them from \u23f1 My hours"); });
     }
